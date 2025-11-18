@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    body {
+      margin: 0;
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(270deg, #047777, #287eff, #21f77a, #c9f506);
+      background-size: 800% 800%;
+      animation: gradientBG 20s ease infinite;
+      color: #fff;
+    }
+
+    @keyframes gradientBG {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      padding: 15px 30px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    header img {
+      height: 150px;
+      margin-right: 20px;
+      margin-top: 50px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: bold;
+      color: #fff;
+      margin: 0;
+    }
+
+    main {
+      flex: 1;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    input#filtro {
+      margin-bottom: 15px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      width: 300px;
+      font-size: 16px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 90%;
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+      color: #fff;
+      font-size: 16px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    th,
+    td {
+      padding: 12px 15px;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.2);
+      font-weight: bold;
+      font-size: 17px;
+      cursor: pointer;
+    }
+
+    tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    a {
+      color: #fff;
+      text-decoration: underline;
+    }
+
+    #paginacao {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #paginacao button {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-weight: bold;
+    }
+
+    #paginacao button.active {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div>
+      <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+        ← Voltar
+      </button>
+    </div>
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo da Empresa">
+    <h1>Logs de Produção</h1>
+  </header>
+
+  <main>
+    <input type="text" id="filtro" placeholder="Filtrar Logs...">
+    <table id="LogsTable">
+      <thead>
+        <tr>
+          <th data-col="0">Cliente</th>
+          <th data-col="1">Número do Projeto</th>
+          <th data-col="2">Observações</th>
+          <th data-col="3">Tempo estimado / tempo real de corte</th>
+          <th data-col="4">Tempo estimado / tempo real de dobra</th>
+          <th data-col="5">Tempo estimado / tempo real de adicionais</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="paginacao"></div>
+  </main>
+
+  <script>
+    const token = "<?= token ?>";
+    const ROWS_PER_PAGE = 10;
+    let currentPage = 1;
+    let dados = [];
+    let filteredData = [];
+
+    const tbody = document.querySelector('#LogsTable tbody');
+    const filtroInput = document.getElementById('filtro');
+    const paginacaoDiv = document.getElementById('paginacao');
+
+    function atualizarDados() {
+      google.script.run.withSuccessHandler((novaData) => {
+        dados = novaData;
+        aplicarFiltro();
+      }).getLogs(); // chama a função do Google Apps Script
+    }
+
+    function aplicarFiltro() {
+      const filtro = filtroInput.value.toLowerCase();
+      filteredData = dados.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(filtro)));
+      currentPage = 1;
+      renderTabela();
+    }
+
+    function renderTabela() {
+      tbody.innerHTML = '';
+      if (!filteredData.length) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center">Nenhum log encontrado</td></tr>`;
+        paginacaoDiv.innerHTML = '';
+        return;
+      }
+
+      const start = (currentPage - 1) * ROWS_PER_PAGE;
+      const end = start + ROWS_PER_PAGE;
+      const pageData = filteredData.slice(start, end);
+
+      pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        ["Cliente", "Número do Projeto", "Observações", "Tempo estimado / tempo real de corte",
+          "Tempo estimado / tempo real de dobra", "Tempo estimado / tempo real de adicionais"].forEach(col => {
+            const td = document.createElement('td');
+            td.textContent = item[col] || '';
+            tr.appendChild(td);
+          });
+        tbody.appendChild(tr);
+      });
+
+      renderPaginacao();
+    }
+
+    function renderPaginacao() {
+      paginacaoDiv.innerHTML = '';
+      const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        if (i === currentPage) btn.classList.add('active');
+        btn.addEventListener('click', () => { currentPage = i; renderTabela(); });
+        paginacaoDiv.appendChild(btn);
+      }
+    }
+
+    filtroInput.addEventListener('input', aplicarFiltro);
+
+    // ===== ORDENAÇÃO =====
+    const cabecalhos = document.querySelectorAll('#LogsTable th');
+    cabecalhos.forEach((th, index) => {
+      th.addEventListener('click', () => {
+        const asc = !th.asc;
+        th.asc = asc;
+        filteredData.sort((a, b) => {
+          const colunas = ["Cliente", "Número do Projeto", "Observações", "Tempo estimado / tempo real de corte",
+            "Tempo estimado / tempo real de dobra", "Tempo estimado / tempo real de adicionais"];
+          let valA = a[colunas[index]] || '';
+          let valB = b[colunas[index]] || '';
+          // tenta ordenar como data se possível
+          const dateA = new Date(valA);
+          const dateB = new Date(valB);
+          if (!isNaN(dateA) && !isNaN(dateB)) {
+            return asc ? dateA - dateB : dateB - dateA;
+          }
+          return asc ? valA.toString().localeCompare(valB.toString()) : valB.toString().localeCompare(valA.toString());
+        });
+        renderTabela();
+      });
+    });
+    function voltarPagina() {
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+    // Atualiza a cada 5 segundos
+    atualizarDados();
+    setInterval(atualizarDados, 5000);
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Gerador de Etiquetas</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(35deg, #a6c0fe, #4d8164, #f9fbb6);
+      background-size: 600% 600%;
+      animation: gradMove 10s ease infinite;
+    }
+
+    @keyframes gradMove {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .form-container {
+      background: rgba(255, 255, 255, 0.7);
+      s backdrop-filter: blur(12px);
+      padding: 30px 36px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 700px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #1a73e8;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: normal;
+      margin-bottom: 4px;
+      color: #232323;
+      font-size: 18px;
+      font-style: bold;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d0d7e6;
+      border-radius: 8px;
+      font-size: 15px;
+      box-sizing: border-box;
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(6px);
+    }
+
+    .dim-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .dim-input input {
+      width: 50%;
+      padding: 10px 12px;
+      border: 1px solid #d0d7e6;
+      border-radius: 8px;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .dim-sep {
+      user-select: none;
+      font-weight: bold;
+      font-size: 16px;
+      color: #333;
+      padding: 6px 4px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 8px;
+      background: #1a73e8;
+      color: white;
+      font-size: 17px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.18s ease;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    button:hover:enabled {
+      background: #1662c1;
+    }
+
+    button:disabled {
+      background: #cfcfcf;
+      cursor: not-allowed;
+    }
+
+    .preview-data {
+      font-size: 13px;
+      color: #555;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 640px) {
+      .two {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<div class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+    ← Voltar
+</div>
+
+<body>
+  <div class="form-container">
+    <h2>Gerador de Etiquetas</h2>
+
+    <div class="form-group">
+      <label for="prop">Propriedade</label>
+      <input type="text" id="prop" value="TUBA FERRAMENTARIA">
+    </div>
+
+    <div class="form-group">
+      <label for="tipo">Tipo</label>
+      <select id="tipo">
+        <option value="">Selecione</option>
+        <option value="Retalho" selected>Retalho</option>
+        <option value="Int.">Int.</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="dim">Dimensões (mm)</label>
+      <div class="dim-input">
+        <input id="dim1" inputmode="numeric" pattern="\d*" maxlength="5" value="3000" />
+        <span class="dim-sep">x</span>
+        <input id="dim2" inputmode="numeric" pattern="\d*" maxlength="5" value="1200" />
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="form-group">
+        <label for="esp">Espessura (mm)</label>
+        <input type="text" id="esp" value="4,5">
+      </div>
+
+      <div class="form-group">
+        <label for="material">Material</label>
+        <div style="display:flex; gap:8px;">
+          <select id="material" style="flex:1;">
+            <option value="ALUMÍNIO">Alumínio</option>
+            <option value="AÇO NÃO QUALIFICADO" selected>Aço não qualificado</option>
+            <option value="AÇO INOX">Aço inox</option>
+            <option value="AÇO ASTM A36">Aço ASTM A36</option>
+            <option value="AÇO ABNT 1010">Aço ABNT 1010</option>
+            <option value="AÇO ABNT 1020">Aço ABNT 1020</option>
+            <option value="FERRO">Ferro</option>
+            <option value="COBRE">Cobre</option>
+            <option value="LATÃO">Latão</option>
+            <option value="outro">Outro…</option>
+          </select>
+          <input type="text" id="materialOutro" placeholder="Digite material" style="flex:2; display:none;">
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="form-group">
+        <label for="dataEntrada">Data de Entrada</label>
+        <input type="date" id="dataEntrada" value="">
+        <div id="dataPreview" class="preview-data"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="fornecedor">Fornecedor</label>
+        <div style="display:flex; gap:8px;">
+          <select id="fornecedor" style="flex:1;">
+            <option value="ALDIFER" selected>Aldifer</option>
+            <option value="ALUMÍNIO ABD">Alumínio ABD</option>
+            <option value="ACERLOR MITTAL">Acerlor Mittal</option>
+            <option value="HIPER FERRO">Hiper Ferro</option>
+            <option value="PIRES DO RIO">Pires do Rio</option>
+            <option value="SÓ METAIS">Só Metais</option>
+            <option value="SIANFER">Sianfer</option>
+            <option value="SOUFER">Soufer</option>
+            <option value="SUL FERRO">Sul Ferro</option>
+            <option value="outro">Outro…</option>
+          </select>
+          <input type="text" id="fornecedorOutro" placeholder="Digite fornecedor" style="flex:2; display:none;">
+        </div>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="form-group">
+        <label for="nf">Nota Fiscal (NF)</label>
+        <input type="text" id="nf" value="1234">
+      </div>
+      <div class="form-group">
+        <label for="codigo">Código da Chapa</label>
+        <input type="text" id="codigo" value="CHP-001">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="qtde">Qtde Chapas</label>
+      <input type="text" id="qtde" value="1">
+    </div>
+
+    <button id="gerarBtn" type="button">Gerar Etiqueta</button>
+  </div>
+
+  <script>
+    const token = "<?= token ?>";
+
+
+    (function () {
+
+      const btn = document.getElementById("gerarBtn");
+      const prop = document.getElementById("prop");
+      const tipo = document.getElementById("tipo");
+      const dim1 = document.getElementById("dim1");
+      const dim2 = document.getElementById("dim2");
+      const esp = document.getElementById("esp");
+      const material = document.getElementById("material");
+      const materialOutro = document.getElementById("materialOutro");
+      const dataEntrada = document.getElementById("dataEntrada");
+      const fornecedor = document.getElementById("fornecedor");
+      const fornecedorOutro = document.getElementById("fornecedorOutro");
+      const nf = document.getElementById("nf");
+      const codigo = document.getElementById("codigo");
+      const dataPreview = document.getElementById("dataPreview");
+      const qtde = document.getElementById("qtde");
+
+      // data de hoje
+      const hoje = new Date();
+      const ano = hoje.getFullYear();
+      const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+      const dia = String(hoje.getDate()).padStart(2, '0');
+      dataEntrada.value = `${ano}-${mes}-${dia}`;
+
+      // só números nos campos de dimensão
+      function onlyDigits(el) {
+        el.addEventListener("input", function () {
+          this.value = this.value.replace(/\D/g, "").slice(0, 6);
+        });
+      }
+      onlyDigits(dim1);
+      onlyDigits(dim2);
+
+      // lidar com "Outro"
+      function setupOutro(selectEl, outroEl) {
+        selectEl.addEventListener("change", () => {
+          outroEl.style.display = selectEl.value === "outro" ? "block" : "none";
+        });
+        outroEl.addEventListener("blur", () => {
+          const val = outroEl.value.trim();
+          if (val && !Array.from(selectEl.options).some(o => o.value === val)) {
+            const option = document.createElement("option");
+            option.value = val;
+            option.text = val;
+            selectEl.insertBefore(option, selectEl.querySelector('option[value="outro"]'));
+            selectEl.value = val;
+            outroEl.style.display = "none";
+          }
+        });
+      }
+      setupOutro(material, materialOutro);
+      setupOutro(fornecedor, fornecedorOutro);
+
+      function collectDados() {
+        const dimA = dim1.value.trim() || "";
+        const dimB = dim2.value.trim() || "";
+        const mat = material.value === "outro" ? materialOutro.value.trim() : material.value;
+        const forn = fornecedor.value === "outro" ? fornecedorOutro.value.trim() : fornecedor.value;
+
+        return {
+          prop: prop.value.trim(),
+          tipo: tipo.value,
+          dim: (dimA || dimB) ? `${dimA} x ${dimB}` : "",
+          dim1: dimA,
+          dim2: dimB,
+          esp: esp.value.trim(),
+          material: mat,
+          dataEntrada: dataEntrada.value,
+          fornecedor: forn,
+          nf: nf.value.trim(),
+          codigo: codigo.value.trim(),
+          qtde: qtde.value.trim()
+        };
+      }
+
+      btn.addEventListener("click", function () {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.innerText = "Gerando...";
+
+        const dados = collectDados();
+
+        google.script.run
+          .withSuccessHandler(function (url) {
+            if (url) window.open(url, "_blank");
+            btn.innerText = "✅ Gerada!";
+            setTimeout(() => {
+              btn.disabled = false;
+              btn.innerText = "Gerar Etiqueta";
+            }, 1200);
+          })
+          .withFailureHandler(function (err) {
+            alert("Erro ao gerar etiqueta: " + (err.message || err));
+            btn.disabled = false;
+            btn.innerText = "Gerar Etiqueta";
+          })
+          .gerarEtiqueta(dados, token);
+      });
+    })();
+    function voltarPagina() {
+      if (!token) {
+        alert("Token não encontrado — recarregue a página.");
+        return;
+      }
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+  </script>
+</body>
+
+</html>

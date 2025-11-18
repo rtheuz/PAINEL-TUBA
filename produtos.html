@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    body {
+      margin: 0;
+      font-family: 'Montserrat', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(270deg, #23b9ff, #4effbb, #e5a8fd, #ffdb63);
+      background-size: 800% 800%;
+      animation: gradientBG 20s ease infinite;
+      color: #fff;
+    }
+
+    @keyframes gradientBG {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      padding: 15px 30px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    header img {
+      height: 150px;
+      margin-right: 20px;
+      margin-top: 50px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: bold;
+      color: #fff;
+      margin: 0;
+    }
+
+    main {
+      flex: 1;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    input#filtro {
+      margin-bottom: 15px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: none;
+      width: 300px;
+      font-size: 16px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 90%;
+      backdrop-filter: blur(10px);
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+      color: #fff;
+      font-size: 16px;
+    }
+
+    th,
+    td {
+      padding: 12px 15px;
+      text-align: left;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.2);
+      font-weight: bold;
+      font-size: 17px;
+      cursor: pointer;
+    }
+
+    tr:nth-child(even) {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    a {
+      color: #fff;
+      text-decoration: underline;
+    }
+
+    #paginacao {
+      margin-top: 15px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    #paginacao button {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      font-weight: bold;
+    }
+
+    #paginacao button.active {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div>
+      <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()"
+        title="Voltar">
+        ← Voltar
+      </button>
+    </div>
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo da Empresa">
+    <h1>Produtos</h1>
+  </header>
+
+  <main>
+    <input type="text" id="filtro" placeholder="Filtrar produtos...">
+    <table id="produtosTable">
+      <thead>
+        <tr>
+          <th data-col="0">Cliente</th>
+          <th data-col="1">Código</th>
+          <th data-col="2">Data</th>
+          <th data-col="3">Informações do Produto</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div id="paginacao"></div>
+  </main>
+
+  <script>
+    const token = "<?= token ?>";
+    // ===== DADOS PASSADOS PELO HTML / GAS =====
+    const dados = <?!= JSON.stringify(dados || []) ?>;
+    const ROWS_PER_PAGE = 10;
+
+    let currentPage = 1;
+    let filteredData = dados;
+
+    const tbody = document.querySelector('#produtosTable tbody');
+    const filtroInput = document.getElementById('filtro');
+    const paginacaoDiv = document.getElementById('paginacao');
+
+    // ===== FUNÇÃO PARA RENDERIZAR TABELA =====
+    function renderTabela() {
+      tbody.innerHTML = '';
+      if (!filteredData || filteredData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">Nenhum produto encontrado</td></tr>`;
+        paginacaoDiv.innerHTML = '';
+        return;
+      }
+
+      const start = (currentPage - 1) * ROWS_PER_PAGE;
+      const end = start + ROWS_PER_PAGE;
+      const pageData = filteredData.slice(start, end);
+
+      pageData.forEach(item => {
+        const tr = document.createElement('tr');
+        const pdfLink = item["Informações do Produto"] || '';
+        [item["Cliente"] || '', item["Código"] || '', item["Data"] || '', ''].forEach((text, i) => {
+          const td = document.createElement('td');
+          if (i === 3 && pdfLink) {
+            const a = document.createElement('a');
+            a.href = pdfLink;
+            a.target = '_blank';
+            a.textContent = 'Abrir PDF';
+            td.appendChild(a);
+          } else { td.textContent = text; }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      renderPaginacao();
+    }
+
+    // ===== PAGINAÇÃO =====
+    function renderPaginacao() {
+      paginacaoDiv.innerHTML = '';
+      const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        if (i === currentPage) btn.classList.add('active');
+        btn.addEventListener('click', () => { currentPage = i; renderTabela(); });
+        paginacaoDiv.appendChild(btn);
+      }
+    }
+
+    // ===== FILTRO =====
+    filtroInput.addEventListener('input', function () {
+      const filtro = this.value.toLowerCase();
+      filteredData = dados.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(filtro)));
+      currentPage = 1;
+      renderTabela();
+    });
+
+    // ===== ORDENAÇÃO =====
+    const cabecalhos = document.querySelectorAll('#produtosTable th');
+    cabecalhos.forEach(th => {
+      th.addEventListener('click', () => {
+        const index = parseInt(th.dataset.col);
+        const asc = !th.asc;
+        th.asc = asc;
+        filteredData.sort((a, b) => {
+          const keys = ["Cliente", "Código", "Data", "Informações do Produto"];
+          let valA = a[keys[index]] || '';
+          let valB = b[keys[index]] || '';
+          if (index === 2) { // data
+            return asc ? new Date(valA) - new Date(valB) : new Date(valB) - new Date(valA);
+          }
+          return asc ? valA.toString().localeCompare(valB.toString()) : valB.toString().localeCompare(valA.toString());
+        });
+        renderTabela();
+      });
+    });
+    function voltarPagina() {
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+    renderTabela();
+  </script>
+</body>
+
+</html>

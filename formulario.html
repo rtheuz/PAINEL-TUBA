@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <base target="_top">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+        /* Layout geral */
+        :root {
+            --accent: #1a73e8;
+            --muted: #666;
+            --card-bg: #fff;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 12px;
+            background: #f5f7fb;
+            color: #222;
+        }
+
+        h1,
+        h2,
+        h3 {
+            margin: 0 0 8px 0;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Card/Section */
+        .section {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .section small {
+            color: var(--muted);
+        }
+
+        /* Form grid */
+        .row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .col {
+            flex: 1 1 220px;
+            min-width: 180px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        /* Buttons */
+        button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .btn {
+            appearance: none;
+            border: none;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            background: #1a73e8;
+            color: white;
+        }
+
+        button.secondary {
+            background: #fff;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .muted-btn {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        /* chapa / peca / processo cards */
+        .chapa,
+        .peca,
+        .processo {
+            border: 1px dashed #e0e6f0;
+            padding: 10px;
+            border-radius: 8px;
+            background: #fafcff;
+            margin-bottom: 10px;
+        }
+
+        .titulo {
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .controls {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* hidden groups */
+        .hidden {
+            display: none !important;
+        }
+
+        /* small inline labels */
+        .inline {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .inline label {
+            width: auto;
+            margin: 0;
+            font-size: 13px;
+        }
+
+        /* footer note */
+        .note {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        /* responsive */
+        @media (max-width: 720px) {
+            .row {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<div class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+    ← Voltar
+</div>
+
+<body>
+    <div class="container">
+        <h1>Novo Orçamento</h1>
+
+        <!-- PROJETO / PASTA -->
+        <div class="section" id="projetoSection">
+            <div class="section-header">
+                <div>
+                    <h3>Projeto / Pasta</h3>
+                    <small>Preencha os dados do código do projeto e versão do orçamento</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Data (YYMMDD):</label>
+                    <input type="text" id="projetoData">
+                </div>
+                <div class="col">
+                    <label>Índice:</label>
+                    <input type="text" id="projetoIndice" value="a">
+                </div>
+                <div class="col">
+                    <label>Iniciais:</label>
+                    <input type="text" id="projetoIniciais" value="">
+                </div>
+                <div class="col">
+                    <label>Versão do orçamento:</label>
+                    <input type="text" id="projetoVersao" value="" placeholder="Ex: v2, v3...">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:10px;">
+                <div class="col">
+                    <label>Nome da Pasta:</label>
+                    <input type="text" id="projetoPasta"
+                        placeholder="Nome da pasta depois do número do projeto (Ex: 250922aBR COT - Nome da pasta)">
+                </div>
+            </div>
+        </div>
+
+        <!-- CLIENTE -->
+        <div class="section" id="clienteSection">
+            <div class="section-header">
+                <div>
+                    <h3>Cliente</h3>
+                    <small>Selecione um cliente existente ou preencha um novo</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Selecionar Cliente:</label>
+                    <select id="clienteSelect">
+                        <option value="">-- Novo Cliente --</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label>Nome:</label>
+                    <input type="text" id="clienteNome">
+                </div>
+                <div class="col">
+                    <label>CPF/CNPJ:</label>
+                    <input type="text" id="clienteCpf">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
+                <div class="col">
+                    <label>Endereço:</label>
+                    <input type="text" id="clienteEndereco">
+                </div>
+                <div class="col">
+                    <label>Telefone:</label>
+                    <input type="text" id="clienteTelefone">
+                </div>
+                <div class="col">
+                    <label>Email:</label>
+                    <input type="text" id="clienteEmail">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
+                <div class="col">
+                    <label>Responsável:</label>
+                    <input type="text" id="clienteResponsavel">
+                </div>
+                <div class="col">
+                    <label>Data:</label>
+                    <input type="date" id="clienteData">
+                </div>
+            </div>
+        </div>
+
+        <!-- ITENS DO ORÇAMENTO -->
+        <div class="section" id="chapasSection">
+            <div class="section-header">
+                <div>
+                    <h3>Itens do Orçamento</h3>
+                    <small>Adicione chapas e peças — você pode incluir processos adicionais por peça</small>
+                </div>
+                <div>
+                    <button type="button" onclick="addChapa()">+ Adicionar Chapa</button>
+                </div>
+            </div>
+
+            <div id="chapasContainer"></div>
+        </div>
+
+        <!-- PROCESSOS ADICIONAIS DO PEDIDO -->
+        <div class="section" id="processosPedidoSection">
+            <div class="section-header">
+                <div>
+                    <h3>Processos Adicionais do Pedido</h3>
+                    <small>Processos que englobam todo o pedido (embalagens, envios, etc.)</small>
+                </div>
+                <div>
+                    <button type="button" onclick="addProcessoPedido()">+ Adicionar Processo</button>
+                </div>
+            </div>
+            <div id="processosPedidoContainer"></div>
+        </div>
+
+
+        <!-- OUTRAS INFORMAÇÕES -->
+        <div class="section" id="observacoesSection">
+            <div class="section-header">
+                <div>
+                    <h3>Outras Informações</h3>
+                    <small>Informações adicionais para o orçamento/PDF</small>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Projeto (código):</label>
+                    <input type="text" id="obsProjeto" readonly>
+                </div>
+                <div class="col">
+                    <label>Previsão de faturamento:</label>
+                    <input type="date" id="obsFaturamento">
+                </div>
+                <div class="col">
+                    <label>Vendedor:</label>
+                    <input type="text" id="obsVendedor" placeholder="Nome do vendedor">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
+                <div class="col">
+                    <label>Condições do material:</label>
+                    <select id="obsMaterialCond">
+                        <option value="">Selecione</option>
+                        <option value="Incluso">Incluso</option>
+                        <option value="Não incluso">Não incluso</option>
+                    </select>
+                </div>
+                <div class="col">
+                    <label>Pagamento:</label>
+                    <input type="text" id="obsPagamento" placeholder="Ex: À vista / Parcelado 3x">
+                </div>
+            </div>
+
+            <div style="margin-top:8px;">
+                <label>Observações adicionais:</label>
+                <textarea id="obsAdicional" rows="4"></textarea>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:40px; flex-wrap:wrap;">
+            <button type="button" class="secondary" onclick="salvarRascunho()">Salvar Rascunho</button>
+
+            <select id="rascunhoSelect" style="padding: 8px; border-radius: 6px;"></select>
+            <button type="button" class="secondary" onclick="carregarRascunhoSelecionado()">Carregar Rascunho</button>
+            <button type="button" class="secondary muted-btn" onclick="deletarRascunhoSelecionado()">Deletar
+                Rascunho</button>
+
+            <button id="btnGerar" onclick="calcular()">Calcular Orçamento e Gerar PDF</button>
+            <button class="secondary muted-btn" onclick="window.close()">Fechar</button>
+            <div class="note">Dica: preencha a versão do orçamento para controlar o nome do arquivo (ex.: "v1", "v2" ou
+                "v3").</div>
+        </div>
+    </div>
+
+    <script>
+        const token = "<?= token ?>"; // token deve ser string
+
+        if (token) {
+            google.script.run
+                .withSuccessHandler(function (usuarioObj) {
+                    if (!usuarioObj) return;
+
+                    // Preenche nome completo do vendedor
+                    const vendedorInput = document.getElementById("obsVendedor");
+                    vendedorInput.value = usuarioObj.usuario || "";
+
+                    // Preenche iniciais personalizadas
+                    // const iniciaisInput = document.getElementById("projetoIniciais");
+                    // iniciaisInput.value = usuarioObj.iniciais || "";
+
+                })
+                .getUsuarioLogadoPorToken(token);
+        }
+
+        /* ---------- INICIALIZAÇÃO ---------- */
+
+
+        const today = new Date();
+        document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
+            String(today.getMonth() + 1).padStart(2, '0') +
+            String(today.getDate()).padStart(2, '0');
+        document.getElementById("clienteData").value = today.toISOString().slice(0, 10);
+        document.getElementById("obsFaturamento").value = today.toISOString().slice(0, 10);
+
+        /* ---------- CLIENTE ---------- */
+        let listaClientes = [];
+        function carregarClientes() {
+            google.script.run.withSuccessHandler(function (clientes) {
+                listaClientes = clientes;
+                const select = document.getElementById("clienteSelect");
+                clientes.forEach(c => {
+                    const opt = document.createElement("option");
+                    opt.value = c.nome;
+                    opt.text = c.nome;
+                    select.add(opt);
+                });
+            }).getTodosClientes();
+        }
+        carregarClientes();
+
+        document.getElementById("clienteSelect").addEventListener("change", function () {
+            const nome = this.value;
+            const c = listaClientes.find(cli => cli.nome === nome);
+            if (c) {
+                document.getElementById("clienteNome").value = c.nome;
+                document.getElementById("clienteCpf").value = c.cpf || "";
+                document.getElementById("clienteEndereco").value = c.endereco || "";
+                document.getElementById("clienteTelefone").value = c.telefone || "";
+                document.getElementById("clienteEmail").value = c.email || "";
+            } else {
+                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => document.getElementById(id).value = "");
+            }
+        });
+
+        /* ---------- PROJETO / PASTA ---------- */
+        function atualizarCamposProjeto() {
+            const data = document.getElementById("projetoData").value;
+            const indice = document.getElementById("projetoIndice").value;
+            const iniciais = document.getElementById("projetoIniciais").value;
+            const versao = document.getElementById("projetoVersao").value;
+            const codigoProjeto = data + indice + iniciais;
+            document.getElementById("obsProjeto").value = codigoProjeto;
+
+
+
+            google.script.run.withSuccessHandler(function (nomePasta) {
+                document.getElementById("projetoPasta").value = nomePasta || "";
+            }).buscarNomePastaPorCodigo(codigoProjeto);
+        }
+
+        ["projetoData", "projetoIndice", "projetoIniciais", "projetoVersao"].forEach(id => {
+            document.getElementById(id).addEventListener("input", atualizarCamposProjeto);
+        });
+        atualizarCamposProjeto();
+
+        /* ---------- CHAPAS / PEÇAS ---------- */
+        let chapaCount = 0;
+
+        function addChapa() {
+            chapaCount++;
+            const div = document.createElement("div");
+            div.className = "chapa";
+            div.id = "chapa" + chapaCount;
+            div.innerHTML = `
+    <div class="titulo">Dados da Chapa</div>
+
+    <div class="row">
+      <div class="col">
+        <label>Material:</label>
+        <select class="material">
+          <option>AÇO CARBONO</option>
+          <option>ALUMÍNIO</option>
+          <option>INOX 200 OU 300</option>
+          <option>INOX 400</option>
+          <option>LATÃO</option>
+          <option>COBRE</option>
+        </select>
+      </div>
+      <div class="col">
+        <label>Comprimento (mm):</label>
+        <input type="number" class="chapaComprimento">
+      </div>
+      <div class="col">
+        <label>Largura (mm):</label>
+        <input type="number" class="chapaLargura">
+      </div>
+      <div class="col">
+        <label>Espessura (mm):</label>
+        <input type="number" class="chapaEspessura">
+      </div>
+    </div>
+
+<div style="margin-top:8px;" class="inline">
+  <label>Conjunto de peças:</label><input type="checkbox" class="isConjunto">
+  <div class="conjuntoFields hidden" style="margin-left:12px;">
+    <label>Descrição do conjunto:</label><input type="text" class="descricaoConjunto"><br>
+    <label>Código do conjunto:</label><input type="text" class="codigoConjunto"><br>
+    <label>Quantidade:</label><input type="number" class="quantidadeConjunto" value="1" min="1">
+  </div>
+</div>
+
+
+    <div class="pecasContainer" style="margin-top:12px;"></div>
+
+    <div class="controls">
+      <button type="button" onclick="addPeca('${div.id}')">+ Adicionar Peça</button>
+      <button type="button" class="secondary" onclick="removeElement('${div.id}')">Remover Chapa</button>
+    </div>
+  `;
+            document.getElementById("chapasContainer").appendChild(div);
+
+            // toggle conjunto
+            const isConjunto = div.querySelector(".isConjunto");
+            const conjuntoFields = div.querySelector(".conjuntoFields");
+            // ensure initial state
+            isConjunto.checked = false;
+            conjuntoFields.classList.add("hidden");
+            isConjunto.addEventListener("change", () => {
+                if (isConjunto.checked) conjuntoFields.classList.remove("hidden");
+                else conjuntoFields.classList.add("hidden");
+                div.querySelectorAll(".peca").forEach(p => {
+                    togglePecaDescCod(p, isConjunto.checked);
+                });
+            });
+
+            addPeca(div.id);
+        }
+
+        function togglePecaDescCod(pDiv, hide) {
+            const desc = pDiv.querySelector(".descricao");
+            const cod = pDiv.querySelector(".codigo");
+            const lblDesc = pDiv.querySelector(".lblDescricao");
+            const lblCod = pDiv.querySelector(".lblCodigo");
+            if (!desc || !cod) return;
+            desc.style.display = hide ? "none" : "inline-block";
+            cod.style.display = hide ? "none" : "inline-block";
+            if (lblDesc) lblDesc.style.display = hide ? "none" : "inline-block";
+            if (lblCod) lblCod.style.display = hide ? "none" : "inline-block";
+        }
+
+        // add piece
+        function addPeca(chapaId) {
+            const chapaDiv = document.getElementById(chapaId);
+            const container = chapaDiv.querySelector(".pecasContainer");
+            const div = document.createElement("div");
+            div.className = "peca";
+            div.innerHTML = `
+    <div class="titulo">Dados da Peça</div>
+
+    <div class="row">
+      <div class="col">
+        <label class="lblDescricao">Descrição:</label><input type="text" class="descricao">
+      </div>
+      <div class="col">
+        <label class="lblCodigo">Código:</label><input type="text" class="codigo">
+      </div>
+      <div class="col">
+        <label>Comprimento (mm):</label><input type="number" class="pecaComprimento">
+      </div>
+      <div class="col">
+        <label>Largura (mm):</label><input type="number" class="pecaLargura">
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <div class="col"><label>Nº Peças Lote:</label><input type="number" class="numPecasLote"></div>
+      <div class="col"><label>Nº Peças/Chapa:</label><input type="number" class="numPecasChapa"></div>
+    </div>
+
+    <div style="margin-top:8px;" class="inline">
+      <label>Peça possui corte:</label><input type="checkbox" class="temCorte">
+      <div class="corteFields hidden" style="margin-left:12px;">
+        <label>Tempo de Corte (s):</label><input type="number" class="tempoCorte"><br>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;" class="inline">
+      <label>Peça possui dobra:</label><input type="checkbox" class="temDobra">
+      <div class="dobraFields hidden" style="margin-left:12px;">
+        <label>Nº Dobras:</label><input type="number" class="numDobras"><br>
+        <label>Tempo por dobra (s):</label><input type="number" class="tempoDobra">
+        <label>Tempo de Setup (min): </label><input type="number" class="setupDobra">
+      </div>
+    </div>
+
+    <div style="margin-top:8px;" class="inline">
+      <label>Processos adicionais:</label><input type="checkbox" class="temProcessos">
+      
+      <div class="processosContainer hidden" style="margin-left:12px;">
+        <div class="processosList"></div>
+        <div style="margin-top:6px;">
+          <button type="button" class="secondary btnAddProcess">+ Adicionar Processo</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls" style="margin-top:8px;">
+      <button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover Peça</button>
+    </div>
+  `;
+            container.appendChild(div);
+
+            // corte toggle
+            const temCorte = div.querySelector(".temCorte");
+            const corteFields = div.querySelector(".corteFields");
+            temCorte.checked = false;
+            corteFields.classList.add("hidden");
+            temCorte.addEventListener("change", () => {
+                if (temCorte.checked) corteFields.classList.remove("hidden");
+                else corteFields.classList.add("hidden");
+            });
+
+            // dobra toggle
+            const temDobra = div.querySelector(".temDobra");
+            const dobraFields = div.querySelector(".dobraFields");
+            temDobra.checked = false;
+            dobraFields.classList.add("hidden");
+            temDobra.addEventListener("change", () => {
+                if (temDobra.checked) dobraFields.classList.remove("hidden");
+                else dobraFields.classList.add("hidden");
+            });
+
+            // processos toggle & add
+            const temProcessos = div.querySelector(".temProcessos");
+            const processosContainer = div.querySelector(".processosContainer");
+            const processosList = div.querySelector(".processosList");
+            const btnAddProcess = div.querySelector(".btnAddProcess");
+            temProcessos.checked = false;
+            processosContainer.classList.add("hidden");
+            temProcessos.addEventListener("change", () => {
+                if (temProcessos.checked) processosContainer.classList.remove("hidden");
+                else processosContainer.classList.add("hidden");
+            });
+            div.querySelector(".btnAddProcess").addEventListener("click", () => addProcesso(processosList));
+
+            // if parent chapa has conjunto checked -> hide desc/cod
+            const parentConjunto = chapaDiv.querySelector(".isConjunto");
+            if (parentConjunto && parentConjunto.checked) {
+                div.querySelector(".descricao").style.display = "none";
+                div.querySelector(".codigo").style.display = "none";
+                const lblD = div.querySelector(".lblDescricao");
+                if (lblD) lblD.style.display = "none";
+                const lblC = div.querySelector(".lblCodigo");
+                if (lblC) lblC.style.display = "none";
+            }
+        }
+
+        function addProcesso(listDiv) {
+            const div = document.createElement("div");
+            div.className = "processo";
+            div.style.marginBottom = "8px";
+            div.innerHTML = `
+    <div class="row">
+      <div class="col"><label>Descrição:</label><input type="text" class="procDescricao"></div>
+      <div class="col"><label>Tempo de setup (h):</label><input type="number" step="any" class="procSetup"></div>
+      <div class="col"><label>Valor da hora:</label><input type="number" step="any" class="procValorHora"></div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <div class="col"><label>Horas:</label><input type="number" step="any" class="procHoras"></div>
+      <div class="col"><label>Material:</label><input type="text" class="procMaterial"></div>
+      <div class="col"><label>Quantidade (mat):</label><input type="number" step="any" class="procQtdMat"></div>
+      <div class="col"><label>Valor venda (mat):</label><input type="number" step="any" class="procValorMat"></div>
+    </div>
+    <div style="margin-top:6px;">
+      <button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover Processo</button>
+    </div>
+  `;
+            listDiv.appendChild(div);
+        }
+
+        function addProcessoPedido() {
+            const container = document.getElementById("processosPedidoContainer");
+            const div = document.createElement("div");
+            div.className = "procPedido";
+            div.style.border = "1px dashed #e0e6f0";
+            div.style.padding = "10px";
+            div.style.marginBottom = "8px";
+            div.innerHTML = `
+    <div class="row">
+      <div class="col" style="flex-basis: 100%; margin-bottom:4px;">
+        <label>Descrição:</label>
+        <input type="text" class="procPedidoDescricao" placeholder="Descrição do processo" style="width: 100%;">
+      </div>
+      <div class="col"><label>Valor hora:</label><input type="number" step="any" class="procPedidoValorHora"></div>
+      <div class="col"><label>Horas:</label><input type="number" step="any" class="procPedidoHoras"></div>
+      <div class="col"><label>Material:</label><input type="text" class="procPedidoMaterial"></div>
+      <div class="col"><label>Valor venda (mat):</label><input type="number" step="any" class="procPedidoValorMat"></div>
+      <div class="col"><label>Quantidade (mat):</label><input type="number" step="any" class="procPedidoQtdMat"></div>
+      <div class="col"><label>Valor fixo:</label><input type="number" step="any" class="procPedidoValorFixo"></div>
+    </div>
+    <div style="margin-top:6px;">
+      <button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover Processo</button>
+    </div>
+  `;
+            container.appendChild(div);
+        }
+
+
+        function removeElement(idOrElem) {
+            const el = typeof idOrElem === "string" ? document.getElementById(idOrElem) : idOrElem;
+            if (!el) return;
+
+            if (el.classList && (el.classList.contains('peca') || el.classList.contains('processo') || el.classList.contains('chapa'))) {
+                el.remove();
+                return;
+            }
+
+            const peca = el.closest('.peca');
+            if (peca && el !== peca) {
+                el.remove();
+                return;
+            }
+
+            el.remove();
+        }
+
+        /* ------------------------------------------------------------- */
+        /* ---------- NOVAS FUNÇÕES: RASCUNHO (SALVAR/CARREGAR) ---------- */
+        /* ------------------------------------------------------------- */
+
+        // Função para coletar todos os dados do formulário em um objeto JSON
+        function coletarDadosFormulario() {
+            const formData = {};
+
+            // 1. Projeto
+            formData.projeto = {
+                data: document.getElementById("projetoData").value,
+                indice: document.getElementById("projetoIndice").value,
+                iniciais: document.getElementById("projetoIniciais").value,
+                versao: document.getElementById("projetoVersao").value,
+                pasta: document.getElementById("projetoPasta").value
+            };
+
+            // 2. Cliente
+            formData.cliente = {
+                select: document.getElementById("clienteSelect").value,
+                nome: document.getElementById("clienteNome").value,
+                cpf: document.getElementById("clienteCpf").value,
+                endereco: document.getElementById("clienteEndereco").value,
+                telefone: document.getElementById("clienteTelefone").value,
+                email: document.getElementById("clienteEmail").value,
+                responsavel: document.getElementById("clienteResponsavel").value,
+                data: document.getElementById("clienteData").value
+            };
+
+            // 3. Chapas / Peças / Processos
+            formData.chapas = [];
+            document.querySelectorAll(".chapa").forEach(cDiv => {
+                const chapa = {
+                    material: cDiv.querySelector(".material")?.value || "",
+                    comprimento: cDiv.querySelector(".chapaComprimento")?.value || "",
+                    largura: cDiv.querySelector(".chapaLargura")?.value || "",
+                    espessura: cDiv.querySelector(".chapaEspessura")?.value || "",
+                    isConjunto: cDiv.querySelector(".isConjunto")?.checked || false,
+                    descricaoConjunto: cDiv.querySelector(".descricaoConjunto")?.value || "",
+                    codigoConjunto: cDiv.querySelector(".codigoConjunto")?.value || "",
+                    quantidadeConjunto: cDiv.querySelector(".quantidadeConjunto")?.value || "1",
+                    pecas: []
+                };
+
+                cDiv.querySelectorAll(".peca").forEach(pDiv => {
+                    const peca = {
+                        descricao: pDiv.querySelector(".descricao")?.value || "",
+                        codigo: pDiv.querySelector(".codigo")?.value || "",
+                        comprimento: pDiv.querySelector(".pecaComprimento")?.value || "",
+                        largura: pDiv.querySelector(".pecaLargura")?.value || "",
+                        numPecasLote: pDiv.querySelector(".numPecasLote")?.value || "",
+                        numPecasChapa: pDiv.querySelector(".numPecasChapa")?.value || "",
+                        // Corte
+                        temCorte: pDiv.querySelector(".temCorte")?.checked || false,
+                        tempoCorte: pDiv.querySelector(".tempoCorte")?.value || "",
+                        // Dobra
+                        temDobra: pDiv.querySelector(".temDobra")?.checked || false,
+                        numDobras: pDiv.querySelector(".numDobras")?.value || "",
+                        tempoDobra: pDiv.querySelector(".tempoDobra")?.value || "",
+                        setupDobra: pDiv.querySelector(".setupDobra")?.value || "",
+                        // Processos Adicionais
+                        temProcessos: pDiv.querySelector(".temProcessos")?.checked || false,
+                        processos: []
+                    };
+
+                    pDiv.querySelectorAll(".processo").forEach(procDiv => {
+                        peca.processos.push({
+                            descricao: procDiv.querySelector(".procDescricao")?.value || "",
+                            setup: procDiv.querySelector(".procSetup")?.value || "",
+                            valorHora: procDiv.querySelector(".procValorHora")?.value || "",
+                            horas: procDiv.querySelector(".procHoras")?.value || "",
+                            material: procDiv.querySelector(".procMaterial")?.value || "",
+                            qtdMat: procDiv.querySelector(".procQtdMat")?.value || "",
+                            valorMat: procDiv.querySelector(".procValorMat")?.value || ""
+                        });
+                    });
+
+                    chapa.pecas.push(peca);
+                });
+
+                formData.chapas.push(chapa);
+            });
+
+            // 4. Processos do Pedido
+            formData.processosPedido = [];
+            document.querySelectorAll(".procPedido").forEach(procDiv => {
+                formData.processosPedido.push({
+                    descricao: procDiv.querySelector(".procPedidoDescricao")?.value || "",
+                    valorHora: procDiv.querySelector(".procPedidoValorHora")?.value || "",
+                    horas: procDiv.querySelector(".procPedidoHoras")?.value || "",
+                    material: procDiv.querySelector(".procPedidoMaterial")?.value || "",
+                    valorMat: procDiv.querySelector(".procPedidoValorMat")?.value || "",
+                    qtdMat: procDiv.querySelector(".procPedidoQtdMat")?.value || "",
+                    valorFixo: procDiv.querySelector(".procPedidoValorFixo")?.value || ""
+                });
+            });
+
+            // 5. Outras Informações
+            formData.observacoes = {
+                faturamento: document.getElementById("obsFaturamento").value,
+                vendedor: document.getElementById("obsVendedor").value,
+                materialCond: document.getElementById("obsMaterialCond").value,
+                pagamento: document.getElementById("obsPagamento").value,
+                adicional: document.getElementById("obsAdicional").value,
+                projeto: document.getElementById("obsProjeto").value
+            };
+
+            return formData;
+        }
+
+        // Função para preencher o formulário a partir de um objeto JSON
+        function preencherFormulario(data) {
+            if (!data) return;
+
+            // 1. Projeto
+            document.getElementById("projetoData").value = data.projeto.data || "";
+            document.getElementById("projetoIndice").value = data.projeto.indice || "";
+            document.getElementById("projetoIniciais").value = data.projeto.iniciais || "";
+            document.getElementById("projetoVersao").value = data.projeto.versao || "";
+            document.getElementById("projetoPasta").value = data.projeto.pasta || "";
+            atualizarCamposProjeto();
+
+            // 2. Cliente
+            document.getElementById("clienteSelect").value = data.cliente.select || "";
+            document.getElementById("clienteNome").value = data.cliente.nome || "";
+            document.getElementById("clienteCpf").value = data.cliente.cpf || "";
+            document.getElementById("clienteEndereco").value = data.cliente.endereco || "";
+            document.getElementById("clienteTelefone").value = data.cliente.telefone || "";
+            document.getElementById("clienteEmail").value = data.cliente.email || "";
+            document.getElementById("clienteResponsavel").value = data.cliente.responsavel || "";
+            document.getElementById("clienteData").value = data.cliente.data || "";
+
+            // 3. Outras Informações
+            document.getElementById("obsFaturamento").value = data.observacoes.faturamento || "";
+            document.getElementById("obsVendedor").value = data.observacoes.vendedor || "";
+            document.getElementById("obsMaterialCond").value = data.observacoes.materialCond || "";
+            document.getElementById("obsPagamento").value = data.observacoes.pagamento || "";
+            document.getElementById("obsAdicional").value = data.observacoes.adicional || "";
+            document.getElementById("obsProjeto").value = codigoProjeto;
+
+            // 4. Chapas / Peças / Processos (limpar e recriar)
+            document.getElementById("chapasContainer").innerHTML = "";
+            document.getElementById("processosPedidoContainer").innerHTML = "";
+
+            data.chapas.forEach(chapaData => {
+                addChapa();
+                const cDiv = document.querySelector("#chapasContainer .chapa:last-child");
+
+                cDiv.querySelector(".material").value = chapaData.material || "";
+                cDiv.querySelector(".chapaComprimento").value = chapaData.comprimento || "";
+                cDiv.querySelector(".chapaLargura").value = chapaData.largura || "";
+                cDiv.querySelector(".chapaEspessura").value = chapaData.espessura || "";
+
+                // Conjunto
+                const isConjuntoInput = cDiv.querySelector(".isConjunto");
+                isConjuntoInput.checked = chapaData.isConjunto;
+                isConjuntoInput.dispatchEvent(new Event('change'));
+                cDiv.querySelector(".descricaoConjunto").value = chapaData.descricaoConjunto || "";
+                cDiv.querySelector(".codigoConjunto").value = chapaData.codigoConjunto || "";
+                cDiv.querySelector(".quantidadeConjunto").value = chapaData.quantidadeConjunto || "1";
+
+                // Remove a peça inicial vazia que addChapa cria
+                cDiv.querySelector(".peca").remove();
+
+                chapaData.pecas.forEach(pecaData => {
+                    addPeca(cDiv.id);
+                    const pDiv = cDiv.querySelector(".peca:last-child");
+
+                    pDiv.querySelector(".descricao").value = pecaData.descricao || "";
+                    pDiv.querySelector(".codigo").value = pecaData.codigo || "";
+                    pDiv.querySelector(".pecaComprimento").value = pecaData.comprimento || "";
+                    pDiv.querySelector(".pecaLargura").value = pecaData.largura || "";
+                    pDiv.querySelector(".numPecasLote").value = pecaData.numPecasLote || "";
+                    pDiv.querySelector(".numPecasChapa").value = pecaData.numPecasChapa || "";
+
+                    // Corte
+                    const temCorteInput = pDiv.querySelector(".temCorte");
+                    temCorteInput.checked = pecaData.temCorte;
+                    temCorteInput.dispatchEvent(new Event('change'));
+                    pDiv.querySelector(".tempoCorte").value = pecaData.tempoCorte || "";
+
+                    // Dobra
+                    const temDobraInput = pDiv.querySelector(".temDobra");
+                    temDobraInput.checked = pecaData.temDobra;
+                    temDobraInput.dispatchEvent(new Event('change'));
+                    pDiv.querySelector(".numDobras").value = pecaData.numDobras || "";
+                    pDiv.querySelector(".tempoDobra").value = pecaData.tempoDobra || "";
+                    pDiv.querySelector(".setupDobra").value = pecaData.setupDobra || "";
+
+                    // Processos Adicionais
+                    const temProcessosInput = pDiv.querySelector(".temProcessos");
+                    temProcessosInput.checked = pecaData.temProcessos;
+                    temProcessosInput.dispatchEvent(new Event('change'));
+
+                    const processosList = pDiv.querySelector(".processosList");
+                    pecaData.processos.forEach(procData => {
+                        addProcesso(processosList);
+                        const procDiv = processosList.querySelector(".processo:last-child");
+                        procDiv.querySelector(".procDescricao").value = procData.descricao || "";
+                        procDiv.querySelector(".procSetup").value = procData.setup || "";
+                        procDiv.querySelector(".procValorHora").value = procData.valorHora || "";
+                        procDiv.querySelector(".procHoras").value = procData.horas || "";
+                        procDiv.querySelector(".procMaterial").value = procData.material || "";
+                        procDiv.querySelector(".procQtdMat").value = procData.qtdMat || "";
+                        procDiv.querySelector(".procValorMat").value = procData.valorMat || "";
+                    });
+                });
+            });
+
+            // 5. Processos do Pedido
+            data.processosPedido.forEach(procData => {
+                addProcessoPedido();
+                const procDiv = document.querySelector("#processosPedidoContainer .procPedido:last-child");
+                procDiv.querySelector(".procPedidoDescricao").value = procData.descricao || "";
+                procDiv.querySelector(".procPedidoValorHora").value = procData.valorHora || "";
+                procDiv.querySelector(".procPedidoHoras").value = procData.horas || "";
+                procDiv.querySelector(".procPedidoMaterial").value = procData.material || "";
+                procDiv.querySelector(".procPedidoValorMat").value = procData.valorMat || "";
+                procDiv.querySelector(".procPedidoQtdMat").value = procData.qtdMat || "";
+                procDiv.querySelector(".procPedidoValorFixo").value = procData.valorFixo || "";
+            });
+
+            alert("Rascunho carregado com sucesso!");
+        }
+
+        // Inicializa a lista de rascunhos no dropdown
+        function carregarListaRascunhos() {
+            google.script.run
+                .withSuccessHandler(function (rascunhos) {
+                    const select = document.getElementById("rascunhoSelect");
+                    select.innerHTML = '<option value="">-- Selecionar Rascunho --</option>';
+                    rascunhos.forEach(r => {
+                        const opt = document.createElement("option");
+                        opt.value = r.key; // Usar a chave/ID
+                        opt.text = r.nome;
+                        select.add(opt);
+                    });
+                })
+                .getListaRascunhos();
+        }
+
+        // Função de salvar rascunho (chama o Apps Script)
+        function salvarRascunho() {
+            const nomeRascunho = prompt("Digite um nome para este rascunho (ex: Nome do Cliente v1):");
+            if (!nomeRascunho) return;
+
+            const dados = coletarDadosFormulario();
+            google.script.run
+                .withSuccessHandler(function () {
+                    alert(`Rascunho "${nomeRascunho}" salvo com sucesso!`);
+                    carregarListaRascunhos(); // Atualiza a lista
+                })
+                .withFailureHandler(function (err) {
+                    alert("Erro ao salvar rascunho:\n" + err.message);
+                })
+                .salvarRascunho(nomeRascunho, dados);
+        }
+
+        // Função de carregar rascunho (chama o Apps Script)
+        function carregarRascunhoSelecionado() {
+            const key = document.getElementById("rascunhoSelect").value;
+            if (!key) {
+                alert("Selecione um rascunho para carregar.");
+                return;
+            }
+
+            google.script.run
+                .withSuccessHandler(function (dados) {
+                    if (dados) {
+                        preencherFormulario(dados);
+                    } else {
+                        alert("Erro ao carregar rascunho: dados não encontrados.");
+                    }
+                })
+                .withFailureHandler(function (err) {
+                    alert("Erro ao carregar rascunho:\n" + err.message);
+                })
+                .carregarRascunho(key);
+        }
+
+        // Função de deletar rascunho (chama o Apps Script)
+        function deletarRascunhoSelecionado() {
+            const select = document.getElementById("rascunhoSelect");
+            const key = select.value;
+            const nome = select.options[select.selectedIndex]?.text;
+
+            if (!key) {
+                alert("Selecione um rascunho para deletar.");
+                return;
+            }
+
+            if (!confirm(`Tem certeza que deseja DELETAR o rascunho "${nome}"? Esta ação é irreversível.`)) return;
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    alert(`Rascunho "${nome}" deletado com sucesso.`);
+                    carregarListaRascunhos();
+                })
+                .withFailureHandler(function (err) {
+                    alert("Erro ao deletar rascunho:\n" + err.message);
+                })
+                .deletarRascunho(key);
+        }
+
+        /* ------------------------------------------------------------- */
+        /* ---------- FIM DAS NOVAS FUNÇÕES ----------------------------- */
+        /* ------------------------------------------------------------- */
+
+        /* ---------- CALCULAR E CHAMAR SERVER (mantido) ---------- */
+        function formatarDataBrasil(dataIso) {
+            const d = new Date(dataIso);
+            const dia = String(d.getDate()).padStart(2, '0');
+            const mes = String(d.getMonth() + 1).padStart(2, '0');
+            const ano = d.getFullYear();
+            return `${dia}/${mes}/${ano}`;
+        }
+
+        function calcular() {
+            const btn = document.getElementById("btnGerar");
+            btn.disabled = true;
+            btn.textContent = "Gerando PDF...";
+
+            const chapas = [];
+
+            // --- percorre todas as chapas e peças (usando a lógica do coletarDadosFormulario) ---
+            const dadosColetados = coletarDadosFormulario();
+
+            // Refaz o cálculo com os dados brutos coletados
+            dadosColetados.chapas.forEach(chapaData => {
+                const chapa = {
+                    material: chapaData.material,
+                    comprimento: parseFloat(chapaData.comprimento) || 0,
+                    largura: parseFloat(chapaData.largura) || 0,
+                    espessura: parseFloat(chapaData.espessura) || 0,
+                    isConjunto: chapaData.isConjunto,
+                    descricaoConjunto: chapaData.descricaoConjunto,
+                    codigoConjunto: chapaData.codigoConjunto,
+                    quantidadeConjunto: parseInt(chapaData.quantidadeConjunto) || 1,
+                    pecas: []
+                };
+
+                chapaData.pecas.forEach(pecaData => {
+                    let somaProcessos = 0;
+                    let tempoProc = 0;
+                    const processos = [];
+
+                    pecaData.processos.forEach(procData => {
+                        const descproc = procData.descricao || "";
+                        const tempoSetup = parseFloat(procData.setup) || 0;
+                        const valorHora = parseFloat(procData.valorHora) || 0;
+                        const horas = parseFloat(procData.horas) || 0;
+                        const qtdMat = parseFloat(procData.qtdMat) || 0;
+                        const valorMat = parseFloat(procData.valorMat) || 0;
+                        const precoProc = (tempoSetup + horas) * valorHora + (qtdMat * valorMat);
+                        const tempoadc = (tempoSetup + horas);
+                        tempoProc += tempoadc;
+                        somaProcessos += precoProc;
+
+                        processos.push({
+                            descproc,
+                            tempoSetup,
+                            valorHora,
+                            horas,
+                            material: procData.material,
+                            qtdMat,
+                            valorMat,
+                            precoProc
+                        });
+                    });
+
+                    const numPecasLote = parseInt(pecaData.numPecasLote) || 1;
+
+                    const peca = {
+                        descricao: pecaData.descricao,
+                        codigo: pecaData.codigo,
+                        comprimento: parseFloat(pecaData.comprimento) || 0,
+                        largura: parseFloat(pecaData.largura) || 0,
+                        numPecasLote,
+                        numPecasChapa: parseInt(pecaData.numPecasChapa) || 0,
+                        tempoCorte: pecaData.temCorte ? parseInt(pecaData.tempoCorte) || 0 : 0,
+                        numDobras: pecaData.temDobra ? parseInt(pecaData.numDobras) || 0 : 0,
+                        tempoDobra: pecaData.temDobra ? parseFloat(pecaData.tempoDobra) || 0 : 0,
+                        setupDobra: pecaData.temDobra ? parseFloat(pecaData.setupDobra) || 0 : 0,
+                        tempoTotal: tempoProc,
+                        adicionaisTotal: somaProcessos,
+                        processos,
+                        precoUnitario: somaProcessos / numPecasLote,
+                        precoTotal: somaProcessos
+                    };
+
+                    chapa.pecas.push(peca);
+                });
+
+                chapas.push(chapa);
+            });
+
+
+            // --- PROCESSOS ADICIONAIS DO PEDIDO ---
+            let somaProcessosPedido = 0;
+            const processosPedidoDescricoes = [];
+            dadosColetados.processosPedido.forEach(procData => {
+                const valorHora = parseFloat(procData.valorHora) || 0;
+                const horas = parseFloat(procData.horas) || 0;
+                const valorMat = parseFloat(procData.valorMat) || 0;
+                const qtdMat = parseFloat(procData.qtdMat) || 0;
+                const valorFixo = parseFloat(procData.valorFixo) || 0;
+                somaProcessosPedido += valorHora * horas + valorMat * qtdMat + valorFixo;
+                if (procData.descricao) {
+                    processosPedidoDescricoes.push(procData.descricao);
+                }
+            });
+
+            const valorTotalOrcamento = chapas.reduce((acc, ch) => {
+                return acc + ch.pecas.reduce((sum, p) => sum + p.precoTotal, 0);
+            }, 0) + somaProcessosPedido;
+
+            // --- CLIENTE ---
+            const cliente = {
+                nome: dadosColetados.cliente.nome,
+                cpf: dadosColetados.cliente.cpf,
+                endereco: dadosColetados.cliente.endereco,
+                telefone: dadosColetados.cliente.telefone,
+                email: dadosColetados.cliente.email,
+                responsavel: dadosColetados.cliente.responsavel,
+                dataCliente: formatarDataBrasil(dadosColetados.cliente.data)
+            };
+
+            const data = dadosColetados.projeto.data;
+            const indice = dadosColetados.projeto.indice;
+            const iniciais = dadosColetados.projeto.iniciais;
+            const codigoProjeto = data + indice + iniciais;
+            const nomePasta = dadosColetados.projeto.pasta;
+            const versao = dadosColetados.projeto.versao;
+
+            const observacoes = {
+                projeto: codigoProjeto,
+                faturamento: dadosColetados.observacoes.faturamento,
+                vendedor: dadosColetados.observacoes.vendedor,
+                materialCond: dadosColetados.observacoes.materialCond,
+                pagamento: dadosColetados.observacoes.pagamento,
+                adicional: dadosColetados.observacoes.adicional
+            };
+
+            // --- salvar cliente novo ---
+            if (cliente.nome && !listaClientes.find(c => c.nome === cliente.nome)) {
+                google.script.run.salvarClienteSeNovo(cliente);
+            }
+
+            // Cria a descrição do(s) processo(s) do pedido
+            let descricaoProcessosPedido = processosPedidoDescricoes.join(" / ");
+
+
+            // --- gerar PDF ---
+            google.script.run
+                .withSuccessHandler(function (pdf) {
+                    // mostra alert com link
+                    alert("PDF gerado com sucesso!\n\nClique no link para abrir:\n" + pdf.url);
+
+                    // abre o PDF em nova aba automaticamente
+                    window.open(pdf.url, "_blank");
+
+                    btn.disabled = false;
+                    btn.textContent = "Calcular Orçamento e Gerar PDF";
+                })
+                .withFailureHandler(function (err) {
+                    alert("Erro ao gerar PDF:\n" + (err?.message || JSON.stringify(err)));
+                    btn.disabled = false;
+                    btn.textContent = "Calcular Orçamento e Gerar PDF";
+                })
+                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido);
+
+        }
+        function voltarPagina() {
+            if (!token) {
+                alert("Token não encontrado — recarregue a página.");
+                return;
+            }
+            const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+            window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+        }
+
+        // ---------- INICIAL (Alterado para incluir carregamento de rascunhos) ----------
+        addChapa(); // Adiciona a primeira chapa/peça vazia
+        carregarListaRascunhos(); // Carrega a lista de rascunhos salvos
+    </script>
+</body>
+
+</html>

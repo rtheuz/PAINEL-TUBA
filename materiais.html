@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <title>Controle de Materiais</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: linear-gradient(90deg, #1125d6, #187a5d, #004b5e);
+      background-size: 400% 400%;
+      animation: gradMove 15s linear infinite;
+      border: #2195f300;
+    }
+
+    @keyframes gradMove {
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 30px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 16px;
+      margin-bottom: 20px;
+    }
+
+    .header img {
+      width: 120px;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #1a73e8;
+    }
+
+    .table-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      s
+    }
+
+    table {
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 0 auto;
+      width: auto;
+      max-width: 1400px;
+    }
+
+    th,
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      text-align: left;
+    }
+
+    th {
+      background: rgba(26, 115, 232, 0.7);
+      color: white;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+    }
+
+    tr:hover {
+      background: rgba(26, 115, 232, 0.1);
+    }
+
+    th input {
+      width: 100%;
+      margin-top: 4px;
+      padding: 4px 6px;
+      border-radius: 4px;
+      border: none;
+    }
+
+    .btn-filtros,
+    .btn-gerar {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 4px;
+      background: #1a73e8;
+      color: white;
+      cursor: pointer;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-filtros:hover,
+    .btn-gerar:hover {
+      background: #155ec7;
+    }
+
+    .peso-card {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 20px;
+      margin-bottom: 20px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #40404154, #40404154);
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .peso-card div strong {
+      font-weight: bold;
+    }
+
+    .peso-card {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .peso-icone {
+      font-size: 22px;
+    }
+
+    .peso-texto strong {
+      font-size: 20px;
+      color: #ffeb3b;
+    }
+
+    .input-saving {
+      box-shadow: 0 0 0 3px rgba(90, 130, 255, 0.12) inset;
+    }
+
+    @media (max-width:900px) {
+      table {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width:640px) {
+      table {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<div>
+  <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+    ← Voltar
+  </button>
+</div>
+
+<body>
+  <div class="header">
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+    <h1>Controle de Materiais</h1>
+  </div>
+
+  <div class="table-container">
+    <button class="btn-filtros" onclick="limparFiltros()">Limpar Filtros</button>
+
+    <div id="pesoEstimado" class="peso-card" style="flex-direction:column; align-items:flex-start; gap:6px;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="peso-icone" style="font-size:22px;">⚖️</span>
+        <strong style="font-size:20px;">Pesos Estimados</strong>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px; margin-left:30px;">
+        <div style="color:#4caf50;">🟢 Estoque: <strong id="pesoEstoque">0.00 Kg</strong></div>
+        <div style="color:#2196f3;">🔵 Cliente: <strong id="pesoCliente">0.00 Kg</strong></div>
+        <div style="color:#ffeb3b;">🟡 Total: <strong id="pesoTotal" style="color:#ffeb3b;">0.00 Kg</strong></div>
+      </div>
+    </div>
+
+
+
+    <table id="etiquetasTable">
+      <thead>
+        <tr>
+          <? for (let key in dados[0]) { ?>
+          <th>
+            <?= key ?><br>
+            <input type="text" placeholder="Filtrar" data-col="<?= key ?>">
+          </th>
+          <? } ?>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <? for (let i = 0; i < dados.length; i++) { ?>
+        <tr data-row="<?= i+2 ?>">
+          <? for (let key in dados[i]) {
+            if(key === "ETIQUETA") { ?>
+          <td><a class="pdf-link" href="<?= dados[i][key] ?>" target="_blank">Abrir PDF</a></td>
+          <? } else if(key === "QTDE") { ?>
+          <td><input type="number" value="<?= dados[i][key] ?>" data-field="qtde"></td>
+          <? } else if(key === "DIM") { ?>
+          <td><input type="text" value="<?= dados[i][key] ?>" data-field="dim"></td>
+          <? } else if(key === "TIPO") { ?>
+          <td><input type="text" value="<?= dados[i][key] ?>" data-field="tipo"></td>
+          <? } else if(key === "PROP") { ?>
+          <td><input type="text" value="<?= dados[i][key] ?>" data-field="prop"></td>
+          <? } else if(key === "MATERIAL") { ?>
+          <td><input type="text" value="<?= dados[i][key] ?>" data-field="material"></td>
+          <? } else if(key === "ESPESSURA") { ?>
+          <td><input type="text" value="<?= dados[i][key] ?>" data-field="esp"></td>
+          <? } else if(key === "PESO APROXIMADO") { ?>
+          <td class="peso" data-valor="<?= dados[i][key] ?>">
+            <?= parseFloat(dados[i][key]).toFixed(2) ?>
+          </td>
+          <? } else { ?>
+          <td>
+            <?= dados[i][key] ?>
+          </td>
+          <? } } ?>
+          <td><button class="btn-gerar" onclick="gerarNovaEtiqueta(this)">Gerar Nova Etiqueta</button></td>
+        </tr>
+        <? } ?>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const token = "<?= token ?>";
+    // ---------------- helpers ----------------
+    function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
+
+    // ---------------- soma pesos ----------------
+    function atualizarSomaPesos() {
+      const rows = document.querySelectorAll('#etiquetasTable tbody tr');
+      let pesoEstoque = 0, pesoCliente = 0, pesoTotal = 0;
+      rows.forEach(row => {
+        if (row.style.display === 'none') return;
+
+        const tdPeso = row.querySelector('td.peso');
+        const propInput = row.querySelector('input[data-field="prop"]');
+        const prop = propInput ? propInput.value.trim().toLowerCase() : "";
+
+        if (tdPeso) {
+          const valor = parseFloat(tdPeso.dataset.valor) || 0;
+          pesoTotal += valor;
+          if (prop.includes("tuba")) {
+            pesoEstoque += valor;
+          } else {
+            pesoCliente += valor;
+          }
+        }
+      });
+      // Atualiza os valores com duas casas decimais e "Kg"
+      document.getElementById('pesoEstoque').textContent = pesoEstoque.toFixed(2) + " Kg";
+      document.getElementById('pesoCliente').textContent = pesoCliente.toFixed(2) + " Kg";
+      document.getElementById('pesoTotal').textContent = pesoTotal.toFixed(2) + " Kg";
+    }
+
+
+    // ---------------- filtros (header inputs) ----------------
+    function aplicarFiltros() {
+      const table = document.getElementById('etiquetasTable');
+      const headerInputs = table.querySelectorAll('th input');
+      const filtros = Array.from(headerInputs).map(inp => inp.value.toLowerCase());
+      const headers = Array.from(table.tHead.rows[0].cells).map(th => th.textContent.trim().toUpperCase());
+
+      Array.from(table.tBodies[0].rows).forEach(row => {
+        let visivel = true;
+
+        Array.from(row.cells).forEach((cell, i) => {
+          if (i < filtros.length) {
+            const filtro = filtros[i].trim();
+            if (!filtro) return;
+
+            const header = headers[i];
+            let cellValue = cell.querySelector('input')
+              ? cell.querySelector('input').value
+              : cell.textContent;
+            cellValue = (cellValue || '').trim();
+
+            // --- FILTRO DE ESPESSURA ESPECIAL ---
+            if (header.includes("ESPESSURA")) {
+              const cellNorm = cellValue.replace(",", ".");
+              const filtroNorm = filtro.replace(",", ".");
+              // Exemplo: filtro "6" deve pegar 6, 6.1, 6.2, mas não 2.6 ou 16
+              const padrao = new RegExp("^" + filtroNorm.replace(".", "\\.") + "(\\b|,|$)");
+              if (!padrao.test(cellNorm)) visivel = false;
+            }
+
+            // --- FILTROS NUMÉRICOS (QTDE, PESO) ---
+            else if (header.includes("QTDE") || header.includes("PESO")) {
+              const valNum = parseFloat(cellValue.replace(",", ".")) || 0;
+              const filtroNum = parseFloat(filtro.replace(",", ".")) || null;
+              if (filtroNum !== null && !isNaN(filtroNum)) {
+                if (valNum !== filtroNum) visivel = false;
+              } else if (!cellValue.toLowerCase().includes(filtro)) {
+                visivel = false;
+              }
+            }
+
+            // --- FILTROS TEXTUAIS PADRÃO ---
+            else {
+              if (!cellValue.toLowerCase().includes(filtro)) visivel = false;
+            }
+          }
+        });
+
+        row.style.display = visivel ? '' : 'none';
+      });
+
+      atualizarSomaPesos();
+    }
+
+
+    function limparFiltros() {
+      const table = document.getElementById('etiquetasTable');
+      const headerInputs = table.querySelectorAll('th input');
+      headerInputs.forEach(input => input.value = '');
+      Array.from(table.tBodies[0].rows).forEach(row => row.style.display = '');
+      atualizarSomaPesos();
+    }
+
+    // ---------------- ordenação (mesma lógica) ----------------
+    let ordemAtual = {};
+    (function setupOrdenacao() {
+      const table = document.getElementById('etiquetasTable');
+      Array.from(table.tHead.rows[0].cells).forEach((th, i) => {
+        th.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT') return;
+          const tbody = table.tBodies[0];
+          const linhas = Array.from(tbody.rows);
+          ordemAtual[i] = ordemAtual[i] === 'asc' ? 'desc' : 'asc';
+
+          linhas.sort((a, b) => {
+            let valA = a.cells[i].querySelector('input') ? a.cells[i].querySelector('input').value : a.cells[i].textContent.trim();
+            let valB = b.cells[i].querySelector('input') ? b.cells[i].querySelector('input').value : b.cells[i].textContent.trim();
+
+            if (th.textContent.toUpperCase().includes("DATA")) {
+              const parseDate = (str) => {
+                const [dia, mes, ano] = str.split("/");
+                return new Date(`${ano}-${mes}-${dia}`);
+              };
+              const dateA = parseDate(valA);
+              const dateB = parseDate(valB);
+              return ordemAtual[i] === 'asc' ? dateA - dateB : dateB - dateA;
+            }
+
+            if (th.textContent.includes('QTDE') || th.textContent.includes('PESO')) {
+              valA = parseFloat(valA.replace(',', '.')) || 0;
+              valB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? valA - valB : valB - valA;
+            }
+
+            return ordemAtual[i] === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+          });
+
+          linhas.forEach(r => tbody.appendChild(r));
+          Array.from(table.tHead.rows[0].cells).forEach(thx => thx.classList.remove('asc', 'desc'));
+          th.classList.add(ordemAtual[i]);
+          atualizarSomaPesos();
+        });
+      });
+    })();
+
+    // ---------------- atualizar célula (compatível com seu .gs existente) ----------------
+    function atualizarCelula(linha, campo, valor) {
+      // compatibilidade: se algo chamar essa função diretamente
+      const tr = document.querySelector(`tr[data-row='${linha}']`);
+      if (tr) {
+        const inp = tr.querySelector(`input[data-field='${campo}']`);
+        if (inp) {
+          inp.value = valor;
+          inp.dataset.original = valor;
+        }
+      }
+      google.script.run
+        .withSuccessHandler(msg => {
+          if (msg === "Linha removida") {
+            if (tr) tr.remove();
+          }
+          // tenta recalcular visualmente a linha alterada
+          if (tr) recomputeRowPeso(tr, campo);
+          atualizarSomaPesos();
+        })
+        .withFailureHandler(err => alert("Erro: " + err.message))
+        .atualizarCelulaNaPlanilha(linha, campo, valor);
+    }
+
+    // ---------------- re-cálculo local de peso por linha (heurística) ----------------
+    function recomputeRowPeso(tr, changedField) {
+      const tdPeso = tr.querySelector('td.peso');
+      if (!tdPeso) return;
+      // perUnit: peso por unidade atualmente armazenado na linha
+      let perUnit = parseFloat(tr.dataset.perUnit) || 0;
+      let qtde = parseFloat(tr.querySelector('input[data-field="qtde"]')?.value) || 0;
+      let origEsp = parseFloat(tr.dataset.originalEsp) || 0;
+      let currEsp = parseFloat(tr.querySelector('input[data-field="esp"]')?.value) || origEsp;
+
+      // Se houver perUnit válido, atualiza quando qtde muda
+      if (changedField === 'qtde' && perUnit > 0) {
+        const newPeso = perUnit * qtde;
+        tdPeso.dataset.valor = newPeso;
+        tdPeso.textContent = parseFloat(newPeso).toFixed(2);
+        tr.dataset.originalQtde = qtde;
+        tr.dataset.originalPeso = newPeso;
+        return;
+      }
+
+      // Se espessura mudou e temos uma espessura original, ajustar proporcionalmente (heurística)
+      if (changedField === 'esp' && origEsp > 0 && perUnit > 0) {
+        const newPerUnit = perUnit * (currEsp / origEsp);
+        const newPeso = newPerUnit * qtde;
+        tdPeso.dataset.valor = newPeso;
+        tdPeso.textContent = parseFloat(newPeso).toFixed(2);
+        tr.dataset.perUnit = newPerUnit;
+        tr.dataset.originalEsp = currEsp;
+        tr.dataset.originalPeso = newPeso;
+        return;
+      }
+
+      // Outros campos: não podemos recalcular sem fórmula; apenas atualizamos soma geral
+    }
+
+    // ---------------- salvar célula via UI (debounced + blur/enter) ----------------
+    function saveCell(input) {
+      const tr = input.closest('tr');
+      if (!tr) return;
+      const linha = parseInt(tr.dataset.row);
+      const campo = input.dataset.field;
+      const valor = input.value;
+
+      // evita duplicação
+      if (input.dataset.saving === 'true') return;
+
+      input.dataset.saving = 'true';
+      input.classList.add('input-saving');
+
+      google.script.run
+        .withSuccessHandler(msg => {
+          input.dataset.saving = 'false';
+          input.classList.remove('input-saving');
+          input.dataset.original = valor;
+          input.dataset.dirty = 'false';
+
+          if (msg === "Linha removida") {
+            tr.remove();
+            atualizarSomaPesos();
+            return;
+          }
+
+          // tenta atualizar peso localmente (heurística)
+          recomputeRowPeso(tr, campo);
+          atualizarSomaPesos();
+        })
+        .withFailureHandler(err => {
+          input.dataset.saving = 'false';
+          input.classList.remove('input-saving');
+          alert("Erro: " + err.message);
+        })
+        .atualizarCelulaNaPlanilha(linha, campo, valor);
+    }
+
+    // ---------------- geração de etiqueta (mantive sua lógica) ----------------
+    function gerarNovaEtiqueta(btn) {
+      btn.disabled = true;
+      btn.textContent = "Gerando...";
+      const tr = btn.closest("tr");
+      const rowIndex = parseInt(tr.dataset.row);
+      google.script.run.withSuccessHandler(url => {
+        const link = tr.querySelector('a.pdf-link');
+        if (link) link.href = url;
+        btn.textContent = "Gerar Nova Etiqueta";
+        btn.disabled = false;
+        atualizarSomaPesos();
+      }).withFailureHandler(err => {
+        alert("Erro: " + err.message);
+        btn.textContent = "Gerar Nova Etiqueta";
+        btn.disabled = false;
+      }).gerarNovaEtiqueta({ rowIndex });
+    }
+
+    // ---------------- datas ----------------
+    function padronizarDatas() {
+      const table = document.getElementById("etiquetasTable");
+      const headers = Array.from(table.tHead.rows[0].cells).map(th => th.textContent.trim().toUpperCase());
+      const dataIndex = headers.findIndex(h => h.includes("DATA"));
+      if (dataIndex === -1) return;
+
+      Array.from(table.tBodies[0].rows).forEach(row => {
+        const cell = row.cells[dataIndex];
+        let txt = cell.textContent.trim();
+        if (txt && txt.includes("/")) {
+          let parts = txt.split("/");
+          if (parseInt(parts[0]) > 12) return;
+          if (parts.length === 3) {
+            let m = parts[0].padStart(2, "0");
+            let d = parts[1].padStart(2, "0");
+            let y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+            cell.textContent = `${d}/${m}/${y}`;
+          }
+        }
+      });
+    }
+
+    // ---------------- inicialização (event listeners) ----------------
+    window.addEventListener('load', () => {
+      padronizarDatas();
+
+      const table = document.getElementById('etiquetasTable');
+      if (!table) return;
+
+      // reaplica listeners de filtro (header)
+      const headerInputs = table.querySelectorAll('th input');
+      headerInputs.forEach(input => input.addEventListener('input', aplicarFiltros));
+
+      // dados iniciais por linha: original qtde/peso/espessura → usado para heurísticas locais
+      Array.from(table.tBodies[0].rows).forEach(tr => {
+        const tdPeso = tr.querySelector('td.peso');
+        const peso = tdPeso ? parseFloat(tdPeso.dataset.valor) || 0 : 0;
+        const inputQtde = tr.querySelector('input[data-field="qtde"]');
+        const qtdeVal = inputQtde ? (parseFloat(inputQtde.value) || 0) : 0;
+        const inputEsp = tr.querySelector('input[data-field="esp"]');
+        const espVal = inputEsp ? (parseFloat(inputEsp.value) || 0) : 0;
+
+        tr.dataset.originalQtde = qtdeVal;
+        tr.dataset.originalPeso = peso;
+        tr.dataset.perUnit = (qtdeVal > 0) ? (peso / qtdeVal) : 0;
+        tr.dataset.originalEsp = espVal;
+
+        // set original marker on inputs
+        tr.querySelectorAll('input').forEach(inp => inp.dataset.original = inp.value);
+      });
+
+      // adiciona listeners nos inputs de cada célula (debounce + blur + enter)
+      const rowInputs = table.querySelectorAll('tbody input');
+      rowInputs.forEach(input => {
+        const debouncedSave = debounce(() => {
+          // marca dirty (vai salvar automaticamente após 800ms de inatividade)
+          input.dataset.dirty = 'true';
+          saveCell(input);
+        }, 800);
+
+        input.addEventListener('focus', () => { input.dataset.editing = 'true'; });
+        input.addEventListener('blur', () => {
+          input.dataset.editing = 'false';
+          if (input.dataset.dirty === 'true') {
+            saveCell(input); // salva agora
+          }
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur(); // blur dispara o save
+          }
+        });
+
+        input.addEventListener('input', () => {
+          // marca dirty e tenta salvar após debounce
+          input.dataset.dirty = 'true';
+          debouncedSave();
+        });
+      });
+
+      // calcula soma inicial
+      atualizarSomaPesos();
+    });
+
+    function voltarPagina() {
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+  </script>
+
+</body>
+
+</html>

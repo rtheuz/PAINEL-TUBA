@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: 108mm 54mm;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    -webkit-print-color-adjust: exact;
+    height: 100%;
+    background: #fff;
+  }
+
+  /* 🔒 Garante que a etiqueta inteira fique em 1 página */
+  .etiqueta {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    border-left: 1mm solid #000;
+    border-right: 1mm solid #000;
+    border-bottom: 1mm solid #000;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden;
+  }
+
+  .conteudo {
+    flex: 1;
+    padding: 1mm;
+    box-sizing: border-box;
+  }
+
+  table {
+    width: 100%;
+    height: 100%;
+    border-collapse: collapse;
+  }
+
+  td {
+    border: 1px solid #000;
+    padding: 1mm 2mm;
+    vertical-align: middle;
+    box-sizing: border-box;
+  }
+
+  .label { font-size: 10px; color: #333; margin-right: 4px; }
+  .tipo { font-size: 14px; font-weight: bold; text-transform: uppercase; }
+  .dimensao {
+    font-size: 18px;
+    font-weight: bold;
+    text-align: center;
+    display: block;
+    padding: 0.1mm 0;
+    white-space: nowrap; /* 🔸 evita quebrar linha */
+  }
+  .espessura { font-size: 18px; font-weight: bold; }
+  .material { font-size: 14px; font-weight: bold; text-transform: uppercase; }
+  .nf { font-size: 12px; font-weight: bold; }
+  .data { font-size: 14px; font-weight: bold; }
+  .fornecedor { font-size: 14px; font-weight: bold; text-transform: uppercase; }
+  .codigo { font-size: 14px; font-weight: bold; text-transform: uppercase; }
+  .qtde { font-size: 15px; font-weight: bold; text-transform: uppercase; }
+ 
+  /* 🔸 Evita quebra no campo Prop */
+  .prop {
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: block;
+    text-align: center;
+    padding: 0.5mm 0;
+    white-space: nowrap; /* mantém numa linha só */
+  }
+
+  /* Segunda página */
+  .page-break {
+    page-break-before: always;
+  }
+
+  .aviso {
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    border-left: 1mm solid #000;
+    border-right: 1mm solid #000;
+    border-bottom: 1mm solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    padding: 5mm;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @media print {
+    .etiqueta, .aviso {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <!-- Primeira página -->
+  <div class="etiqueta">
+    <div class="conteudo">
+      <table>
+        <tr>
+          <td colspan="4">
+            <span class="label">Prop:</span>
+            <span class="prop"><?= dados.prop ?></span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="3">
+            <span class="label">Dim.:</span>
+            <span class="dimensao"><?= dados.dim1 ?> x <?= dados.dim2 ?> mm</span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <span class="label">Esp.:</span>
+            <span class="espessura"><?= dados.esp ?> mm</span>
+          </td>
+          <td colspan="2">
+            <span class="label">Tipo:</span>
+            <span class="tipo"><?= dados.tipo ?></span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <span class="label">Mat.:</span>
+            <span class="material"><?= dados.material ?></span>
+          </td>
+          <td colspan="2">
+            <span class="label">Data:</span>
+            <span class="data"><?= dados.dataEntrada ?></span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <span class="label">Fornecedor:</span>
+            <span class="fornecedor"><?= dados.fornecedor ?></span>
+          </td>
+          <td colspan="2">
+            <span class="label">NF:</span>
+            <span class="nf"><?= dados.nf ?></span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <span class="label">Código:</span>
+            <span class="codigo"><?= dados.codigo ?></span>
+          </td>
+          <td colspan="2">
+            <span class="label">Qtde:</span>
+            <span class="qtde"><?= dados.qtde ?></span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Segunda página -->
+  <div class="page-break"></div>
+  <div class="aviso">
+    ATUALIZAR DADOS APÓS USAR<br>
+    GUARDAR ETIQUETA PARA CONTROLE<br>
+    CHAPA #<?= dados.numeroChapa ?>
+  </div>
+</body>
+</html>

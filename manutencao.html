@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Planos de Manutenção (Multimáquina)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            --muted: #64748b;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            background-color: var(--bg);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1100px;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .card {
+            box-shadow: 0 10px 30px -10px rgba(2, 6, 23, 0.6);
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 1.25rem;
+        }
+
+        #statusMessage {
+            opacity: 0;
+            transition: opacity 0.25s ease-in-out;
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: spin 0.9s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .task-detail {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.28s ease, opacity 0.28s ease, padding 0.2s ease;
+        }
+
+        .task-detail.visible {
+            max-height: 240px;
+            opacity: 1;
+            padding-top: 0.5rem;
+        }
+
+        .task-item {
+            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        }
+
+        .task-item:active {
+            transform: translateY(1px);
+        }
+
+        .task-item.overdue {
+            border-left: 4px solid #ef4444;
+            background: linear-gradient(180deg, #fff7f6 0%, #fff1f0 100%);
+        }
+
+        .task-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+        }
+
+        /* Badge agora permite quebra para mostrar nomes completos */
+        .component-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.28rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            font-size: 0.78rem;
+            max-width: 520px; /* ajustar se quiser mais espaço */
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
+        }
+
+        .component-full-name {
+            margin-left: 0.25rem;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .status-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            flex-shrink: 0;
+            margin-left: 0.5rem;
+        }
+
+        .task-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 0.18rem;
+            min-width: 0;
+        }
+
+        .action-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .component-subtext {
+            font-size: 0.82rem;
+            color: var(--muted);
+            margin-top: 0.1rem;
+        }
+
+        .component-badge.liberada {
+            background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+            color: #1e3a8a;
+        }
+
+        .component-badge.pendente {
+            background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
+            color: #065f46;
+        }
+
+        .component-badge.nunca_feito {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #0f172a;
+        }
+
+        .component-badge.atrasada {
+            background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+            color: #7f1d1d;
+        }
+
+        .status-icon.liberada {
+            background: #dbeafe;
+            color: #1e3a8a;
+        }
+
+        .status-icon.pendente {
+            background: #dcfce7;
+            color: #065f46;
+        }
+
+        .status-icon.nunca_feito {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .status-icon.atrasada {
+            background: #fee2e2;
+            color: #7f1d1d;
+        }
+
+        input[type="checkbox"].task-checkbox {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+        }
+
+        .task-item .task-header {
+            padding: 0.25rem 0;
+        }
+
+        .task-item .action-title {
+            font-size: 1rem;
+        }
+
+        .task-item .component-subtext {
+            font-size: 0.78rem;
+        }
+
+        .task-detail .date-input,
+        .task-detail .time-input,
+        .task-detail .responsible-input {
+            font-size: 0.95rem;
+            padding: 0.6rem 0.6rem;
+        }
+
+        @media (min-width:640px) {
+            .card {
+                padding: 2.25rem;
+            }
+
+            .component-badge {
+                font-size: 0.78rem;
+                padding: 0.32rem 0.6rem;
+            }
+
+            .btn {
+                appearance: none;
+                border: none;
+                padding: 10px 14px;
+                border-radius: 10px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                gap: 8px;
+                align-items: center;
+                background: #1a73e8;
+                color: white;
+            }
+
+            .status-icon {
+                width: 36px;
+                height: 36px;
+                border-radius: 12px;
+            }
+        }
+
+        @media (min-width:1024px) {
+            .action-title {
+                font-size: 1.05rem;
+            }
+
+            .card {
+                max-width: 1100px;
+                margin: 0 auto;
+            }
+        }
+
+        input:focus,
+        select:focus,
+        button:focus {
+            outline: 3px solid rgba(99, 102, 241, 0.12);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+    <div class="container mx-auto">
+        <div class="card bg-white">
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mb-4 sm:mb-6 border-b pb-2">
+                Registro de Manutenção de Equipamentos
+            </h1>
+            <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+                ← Voltar
+            </button>
+            <p class="text-sm sm:text-base text-gray-600 mb-4">
+                Selecione o plano de manutenção, a(s) frequência(s) e preencha os detalhes para cada ação concluída.
+            </p>
+
+            <form id="maintenanceForm" class="space-y-4" autocomplete="off">
+                <div class="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <label for="maintenancePlan" class="block text-sm font-bold text-gray-700 mb-2">Plano de
+                        Manutenção</label>
+                    <select id="maintenancePlan" name="maintenancePlan" onchange="handlePlanChange()" required
+                        class="w-full p-3 border border-gray-300 bg-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition text-base">
+                    </select>
+                </div>
+
+                <div id="frequencySection" class="mb-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200 hidden">
+                    <label class="block text-sm font-bold text-indigo-700 mb-2">Selecione a(s) Frequência(s)</label>
+                    <div id="frequencyOptions" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    </div>
+                </div>
+
+                <div id="checklistContainer" class="p-3 bg-gray-50 rounded-lg border border-gray-200 hidden">
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Checklist das Ações de Manutenção
+                    </h2>
+                    <div id="maintenanceChecklist" class="space-y-3">
+                        <p class="text-gray-500 italic text-sm">Selecione uma frequência acima para ver as tarefas.</p>
+                    </div>
+                </div>
+
+                <div class="mt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <button type="submit" id="submitButton" disabled
+                        class="w-full sm:w-auto px-5 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:opacity-95 transition btn-indigo">
+                        <span id="buttonText">Registrar Manutenção</span>
+                        <div id="loadingSpinner" class="loading-spinner ml-3 inline-block align-middle"
+                            aria-hidden="true"></div>
+                    </button>
+                    <div id="statusMessage"
+                        class="mt-2 sm:mt-0 p-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center"
+                        aria-live="polite"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const token = "<?= token ?>";
+        let currentUser = null;
+
+        function loadUserByToken() {
+            if (!token) return;
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(function (usuarioObj) {
+                    if (!usuarioObj) return;
+                    currentUser = usuarioObj;
+                    populateResponsibleFields();
+                }).withFailureHandler(function (err) {
+                    console.warn('Não foi possível obter usuário por token:', err);
+                }).getUsuarioLogadoPorToken(token);
+            } else {
+                console.warn("google.script.run não definido — modo local.");
+            }
+        }
+
+        function populateResponsibleFields() {
+            if (!currentUser) return;
+            const inputs = document.querySelectorAll('.responsible-input');
+            inputs.forEach(inp => { if (inp && !inp.value) inp.value = currentUser.usuario || ''; });
+        }
+
+        // Dados de tarefa
+        const MAINTENANCE_PLANS = {
+            "MAQUINA_LASER": {
+                name: "Máquina Laser",
+                tasks: {
+                    'DIÁRIA': [
+                        { id: 'D01', componente: 'Cabeça de Saída do Laser (Óptica)', acao: 'Inspeção Visual da Lente/bico de corte', responsavelSugerido: 'Operador' },
+                        { id: 'D02', componente: 'Compressor', acao: 'Verificação de reservatório (purgar água)', responsavelSugerido: 'Operador' },
+                        { id: 'D03', componente: 'Sistema de Resfriamento (Chiller)', acao: 'Monitoramento da Temperatura Ambiente', responsavelSugerido: 'Operador' },
+                    ],
+                    'SEMANAL': [
+                        { id: 'S01', componente: 'Filtros de Ar', acao: 'Limpeza ou Substituição dos Filtros', responsavelSugerido: 'Operador' },
+                        { id: 'S02', componente: 'Cabeça de Saída do Laser (Óptica)', acao: 'Limpeza Interna', responsavelSugerido: 'Operador' },
+                        { id: 'S03', componente: 'Carrinhos de Carregamento', acao: 'Limpeza Geral', responsavelSugerido: 'Operador' }
+                    ],
+                    'MENSAL': [
+                        { id: 'M01', componente: 'Gabinete da Fonte Laser', acao: 'Limpeza Externa / Ventiladores', responsavelSugerido: 'Operador / Técnico' },
+                        { id: 'M02', componente: 'Sistema de Resfriamento (Chiller)', acao: 'Troca do Fluido e Limpeza do Circuito', responsavelSugerido: 'Técnico' },
+                        { id: 'M03', componente: 'Gabinete de Controle', acao: 'Inspeção Interna (Poeira)', responsavelSugerido: 'Operador / Técnico' },
+                        { id: 'M04', componente: 'Guias Lineares Longitudinais', acao: 'Limpeza e Lubrificação', responsavelSugerido: 'Operador / Técnico' },
+                        { id: 'M05', componente: 'Guias Lineares Transversais', acao: 'Limpeza e Lubrificação', responsavelSugerido: 'Operador / Técnico' }
+                    ],
+                    'TRIMESTRAL': [
+                        { id: 'T01', componente: 'Área de Trabalho', acao: 'Limpeza Grelhas', responsavelSugerido: 'Operador' },
+                        { id: 'T02', componente: 'Cabeça de Saída do Laser (Óptica)', acao: 'Limpeza Profunda da Lente/bico de corte', responsavelSugerido: 'Técnico' },
+                        { id: 'T03', componente: 'Sistema de Resfriamento (Chiller)', acao: 'Verificação Completa do Sistema de Resfriamento', responsavelSugerido: 'Técnico' }
+                    ],
+                    'ANUAL': [
+                        { id: 'A01', componente: 'Compressor', acao: 'Troca de óleo', responsavelSugerido: 'Operador' }
+                    ],
+                    'ESPECIALIZADA': [
+                        { id: 'E01', componente: 'Fonte Laser (Raycus)', acao: 'Reparo e Desmontagem (pelo Fabricante)', responsavelSugerido: 'Fabricante' },
+                    ]
+                }
+            }
+        };
+
+        const FREQUENCY_DAYS = { 'DIÁRIA': 1, 'SEMANAL': 8, 'MENSAL': 31, 'TRIMESTRAL': 92, 'ANUAL': 367, 'ESPECIALIZADA': 99999 };
+        const FREQUENCY_TOLERANCE = { 'DIÁRIA': 0, 'SEMANAL': 3, 'MENSAL': 10, 'TRIMESTRAL': 15, 'ANUAL': 30, 'ESPECIALIZADA': 0 };
+
+        let maintenanceHistory = [];
+        let tempTaskState = {};
+        let currentTaskStatusMap = {};
+
+        // refs DOM
+        let maintenancePlanSelect = document.getElementById('maintenancePlan');
+        let frequencyOptionsContainer = document.getElementById('frequencyOptions');
+        let maintenanceChecklist = document.getElementById('maintenanceChecklist');
+        let maintenanceForm = document.getElementById('maintenanceForm');
+        let frequencySection = document.getElementById('frequencySection');
+        let checklistContainer = document.getElementById('checklistContainer');
+        let submitButton = document.getElementById('submitButton');
+        let buttonText = document.getElementById('buttonText');
+        let loadingSpinner = document.getElementById('loadingSpinner');
+        let statusMessage = document.getElementById('statusMessage');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            maintenancePlanSelect = document.getElementById('maintenancePlan');
+            frequencyOptionsContainer = document.getElementById('frequencyOptions');
+            maintenanceChecklist = document.getElementById('maintenanceChecklist');
+            maintenanceForm = document.getElementById('maintenanceForm');
+            frequencySection = document.getElementById('frequencySection');
+            checklistContainer = document.getElementById('checklistContainer');
+            submitButton = document.getElementById('submitButton');
+            buttonText = document.getElementById('buttonText');
+            loadingSpinner = document.getElementById('loadingSpinner');
+            statusMessage = document.getElementById('statusMessage');
+
+            if (loadingSpinner && loadingSpinner.style) loadingSpinner.style.display = 'none';
+            if (submitButton) submitButton.disabled = true;
+
+            initializePlanSelect();
+            loadUserByToken();
+            maintenanceForm.addEventListener('submit', handleSubmit);
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(processHistoryAndInit).withFailureHandler(handleError).getMaintenanceHistory();
+                showStatusMessage('Carregando histórico de manutenções...', 'info');
+            } else {
+                processHistoryAndInit([]);
+            }
+        });
+
+        function processHistoryAndInit(history) {
+            maintenanceHistory = history || [];
+            showStatusMessage('Histórico carregado.', 'success');
+            try {
+                setButtonLoading(false);
+            } catch (e) {
+                if (loadingSpinner && loadingSpinner.style) loadingSpinner.style.display = 'none';
+                if (submitButton) submitButton.disabled = false;
+            }
+            setTimeout(() => { statusMessage.style.opacity = 0 }, 1400);
+            if (maintenancePlanSelect.value) handlePlanChange();
+        }
+
+        function initializePlanSelect() {
+            let optionsHtml = '<option value="" disabled selected>-- Selecione um Plano --</option>';
+            for (const key in MAINTENANCE_PLANS) {
+                optionsHtml += `<option value="${key}">${MAINTENANCE_PLANS[key].name}</option>`;
+            }
+            maintenancePlanSelect.innerHTML = optionsHtml;
+        }
+
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            try {
+                const d = (date instanceof Date) ? date : new Date(date);
+                if (isNaN(d)) return 'N/A';
+                return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            } catch (e) { return 'N/A'; }
+        }
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return { currentDate: `${year}-${month}-${day}`, currentTime: `${hours}:${minutes}` };
+        }
+
+        function getTaskKey(componente, acao) { return (componente || '').trim() + '||' + (acao || '').trim(); }
+
+        function normalizeString(s) {
+            if (!s) return '';
+            return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        function calculateTaskStatus(planKey) {
+            const planName = MAINTENANCE_PLANS[planKey].name;
+            const planNameNormalized = normalizeString(planName);
+            const statusMap = {};
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const validHistory = Array.isArray(maintenanceHistory) ? maintenanceHistory : [];
+
+            const lastExecutionMap = {};
+            validHistory.filter(h => h.planName && normalizeString(h.planName) === planNameNormalized)
+                .forEach(h => {
+                    const taskKey = getTaskKey(h.componente, h.acao);
+                    const executionDate = new Date(h.date);
+                    if (isNaN(executionDate)) {
+                        console.warn('Entrada de histórico com data inválida:', h);
+                        return;
+                    }
+                    executionDate.setHours(0, 0, 0, 0);
+                    if (!lastExecutionMap[taskKey] || executionDate > lastExecutionMap[taskKey]) lastExecutionMap[taskKey] = executionDate;
+                });
+
+            for (const freq in MAINTENANCE_PLANS[planKey].tasks) {
+                const tasks = MAINTENANCE_PLANS[planKey].tasks[freq];
+                const intervalDays = FREQUENCY_DAYS[freq] || 99999;
+                const toleranceDays = FREQUENCY_TOLERANCE[freq] || 0;
+
+                tasks.forEach(task => {
+                    const taskKey = getTaskKey(task.componente, task.acao);
+                    const lastDate = lastExecutionMap[taskKey] || null;
+                    let nextDate = null, releaseDate = null, overdueDate = null, statusCategory = 'PENDENTE';
+                    if (lastDate) {
+                        nextDate = new Date(lastDate);
+                        nextDate.setDate(nextDate.getDate() + intervalDays);
+                        nextDate.setHours(0, 0, 0, 0);
+                        releaseDate = new Date(nextDate); releaseDate.setDate(releaseDate.getDate() - toleranceDays);
+                        overdueDate = new Date(nextDate); overdueDate.setDate(overdueDate.getDate() + toleranceDays);
+                        if (today > overdueDate) statusCategory = 'ATRASADA';
+                        else if (today >= releaseDate) statusCategory = 'LIBERADA';
+                        else statusCategory = 'PENDENTE';
+                    } else {
+                        statusCategory = 'NUNCA_FEITO';
+                    }
+                    statusMap[task.id] = { lastDate, nextDate, releaseDate, overdueDate, statusCategory, frequency: freq, intervalDays };
+                });
+            }
+
+            return statusMap;
+        }
+
+        function saveCurrentTaskState() {
+            tempTaskState = {};
+            const checkedTasks = document.querySelectorAll('input[name="task_id"]:checked');
+            checkedTasks.forEach(cb => {
+                const id = cb.value;
+                const item = cb.closest('.task-item');
+                if (!item) return;
+                const d = item.querySelector('.date-input')?.value || '';
+                const t = item.querySelector('.time-input')?.value || '';
+                const r = item.querySelector('.responsible-input')?.value.trim() || '';
+                tempTaskState[id] = { date: d, time: t, responsible: r };
+            });
+        }
+
+        function toggleTaskDetails(checkbox) {
+            const taskItem = checkbox.closest('.task-item');
+            if (!taskItem) return;
+            const detailDiv = taskItem.querySelector('.task-detail');
+            const dateInput = taskItem.querySelector('.date-input');
+            const timeInput = taskItem.querySelector('.time-input');
+            const responsibleInput = taskItem.querySelector('.responsible-input');
+
+            if (checkbox.checked) {
+                detailDiv.classList.add('visible');
+                dateInput.required = true; timeInput.required = true; responsibleInput.required = true;
+                const { currentDate, currentTime } = getCurrentDateTime();
+                if (!dateInput.value) dateInput.value = currentDate;
+                if (!timeInput.value) timeInput.value = currentTime;
+                if (!responsibleInput.value && currentUser) responsibleInput.value = currentUser.usuario || '';
+            } else {
+                detailDiv.classList.remove('visible');
+                dateInput.required = false; timeInput.required = false; responsibleInput.required = false;
+            }
+        }
+
+        function handleFrequencyChange() {
+            saveCurrentTaskState();
+            const selectedPlanKey = maintenancePlanSelect.value;
+            const currentPlan = MAINTENANCE_PLANS[selectedPlanKey];
+            if (!currentPlan) return;
+            const selectedFilters = Array.from(document.querySelectorAll('input[name="frequency"]:checked')).map(cb => cb.value);
+            renderChecklist(currentPlan.tasks, selectedFilters, currentTaskStatusMap);
+            populateResponsibleFields();
+        }
+
+        function handlePlanChange() {
+            const selectedPlanKey = maintenancePlanSelect.value;
+            tempTaskState = {}; currentTaskStatusMap = {};
+            if (selectedPlanKey) {
+                currentTaskStatusMap = calculateTaskStatus(selectedPlanKey);
+                renderFrequencyOptions(currentTaskStatusMap);
+                frequencySection.classList.remove('hidden'); checklistContainer.classList.remove('hidden'); submitButton.disabled = false;
+            } else {
+                frequencySection.classList.add('hidden'); checklistContainer.classList.add('hidden'); submitButton.disabled = true;
+            }
+            handleFrequencyChange();
+        }
+
+        function renderFrequencyOptions(taskStatusMap) {
+            let atrasadas = 0, liberadas = 0, nunca = 0, pendentes = 0;
+            Object.values(taskStatusMap).forEach(s => {
+                if (s.statusCategory === 'ATRASADA') atrasadas++;
+                else if (s.statusCategory === 'LIBERADA') liberadas++;
+                else if (s.statusCategory === 'NUNCA_FEITO') { if (s.intervalDays < 9999) nunca++; }
+                else if (s.statusCategory === 'PENDENTE') { if (s.intervalDays < 9999) pendentes++; }
+            });
+
+            const html = `
+                <label class="flex items-center p-2 border border-gray-300 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input type="checkbox" name="frequency" value="NUNCA_FEITO" onchange="handleFrequencyChange()" class="h-4 w-4 text-gray-600 rounded">
+                    <span class="ml-2 text-sm font-medium text-gray-800">NUNCA FEITAS (${nunca})</span>
+                </label>
+                <label class="flex items-center p-2 border border-red-200 bg-white rounded-lg cursor-pointer hover:bg-red-50">
+                    <input type="checkbox" name="frequency" value="ATRASADA" onchange="handleFrequencyChange()" class="h-4 w-4 text-red-600 rounded">
+                    <span class="ml-2 text-sm font-medium text-red-800">EM ATRASO (${atrasadas})</span>
+                </label>
+                <label class="flex items-center p-2 border border-blue-200 bg-white rounded-lg cursor-pointer hover:bg-blue-50">
+                    <input type="checkbox" name="frequency" value="LIBERADA" onchange="handleFrequencyChange()" class="h-4 w-4 text-blue-600 rounded">
+                    <span class="ml-2 text-sm font-medium text-blue-800">LIBERADAS (${liberadas})</span>
+                </label>
+                <label class="flex items-center p-2 border border-green-200 bg-white rounded-lg cursor-pointer hover:bg-green-50">
+                    <input type="checkbox" name="frequency" value="PENDENTE" onchange="handleFrequencyChange()" class="h-4 w-4 text-green-600 rounded">
+                    <span class="ml-2 text-sm font-medium text-green-800">PRÓXIMAS (${pendentes})</span>
+                </label>
+            `;
+            frequencyOptionsContainer.innerHTML = html;
+        }
+
+        function iconForComponent(name) {
+            const n = (name || '').toLowerCase();
+            // ícones simples SVG para evitar muitos caracteres e garantir integridade do HTML
+            if (n.includes('compressor')) {
+                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12h18" />
+                    <path d="M12 3v18" />
+                </svg>`;
+            }
+            if (n.includes('laser') || n.includes('lente') || n.includes('óptica')) {
+                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+                </svg>`;
+            }
+            if (n.includes('chiller') || n.includes('resfriamento')) {
+                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 2v20" />
+                    <path d="M6 8h12" />
+                </svg>`;
+            }
+            if (n.includes('filtros') || n.includes('filtro')) {
+                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 6h16M7 12h10M10 18h4" />
+                </svg>`;
+            }
+            // ícone genérico
+            return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="8" />
+            </svg>`;
+        }
+
+        function statusIconSvg(cat) {
+            switch (cat) {
+                case 'ATRASADA':
+                    return `<div class="status-icon atrasada" title="Atrasada" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 8v4l2 2" />
+                            <circle cx="12" cy="12" r="9" />
+                        </svg>
+                    </div>`;
+                case 'LIBERADA':
+                    return `<div class="status-icon liberada" title="Liberada" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 6L9 17l-5-5" />
+                        </svg>
+                    </div>`;
+                case 'PENDENTE':
+                    return `<div class="status-icon pendente" title="Pendente" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 8v4l2 2" />
+                            <circle cx="12" cy="12" r="9" />
+                        </svg>
+                    </div>`;
+                case 'NUNCA_FEITO':
+                default:
+                    return `<div class="status-icon nunca_feito" title="Nunca feito" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
+                            <path d="M12 7v5l3 3" />
+                        </svg>
+                    </div>`;
+            }
+        }
+
+        function renderChecklist(allTasks, selectedFilters, taskStatus) {
+            maintenanceChecklist.innerHTML = '';
+            if (!selectedFilters || selectedFilters.length === 0) {
+                maintenanceChecklist.innerHTML = '<p class="text-gray-500 italic text-sm">Selecione um filtro (NUNCA FEITAS / EM ATRASO / LIBERADAS / PRÓXIMAS) acima para ver as tarefas.</p>';
+                return;
+            }
+
+            const tasksToRender = {};
+            for (const freq in allTasks) {
+                allTasks[freq].forEach(task => {
+                    const status = taskStatus[task.id];
+                    if (status && selectedFilters.includes(status.statusCategory)) {
+                        if (!tasksToRender[freq]) tasksToRender[freq] = [];
+                        tasksToRender[freq].push({ task, status });
+                    }
+                });
+            }
+
+            let html = '';
+            let tasksFound = 0;
+            const frequencyKeys = Object.keys(tasksToRender).sort((a, b) => (FREQUENCY_DAYS[a] || 9999) - (FREQUENCY_DAYS[b] || 9999));
+            for (const freq of frequencyKeys) {
+                const tasks = tasksToRender[freq];
+                tasksFound += tasks.length;
+
+                tasks.sort((a, b) => {
+                    const pri = { 'NUNCA_FEITO': 1, 'ATRASADA': 2, 'LIBERADA': 3, 'PENDENTE': 4 };
+                    const pa = pri[a.status.statusCategory] || 9, pb = pri[b.status.statusCategory] || 9;
+                    if (pa !== pb) return pa - pb;
+                    const ta = a.status.overdueDate ? a.status.overdueDate.getTime() : Infinity;
+                    const tb = b.status.overdueDate ? b.status.overdueDate.getTime() : Infinity;
+                    return ta - tb;
+                });
+
+                html += `<div class="mb-4"><h3 class="text-sm font-bold text-indigo-600 mb-2 uppercase tracking-wider">${freq}</h3><div class="space-y-2">`;
+
+                tasks.forEach(({ task, status }) => {
+                    let statusText = '', statusClass = 'text-gray-500';
+                    const lastDateStr = formatDate(status.lastDate), releaseDateStr = formatDate(status.releaseDate), overdueDateStr = formatDate(status.overdueDate);
+                    if (status.statusCategory === 'ATRASADA') { statusClass = 'text-red-700'; statusText = `EM ATRASO · Venceu: ${overdueDateStr}`; }
+                    else if (status.statusCategory === 'LIBERADA') { statusClass = 'text-blue-700'; statusText = `LIBERADA · Até: ${overdueDateStr}`; }
+                    else if (status.statusCategory === 'NUNCA_FEITO') { statusClass = 'text-gray-800'; statusText = 'NUNCA FEITO'; }
+                    else if (status.statusCategory === 'PENDENTE') { statusClass = 'text-green-700'; statusText = `PRÓXIMA: ${releaseDateStr}`; }
+
+                    const taskItemClasses = (status.statusCategory === 'ATRASADA' || status.statusCategory === 'NUNCA_FEITO') ? 'task-item overdue' : 'task-item';
+                    const savedState = tempTaskState[task.id] || null;
+                    const isChecked = savedState ? 'checked' : '';
+                    const detailVisible = savedState ? 'visible' : '';
+                    const isRequired = savedState ? 'required' : '';
+                    const savedDate = savedState ? savedState.date : '';
+                    const savedTime = savedState ? savedState.time : '';
+                    const savedResponsible = savedState && savedState.responsible ? savedState.responsible : (currentUser ? currentUser.usuario || '' : '');
+
+                    let badgeClass = 'component-badge';
+                    switch (status.statusCategory) {
+                        case 'LIBERADA': badgeClass += ' liberada'; break;
+                        case 'PENDENTE': badgeClass += ' pendente'; break;
+                        case 'NUNCA_FEITO': badgeClass += ' nunca_feito'; break;
+                        case 'ATRASADA': badgeClass += ' atrasada'; break;
+                        default: break;
+                    }
+
+                    html += `
+                        <div class="${taskItemClasses} p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                            <label class="flex items-start cursor-pointer" style="gap:0.75rem;">
+                                <input type="checkbox" name="task_id" value="${task.id}"
+                                       data-frequency="${status.frequency || ''}"
+                                       ${isChecked}
+                                       onchange="toggleTaskDetails(this)"
+                                       class="task-checkbox">
+                                <div class="ml-1 flex-1">
+                                    <div class="task-header">
+                                        <div class="${badgeClass}" title="${escapeHtml(task.componente)}">${iconForComponent(task.componente)}<span class="component-full-name">${escapeHtml(task.componente)}</span></div>
+                                        <div class="task-meta">
+                                            <p class="action-title">${escapeHtml(task.acao)}</p>
+                                            <p class="component-subtext"><span style="color:var(--muted); font-style:italic">Sugerido:</span> ${escapeHtml(task.responsavelSugerido || '')}</p>
+                                        </div>
+                                        <div style="margin-left:auto; display:flex; align-items:center; gap:0.5rem;">
+                                            ${statusIconSvg(status.statusCategory)}
+                                        </div>
+                                    </div>
+                                    <div class="task-detail ${detailVisible}">
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Data</label>
+                                                <input type="date" class="date-input w-full border rounded-md" value="${savedDate}" ${isRequired}>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
+                                                <input type="time" class="time-input w-full border rounded-md" value="${savedTime}" ${isRequired}>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-700 mb-1">Responsável</label>
+                                                <input type="text" placeholder="Nome do Técnico" class="responsible-input w-full border rounded-md" value="${savedResponsible}" ${isRequired}>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </label>
+                        </div>`;
+                });
+
+                html += `</div></div>`;
+            }
+
+            if (tasksFound === 0) html = '<p class="text-gray-500 italic text-sm">Nenhuma tarefa encontrada para os filtros selecionados.</p>';
+            maintenanceChecklist.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/[&<>"'`=\/]/g, function (s) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;' })[s]; });
+        }
+
+        function handleSubmit(e) {
+            e.preventDefault();
+            setButtonLoading(true);
+            showStatusMessage('Registrando tarefas...', 'info');
+            const selectedPlanKey = maintenancePlanSelect.value;
+            const currentPlan = MAINTENANCE_PLANS[selectedPlanKey];
+            if (!currentPlan) { handleError(new Error("Nenhum plano selecionado.")); return; }
+            const planName = currentPlan.name;
+            const checkedTasks = document.querySelectorAll('input[name="task_id"]:checked');
+            if (checkedTasks.length === 0) { showStatusMessage('Nenhuma tarefa foi selecionada para registro.', 'error'); setButtonLoading(false); return; }
+            const taskDataById = {};
+            for (const freq in currentPlan.tasks) currentPlan.tasks[freq].forEach(t => taskDataById[t.id] = { ...t, frequency: freq });
+            const tasksToSubmit = [];
+            let formIsValid = true;
+            checkedTasks.forEach(cb => {
+                const taskId = cb.value;
+                const def = taskDataById[taskId];
+                const item = cb.closest('.task-item');
+                const dateInput = item.querySelector('.date-input');
+                const timeInput = item.querySelector('.time-input');
+                const responsibleInput = item.querySelector('.responsible-input');
+                const dateValue = dateInput.value, timeValue = timeInput.value, responsibleValue = responsibleInput.value.trim();
+                if (!dateValue || !timeValue || !responsibleValue) { formIsValid = false; return; }
+                const localDate = new Date(`${dateValue}T${timeValue}:00`);
+                tasksToSubmit.push({
+                    planName,
+                    date: localDate.toISOString(),
+                    responsible: responsibleValue,
+                    frequency: def.frequency,
+                    componente: def.componente,
+                    acao: def.acao,
+                    responsavelSugerido: def.responsavelSugerido || ''
+                });
+            });
+
+            if (!formIsValid) { handleError(new Error("Preencha todos os campos (Data, Hora, Responsável) para as tarefas selecionadas.")); return; }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(handleSuccess).withFailureHandler(handleError).recordMaintenance(tasksToSubmit);
+            } else {
+                console.log("Simulando envio:", tasksToSubmit);
+                setTimeout(() => handleSuccess({ status: "OK", totalTasks: tasksToSubmit.length }), 850);
+            }
+        }
+
+        function showStatusMessage(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = 'mt-2 p-2 rounded text-sm font-medium w-full sm:w-auto text-center';
+            if (type === 'success') { statusMessage.style.background = '#ecfdf5'; statusMessage.style.color = '#065f46'; }
+            else if (type === 'error') { statusMessage.style.background = '#fff1f2'; statusMessage.style.color = '#991b1b'; }
+            else { statusMessage.style.background = '#eff6ff'; statusMessage.style.color = '#1e3a8a'; }
+            statusMessage.style.opacity = 1;
+        }
+
+        function setButtonLoading(isLoading) {
+            if (!submitButton || !loadingSpinner || !buttonText) {
+                try {
+                    submitButton = document.getElementById('submitButton');
+                    loadingSpinner = document.getElementById('loadingSpinner');
+                    buttonText = document.getElementById('buttonText');
+                } catch (e) { /* ignore */ }
+            }
+
+            if (!submitButton) return;
+
+            submitButton.disabled = !!isLoading;
+
+            if (isLoading) {
+                if (buttonText) buttonText.textContent = 'Enviando...';
+                if (loadingSpinner) loadingSpinner.style.display = 'inline-block';
+                submitButton.classList.add('opacity-80', 'cursor-not-allowed');
+            } else {
+                if (buttonText) buttonText.textContent = 'Registrar Manutenção';
+                if (loadingSpinner) loadingSpinner.style.display = 'none';
+                submitButton.classList.remove('opacity-80', 'cursor-not-allowed');
+                if (maintenancePlanSelect && maintenancePlanSelect.value) {
+                    submitButton.disabled = false;
+                }
+            }
+        }
+
+        function handleError(err) {
+            console.error(err);
+            setButtonLoading(false);
+            showStatusMessage('Erro: ' + (err && err.message ? err.message : String(err)), 'error');
+        }
+
+        function handleSuccess(result) {
+            setButtonLoading(false);
+            tempTaskState = {};
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                showStatusMessage('Registrado. Recarregando histórico...', 'info');
+                google.script.run.withSuccessHandler((newHistory) => {
+                    maintenanceHistory = newHistory || [];
+                    const selectedPlanKey = maintenancePlanSelect.value;
+                    if (selectedPlanKey) { currentTaskStatusMap = calculateTaskStatus(selectedPlanKey); renderFrequencyOptions(currentTaskStatusMap); }
+                    showStatusMessage(`${result.totalTasks} tarefa(s) registrada(s) com sucesso!`, 'success');
+                    document.querySelectorAll('input[name="frequency"]').forEach(cb => cb.checked = false);
+                    handleFrequencyChange();
+                    setTimeout(() => statusMessage.style.opacity = 0, 3000);
+                }).withFailureHandler(handleError).getMaintenanceHistory();
+            } else {
+                maintenanceHistory = []; handleFrequencyChange(); showStatusMessage('Sucesso (simulado)!', 'success'); setTimeout(() => statusMessage.style.opacity = 0, 2000);
+            }
+        }
+
+        function voltarPagina() {
+            const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+            window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+        }
+    </script>
+</body>
+
+</html>

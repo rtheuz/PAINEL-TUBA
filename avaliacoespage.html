@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Registro de Avaliações</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #f5f6f8;
+    }
+
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 40px auto;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body class="p-6">
+
+  <header class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-semibold text-gray-800 flex items-center gap-2">
+      <i data-lucide="file-text" class="w-6 h-6"></i>
+      Registro de Avaliações
+    </h1>
+    <!-- Botão Voltar -->
+    <button onclick="voltarPagina()"
+      class="flex items-center gap-2 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg shadow-sm transition">
+      <i data-lucide="arrow-left" class="w-5 h-5"></i>
+      Voltar
+    </button>
+  </header>
+
+  <!-- Barra de busca -->
+  <div class="flex items-center gap-3 mb-4">
+    <input type="text" id="filtroInput" placeholder="🔍 Buscar Avaliações por usuário ..."
+      class="w-full p-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+  </div>
+  <div class="button-container mb-4">
+    <button id="btnExportar" onclick="exportarPDF()"
+      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition">
+      Exportar PDF
+    </button>
+  </div>
+  <!-- Loader -->
+  <div id="loader" class="loader"></div>
+
+  <!-- Tabela -->
+  <div id="tabelaContainer" class="hidden overflow-x-auto bg-white rounded-xl shadow-md p-4">
+    <table class="min-w-full text-sm text-left border-collapse">
+      <thead class="bg-blue-600 text-white">
+        <tr id="tabelaHeader"></tr>
+      </thead>
+      <tbody id="tabelaBody" class="divide-y divide-gray-200"></tbody>
+    </table>
+  </div>
+
+  <!-- Injeção segura dos dados do Apps Script:
+       encodeURIComponent no servidor + decodeURIComponent no cliente evita </script> e caracteres problemáticos -->
+  <script>
+    window.dados = JSON.parse(decodeURIComponent("<?!= encodeURIComponent(JSON.stringify(dados)) ?>"));
+    window.token = '<?!= token ?>';
+  </script>
+
+  <script>
+    // Usa os valores injetados pelo Apps Script. Se abrir localmente, há fallback.
+    const dadosFromServer = (typeof window.dados !== 'undefined') ? window.dados : null;
+    const tokenFromServer = (typeof window.token !== 'undefined') ? window.token : "";
+
+    let dados = Array.isArray(dadosFromServer) ? dadosFromServer : [];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+
+      console.log("window.dados (injetado):", window.dados);
+      console.log("dados (usado):", dados);
+      console.log("window.token (injetado):", window.token);
+
+      montarTabela(dados);
+
+      const filtroInput = document.getElementById("filtroInput");
+      if (filtroInput) {
+        filtroInput.addEventListener("input", filtrarTabela);
+      }
+    });
+
+    function montarTabela(registros) {
+      const tabelaHeader = document.getElementById("tabelaHeader");
+      const tabelaBody = document.getElementById("tabelaBody");
+      const loader = document.getElementById("loader");
+      const container = document.getElementById("tabelaContainer");
+
+      if (tabelaHeader) tabelaHeader.innerHTML = "";
+      if (tabelaBody) tabelaBody.innerHTML = "";
+
+      if (!Array.isArray(registros) || registros.length === 0) {
+        if (loader) loader.style.display = "none";
+        if (container) container.classList.remove("hidden");
+        if (tabelaBody) {
+          tabelaBody.innerHTML = `
+            <tr><td colspan="10" class="text-center py-4 text-gray-500">
+              Nenhum registro encontrado.
+            </td></tr>`;
+        }
+        return;
+      }
+
+      const first = registros[0];
+      Object.keys(first).forEach(header => {
+        if (header === "_linhaPlanilha") return;
+        const th = document.createElement("th");
+        th.className = "p-3 font-medium";
+        th.textContent = header;
+        tabelaHeader.appendChild(th);
+      });
+
+      registros.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-blue-50 transition";
+        Object.entries(row).forEach(([chave, valor]) => {
+          if (chave === "_linhaPlanilha") return;
+          const td = document.createElement("td");
+          td.className = "p-3 border-b border-gray-100";
+          td.textContent = (valor === null || typeof valor === 'undefined') ? "" : String(valor);
+          tr.appendChild(td);
+        });
+        tabelaBody.appendChild(tr);
+      });
+
+      if (loader) loader.style.display = "none";
+      if (container) container.classList.remove("hidden");
+    }
+
+    function filtrarTabela() {
+      const termo = (this && this.value) ? this.value.toLowerCase() : "";
+      if (!termo) {
+        montarTabela(dados);
+        return;
+      }
+      const filtrado = dados.filter(reg =>
+        Object.values(reg).some(v => String(v ?? "").toLowerCase().includes(termo))
+      );
+      montarTabela(filtrado);
+    }
+
+    function voltarPagina() {
+      const token = tokenFromServer || "";
+      if (!token) {
+        alert("Token não encontrado — recarregue a página.");
+        return;
+      }
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=paginasprotegidas&token=${encodeURIComponent(token)}`;
+    }
+
+    function exportarPDF() {
+      const btn = document.getElementById("btnExportar");
+      if (!btn) return;
+      btn.textContent = "Gerando PDF...";
+      btn.disabled = true;
+
+      if (window.google && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function (link) {
+          btn.textContent = "Exportar PDF";
+          btn.disabled = false;
+          if (link) window.open(link, "_blank");
+          else alert("PDF gerado, mas o link retornado está vazio.");
+        }).withFailureHandler(function (err) {
+          btn.textContent = "Exportar PDF";
+          btn.disabled = false;
+          alert("Erro ao gerar PDF: " + err);
+        }).exportarAvaliacoesPdf();
+      } else {
+        btn.textContent = "Exportar PDF";
+        btn.disabled = false;
+        alert("Função de exportar PDF não disponível neste ambiente (google.script.run ausente).");
+      }
+    }
+  </script>
+
+</body>
+
+</html>

@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Gestão de Processos TUBA — Painel</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    /* Fonte */
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
+
+    :root {
+      --bg: #f5f7ff;
+      --card-bg: #fff;
+      --primary: #1a73e8;
+      --muted: #4a5568;
+      --max-column-width: 360px;
+      --min-column-width: 220px;
+      --gutter: 18px;
+    }
+
+    /* RESET BÁSICO */
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      font-family: 'Montserrat', sans-serif;
+      color: #111;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* CABEÇALHO */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #fff;
+      padding: 12px clamp(12px, 2.5vw, 28px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      flex: 0 0 auto;
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: clamp(16px, 1.8vw, 24px);
+      color: var(--primary);
+      font-weight: 600;
+      letter-spacing: 0.2px
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: clamp(11px, 1.1vw, 14px);
+      color: var(--muted)
+    }
+
+    .status {
+      text-align: right;
+      min-width: 140px
+    }
+
+    .status .clock {
+      display: block;
+      font-weight: 600;
+      color: var(--primary);
+      font-size: clamp(12px, 1.1vw, 16px)
+    }
+
+    .status .meta {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .pulse {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: var(--primary);
+      border-radius: 50%;
+      margin-left: 8px;
+      vertical-align: middle;
+      animation: pulse 2.5s infinite
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: .95
+      }
+
+      50% {
+        transform: scale(1.6);
+        opacity: .6
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: .95
+      }
+    }
+
+    /* AVISOS - TICKER */
+    .notices-wrap {
+      background: #fff;
+      padding: 8px clamp(12px, 2.5vw, 28px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 0 0 auto;
+      overflow: hidden
+    }
+
+    .notices-label {
+      font-weight: 700;
+      color: var(--primary);
+      margin-right: 12px;
+      flex: 0 0 auto
+    }
+
+    .notices-ticker {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      flex: 1
+    }
+
+    .notices-ticker-inner {
+      display: inline-block;
+      will-change: transform
+    }
+
+    .notice-item {
+      display: inline-block;
+      margin-right: 36px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #fff8e6 0, #fffef6 100%);
+      border-left: 4px solid #ffb020;
+      font-weight: 600;
+      color: #4a3b00
+    }
+
+    .notice-item.important {
+      background: linear-gradient(90deg, #fff6f6 0%, #fff1f1 100%);
+      border-left-color: #dc3545;
+      color: #5a1b1b
+    }
+
+    /* CONTÊINER KANBAN */
+    /* deixar a página controlar o scroll vertical; permitir que colunas e cards cresçam */
+    .board-wrap {
+      display: block;
+      padding: clamp(8px, 1.5vw, 24px);
+      flex: 1 1 auto;
+      overflow: visible;
+    }
+
+    .kanban {
+      height: auto;
+      max-height: none;
+      display: grid;
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(var(--min-column-width), var(--max-column-width));
+      gap: var(--gutter);
+      align-items: start;
+      overflow-x: auto;
+      /* mantém scroll horizontal entre colunas */
+      overflow-y: visible;
+      /* sem scroll vertical interno */
+      padding-bottom: 8px;
+    }
+
+    @media (max-width:900px) {
+      .kanban {
+        grid-auto-columns: minmax(100%, 1fr);
+        grid-auto-flow: row;
+        overflow-x: hidden;
+        overflow-y: visible;
+        height: auto;
+        max-height: none;
+      }
+    }
+
+    .column {
+      background: #e9eef8;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      min-height: 120px;
+    }
+
+    .column h2 {
+      font-size: clamp(13px, 1.2vw, 16px);
+      background: var(--primary);
+      color: #fff;
+      padding: 8px;
+      text-align: center;
+      margin: 0 0 10px 0;
+      border-radius: 6px;
+    }
+
+    /* REMOVER overflow:auto nas listas para evitar scroll interno */
+    .list {
+      padding: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      /* permite que os cards aumentem a altura da coluna, e a página faça o scroll */
+    }
+
+    /* CARDS: altura automática para mostrar TODO o texto */
+    .card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 6px 18px rgba(11, 46, 140, 0.06);
+      cursor: grab;
+      transition: transform .12s ease, box-shadow .12s ease;
+      touch-action: none;
+      /* permitir altura automática conforme conteúdo */
+      height: auto;
+      min-height: 50px;
+      max-height: none;
+      overflow: visible;
+      /* NÃO esconder o texto */
+      display: block;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      border-left: 6px solid transparent;
+      position: relative;
+      width: 100%;
+      /* ocupa 100% da largura da coluna */
+      box-sizing: border-box;
+    }
+
+    .card.with-time {
+      padding-top: 40px;
+    }
+
+    .card.with-deadline.with-time {
+      padding-top: 56px;
+    }
+
+    @media (max-width:420px) {
+      .card.with-time {
+        padding-top: 36px;
+      }
+
+      .card.with-deadline.with-time {
+        padding-top: 48px;
+      }
+    }
+    .card strong {
+      display: block;
+      font-size: clamp(13px, 1.1vw, 16px);
+      color: var(--primary);
+      margin-bottom: 6px;
+
+      white-space: nowrap;
+      /* limita a uma linha */
+      overflow: hidden;
+      /* esconde o excesso */
+      text-overflow: ellipsis;
+      /* adiciona "..." */
+      max-width: 100%;
+    }
+
+    .card p {
+      margin: 0;
+      font-size: clamp(12px, 1.0vw, 14px);
+      color: #333;
+      /* comportamento normal: várias linhas, sem truncamento */
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    /* efeito ao pairar */
+    .card:hover {
+      transform: translateY(-3px)
+    }
+
+    /* estilo do card enquanto arrastado (mantive) */
+    .card.dragging {
+      opacity: 0.98;
+      transform: scale(1.02);
+      z-index: 9999;
+      position: fixed;
+      pointer-events: none;
+      width: clamp(200px, 28vw, 360px);
+      max-width: calc(100% - 36px);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    }
+
+    /* placeholder */
+    .placeholder {
+      height: 58px;
+      background: rgba(26, 115, 232, 0.06);
+      border: 2px dashed rgba(26, 115, 232, 0.18);
+      border-radius: 8px;
+      display: none;
+    }
+
+    body.drag-active .placeholder {
+      display: block;
+    }
+
+    /* cores por coluna */
+    .col-processo-de-orcamento .card {
+      background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+      border-left-color: #720000;
+    }
+
+    .col-processo-de-preparacao-mp-cad-cam .card {
+      background: linear-gradient(180deg, #fff 0%, #fff9f5 100%);
+      border-left-color: #898b00;
+    }
+
+    .col-processo-de-corte .card {
+      background: linear-gradient(180deg, #fff 0%, #f7fff8 100%);
+      border-left-color: #00c2e0;
+    }
+
+    .col-processo-de-dobra .card {
+      background: linear-gradient(180deg, #fff 0%, #fff8f2 100%);
+      border-left-color: #1e04b1;
+    }
+
+    .col-processos-adicionais .card {
+      background: linear-gradient(180deg, #fff 0%, #fff6ff 100%);
+      border-left-color: #f70052;
+    }
+
+    .col-envio-coleta .card {
+      background: linear-gradient(180deg, #fff 0%, #f6fff6 100%);
+      border-left-color: #28a745;
+    }
+
+    /* estados orçamento */
+    .orc-rascunho {
+      background: linear-gradient(180deg, #fff6f6 0%, #fff1f1 100%) !important;
+      border-left-color: #ff0019 !important;
+      box-shadow: 0 6px 18px rgba(220, 53, 69, 0.08);
+      color: #2b2b2b
+    }
+
+    .orc-enviado {
+      background: linear-gradient(180deg, #fffdf6 0%, #fff8ed 100%) !important;
+      border-left-color: #ffb020 !important;
+      box-shadow: 0 6px 18px rgba(255, 176, 32, 0.06)
+    }
+
+    .orc-analise {
+      background: linear-gradient(180deg, #f6fbff 0%, #eef8ff 100%) !important;
+      border-left-color: #17a2b8 !important;
+      box-shadow: 0 6px 18px rgba(23, 162, 184, 0.06)
+    }
+
+    .orc-expirado {
+      background: linear-gradient(180deg, #fbfbfb 0%, #f1f1f1 100%) !important;
+      border-left-color: #6c757d !important;
+      opacity: 0.95;
+      color: #666
+    }
+
+    .orc-convertido {
+      background: linear-gradient(180deg, #f6fff6 0%, #ecfff0 100%) !important;
+      border-left-color: #28a745 !important;
+      box-shadow: 0 6px 18px rgba(40, 167, 69, 0.06)
+    }
+
+    /* badge do tempo estimado (canto superior direito) */
+    .card .card-time {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 600;
+      font-size: clamp(11px, 1.0vw, 13px);
+      padding: 4px 8px;
+      border-radius: 999px;
+      box-shadow: 0 6px 14px rgba(26, 115, 232, 0.12);
+      pointer-events: none;
+      line-height: 1;
+      z-index: 3;
+    }
+
+    .card.orc-rascunho .card-time {
+      background: #ce0015;
+      box-shadow: 0 6px 14px rgba(255, 85, 102, 0.08);
+    }
+
+    .card.orc-enviado .card-time {
+      background: #ffb020;
+      color: #2b2b2b;
+    }
+
+    .card.orc-analise .card-time {
+      background: #17a2b8;
+    }
+
+    .card.orc-expirado .card-time {
+      background: #6c757d;
+    }
+
+    .card.orc-convertido .card-time {
+      background: #28a745;
+    }
+
+    /* ajuste: quando existe prazo, sobe um pouco o conteúdo do card para abrir espaço para badges */
+    .card.with-deadline {
+      padding-top: 40px;
+    }
+
+    /* deadline compacta (canto superior esquerdo) */
+    .card .card-deadline {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      min-width: 36px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.95);
+      color: #163c2b;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 0 8px;
+      border-radius: 8px;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
+      pointer-events: auto;
+      /* permite tooltip on hover */
+      z-index: 4;
+      white-space: nowrap;
+      line-height: 1;
+    }
+
+    /* cores por estado (mantive a lógica anterior) */
+    .card .card-deadline.ok {
+      background: #effaf1;
+      color: #155724;
+      border: 1px solid rgba(40, 167, 69, 0.08);
+    }
+
+    .card .card-deadline.soon {
+      background: #fcedbd;
+      color: #a57e00;
+      border: 1px solid rgba(255, 176, 32, 0.08);
+    }
+
+    .card .card-deadline.overdue {
+      background: #ffabab;
+      color: #7f1d1d;
+      border: 1px solid rgba(220, 53, 69, 0.08);
+    }
+
+    /* em telas pequenas usamos texto ainda menor */
+    @media (max-width:420px) {
+      .card.with-deadline {
+        padding-top: 36px;
+      }
+
+      .card .card-deadline {
+        top: 8px;
+        left: 8px;
+        font-size: 11px;
+        height: 24px;
+        min-width: 32px;
+        padding: 0 6px;
+      }
+    }
+
+    .card .card-time {
+      right: 8px;
+      top: 8px;
+      padding: 3px 6px;
+      font-size: 11px;
+    }
+
+    .bottom-space {
+      height: clamp(6px, 1.2vh, 18px);
+      flex: 0 0 auto;
+    }
+
+    .kanban::-webkit-scrollbar,
+    .list::-webkit-scrollbar {
+      height: 10px;
+      width: 10px
+    }
+
+    .kanban::-webkit-scrollbar-thumb,
+    .list::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.12);
+      border-radius: 8px
+    }
+
+    .card:active {
+      cursor: grabbing
+    }
+
+    button,
+    a {
+      touch-action: manipulation
+    }
+
+    #wake-hint {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      background: rgba(0, 0, 0, 0.6);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+      z-index: 10000
+    }
+
+    #wake-hint button {
+      margin-left: 8px;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="title">
+      <h1>Gestão de Processos TUBA</h1>
+      <p class="subtitle">Painel de produção — monitoramento em tempo real</p>
+    </div>
+
+    <div class="status">
+      <span id="tv-clock" class="clock">--:--:--</span>
+      <span class="meta">Última atualização: <span id="last-update">--</span></span>
+      <span class="pulse" aria-hidden="true"></span>
+    </div>
+  </header>
+
+  <!-- AVISOS: front-only. Edite a constante NOTICES no script abaixo para alterar/atualizar -->
+  <div class="notices-wrap" role="region" aria-label="Avisos do painel" id="notices-wrap" aria-live="polite"
+    aria-atomic="true" style="display:none">
+    <div class="notices-label">Avisos</div>
+    <div class="notices-ticker" id="notices-ticker" aria-hidden="false">
+      <div class="notices-ticker-inner" id="notices-ticker-inner"></div>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="kanban" id="kanban" role="list"></div>
+  </div>
+
+  <div class="bottom-space" aria-hidden="true"></div>
+
+  <script>
+    /* ====== Estado e configuração ====== */
+    const REFRESH_MS = 5000;
+    let dragging = null;
+    let pendingDrag = null;
+    let lastLoad = null;
+
+
+    /* ====== AVISOS (FRONT-ONLY) ======
+       Edite esta constante diretamente no HTML quando quiser atualizar os avisos.
+    */
+    const NOTICES = [
+      "VERIFICAR MANUTENÇÕES EM ATRASO ⚠️",
+      "ATUALIZAR ORÇAMENTOS PENDENTES ⚠️",
+      "Utilize o QR code abaixo para acessar o painel pelo celular"
+
+    ];
+
+    // Configurações do ticker
+    const TICKER_BASE_DURATION_PER_PIXEL = 18; // ms por pixel (menor = mais rápido)
+    const MIN_TICKER_DURATION_MS = 6000;
+
+    function startNoticesTicker(notices) {
+      const wrap = document.getElementById('notices-wrap');
+      const container = document.getElementById('notices-ticker');
+      container.innerHTML = '<div class="notices-ticker-inner" id="notices-ticker-inner"></div>';
+      const inner = document.getElementById('notices-ticker-inner');
+
+      if (!notices || notices.length === 0) {
+        wrap.style.display = 'none';
+        return;
+      }
+
+      wrap.style.display = 'flex';
+
+      // criar itens
+      notices.forEach(msg => {
+        const it = document.createElement('span');
+        it.className = 'notice-item';
+        const low = String(msg).toLowerCase();
+        if (low.includes('⚠') || low.includes('atraso') || low.includes('urgente') || low.includes('importante')) it.classList.add('important');
+        it.textContent = msg;
+        inner.appendChild(it);
+      });
+
+      // duplicar para rolagem contínua suave
+      const clone = inner.cloneNode(true);
+      clone.id = '';
+      container.appendChild(clone);
+
+      // medir largura e animar usando requestAnimationFrame
+      requestAnimationFrame(() => {
+        const innerElems = container.querySelectorAll('.notices-ticker-inner');
+        const contentWidth = innerElems[0].scrollWidth;
+        const durationMs = Math.max(MIN_TICKER_DURATION_MS, Math.round(contentWidth * TICKER_BASE_DURATION_PER_PIXEL));
+        let start = performance.now();
+        function step(now) {
+          const elapsed = now - start;
+          const distance = (elapsed / durationMs) * contentWidth; // pixels deslocados
+          const x = -(distance % contentWidth);
+          innerElems.forEach((el, idx) => {
+            const offset = idx === 0 ? x : x + contentWidth;
+            el.style.transform = `translateX(${offset}px)`;
+          });
+          requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      });
+    }
+
+    // Inicializa avisos (front-only)
+    (function initNotices() {
+      startNoticesTicker(Array.isArray(NOTICES) ? NOTICES : [String(NOTICES)]);
+    })();
+
+    /* ====== Utils ====== */
+    function formatDateTime(d) {
+      if (!d) return '--';
+      const pad = n => String(n).padStart(2, '0');
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    function slugify(s) { return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+
+    /* ====== Helpers para PRAZO ====== */
+    // tenta normalizar diferentes formatos para uma Date válida.
+    // aceita Date, ISO string, "dd/mm/yyyy", "yyyy-mm-dd" e também números serial do Sheets.
+    function parseDateFlexible(value) {
+      if (value == null || value === '') return null;
+      if (value instanceof Date && !isNaN(value.getTime())) return value;
+
+      // se já for número (p.ex. serial do Sheets), converte assumindo base Excel/Google (days since 1899-12-30)
+      if (typeof value === 'number' && !isNaN(value)) {
+        try {
+          const ms = (value - 25569) * 86400 * 1000;
+          const d = new Date(ms);
+          if (!isNaN(d.getTime())) return d;
+        } catch (e) { }
+      }
+
+      const s = String(value).trim();
+      // ISO / parse direto
+      const iso = Date.parse(s);
+      if (!isNaN(iso)) return new Date(iso);
+
+      // dd/mm/yyyy
+      const m1 = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m1) return new Date(Number(m1[3]), Number(m1[2]) - 1, Number(m1[1]));
+
+      // yyyy-mm-dd ou yyyy/mm/dd
+      const m2 = s.match(/^(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+      if (m2) return new Date(Number(m2[1]), Number(m2[2]) - 1, Number(m2[3]));
+
+      // último recurso: tentar Number -> serial
+      const n = Number(s);
+      if (!isNaN(n)) {
+        const ms = (n - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      return null;
+    }
+
+    // helper para transformar diffDays em label curta
+    function humanizeDeadlineLabel(diffDays) {
+      if (diffDays < 0) {
+        const d = Math.abs(diffDays);
+        return d === 0 ? 'Venc.' : `Vencido ${d}d`;
+      }
+      if (diffDays === 0) return 'Hoje';
+      if (diffDays === 1) return 'Amanhã';
+      if (diffDays <= 7) return `${diffDays} dias`;
+      return null; // indica que preferimos mostrar a data (em vez de "Xd")
+    }
+
+    // Formata data para DD/MM/AA (ano com 2 dígitos)
+    function formatDateOnly(date) {
+      if (!date || !(date instanceof Date) || isNaN(date.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      const day = pad(date.getDate());
+      const month = pad(date.getMonth() + 1);
+      const year2 = pad(date.getFullYear() % 100); // ano em 2 dígitos
+      return `${day}/${month}/${year2}`;
+    }
+
+    /* ====== util: abreviar texto (cliente) ====== */
+    function abbreviateText(text, maxLen = 28) {
+      if (!text && text !== 0) return '';
+      const s = String(text).trim();
+      if (s.length <= maxLen) return s;
+      // tenta cortar de forma elegante (sem deixar espaços finais)
+      return s.slice(0, maxLen - 1).trimEnd() + '…';
+    }
+
+    /* ====== Card render helper (com alteração para cliente abreviado e badge mostrando sempre a data DD/MM/AA) ====== */
+    function createCardElement(card, columnName) {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.tabIndex = 0;
+      el.dataset.cliente = card.cliente || '';
+      el.dataset.projeto = card.projeto || '';
+
+      // mantemos valor original para title/tooltip, e usamos versão abreviada para exibição
+      const clienteFull = String(card.cliente || '').replace(/</g, '&lt;');
+      const clienteDisplay = abbreviateText(clienteFull, 30);
+      const projeto = String(card.projeto || '').replace(/</g, '&lt;');
+      const descricao = String(card.descricao || card.descricaoOrcamento || '').replace(/</g, '&lt;');
+      const tempoRaw = card.tempoEstimado ?? card.tempo ?? card.tempoProcesso ?? '';
+      const tempo = String(tempoRaw || '').replace(/</g, '&lt;');
+      const obs = String(card.observacoes || card.obs || '').replace(/</g, '&lt;');
+
+      // título e descrição principais
+      // adicionamos title ao <strong> para permitir tooltip com nome completo do cliente
+      el.innerHTML = `<strong title="${clienteFull}">${clienteDisplay}</strong><p>Projeto: ${projeto}</p>` +
+        (descricao ? `<p>${descricao}</p>` : '') +
+        (obs ? `<p>Obs: ${obs}</p>` : '');
+
+      // TEMPO ESTIMADO (se existir) — badge no canto superior direito
+      if (tempo) {
+        const safeTitle = String(tempoRaw).replace(/"/g, '&#34;').replace(/</g, '&lt;');
+        const timeHtml = `<div class="card-time" aria-hidden="true" title="${safeTitle}">⏱ ${tempo}</div>`;
+        el.insertAdjacentHTML('beforeend', timeHtml);
+        el.dataset.tempoEstimado = tempo;
+        // evita que o badge de tempo fique por cima do título quando não houver prazo
+        el.classList.add('with-time');
+      }
+
+      // PRAZO (procura por vários nomes possíveis vindo da planilha)
+      const prazoKeys = ['prazo', 'PRAZO', 'Prazo', 'prazoEntrega', 'prazo_entrega', 'PrazoEntrega', 'dataPrazo', 'data_prazo', 'PRAZO_ENTREGA'];
+      let prazoRaw = null;
+      for (let k of prazoKeys) {
+        if (card[k] !== undefined && card[k] !== null && String(card[k]).toString().trim() !== '') {
+          prazoRaw = card[k];
+          break;
+        }
+      }
+
+      if (prazoRaw) {
+        const prazoDate = parseDateFlexible(prazoRaw);
+        const prazoLabel = formatDateOnly(prazoDate); // dd/mm/aa (2 dígitos)
+        if (prazoDate && !isNaN(prazoDate.getTime())) {
+          // calcular dias restantes (apenas datas, sem horas)
+          const today = new Date();
+          const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const targetMid = new Date(prazoDate.getFullYear(), prazoDate.getMonth(), prazoDate.getDate());
+          const diffMs = targetMid - todayMid;
+          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+          // estado visual (ok/soon/overdue)
+          let stateClass = 'ok';
+          if (diffDays < 0) stateClass = 'overdue';
+          else if (diffDays <= 3) stateClass = 'soon';
+
+          // label curta (ex: "Hoje", "Amanhã", "3d", ou null se >7 dias)
+          const short = humanizeDeadlineLabel(diffDays);
+
+          // label completa para tooltip / aria
+          const weekday = prazoDate.toLocaleDateString('pt-BR', { weekday: 'long' });
+          const fullLabel = `${formatDateOnly(prazoDate)} — ${weekday}`; // note: formatDateOnly já usa DD/MM/AA
+
+          // montar badge: sempre exibimos a data abreviada DD/MM/AA; quando houver short, mostramos "short · DD/MM/AA"
+          const badgeText = short ? `PRAZO: ${short} · ${prazoLabel}` : `${prazoLabel}`;
+
+          const deadlineHtml = `<div class="card-deadline ${stateClass}" title="${fullLabel}" aria-label="Prazo: ${fullLabel}">${badgeText}</div>`;
+          el.insertAdjacentHTML('afterbegin', deadlineHtml);
+          el.dataset.prazo = prazoDate.toISOString();
+
+          // adiciona classe para aumentar padding-top e evitar sobreposição do conteúdo
+          el.classList.add('with-deadline');
+        } else {
+          // fallback: se não conseguimos parsear, exibe string bruta em tooltip e em badge curta
+          const rawStr = String(prazoRaw).slice(0, 20);
+          const deadlineHtml = `<div class="card-deadline" title="${String(prazoRaw)}" aria-label="Prazo: ${String(prazoRaw)}">${rawStr}</div>`;
+          el.insertAdjacentHTML('afterbegin', deadlineHtml);
+          el.dataset.prazo = String(prazoRaw);
+          el.classList.add('with-deadline');
+        }
+      }
+
+      // Lógica existente de status/orçamento (preservada)
+      if (columnName && columnName.toLowerCase().includes('orçament')) {
+        const possibleKeys = ['status', 'statusOrcamento', 'orcStatus', 'Status', 'estado', 'situacao', 'sit', 'situacaoOrcamento', 'orc_status'];
+        let statusRaw = '';
+        let source = '';
+        for (let k of possibleKeys) {
+          if (card[k] !== undefined && card[k] !== null && String(card[k]).toString().trim() !== '') {
+            statusRaw = String(card[k]);
+            source = 'field:' + k;
+            break;
+          }
+        }
+        if (!statusRaw) {
+          const hay = (clienteFull + ' ' + projeto + ' ' + descricao + ' ' + obs).toLowerCase();
+          const keywords = { rascunho: ['rascunho', 'rascunhos'], enviado: ['enviado', 'enviada', 'envio'], analise: ['análise', 'analise', 'em-analise', 'em analise', 'em análise'], expirado: ['expir', 'perd'], convert: ['convert', 'pedido'] };
+          for (let map in keywords) {
+            for (let kw of keywords[map]) {
+              if (hay.indexOf(kw) !== -1) {
+                statusRaw = kw;
+                source = 'textoDetectado:' + kw;
+                break;
+              }
+            }
+            if (statusRaw) break;
+          }
+        }
+        if (statusRaw && statusRaw.toString().trim() !== '') {
+          const statusTrim = statusRaw.toString().trim();
+          const statusSlug = statusTrim.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          let mapped = '';
+          if (statusSlug === 'rascunho' || statusSlug.includes('rascunho')) mapped = 'orc-rascunho';
+          else if (statusSlug.includes('enviado')) mapped = 'orc-enviado';
+          else if (statusSlug.includes('analise') || statusSlug.includes('analís')) mapped = 'orc-analise';
+          else if (statusSlug.includes('expir') || statusSlug.includes('perd')) mapped = 'orc-expirado';
+          else if (statusSlug.includes('convert') || statusSlug.includes('pedido')) mapped = 'orc-convertido';
+          else mapped = 'orc-' + statusSlug;
+          el.classList.add(mapped);
+          el.dataset.orcStatus = statusTrim;
+        }
+      }
+
+      return el;
+    }
+
+    /* ====== Render Kanban ====== */
+    function renderKanban(data) {
+      // Protege contra re-render durante drag (evita que o elemento arrastado desapareça)
+      if (dragging) return;
+
+      const container = document.getElementById('kanban');
+      container.innerHTML = '';
+
+      const colunas = [
+        "Processo de Orçamento",
+        "Processo de Preparação MP / CAD / CAM",
+        "Processo de Corte",
+        "Processo de Dobra",
+        "Processos Adicionais",
+        "Envio / Coleta"
+      ];
+
+      colunas.forEach(col => {
+        const colDiv = document.createElement('div');
+        colDiv.className = 'column';
+        colDiv.dataset.status = col;
+
+        const colSlug = slugify(col);
+        colDiv.classList.add('col-' + colSlug);
+
+        const h2 = document.createElement('h2'); h2.textContent = col;
+        colDiv.appendChild(h2);
+
+        const list = document.createElement('div'); list.className = 'list'; list.setAttribute('role', 'list');
+
+        const items = data[col] || data[slugify(col)] || [];
+
+        (items || []).forEach(card => {
+          const cardEl = createCardElement(card, col);
+          list.appendChild(cardEl);
+        });
+
+        colDiv.appendChild(list);
+        container.appendChild(colDiv);
+      });
+
+      attachPointerHandlers();
+    }
+
+    /* ====== Load data + merge orders (Apps Script integration if available) ====== */
+    function loadKanban() {
+      lastLoad = new Date();
+      document.getElementById('last-update').textContent = formatDateTime(lastLoad);
+
+      if (window.google && google.script && google.script.run) {
+        if (typeof google.script.run.getKanbanDataWithOrders === 'function') {
+          google.script.run.withSuccessHandler(renderKanban).getKanbanDataWithOrders();
+        } else {
+          google.script.run.withSuccessHandler(function (data) {
+            google.script.run.withSuccessHandler(function (orders) {
+              Object.keys(data).forEach(status => {
+                const saved = orders && orders[status];
+                if (Array.isArray(saved) && saved.length) {
+                  const map = {};
+                  data[status].forEach(item => { map[String(item.cliente || '') + '|' + String(item.projeto || '')] = item; });
+                  const reordered = [];
+                  saved.forEach(k => { if (map[k]) { reordered.push(map[k]); delete map[k]; } });
+                  Object.keys(map).forEach(k => reordered.push(map[k]));
+                  data[status] = reordered;
+                }
+              });
+              renderKanban(data);
+            }).getKanbanOrders();
+          }).getKanbanData();
+        }
+      } else {
+        renderKanban({});
+      }
+    }
+
+    /* ====== Clock, Heartbeat, WakeLock (sem logs) ====== */
+    function startClock() { setInterval(() => { document.getElementById('tv-clock').textContent = new Date().toLocaleTimeString(); }, 1000); }
+
+
+    /* ====== Drag & Drop improvements (robust, no logs) ====== */
+    const DRAG_THRESHOLD = 8;
+    const LONGPRESS_TIMEOUT = 500;
+
+    function attachPointerHandlers() {
+      document.querySelectorAll('.card').forEach(card => {
+        card.onpointerdown = null;
+        card.removeEventListener('pointerdown', onPointerDownStarter);
+        card.addEventListener('pointerdown', onPointerDownStarter);
+      });
+      document.addEventListener('dragstart', e => e.preventDefault());
+    }
+
+    function onPointerDownStarter(ev) {
+      if (ev.button && ev.button !== 0) return;
+      const card = ev.currentTarget;
+      if (pendingDrag && pendingDrag.startElement) cleanupPendingDrag();
+      const rect = card.getBoundingClientRect();
+      const startX = ev.clientX; const startY = ev.clientY;
+      pendingDrag = { startElement: card, startClientX: startX, startClientY: startY, startRect: rect, pointerId: ev.pointerId, moved: false, longPressTimer: null };
+      if (ev.pointerType === 'touch') {
+        pendingDrag.longPressTimer = setTimeout(() => { if (pendingDrag) { pendingDrag.moved = true; startActualDrag(ev); } }, LONGPRESS_TIMEOUT);
+      }
+      try { card.setPointerCapture(ev.pointerId); } catch (e) { }
+      document.addEventListener('pointermove', onPointerMoveStarter);
+      document.addEventListener('pointerup', onPointerUpStarter);
+      document.addEventListener('pointercancel', onPointerCancelStarter);
+      window.addEventListener('pointermove', onPointerMoveStarter);
+      window.addEventListener('pointerup', onPointerUpStarter);
+      window.addEventListener('pointercancel', onPointerCancelStarter);
+      ev.preventDefault();
+    }
+
+    function cleanupPendingDrag() {
+      if (!pendingDrag) return;
+      try { if (pendingDrag.longPressTimer) clearTimeout(pendingDrag.longPressTimer); } catch (e) { }
+      try { if (pendingDrag.startElement && pendingDrag.pointerId !== undefined) pendingDrag.startElement.releasePointerCapture && pendingDrag.startElement.releasePointerCapture(pendingDrag.pointerId); } catch (e) { }
+      pendingDrag = null;
+      document.removeEventListener('pointermove', onPointerMoveStarter);
+      document.removeEventListener('pointerup', onPointerUpStarter);
+      document.removeEventListener('pointercancel', onPointerCancelStarter);
+      window.removeEventListener('pointermove', onPointerMoveStarter);
+      window.removeEventListener('pointerup', onPointerUpStarter);
+      window.removeEventListener('pointercancel', onPointerCancelStarter);
+    }
+
+    function onPointerMoveStarter(ev) {
+      if (!pendingDrag || ev.pointerId !== pendingDrag.pointerId) return;
+      const dx = ev.clientX - pendingDrag.startClientX; const dy = ev.clientY - pendingDrag.startClientY;
+      const distSq = dx * dx + dy * dy;
+      if (!pendingDrag.moved && distSq >= DRAG_THRESHOLD * DRAG_THRESHOLD) {
+        pendingDrag.moved = true;
+        if (pendingDrag.longPressTimer) { clearTimeout(pendingDrag.longPressTimer); pendingDrag.longPressTimer = null; }
+        startActualDrag(ev);
+      }
+    }
+
+    function onPointerUpStarter(ev) {
+      if (!pendingDrag || ev.pointerId !== pendingDrag.pointerId) return cleanupPendingDrag();
+      if (!pendingDrag.moved) { cleanupPendingDrag(); return; }
+      if (pendingDrag.moved && !dragging) cleanupPendingDrag();
+    }
+
+    function onPointerCancelStarter(ev) { cleanupPendingDrag(); }
+
+    function startActualDrag(ev) {
+      if (!pendingDrag) return;
+      const card = pendingDrag.startElement;
+      const rect = pendingDrag.startRect;
+      const placeholder = document.createElement('div'); placeholder.className = 'placeholder';
+      const originalList = card.parentElement;
+      dragging = { element: card, originalList, placeholder, data: { cliente: card.dataset.cliente, projeto: card.dataset.projeto }, offsetX: ev.clientX - rect.left, offsetY: ev.clientY - rect.top, pointerId: ev.pointerId };
+      originalList.insertBefore(placeholder, card.nextSibling);
+      card.style.width = Math.min(rect.width, window.innerWidth - 40) + 'px';
+      card.classList.add('dragging');
+      document.body.classList.add('drag-active');
+      moveDraggingElement(ev.clientX, ev.clientY);
+      cleanupPendingDrag();
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerCancel);
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerCancel);
+      window.addEventListener('blur', onWindowBlur);
+    }
+
+    function onPointerMove(ev) {
+      if (!dragging) return;
+      moveDraggingElement(ev.clientX, ev.clientY);
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const column = el ? el.closest('.column') : null;
+      if (!column) return;
+      const list = column.querySelector('.list');
+      if (!list) return;
+      const children = Array.from(list.querySelectorAll('.card:not(.dragging)'));
+      let inserted = false;
+      for (let child of children) {
+        const r = child.getBoundingClientRect();
+        const midY = r.top + r.height / 2;
+        if (ev.clientY < midY) {
+          if (!(list.contains(dragging.placeholder) && dragging.placeholder.nextSibling === child)) list.insertBefore(dragging.placeholder, child);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) if (!list.contains(dragging.placeholder)) list.appendChild(dragging.placeholder);
+    }
+
+    // robust finalizer based on pointer location (avoids reverting)
+    function onPointerUp(ev) {
+      if (!dragging) return;
+      try { ev.preventDefault(); ev.stopPropagation(); } catch (e) { }
+      finishDragIndependent(ev);
+    }
+
+    function finishDragIndependent(ev) {
+      if (!dragging) return;
+      const el = dragging.element;
+      const placeholder = dragging.placeholder;
+      const origList = dragging.originalList;
+      const clientX = (ev && typeof ev.clientX === 'number') ? ev.clientX : (window.innerWidth / 2);
+      const clientY = (ev && typeof ev.clientY === 'number') ? ev.clientY : (window.innerHeight / 2);
+      let under = document.elementFromPoint(clientX, clientY);
+      let targetColumn = under ? under.closest('.column') : null;
+      let targetList = (targetColumn && targetColumn.querySelector('.list')) || null;
+      if (!targetList && placeholder && placeholder.parentElement) {
+        targetList = placeholder.parentElement;
+        targetColumn = placeholder.closest('.column');
+      }
+      if (!targetList) {
+        targetList = origList;
+        targetColumn = origList.closest('.column');
+      }
+      let insertBeforeNode = null;
+      const children = Array.from(targetList.querySelectorAll('.card:not(.dragging)'));
+      for (let child of children) {
+        const r = child.getBoundingClientRect();
+        const midY = r.top + r.height / 2;
+        if (clientY < midY) { insertBeforeNode = child; break; }
+      }
+      try { if (placeholder && placeholder.parentElement) placeholder.remove(); } catch (e) { }
+      try { if (el.parentElement) el.parentElement.removeChild(el); } catch (e) { }
+      if (insertBeforeNode && insertBeforeNode.parentElement) insertBeforeNode.parentElement.insertBefore(el, insertBeforeNode); else targetList.appendChild(el);
+      el.classList.remove('dragging'); el.style.left = ''; el.style.top = ''; el.style.width = ''; el.style.position = '';
+      try {
+        if (targetColumn) sendColumnOrderToServer(targetColumn);
+        const newStatus = targetColumn ? targetColumn.dataset.status : null;
+        const movedBetween = origList !== targetList;
+        if (movedBetween) {
+          if (window.google && google.script && google.script.run) {
+            try { google.script.run.withSuccessHandler(loadKanban).atualizarStatusKanban(dragging.data.cliente, dragging.data.projeto, newStatus); } catch (e) { loadKanban(); }
+          } else loadKanban();
+        }
+      } catch (e) { }
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('blur', onWindowBlur);
+      document.body.classList.remove('drag-active');
+      dragging = null;
+    }
+
+    function onPointerCancel(ev) { if (!dragging) { cleanupPendingDrag(); return; } restoreDraggedElement(); }
+    function moveDraggingElement(clientX, clientY) { if (!dragging) return; const el = dragging.element; const x = clientX - dragging.offsetX; const y = clientY - dragging.offsetY; el.style.left = x + 'px'; el.style.top = y + 'px'; }
+    function restoreDraggedElement() {
+      if (!dragging) return;
+      const el = dragging.element;
+      const placeholder = dragging.placeholder;
+      if (placeholder && placeholder.parentElement) { dragging.originalList.insertBefore(el, placeholder); placeholder.remove(); } else { dragging.originalList.appendChild(el); }
+      el.classList.remove('dragging'); el.style.left = ''; el.style.top = ''; el.style.width = '';
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerCancel);
+      window.removeEventListener('blur', onWindowBlur);
+      document.body.classList.remove('drag-active');
+      dragging = null;
+    }
+
+    function onWindowBlur() { if (pendingDrag) cleanupPendingDrag(); if (dragging) restoreDraggedElement(); }
+    function sendColumnOrderToServer(columnElement) {
+      const status = columnElement.dataset.status;
+      const ids = Array.from(columnElement.querySelectorAll('.list .card')).map(c => c.dataset.cliente + '|' + c.dataset.projeto);
+      if (window.google && google.script && google.script.run) {
+        try { google.script.run.withSuccessHandler(() => { }).saveKanbanOrder(status, ids); } catch (e) { }
+      }
+    }
+
+    /* ====== Safe initialization (run after load) ====== */
+    window.addEventListener('load', () => {
+      try {
+        startClock();
+        loadKanban();
+        // Atualizações periódicas: só executar se NÃO estivermos arrastando/nem com pending drag
+        setInterval(() => {
+          if (!dragging && !pendingDrag) {
+            loadKanban();
+          }
+        }, REFRESH_MS);
+
+        if (typeof ensureWakeLockActive === 'function') { ensureWakeLockActive(); } else { setTimeout(() => { if (typeof ensureWakeLockActive === 'function') ensureWakeLockActive(); }, 800); }
+      } catch (e) { }
+    });
+
+    window.addEventListener('pagehide', () => { try { if (typeof releaseWakeLock === 'function') releaseWakeLock(); } catch (e) { } });
+    window.addEventListener('beforeunload', () => { try { if (typeof releaseWakeLock === 'function') releaseWakeLock(); } catch (e) { } });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(135deg, #002c74, #30775c);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Fundo animado */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 250%;
+      height: 250%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+      animation: rotate 27s ease-in-out infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 30px 40px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      border-radius: 0 0 20px 20px;
+    }
+
+    .header img {
+      width: 200px;
+    }
+
+    .header h1 {
+      color: #fff;
+      font-size: 36px;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      margin: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+      padding: 40px;
+    }
+
+    .card {
+      background: rgba(103, 85, 123, 0.16);
+      backdrop-filter: blur(15px);
+      padding: 25px;
+      border-radius: 20px;
+      text-align: center;
+      transition: transform 0.3s cubic-bezier(0.99, 1, 0.38, 1.38), box-shadow 0.3s ease;
+      position: relative;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .card:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+
+    .card .icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .card h3 {
+      color: #fff;
+      margin: 10px 0;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #f0f0f0;
+      margin-bottom: 10px;
+    }
+
+    .card .stats {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .card a {
+      text-decoration: none;
+      color: white;
+      background: rgba(26, 115, 232, 0.8);
+      padding: 12px 20px;
+      border-radius: 12px;
+      display: inline-block;
+      transition: background 0.3s ease;
+    }
+
+    .card a:hover {
+      background: rgba(26, 115, 232, 1);
+    }
+
+    @media(max-width:500px) {
+      .container {
+        padding: 20px;
+        gap: 15px;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .card h3 {
+        font-size: 18px;
+      }
+
+      .card .icon {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <button class="btn" style="position:absolute; top:16px; right:16px;" onclick="voltarPagina()" title="Voltar">
+      ← Voltar
+    </button>
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+    <h1>Páginas Protegidas</h1>
+  </div>
+  <div class="card">
+    <div class="icon">📲</div>
+    <h3>Avaliações</h3>
+    <p>Avaliações de Desempenho</p>
+    <a id="linkaval" href="#">Abrir</a>
+  </div>
+  <div class="card">
+    <div class="icon">📝</div>
+    <h3>Relatórios de Avaliações</h3>
+    <p>Relatórios de Avaliações</p>
+    <a id="linkRelatorios" href="#">Abrir</a>
+  </div>
+  <div class="card">
+    <div class="icon">🛠️</div>
+    <h3>Logs de Manutenção</h3>
+    <p>Registros de Manutenção</p>
+    <a id="linkmanut" href="#">Abrir</a>
+  </div>
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    const token = localStorage.getItem('token');
+
+    if (!token) { window.location.href = WEBAPP_URL + "?page=login"; }
+
+    document.getElementById('linkaval').href = WEBAPP_URL + "?page=avaliacoes&token=" + token;
+    document.getElementById('linkmanut').href = WEBAPP_URL + "?page=manutencaologs&token=" + token;
+    document.getElementById('linkRelatorios').href = WEBAPP_URL + "?page=avaliacoespage&token=" + token;
+
+    function voltarPagina() {
+      window.location.href = `${WEBAPP_URL}?page=dashboard&token=${token}`;
+    }
+  </script>
+</body>
+
+</html>

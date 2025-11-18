@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Orçamentos — Sistema TUBA</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-1: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --muted: #64748b;
+      --accent: #0ea5ff;
+      --radius: 12px;
+      --max-width: 1200px
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, system-ui, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      color: #0f172a;
+      background: var(--bg-1);
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 36px 20px;
+      gap: 24px
+    }
+
+    .topbar {
+      width: 100%;
+      max-width: var(--max-width);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      color: white
+    }
+
+    .brand img {
+      height: 48px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(2, 6, 23, 0.4)
+    }
+
+    .brand h1 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: 700
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .btn-voltar {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), #3b82f6);
+      color: white;
+      box-shadow: 0 6px 18px rgba(14, 165, 255, 0.18)
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: white;
+      border-radius: 10px;
+      padding: 8px 12px
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.12)
+    }
+
+    .card {
+      width: 100%;
+      max-width: var(--max-width);
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(2, 6, 23, 0.12)
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 10px
+    }
+
+    .search {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #f1f5f9;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(15, 23, 42, 0.04)
+    }
+
+    .search input {
+      border: 0;
+      background: transparent;
+      padding: 6px 4px;
+      outline: none;
+      font-size: 14px;
+      width: 360px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      color: #0f172a;
+      min-width: 900px
+    }
+
+    thead th {
+      text-align: left;
+      padding: 12px 14px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      position: relative
+    }
+
+    tbody td {
+      padding: 12px 14px;
+      border-top: 1px solid rgba(15, 23, 42, 0.06);
+      vertical-align: middle
+    }
+
+    tbody tr:hover {
+      background: linear-gradient(90deg, rgba(14, 165, 255, 0.04), rgba(59, 130, 246, 0.02))
+    }
+
+    select.status-select {
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+      background: white;
+      font-weight: 600
+    }
+
+    a.link {
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: none
+    }
+
+    a.link:hover {
+      text-decoration: underline
+    }
+
+    .table-wrapper {
+      overflow: auto;
+      border-radius: 8px;
+      padding: 6px;
+      background: linear-gradient(180deg, rgba(2, 6, 23, 0.02), rgba(2, 6, 23, 0.01))
+    }
+
+    footer {
+      width: 100%;
+      max-width: var(--max-width);
+      color: #94a3b8;
+      text-align: center;
+      padding: 12px 0;
+      font-size: 13px
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 80
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 18px;
+      width: 100%;
+      max-width: 720px;
+      box-shadow: 0 20px 60px rgba(2, 6, 23, 0.4);
+      position: relative
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px
+    }
+
+    .modal-close {
+      background: transparent;
+      border: 0;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 6px
+    }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: rgba(15, 23, 42, 0.95);
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(2, 6, 23, 0.4);
+      display: none;
+      z-index: 200
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(2, 6, 23, 0.06);
+      font-size: 14px
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 12px
+    }
+
+    @media (max-width:880px) {
+      .grid {
+        grid-template-columns: 1fr
+      }
+
+      .search input {
+        width: 180px
+      }
+
+      table {
+        min-width: 720px
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <button class="btn-voltar" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+      ← Voltar
+    </button>
+    <div class="topbar">
+      <div class="brand">
+        <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+        <div>
+          <h1>Orçamentos</h1>
+          <div style="font-size:13px;color:rgba(255,255,255,0.85);margin-top:4px">Visualize, filtre e adicione
+            orçamentos</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="limparFiltros()" title="Remover filtros">Limpar filtros</button>
+        <button class="btn btn-primary" onclick="abrirModalNovo()" id="btnNovoOrcamento">+ Novo Orçamento</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="controls">
+        <div style="display:flex;gap:12px;align-items:center;flex:1">
+          <div class="search" role="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 21l-4.35-4.35" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round"
+                stroke-linejoin="round" />
+              <circle cx="11" cy="11" r="6" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+            <input id="globalSearch" placeholder="Pesquisar por cliente, projeto, responsável..."
+              oninput="filtroGlobal()">
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="font-size:13px;color:var(--muted)">Status:</label>
+            <select id="filterStatus" onchange="filtroGlobal()"
+              style="padding:8px;border-radius:8px;border:1px solid rgba(2,6,23,0.06)">
+              <option value="">Todos</option>
+              <option value="Rascunho">Rascunho</option>
+              <option value="Enviado">Enviado</option>
+              <option value="Em análise">Em análise</option>
+              <option value="Negociação">Negociação</option>
+              <option value="Expirado/Perdido">Expirado/Perdido</option>
+              <option value="Convertido em Pedido">Convertido em Pedido</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:13px;color:var(--muted)">Ordenar por:</label>
+          <select onchange="ordenarPor(this.value)"
+            style="padding:8px;border-radius:8px;border:1px solid rgba(2,6,23,0.06)">
+            <option value="">Padrão</option>
+            <option value="cliente">Cliente (A→Z)</option>
+            <option value="valor_desc">Valor (Maior)</option>
+            <option value="valor_asc">Valor (Menor)</option>
+            <option value="data_desc">Data (Mais recente)</option>
+            <option value="data_asc">Data (Mais antiga)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="tabelaOrcamentos" aria-label="Lista de orçamentos">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Responsável</th>
+              <th>Projeto</th>
+              <th>Valor Total</th>
+              <th>Data</th>
+              <th>Processos</th>
+              <th>PDF</th>
+              <th>Memória</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? for (var i = 0; i < dados.length; i++) { ?>
+            <tr data-row="<?!= dados[i]['_linhaPlanilha'] ?>">
+              <td class="col-cliente">
+                <?!= dados[i]["CLIENTE"] ?>
+              </td>
+              <td class="col-resp">
+                <?!= dados[i]["RESPONSÁVEL"] ?>
+              </td>
+              <td class="col-projeto">
+                <?!= dados[i]["PROJETO"] ?>
+              </td>
+              <td class="col-valor">
+                <?!= dados[i]["VALOR TOTAL"] ?>
+              </td>
+              <td class="col-data">
+                <?!= dados[i]["DATA"] ?>
+              </td>
+              <td class="col-processos">
+                <?!= dados[i]["Processos"] ?>
+              </td>
+              <td><a class="link" href="<?!= dados[i]['LINK DO PDF'] ?>" target="_blank">
+                  <?!= dados[i]['LINK DO PDF'] ? "Abrir" : "-" ?>
+                </a></td>
+              <td><a class="link" href="<?!= dados[i]['LINK DA MEMÓRIA DE CÁLCULO'] ?>" target="_blank">
+                  <?!= dados[i]['LINK DA MEMÓRIA DE CÁLCULO'] ? "Abrir" : "-" ?>
+                </a></td>
+              <td>
+                <select class="status-select" onchange="atualizarStatus(this, <?!= dados[i]['_linhaPlanilha'] ?>)">
+                  <option value="Rascunho" <?!=dados[i]["STATUS"]==="Rascunho" ? " selected" : "" ?>>Rascunho</option>
+                  <option value="Enviado" <?!=dados[i]["STATUS"]==="Enviado" ? " selected" : "" ?>>Enviado</option>
+                  <option value="Em análise" <?!=dados[i]["STATUS"]==="Em análise" ? " selected" : "" ?>>Em análise
+                  </option>
+                  <option value="Negociação" <?!=dados[i]["STATUS"]==="Negociação" ? " selected" : "" ?>>Negociação
+                  </option>
+                  <option value="Expirado/Perdido" <?!=dados[i]["STATUS"]==="Expirado/Perdido" ? " selected" : "" ?>
+                    >Expirado/Perdido</option>
+                  <option value="Convertido em Pedido" <?!=dados[i]["STATUS"]==="Convertido em Pedido" ? " selected"
+                    : "" ?>>Convertido em Pedido</option>
+                </select>
+              </td>
+              <td>
+                <button class="btn" title="Editar" onclick="editarLinha(this)">&nbsp;✎&nbsp;</button>
+                <button class="btn btn-danger" title="Excluir" onclick="confirmExcluir(this)">Excluir</button>
+              </td>
+            </tr>
+            <? } ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer class="card" style="text-align:center;font-size:13px">
+      &copy;
+      <?!= new Date().getFullYear() ?> —
+      <?!= empresa.nome ?> |
+      <?!= empresa.endereco ?> | CNPJ:
+      <?!= empresa.cnpj ?> |
+      <?!= empresa.email ?> |
+      <?!= empresa.tel ?>
+    </footer>
+  </div>
+
+  <!-- Modal: Adicionar / Editar Orçamento (fecha apenas pelo botão) -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <h2 id="modalTitle">Novo Orçamento</h2>
+        <div>
+          <button id="modalCloseBtn" class="modal-close" title="Fechar" onclick="fecharModal()">✕</button>
+        </div>
+      </div>
+
+      <form id="formNovoOrcamento" onsubmit="event.preventDefault(); submitNovoOrcamento()">
+        <div class="grid">
+          <div class="field">
+            <label for="inputCliente">Cliente *</label>
+            <input id="inputCliente" name="cliente" list="clientesList" required autocomplete="off"
+              placeholder="Digite ou selecione um cliente">
+            <datalist id="clientesList"></datalist>
+            <small style="color:var(--muted);font-size:12px">Se o cliente não existir, será criado
+              automaticamente.</small>
+          </div>
+          <div class="field">
+            <label for="inputResponsavel">Responsável</label>
+            <input id="inputResponsavel" name="responsavel">
+          </div>
+
+          <div class="field">
+            <label for="inputProjeto">Projeto *</label>
+            <input id="inputProjeto" name="projeto" required>
+          </div>
+          <div class="field">
+            <label for="inputValor">Valor Total (ex: R$ 1.234,56)</label>
+            <input id="inputValor" name="valor" placeholder="R$ 0,00">
+          </div>
+
+          <div class="field">
+            <label for="inputData">Data (DD/MM/AAAA)</label>
+            <input id="inputData" name="data" placeholder="dd/mm/aaaa">
+          </div>
+          <div class="field">
+            <label for="inputProcessos">Processos</label>
+            <input id="inputProcessos" name="processos">
+          </div>
+
+          <div class="field">
+            <label for="inputPdf">Link do PDF</label>
+            <input id="inputPdf" name="linkPdf" placeholder="https://...">
+          </div>
+          <div class="field">
+            <label for="inputMemoria">Link da Memória de Cálculo</label>
+            <input id="inputMemoria" name="linkMemoria" placeholder="https://...">
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label for="selectStatus" style="font-size:13px;color:var(--muted);font-weight:600">Status</label>
+          <select id="selectStatus" name="status" style="width:220px;margin-top:6px;padding:8px;border-radius:8px">
+            <option>Rascunho</option>
+            <option>Enviado</option>
+            <option>Em análise</option>
+            <option>Negociação</option>
+            <option>Expirado/Perdido</option>
+            <option>Convertido em Pedido</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitModal">Adicionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmação de exclusão -->
+  <div id="confirmBackdrop" class="modal-backdrop" style="display:none" aria-hidden="true">
+    <div class="modal" style="max-width:420px">
+      <h3 id="confirmTitle">Confirmar exclusão</h3>
+      <p id="confirmMsg">Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.</p>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost" onclick="cancelExcluir()">Cancelar</button>
+        <button id="btnConfirmExcluir" class="btn btn-danger">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const token = "<?= token ?>";
+    const dados = JSON.parse(<?= JSON.stringify(dados) ?>); // ← Correção importante!
+    // Estado global
+    let clientesNomes = [];
+    let editingLinha = null; // número da linha quando em modo edição (null = adicionar)
+    let editingTr = null;
+
+    // Carrega lista de clientes
+    function carregarClientes() {
+      google.script.run
+        .withSuccessHandler(function (lista) {
+          if (!Array.isArray(lista)) return;
+          clientesNomes = lista.map(c => (c && c.nome) ? String(c.nome).trim() : '').filter(Boolean);
+          const datalist = document.getElementById('clientesList');
+          datalist.innerHTML = '';
+          clientesNomes.forEach(nome => {
+            const option = document.createElement('option');
+            option.value = nome;
+            datalist.appendChild(option);
+          });
+        })
+        .withFailureHandler(err => {
+          console.error('Erro ao buscar clientes:', err);
+        })
+        .getTodosClientes();
+    }
+    window.addEventListener('load', carregarClientes);
+
+    // abrir modal em modo novo
+    function abrirModalNovo() {
+      editingLinha = null;
+      editingTr = null;
+      document.getElementById('modalTitle').textContent = 'Novo Orçamento';
+      document.getElementById('btnSubmitModal').textContent = 'Adicionar';
+      document.getElementById('formNovoOrcamento').reset();
+      const mb = document.getElementById('modalBackdrop');
+      mb.style.display = 'flex';
+      mb.setAttribute('aria-hidden', 'false');
+      carregarClientes();
+      document.getElementById('inputCliente').focus();
+    }
+
+    // abrir modal editar
+    function abrirModalEditar(tr, linhaPlanilha) {
+      editingLinha = Number(linhaPlanilha) || null;
+      editingTr = tr;
+      document.getElementById('modalTitle').textContent = 'Editar Orçamento';
+      document.getElementById('btnSubmitModal').textContent = 'Salvar';
+      const form = document.getElementById('formNovoOrcamento');
+
+      form.cliente.value = tr.querySelector('.col-cliente')?.textContent.trim() || '';
+      form.responsavel.value = tr.querySelector('.col-resp')?.textContent.trim() || '';
+      form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
+      form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
+      form.data.value = tr.querySelector('.col-data')?.textContent.trim() || '';
+      form.processos.value = tr.querySelector('.col-processos')?.textContent.trim() || '';
+
+      // Leitura dos links usando getAttribute para obter o valor original do atributo href,
+      // evitando o URL proxied que .href pode retornar no Apps Script.
+      const links = tr.querySelectorAll('a.link');
+      const linkPdfAttr = (links[0] && links[0].getAttribute) ? links[0].getAttribute('href') : '';
+      const linkMemAttr = (links[1] && links[1].getAttribute) ? links[1].getAttribute('href') : '';
+      form.linkPdf.value = (linkPdfAttr && linkPdfAttr !== '#') ? linkPdfAttr : '';
+      form.linkMemoria.value = (linkMemAttr && linkMemAttr !== '#') ? linkMemAttr : '';
+
+      const selRow = tr.querySelector('.status-select');
+      form.status.value = selRow ? selRow.value : 'Rascunho';
+
+      const mb = document.getElementById('modalBackdrop');
+      mb.style.display = 'flex';
+      mb.setAttribute('aria-hidden', 'false');
+      carregarClientes();
+      document.getElementById('inputCliente').focus();
+    }
+
+    // fechar modal (somente botão)
+    function fecharModal() {
+      const mb = document.getElementById('modalBackdrop');
+      mb.style.display = 'none';
+      mb.setAttribute('aria-hidden', 'true');
+      document.getElementById('formNovoOrcamento').reset();
+      editingLinha = null;
+      editingTr = null;
+      document.getElementById('modalTitle').textContent = 'Novo Orçamento';
+      document.getElementById('btnSubmitModal').textContent = 'Adicionar';
+    }
+
+    // toast
+    function showToast(msg, duration = 3000) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.style.display = 'none'; }, duration);
+    }
+
+    // atualizar status
+    function atualizarStatus(selectElem, linhaPlanilha) {
+      const novoStatus = selectElem.value;
+      google.script.run
+        .withSuccessHandler(() => {
+          selectElem.classList.add('updated');
+          setTimeout(() => selectElem.classList.remove('updated'), 700);
+          showToast('Status atualizado', 1400);
+        })
+        .withFailureHandler(err => {
+          console.error('Erro atualizarStatus:', err);
+          alert("Erro ao atualizar status: " + (err && err.message ? err.message : JSON.stringify(err)));
+        })
+        .atualizarStatusNaPlanilha(Number(linhaPlanilha), novoStatus);
+    }
+
+    // normaliza texto removendo acentos e pontuação para comparar
+    function normalizeText(s) {
+      if (!s) return '';
+      return String(s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s\/]/g, '');
+    }
+
+    // filtro global + por status
+    function filtroGlobal() {
+      const qRaw = document.getElementById('globalSearch').value || '';
+      const q = normalizeText(qRaw);
+      const statusFiltroRaw = (document.getElementById('filterStatus').value || '').trim();
+      const statusFiltro = normalizeText(statusFiltroRaw);
+      const rows = document.querySelectorAll('#tabelaOrcamentos tbody tr');
+
+      rows.forEach(r => {
+        const cliente = normalizeText(r.querySelector('.col-cliente')?.textContent || '');
+        const resp = normalizeText(r.querySelector('.col-resp')?.textContent || '');
+        const projeto = normalizeText(r.querySelector('.col-projeto')?.textContent || '');
+        const valor = normalizeText(r.querySelector('.col-valor')?.textContent || '');
+        const data = normalizeText(r.querySelector('.col-data')?.textContent || '');
+        const processos = normalizeText(r.querySelector('.col-processos')?.textContent || '');
+
+        const combined = [cliente, resp, projeto, valor, data, processos].join(' ');
+        let matchesText = true;
+        if (q) matchesText = combined.indexOf(q) !== -1;
+
+        let matchesStatus = true;
+        if (statusFiltro) {
+          const sel = r.querySelector('.status-select');
+          let rowStatus = '';
+          if (sel) {
+            rowStatus = normalizeText(sel.value || (sel.options[sel.selectedIndex] && sel.options[sel.selectedIndex].text) || '');
+          } else {
+            rowStatus = normalizeText(r.children[8]?.textContent || '');
+          }
+          matchesStatus = (rowStatus === statusFiltro);
+        }
+
+        r.style.display = (matchesText && matchesStatus) ? '' : 'none';
+      });
+    }
+
+    function limparFiltros() {
+      document.getElementById('globalSearch').value = '';
+      document.getElementById('filterStatus').value = '';
+      filtroGlobal();
+    }
+
+    // ordenação
+    function ordenarPor(key) {
+      const tbody = document.querySelector('#tabelaOrcamentos tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
+      if (!key) return;
+      const compare = (a, b) => {
+        if (key === 'cliente') {
+          const aa = a.querySelector('.col-cliente').textContent.trim().toLowerCase();
+          const bb = b.querySelector('.col-cliente').textContent.trim().toLowerCase();
+          return aa.localeCompare(bb);
+        }
+        if (key === 'valor_desc' || key === 'valor_asc') {
+          const na = parseNumero(a.querySelector('.col-valor').textContent);
+          const nb = parseNumero(b.querySelector('.col-valor').textContent);
+          return (na - nb) * (key === 'valor_desc' ? -1 : 1);
+        }
+        if (key === 'data_desc' || key === 'data_asc') {
+          const da = parseData(a.querySelector('.col-data').textContent);
+          const db = parseData(b.querySelector('.col-data').textContent);
+          return (da - db) * (key === 'data_desc' ? -1 : 1);
+        }
+        return 0;
+      };
+      rows.sort(compare);
+      rows.forEach(r => tbody.appendChild(r));
+    }
+
+    function parseNumero(txt) { if (!txt) return 0; const n = parseFloat(String(txt).replace(/[R$\s.]/g, '').replace(',', '.')) || 0; return n; }
+    function parseData(txt) { if (!txt) return 0; const parts = String(txt).split('/'); if (parts.length !== 3) return 0; return new Date(+parts[2], +parts[1] - 1, +parts[0]).getTime(); }
+
+    // submit (novo ou editar)
+    function submitNovoOrcamento() {
+      const form = document.getElementById('formNovoOrcamento');
+      const clienteNome = (form.cliente.value || '').trim();
+      const responsavel = (form.responsavel.value || '').trim();
+      const projeto = (form.projeto.value || '').trim();
+      const valor = (form.valor.value || '').trim();
+      const data = (form.data.value || '').trim();
+      const processos = (form.processos.value || '').trim();
+      const linkPdf = (form.linkPdf.value || '').trim();
+      const linkMem = (form.linkMemoria.value || '').trim();
+      const status = (form.status.value || '').trim();
+
+      if (!clienteNome || !projeto) { alert('Preencha ao menos Cliente e Projeto.'); return; }
+
+      const dataObj = {
+        CLIENTE: clienteNome,
+        "RESPONSÁVEL": responsavel,
+        PROJETO: projeto,
+        "VALOR TOTAL": valor,
+        DATA: data,
+        Processos: processos,
+        "LINK DO PDF": linkPdf,
+        "LINK DA MEMÓRIA DE CÁLCULO": linkMem,
+        STATUS: status
+      };
+
+      const btn = document.querySelector('#modalBackdrop .btn-primary');
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = editingLinha ? 'Salvando...' : 'Enviando...';
+
+      const clienteExiste = clientesNomes.includes(clienteNome);
+      const salvarClientePromise = new Promise((resolve) => {
+        if (clienteExiste) return resolve({ saved: false });
+        google.script.run
+          .withSuccessHandler(res => resolve({ saved: true, res }))
+          .withFailureHandler(err => { console.warn('Erro salvarClienteSeNovo:', err); resolve({ saved: false, err }); })
+          .salvarClienteSeNovo({ nome: clienteNome });
+      });
+
+      salvarClientePromise.then(() => {
+        if (editingLinha) {
+          // atualizar existente
+          google.script.run
+            .withSuccessHandler(function (result) {
+              console.log('atualizarOrcamentoNaPlanilha result:', result);
+              btn.disabled = false;
+              btn.textContent = originalText;
+              // atualiza DOM
+              updateLinhaTabela(dataObj, editingLinha);
+              showToast('Orçamento atualizado com sucesso', 2500);
+              // fechar modal após editar
+              fecharModal();
+
+              // Se o status foi alterado para "Convertido em Pedido" durante a edição,
+              // chamar a função que faz a conversão para Pedidos (server-side)
+              if (dataObj.STATUS === "Convertido em Pedido") {
+                google.script.run
+                  .withSuccessHandler(function () {
+                    showToast('Orçamento convertido em pedido', 2000);
+                  })
+                  .withFailureHandler(function (err) {
+                    console.error('Erro ao converter orçamento em pedido:', err);
+                  })
+                  .atualizarStatusNaPlanilha(Number(editingLinha), dataObj.STATUS);
+              }
+
+              if (!clienteExiste) {
+                clientesNomes.push(clienteNome);
+                const opt = document.createElement('option'); opt.value = clienteNome;
+                document.getElementById('clientesList').appendChild(opt);
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error('Erro atualizarOrcamentoNaPlanilha:', err);
+              btn.disabled = false;
+              btn.textContent = originalText;
+              alert('Erro ao atualizar orçamento: ' + (err && err.message ? err.message : JSON.stringify(err)));
+            })
+            .atualizarOrcamentoNaPlanilha(Number(editingLinha), dataObj);
+        } else {
+          // adicionar novo (mantém modal aberto)
+          google.script.run
+            .withSuccessHandler(function (result) {
+              console.log('adicionarOrcamentoNaPlanilha result:', result);
+              btn.disabled = false;
+              btn.textContent = originalText;
+              const linhaPlanilha = (result && result.linha) ? result.linha : result;
+              appendLinhaTabela(dataObj, linhaPlanilha);
+              // limpar form para adicionar outro
+              document.getElementById('formNovoOrcamento').reset();
+              document.getElementById('inputCliente').focus();
+              showToast('Orçamento adicionado com sucesso. Você pode adicionar outro.', 3000);
+
+              // Se o novo orçamento já veio com status "Convertido em Pedido", disparar a conversão
+              if (dataObj.STATUS === "Convertido em Pedido") {
+                google.script.run
+                  .withSuccessHandler(function () {
+                    showToast('Orçamento convertido em pedido', 2000);
+                  })
+                  .withFailureHandler(function (err) {
+                    console.error('Erro ao converter orçamento em pedido:', err);
+                  })
+                  .atualizarStatusNaPlanilha(Number(linhaPlanilha), dataObj.STATUS);
+              }
+
+              if (!clienteExiste) {
+                clientesNomes.push(clienteNome);
+                const opt = document.createElement('option'); opt.value = clienteNome;
+                document.getElementById('clientesList').appendChild(opt);
+              }
+            })
+            .withFailureHandler(function (err) {
+              console.error('Erro adicionarOrcamentoNaPlanilha:', err);
+              btn.disabled = false;
+              btn.textContent = originalText;
+              alert('Erro ao adicionar orçamento: ' + (err && err.message ? err.message : JSON.stringify(err)));
+            })
+            .adicionarOrcamentoNaPlanilha(dataObj);
+        }
+      });
+    }
+
+    // append DOM
+    function appendLinhaTabela(dados, linhaPlanilha) {
+      const tbody = document.querySelector('#tabelaOrcamentos tbody');
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-row', String(linhaPlanilha));
+      tr.innerHTML = `
+        <td class="col-cliente"></td>
+        <td class="col-resp"></td>
+        <td class="col-projeto"></td>
+        <td class="col-valor"></td>
+        <td class="col-data"></td>
+        <td class="col-processos"></td>
+        <td><a class="link" href="#" target="_blank">-</a></td>
+        <td><a class="link" href="#" target="_blank">-</a></td>
+        <td>
+          <select class="status-select">
+            <option value="Rascunho">Rascunho</option>
+            <option value="Enviado">Enviado</option>
+            <option value="Em análise">Em análise</option>
+            <option value="Negociação">Negociação</option>
+            <option value="Expirado/Perdido">Expirado/Perdido</option>
+            <option value="Convertido em Pedido">Convertido em Pedido</option>
+          </select>
+        </td>
+        <td>
+          <button class="btn" title="Editar" onclick="editarLinha(this)">&nbsp;✎&nbsp;</button>
+          <button class="btn btn-danger" title="Excluir" onclick="confirmExcluir(this)">Excluir</button>
+        </td>
+      `;
+      tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';
+      tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL"] || '';
+      tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
+      tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
+      tr.querySelector('.col-data').textContent = dados.DATA || '';
+      tr.querySelector('.col-processos').textContent = dados.Processos || '';
+      const linkPdf = tr.querySelectorAll('a.link')[0];
+      const linkMem = tr.querySelectorAll('a.link')[1];
+      if (dados["LINK DO PDF"]) { linkPdf.setAttribute('href', dados["LINK DO PDF"]); linkPdf.textContent = 'Abrir'; } else { linkPdf.setAttribute('href', '#'); linkPdf.textContent = '-'; }
+      if (dados["LINK DA MEMÓRIA DE CÁLCULO"]) { linkMem.setAttribute('href', dados["LINK DA MEMÓRIA DE CÁLCULO"]); linkMem.textContent = 'Abrir'; } else { linkMem.setAttribute('href', '#'); linkMem.textContent = '-'; }
+      const sel = tr.querySelector('.status-select');
+      sel.value = dados.STATUS || 'Rascunho';
+      sel.onchange = function () { atualizarStatus(this, linhaPlanilha); };
+      tbody.insertBefore(tr, tbody.firstChild);
+      filtroGlobal();
+    }
+
+    // update DOM após edição
+    function updateLinhaTabela(dados, linhaPlanilha) {
+      const tr = document.querySelector(`#tabelaOrcamentos tbody tr[data-row="${linhaPlanilha}"]`);
+      if (!tr) {
+        console.warn('Linha DOM não encontrada para update:', linhaPlanilha);
+        return;
+      }
+      tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';
+      tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL"] || '';
+      tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
+      tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
+      tr.querySelector('.col-data').textContent = dados.DATA || '';
+      tr.querySelector('.col-processos').textContent = dados.Processos || '';
+      const links = tr.querySelectorAll('a.link');
+      if (dados["LINK DO PDF"]) { links[0].setAttribute('href', dados["LINK DO PDF"]); links[0].textContent = 'Abrir'; } else { links[0].setAttribute('href', '#'); links[0].textContent = '-'; }
+      if (dados["LINK DA MEMÓRIA DE CÁLCULO"]) { links[1].setAttribute('href', dados["LINK DA MEMÓRIA DE CÁLCULO"]); links[1].textContent = 'Abrir'; } else { links[1].setAttribute('href', '#'); links[1].textContent = '-'; }
+      let sel = tr.querySelector('.status-select');
+      if (!sel) {
+        const td = tr.children[8];
+        td.innerHTML = `<select class="status-select">
+          <option value="Rascunho">Rascunho</option>
+          <option value="Enviado">Enviado</option>
+          <option value="Em análise">Em análise</option>
+          <option value="Negociação">Negociação</option>
+          <option value="Expirado/Perdido">Expirado/Perdido</option>
+          <option value="Convertido em Pedido">Convertido em Pedido</option>
+        </select>`;
+        sel = tr.querySelector('.status-select');
+      }
+      sel.value = dados.STATUS || 'Rascunho';
+      sel.onchange = function () { atualizarStatus(this, linhaPlanilha); };
+      filtroGlobal();
+    }
+
+    // exclusão
+    let linhaParaExcluir = null;
+    let trParaExcluir = null;
+    function confirmExcluir(button) {
+      const tr = button.closest('tr');
+      linhaParaExcluir = Number(tr.getAttribute('data-row'));
+      trParaExcluir = tr;
+      document.getElementById('confirmBackdrop').style.display = 'flex';
+      document.getElementById('confirmBackdrop').setAttribute('aria-hidden', 'false');
+    }
+    function cancelExcluir() {
+      linhaParaExcluir = null;
+      trParaExcluir = null;
+      document.getElementById('confirmBackdrop').style.display = 'none';
+      document.getElementById('confirmBackdrop').setAttribute('aria-hidden', 'true');
+    }
+    document.getElementById('btnConfirmExcluir').addEventListener('click', function () {
+      if (!linhaParaExcluir) return;
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Excluindo...';
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (trParaExcluir && trParaExcluir.parentNode) trParaExcluir.parentNode.removeChild(trParaExcluir);
+          cancelExcluir();
+          btn.disabled = false;
+          btn.textContent = 'Excluir';
+          showToast('Orçamento excluído', 2000);
+        })
+        .withFailureHandler(function (err) {
+          console.error('Erro excluirOrcamento:', err);
+          btn.disabled = false;
+          btn.textContent = 'Excluir';
+          alert('Erro ao excluir orçamento: ' + (err && err.message ? err.message : JSON.stringify(err)));
+        })
+        .excluirOrcamento(Number(linhaParaExcluir));
+    });
+
+    // editar linha
+    function editarLinha(button) {
+      // Mais robusto na leitura do atributo data-row (pode vir como string, vazio ou estar ausente)
+      const tr = button && button.closest ? button.closest('tr') : null;
+      if (!tr) {
+        alert('Não foi possível identificar a linha a ser editada.');
+        return;
+      }
+
+      // tenta várias formas de obter o valor da linha
+      const linhaAttr = tr.getAttribute('data-row') ?? tr.dataset?.row ?? tr.getAttribute('data-linha') ?? '';
+
+      if (linhaAttr === null || linhaAttr === undefined || String(linhaAttr).trim() === '') {
+        // atributo ausente ou vazio -> informar e abortar
+        alert('Não foi possível identificar a linha a ser editada.');
+        return;
+      }
+
+      const linha = Number(String(linhaAttr).trim());
+      if (!Number.isFinite(linha)) {
+        // valor não numérico -> informar para facilitar debugging
+        alert('Não foi possível identificar a linha a ser editada (valor inválido): ' + linhaAttr);
+        return;
+      }
+
+      abrirModalEditar(tr, linha);
+    }
+    function voltarPagina() {
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+  </script>
+</body>
+
+</html>

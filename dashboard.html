@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(135deg, #002c74, #30775c);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Fundo animado */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 250%;
+      height: 250%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+      animation: rotate 27s ease-in-out infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 30px 40px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      border-radius: 0 0 20px 20px;
+    }
+
+    .header img {
+      width: 200px;
+    }
+
+    .header h1 {
+      color: #fff;
+      font-size: 36px;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      margin: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+      padding: 40px;
+    }
+
+    .card {
+      background: rgba(103, 85, 123, 0.16);
+      backdrop-filter: blur(15px);
+      padding: 25px;
+      border-radius: 20px;
+      text-align: center;
+      transition: transform 0.3s cubic-bezier(0.99, 1, 0.38, 1.38), box-shadow 0.3s ease;
+      position: relative;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .card:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    }
+
+    .card .icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .card h3 {
+      color: #fff;
+      margin: 10px 0;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #f0f0f0;
+      margin-bottom: 10px;
+    }
+
+    .card .stats {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .card a {
+      text-decoration: none;
+      color: white;
+      background: rgba(26, 115, 232, 0.8);
+      padding: 12px 20px;
+      border-radius: 12px;
+      display: inline-block;
+      transition: background 0.3s ease;
+    }
+
+    .card a:hover {
+      background: rgba(26, 115, 232, 1);
+    }
+
+    @media(max-width:500px) {
+      .container {
+        padding: 20px;
+        gap: 15px;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .card h3 {
+        font-size: 18px;
+      }
+
+      .card .icon {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+    <h1>Dashboard</h1>
+  </div>
+
+
+
+  <div class="container">
+
+    <div class="card">
+      <div class="icon">🗃️</div>
+      <h3>Gerenciar Projetos</h3>
+      <div class="stats" id="statOrcamentos">0</div>
+      <p>Projetos</p>
+      <a id="linkOrcamentos" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">📄</div>
+      <h3>Nova Proposta Comercial</h3>
+      <div class="stats" id="statPropostas">0</div>
+      <p>Total de propostas criadas</p>
+      <a id="linkOrcamento" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🛒</div>
+      <h3>Pedidos</h3>
+      <div class="stats" id="statPedidos">0</div>
+      <p>Pedidos em andamento e realizados</p>
+      <a id="linkPedidos" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🏭</div>
+      <h3>Linha de Produção</h3>
+      <div class="stats" id="statKanban">0</div>
+      <p>Tarefas em produção</p>
+      <a id="linkKanban" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🏷️</div>
+      <h3>Gerador de Etiquetas</h3>
+      <div class="stats" id="statEtiquetas">0</div>
+      <p>Etiquetas geradas</p>
+      <a id="linkGeradorEtiquetas" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">📦</div>
+      <h3>Controle de Materiais</h3>
+      <div class="stats" id="statMateriais">0</div>
+      <p>Materiais em estoque</p>
+      <a id="linkMateriais" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🛍️</div>
+      <h3>Produtos Cadastrados</h3>
+      <div class="stats" id="statProdutos">0</div>
+      <p>Produtos cadastrados</p>
+      <a id="linkProdutos" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">📜</div>
+      <h3>Logs de Produção</h3>
+      <div class="stats" id="statLogs">0</div>
+      <p>Tempos de processos de produção</p>
+      <a id="linkLogs" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🔒</div>
+      <h3>Administração</h3>
+      <p>Área reservada</p>
+      <a id="linkTESTE" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">⚙️</div>
+      <h3>Formulário de Manutenção</h3>
+      <p>Registrar manutenção das máquinas</p>
+      <a id="linkManutencao" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">🛻</div>
+      <h3>Saída de Veículos</h3>
+      <p>Registrar saída de veículos</p>
+      <a id="linkVeiculos" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+        <div class="icon">🏁</div>
+        <h3>Retorno de veículos</h3>
+        <p>Registrar e consultar retorno de veículos</p>
+        <a id="linkVeiculoslist" href="#">Abrir</a>
+      </div>
+  </div>
+
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    const token = localStorage.getItem('token');
+
+    if (!token) { window.location.href = WEBAPP_URL + "?page=login"; }
+
+    document.getElementById('linkOrcamento').href = WEBAPP_URL + "?page=orcamento&token=" + token;
+    document.getElementById('linkKanban').href = WEBAPP_URL + "?page=kanban&token=" + token;
+    document.getElementById('linkOrcamentos').href = WEBAPP_URL + "?page=orcamentos&token=" + token;
+    document.getElementById('linkGeradorEtiquetas').href = WEBAPP_URL + "?page=geradoretiquetas&token=" + token;
+    document.getElementById('linkMateriais').href = WEBAPP_URL + "?page=materiais&token=" + token;
+    document.getElementById('linkPedidos').href = WEBAPP_URL + "?page=pedidos&token=" + token;
+    document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
+    document.getElementById('linkLogs').href = WEBAPP_URL + "?page=logs&token=" + token;
+    document.getElementById('linkTESTE').href = WEBAPP_URL + "?page=paginasprotegidas&token=" + token;
+    document.getElementById('linkManutencao').href = WEBAPP_URL + "?page=manutencao&token=" + token;
+    document.getElementById('linkVeiculos').href = WEBAPP_URL + "?page=veiculos&token=" + token;
+    document.getElementById('linkVeiculoslist').href = WEBAPP_URL + "?page=veiculos_list&token=" + token;
+
+    // Atualiza estatísticas em tempo real
+    function atualizarEstatisticas() {
+      google.script.run.withSuccessHandler(res => {
+        document.getElementById('statPropostas').textContent = res.propostas || 0;
+        document.getElementById('statOrcamentos').textContent = res.orcamentos || 0;
+        document.getElementById('statPedidos').textContent = res.pedidos || 0;
+        document.getElementById('statKanban').textContent = res.kanban || 0;
+        document.getElementById('statEtiquetas').textContent = res.etiquetas || 0;
+        document.getElementById('statMateriais').textContent = res.materiais || 0;
+        document.getElementById('statProdutos').textContent = res.produtos || 0;
+        document.getElementById('statLogs').textContent = res.logs || 0;
+      }).getDashboardStats();
+    }
+
+    atualizarEstatisticas();
+    setInterval(atualizarEstatisticas, 10000);
+  </script>
+
+</body>
+
+</html>

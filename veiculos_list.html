@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Controle de Veículos — Visualização</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th.sortable .arrow {
+      display: inline-block;
+      width: 0;
+      height: 0;
+      margin-left: 6px;
+      vertical-align: middle;
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+    }
+
+    th.sortable.asc .arrow {
+      border-bottom: 6px solid #334155; /* dark slate */
+    }
+
+    th.sortable.desc .arrow {
+      border-top: 6px solid #334155;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen p-6">
+  <div>
+    <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+      ← Voltar
+    </button>
+  </div>
+
+  <div class="max-w-6xl mx-auto">
+    <header class="flex items-center gap-4 mb-6">
+      <img src="https://i.imgur.com/ncKzLXK.png" alt="Logo" class="w-20 h-20 object-contain" />
+      <div>
+        <h1 class="text-2xl font-semibold text-slate-800">Controle de Veículos</h1>
+        <p class="text-sm text-slate-500">Visualize as saídas registradas e registre a volta dos veículos em uso.</p>
+      </div>
+      <div class="ml-auto">
+        <button id="btnAtualizar" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Atualizar</button>
+      </div>
+    </header>
+
+    <div class="bg-white rounded-xl shadow p-4">
+      <div id="mensagem" class="mb-4 hidden p-3 rounded text-sm"></div>
+
+      <!-- filtros -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="flex gap-2 items-center">
+          <input id="txtBusca" type="search" placeholder="Pesquisar (funcionário, veículo, motivo)" class="w-full border rounded px-3 py-2 text-sm" />
+          <button id="btnLimparBusca" class="ml-2 px-3 py-2 bg-slate-100 border rounded text-sm">Limpar</button>
+        </div>
+        <div class="flex gap-2">
+          <select id="selStatus" class="w-1/2 border rounded px-3 py-2 text-sm">
+            <option value="">Todos os status</option>
+            <option value="Em uso">Em uso</option>
+            <option value="Finalizado">Finalizado</option>
+            <option value="Pendente">Pendente</option>
+          </select>
+
+          <select id="selVeiculo" class="w-1/2 border rounded px-3 py-2 text-sm">
+            <option value="">Todos os veículos</option>
+          </select>
+        </div>
+        <div class="flex gap-2 items-center">
+          <input id="dtInicio" type="date" class="border rounded px-3 py-2 text-sm" />
+          <input id="dtFim" type="date" class="border rounded px-3 py-2 text-sm" />
+          <button id="btnLimparDatas" class="ml-2 px-3 py-2 bg-slate-100 border rounded text-sm">Limpar datas</button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table id="tblVeiculos" class="w-full text-sm table-auto border-collapse">
+          <thead>
+            <tr class="bg-slate-100 text-slate-600">
+              <th data-col="row" class="px-3 py-2 text-left sortable"># <span class="arrow"></span></th>
+              <th data-col="0" class="px-3 py-2 text-left sortable">DATA <span class="arrow"></span></th>
+              <th data-col="1" class="px-3 py-2 text-left sortable">FUNCIONÁRIO <span class="arrow"></span></th>
+              <th data-col="2" class="px-3 py-2 text-left sortable">VEÍCULO <span class="arrow"></span></th>
+              <th data-col="3" class="px-3 py-2 text-left sortable">HORA SAÍDA <span class="arrow"></span></th>
+              <th data-col="4" class="px-3 py-2 text-left sortable">PREVISÃO RETORNO <span class="arrow"></span></th>
+              <th data-col="5" class="px-3 py-2 text-left sortable">MOTIVO <span class="arrow"></span></th>
+              <th data-col="6" class="px-3 py-2 text-left sortable">STATUS <span class="arrow"></span></th>
+              <th data-col="7" class="px-3 py-2 text-left sortable">HORA RETORNO <span class="arrow"></span></th>
+              <th class="px-3 py-2 text-left">AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody id="corpoTabela" class="divide-y"></tbody>
+        </table>
+      </div>
+
+      <p class="text-xs text-slate-500 mt-3">Obs: clique em "Registrar Volta" para marcar o retorno do veículo (atualiza
+        status para "Finalizado" e grava horário de retorno).</p>
+    </div>
+  </div>
+
+  <script>
+    const token = '<?= token ?>';
+    const mensagemEl = document.getElementById('mensagem');
+    const corpo = document.getElementById('corpoTabela');
+    const btnAtualizar = document.getElementById('btnAtualizar');
+
+    // filtros DOM
+    const txtBusca = document.getElementById('txtBusca');
+    const selStatus = document.getElementById('selStatus');
+    const selVeiculo = document.getElementById('selVeiculo');
+    const dtInicio = document.getElementById('dtInicio');
+    const dtFim = document.getElementById('dtFim');
+    const btnLimparBusca = document.getElementById('btnLimparBusca');
+    const btnLimparDatas = document.getElementById('btnLimparDatas');
+
+    // estado local
+    let allRows = []; // array original vindo do servidor
+    let sortCol = 'row'; // 'row' para número da linha, ou índice da coluna (string)
+    let sortDir = 'asc'; // 'asc' | 'desc'
+
+    // carregar dados da planilha (server-side)
+    function carregarDados() {
+      mostrarMensagem('', '');
+      corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-slate-500">Carregando...</td></tr>';
+
+      google.script.run
+        .withSuccessHandler(rows => {
+          allRows = Array.isArray(rows) ? rows : [];
+          popularOpcoesVeiculo(allRows);
+          aplicarFiltrosERender();
+        })
+        .withFailureHandler(err => {
+          mostrarMensagem('Erro ao carregar dados: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700');
+          corpo.innerHTML = '';
+        })
+        .getControleVeiculos(); // server function retorna array de linhas com {row: número, values: [...]}
+    }
+
+    // popular select de veículos com valores únicos
+    function popularOpcoesVeiculo(rows) {
+      const set = new Set();
+      rows.forEach(r => {
+        const v = (r.values && r.values[2]) ? String(r.values[2]).trim() : '';
+        if (v) set.add(v);
+      });
+
+      // limpar e adicionar
+      selVeiculo.innerHTML = '<option value="">Todos os veículos</option>';
+      Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        selVeiculo.appendChild(opt);
+      });
+    }
+
+    function aplicarFiltrosERender() {
+      let rows = allRows.slice(); // clone
+
+      // aplicar pesquisa textual (funcionário, veículo, motivo)
+      const q = (txtBusca.value || '').trim().toLowerCase();
+      if (q) {
+        rows = rows.filter(r => {
+          const v = r.values || [];
+          const func = String(v[1] || '').toLowerCase();
+          const veic = String(v[2] || '').toLowerCase();
+          const motivo = String(v[5] || '').toLowerCase();
+          return func.includes(q) || veic.includes(q) || motivo.includes(q);
+        });
+      }
+
+      // filtro status
+      const statusFilter = (selStatus.value || '').trim().toLowerCase();
+      if (statusFilter) {
+        rows = rows.filter(r => {
+          const s = String((r.values && r.values[6]) || '').trim().toLowerCase();
+          return s === statusFilter;
+        });
+      }
+
+      // filtro veiculo
+      const vFilter = (selVeiculo.value || '').trim().toLowerCase();
+      if (vFilter) {
+        rows = rows.filter(r => {
+          const v = String((r.values && r.values[2]) || '').trim().toLowerCase();
+          return v === vFilter;
+        });
+      }
+
+      // filtro por intervalo de datas (coluna 0)
+      const start = dtInicio.value ? new Date(dtInicio.value) : null;
+      const end = dtFim.value ? new Date(dtFim.value) : null;
+      if (start || end) {
+        rows = rows.filter(r => {
+          const dateStr = (r.values && r.values[0]) ? String(r.values[0]).trim() : '';
+          const d = parseDateLike(dateStr);
+          if (!d) return false;
+          if (start && d < start) return false;
+          if (end) {
+            // include end day entirely
+            const endOfDay = new Date(end);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (d > endOfDay) return false;
+          }
+          return true;
+        });
+      }
+
+      // ordenar
+      rows.sort((a, b) => compareRows(a, b, sortCol, sortDir));
+
+      renderizarTabela(rows);
+      atualizarSetaOrdenacao();
+    }
+
+    // tenta parsear data comum (YYYY-MM-DD, DD/MM/YYYY, Date ISO, or Excel serial is not handled)
+    function parseDateLike(text) {
+      if (!text) return null;
+      // se estiver no formato DD/MM/YYYY
+      const ddmmy = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (ddmmy) {
+        const d = new Date(Number(ddmmy[3]), Number(ddmmy[2]) - 1, Number(ddmmy[1]));
+        if (!isNaN(d)) return d;
+      }
+      // tentativa direta
+      const d2 = new Date(text);
+      if (!isNaN(d2)) return d2;
+      return null;
+    }
+
+    // comparação entre duas linhas para ordenação
+    function compareRows(a, b, col, dir) {
+      const mul = dir === 'asc' ? 1 : -1;
+      if (col === 'row') {
+        const ra = Number(a.row || 0);
+        const rb = Number(b.row || 0);
+        return (ra - rb) * mul;
+      }
+
+      const ai = a.values && a.values[col] !== undefined ? a.values[col] : '';
+      const bi = b.values && b.values[col] !== undefined ? b.values[col] : '';
+
+      // se coluna é data (col === '0')
+      if (String(col) === '0') {
+        const da = parseDateLike(String(ai));
+        const db = parseDateLike(String(bi));
+        if (da && db) return (da - db) * mul;
+        if (da && !db) return -1 * mul;
+        if (!da && db) return 1 * mul;
+      }
+
+      // tentar número
+      const na = Number(String(ai).replace(/[^\d\.-]/g, ''));
+      const nb = Number(String(bi).replace(/[^\d\.-]/g, ''));
+      if (!isNaN(na) && !isNaN(nb)) return (na - nb) * mul;
+
+      // fallback string compare
+      return String(ai).localeCompare(String(bi), undefined, { sensitivity: 'base' }) * mul;
+    }
+
+    function atualizarSetaOrdenacao() {
+      document.querySelectorAll('th.sortable').forEach(th => {
+        th.classList.remove('asc', 'desc');
+        const col = th.getAttribute('data-col') || 'row';
+        if (String(col) === String(sortCol)) th.classList.add(sortDir);
+      });
+    }
+
+    function renderizarTabela(rows) {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-slate-500">Nenhum registro encontrado.</td></tr>';
+        return;
+      }
+
+      corpo.innerHTML = rows.map(r => {
+        const vals = r.values || [];
+        // garantir índices (colunas esperadas): 0:DATA,1:FUNC,2:VEIC,3:HORA SAÍDA,4:PREV RET,5:MOTIVO,6:STATUS,7:HORA RETORNO (opcional)
+        const data = vals[0] || '';
+        const func = vals[1] || '';
+        const veic = vals[2] || '';
+        const horaSaida = vals[3] || '';
+        const previsao = vals[4] || '';
+        const motivo = vals[5] || '';
+        const status = vals[6] || '';
+        const horaRetorno = vals[7] || '';
+        const rowNum = r.row;
+
+        const isEnabled = !(status && String(status).trim().toLowerCase() !== 'em uso');
+
+        // botão: só habilita se status == "Em uso"
+        const btn = isEnabled
+          ? `<button data-row="${rowNum}" class="registrar-volta inline-flex items-center gap-2 px-3 py-1 rounded border text-sm border-blue-600 text-blue-600 hover:bg-blue-50">Registrar Volta</button>`
+          : `<button data-row="${rowNum}" disabled class="inline-flex items-center gap-2 px-3 py-1 rounded border text-sm text-slate-400 border-slate-200 bg-slate-50 cursor-not-allowed">Registrar Volta</button>`;
+
+        return `<tr class="hover:bg-slate-50">
+          <td class="px-3 py-2">${rowNum}</td>
+          <td class="px-3 py-2">${escapeHtml(data)}</td>
+          <td class="px-3 py-2">${escapeHtml(func)}</td>
+          <td class="px-3 py-2">${escapeHtml(veic)}</td>
+          <td class="px-3 py-2">${escapeHtml(horaSaida)}</td>
+          <td class="px-3 py-2">${escapeHtml(previsao)}</td>
+          <td class="px-3 py-2">${escapeHtml(motivo)}</td>
+          <td class="px-3 py-2 font-medium">${escapeHtml(status)}</td>
+          <td class="px-3 py-2">${escapeHtml(horaRetorno)}</td>
+          <td class="px-3 py-2">${btn}</td>
+        </tr>`;
+      }).join('');
+
+      // adicionar listeners nos botões
+      document.querySelectorAll('.registrar-volta').forEach(btn => {
+        // já que reconstruímos o DOM, rebind
+        btn.addEventListener('click', () => {
+          const row = parseInt(btn.getAttribute('data-row'), 10);
+          if (!row) return;
+          if (!confirm('Registrar volta deste veículo agora?')) return;
+          btn.disabled = true;
+          btn.textContent = 'Registrando...';
+
+          google.script.run
+            .withSuccessHandler(() => {
+              mostrarMensagem('Volta registrada com sucesso.', 'bg-green-100 text-green-700');
+              carregarDados();
+            })
+            .withFailureHandler(err => {
+              mostrarMensagem('Erro ao registrar volta: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700');
+              carregarDados();
+            })
+            .registrarRetornoVeiculo(row); // envia o número da linha na planilha
+        });
+      });
+    }
+
+    function mostrarMensagem(texto, classes) {
+      if (!texto) {
+        mensagemEl.className = 'mb-4 hidden';
+        mensagemEl.textContent = '';
+        return;
+      }
+      mensagemEl.textContent = texto;
+      mensagemEl.className = 'mb-4 p-3 rounded text-sm ' + classes;
+      mensagemEl.classList.remove('hidden');
+    }
+
+    // proteção simples de XSS — os dados vêm da planilha
+    function escapeHtml(str) {
+      if (str === undefined || str === null) return '';
+      return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    // se clicar nos headers ordenáveis
+    document.querySelectorAll('th.sortable').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.getAttribute('data-col') || 'row';
+        if (String(col) === String(sortCol)) {
+          // alterna direção
+          sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+        } else {
+          sortCol = col;
+          sortDir = 'asc';
+        }
+        aplicarFiltrosERender();
+      });
+    });
+
+    // eventos de filtros
+    [txtBusca, selStatus, selVeiculo, dtInicio, dtFim].forEach(el => {
+      el.addEventListener('input', debounce(() => aplicarFiltrosERender(), 250));
+      el.addEventListener('change', () => aplicarFiltrosERender());
+    });
+
+    btnLimparBusca.addEventListener('click', () => {
+      txtBusca.value = '';
+      aplicarFiltrosERender();
+    });
+
+    btnLimparDatas.addEventListener('click', () => {
+      dtInicio.value = '';
+      dtFim.value = '';
+      aplicarFiltrosERender();
+    });
+
+    btnAtualizar.addEventListener('click', carregarDados);
+
+    // carregamento inicial
+    carregarDados();
+
+    function voltarPagina() {
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+
+    // debounce util
+    function debounce(fn, wait) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+      };
+    }
+  </script>
+</body>
+
+</html>

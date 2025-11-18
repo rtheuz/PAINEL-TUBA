@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f5f7ff;
+      margin: 0;
+      padding: 0;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 20px 40px;
+      background: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .header img {
+      width: 150px;
+    }
+
+    .header h1 {
+      color: #1a73e8;
+      font-size: 28px;
+      margin: 0;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      background: #1a73e8;
+      color: white;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 25px;
+      padding: 30px 40px;
+      justify-content: center;
+    }
+
+    .card {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      flex: 1 1 350px;
+      max-width: 420px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .card h2 {
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card.desabilitado {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .autoavaliacao {
+      border-left: 8px solid #1a73e8;
+    }
+
+    .equipe {
+      border-left: 8px solid #27ae60;
+    }
+
+    .chefia {
+      border-left: 8px solid #e67e22;
+    }
+
+    .campo-container {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 15px;
+    }
+
+    .campo-container label {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    input[type="number"],
+    textarea {
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      padding: 7px;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      padding: 14px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: block;
+      margin: 30px auto;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #1662c1;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .legenda {
+      text-align: center;
+      margin: 20px 0;
+      color: #555;
+      font-size: 14px;
+    }
+
+    .icon {
+      font-size: 18px;
+    }
+
+    small {
+      color: #666;
+      font-size: 12px;
+    }
+
+    /* Spinner dentro do botão */
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #fff;
+      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 10px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+    <h1>Avaliações</h1>
+  </div>
+  <button class="btn" style="position:absolute; top:1px; right:16px;" onclick="voltarPagina()" title="Voltar">
+    ← Voltar
+  </button>
+  </div>
+  <div class="container" style="justify-content: center; margin-top: 10px;">
+    <div class="legenda">
+      Preencha cada campo com nota de 1 a 5 (1 = Muito Ruim, 5 = Excelente). Observações são opcionais.
+    </div>
+
+    <div class="container" id="formContainer"></div>
+
+    <button id="btnSalvar" onclick="salvarTudo()">Salvar Avaliações</button>
+
+    <script>
+      const token = "<?= token ?>";
+
+      function renderCards(data, existingData) {
+        const container = document.getElementById('formContainer');
+        container.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+
+        const nomeUsuarioLogado = data.usuarioLogado.usuario || data.usuarioLogado; // só o nome
+
+        function criarSecao(tipo, lista) {
+          lista.forEach(avaliado => {
+            let nomeAvaliado = tipo === "Autoavaliação" ? nomeUsuarioLogado : avaliado; // se auto, usa nome
+
+            // não renderiza usuário logado em equipe/chefia
+            if (tipo !== "Autoavaliação" && nomeAvaliado === nomeUsuarioLogado) return;
+
+            const div = document.createElement('div');
+            div.className = 'card ' + tipo.toLowerCase();
+            div.dataset.tipo = tipo;
+            div.dataset.avaliado = nomeAvaliado;
+
+            const jaAvaliado = existingData.some(row =>
+              row.Avaliador === nomeUsuarioLogado &&
+              row.Tipo === tipo &&
+              row.Avaliado === nomeAvaliado
+            );
+
+            let icon = tipo === 'Autoavaliação' ? '🟦' : tipo === 'Equipe' ? '🟩' : '🟧';
+            let html = `<h2><span class="icon">${icon}</span> ${tipo}: ${nomeAvaliado}</h2>`;
+
+            const campos = [
+              { label: 'Desempenho Técnico', field: 'desempenho' },
+              { label: 'Trabalho em Equipe', field: 'trabalhoEquipe' },
+              { label: 'Pontualidade', field: 'pontualidade' },
+              { label: 'Organização', field: 'organizacao' }
+            ];
+
+            campos.forEach(c => {
+              html += `
+              <div class="campo-container">
+                <label>${c.label}</label>
+                <input type="number" min="1" max="5" data-field="${c.field}" required placeholder="1 a 5">
+                <small>1 = Muito Ruim, 5 = Excelente</small>
+              </div>
+            `;
+            });
+
+            if (tipo === "Chefia") {
+              const extraCampos = [
+                { label: 'Liderança', field: 'lideranca' },
+                { label: 'Comunicação', field: 'comunicacao' }
+              ];
+              extraCampos.forEach(c => {
+                html += `
+                <div class="campo-container">
+                  <label>${c.label}</label>
+                  <input type="number" min="1" max="5" data-field="${c.field}" required placeholder="1 a 5">
+                  <small>1 = Muito Ruim, 5 = Excelente</small>
+                </div>
+              `;
+              });
+            }
+
+            html += `<div class="campo-container">
+                     <label>Observações (opcional)</label>
+                     <textarea data-field="observacoes" placeholder="Comentários adicionais"></textarea>
+                   </div>`;
+
+            div.innerHTML = html;
+            if (jaAvaliado) div.classList.add('desabilitado');
+            fragment.appendChild(div);
+          });
+        }
+
+        criarSecao('Autoavaliação', data.autoavaliacao);
+        criarSecao('Equipe', data.equipe);
+        criarSecao('Chefia', data.chefia);
+
+        container.appendChild(fragment);
+      }
+
+      google.script.run.withSuccessHandler(function (data) {
+        google.script.run.withSuccessHandler(function (existingData) {
+          renderCards(data, existingData);
+        }).getAvaliacoesSalvas(token);
+      }).getAvaliacoesPorUsuario(token);
+
+      function salvarTudo() {
+        const btn = document.getElementById('btnSalvar');
+        btn.disabled = true;
+        btn.innerHTML = 'Salvando <span class="spinner"></span>';
+
+        const forms = document.querySelectorAll('.card');
+        let avaliacoes = [];
+
+        for (const div of forms) {
+          if (div.classList.contains('desabilitado')) continue;
+          let campos = {};
+          let valido = true;
+
+          div.querySelectorAll('[data-field]').forEach(input => {
+            const valor = input.value.trim();
+            campos[input.dataset.field] = valor;
+            if (input.tagName !== 'TEXTAREA' && (valor === '' || isNaN(valor) || valor < 1 || valor > 5)) valido = false;
+          });
+
+          if (!valido) {
+            alert("Preencha todas as notas de 1 a 5.");
+            btn.disabled = false;
+            btn.innerHTML = 'Salvar Avaliações';
+            return;
+          }
+
+          avaliacoes.push({
+            tipo: div.dataset.tipo,
+            avaliado: div.dataset.avaliado,
+            ...campos
+          });
+        }
+
+        google.script.run.withSuccessHandler(res => {
+          if (res.success) {
+            alert("Avaliações salvas com sucesso!");
+            btn.innerHTML = 'Avaliações salvas';
+          } else {
+            alert("Erro: " + res.message);
+            btn.disabled = false;
+            btn.innerHTML = 'Salvar Avaliações';
+          }
+        }).salvarAvaliacao(avaliacoes, token);
+      }
+      function voltarPagina() {
+        if (!token) {
+          alert("Token não encontrado — recarregue a página.");
+          return;
+        }
+        const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+      }
+    </script>
+</body>
+
+</html>
