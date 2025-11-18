@@ -4,16 +4,19 @@
 <head>
   <meta charset="utf-8">
   <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerador de Etiquetas</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
 
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       font-family: 'Montserrat', sans-serif;
       margin: 0;
-      padding: 40px;
-      display: flex;
-      justify-content: center;
+      padding: 0;
       min-height: 100vh;
       background: linear-gradient(35deg, #a6c0fe, #4d8164, #f9fbb6);
       background-size: 600% 600%;
@@ -34,152 +37,270 @@
       }
     }
 
-    .form-container {
-      background: rgba(255, 255, 255, 0.7);
-      s backdrop-filter: blur(12px);
-      padding: 30px 36px;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-      width: 90%;
-      max-width: 700px;
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
-    h2 {
-      text-align: center;
+    .btn-back {
+      appearance: none;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      background: #f0f0f0;
+      color: #333;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .btn-back:active {
+      background: #e0e0e0;
+    }
+
+    .header h2 {
+      margin: 0;
       color: #1a73e8;
-      margin-bottom: 20px;
+      font-size: 17px;
+      flex: 1;
+    }
+
+    .form-container {
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 100px; /* Espaço extra para o botão aparecer no iframe */
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      padding: 18px;
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1a73e8;
+      margin: 0 0 14px 0;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
     .form-group {
-      margin-bottom: 14px;
+      margin-bottom: 16px;
+    }
+
+    .form-group:last-child {
+      margin-bottom: 0;
     }
 
     label {
       display: block;
-      font-weight: normal;
-      margin-bottom: 4px;
-      color: #232323;
-      font-size: 18px;
-      font-style: bold;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+      font-size: 14px;
     }
 
     input[type="text"],
     input[type="date"],
     select {
       width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d0d7e6;
-      border-radius: 8px;
-      font-size: 15px;
-      box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.6);
-      backdrop-filter: blur(6px);
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      font-family: 'Montserrat', sans-serif;
+      background: white;
+      transition: border-color 0.2s;
     }
 
-    .dim-input {
-      display: flex;
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: #1a73e8;
+    }
+
+    /* NOVO: Grid para dimensões */
+    .dim-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 10px;
       align-items: center;
-      gap: 8px;
     }
 
-    .dim-input input {
-      width: 50%;
-      padding: 10px 12px;
-      border: 1px solid #d0d7e6;
-      border-radius: 8px;
-      font-size: 15px;
+    .dim-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .dim-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
       text-align: center;
     }
 
-    .dim-sep {
-      user-select: none;
-      font-weight: bold;
-      font-size: 16px;
-      color: #333;
-      padding: 6px 4px;
-    }
-
-    button {
-      width: 100%;
-      padding: 14px;
-      margin-top: 8px;
-      background: #1a73e8;
-      color: white;
-      font-size: 17px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.18s ease;
-    }
-
-    .btn {
-      appearance: none;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 10px;
+    .dim-grid input {
+      text-align: center;
       font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      background: #1a73e8;
-      color: white;
+      font-size: 18px;
+      padding: 14px 8px;
     }
 
-    button:hover:enabled {
+    .dim-sep {
+      font-weight: bold;
+      font-size: 24px;
+      color: #999;
+      user-select: none;
+      padding-top: 20px; /* Alinha com os inputs */
+    }
+
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-group select,
+    .input-group input {
+      flex: 1;
+    }
+
+    .btn-gerar {
+      width: 100%;
+      padding: 16px;
+      background: #1a73e8;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Montserrat', sans-serif;
+      box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+      margin-bottom: 20px; /* Espaço extra no final */
+    }
+
+    .btn-gerar:active:enabled {
+      transform: scale(0.98);
       background: #1662c1;
     }
 
-    button:disabled {
+    .btn-gerar:disabled {
       background: #cfcfcf;
       cursor: not-allowed;
+      box-shadow: none;
     }
 
     .preview-data {
-      font-size: 13px;
-      color: #555;
+      font-size: 12px;
+      color: #666;
       margin-top: 4px;
     }
 
-    @media (max-width: 640px) {
-      .two {
-        grid-template-columns: 1fr;
+    @media (max-width: 480px) {
+      .header {
+        padding: 10px 16px;
+      }
+
+      .header h2 {
+        font-size: 15px;
+      }
+
+      .btn-back {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+
+      .form-container {
+        padding: 12px;
+        padding-bottom: 120px; /* Mais espaço em mobile */
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .card-title {
+        font-size: 12px;
+      }
+
+      .dim-grid input {
+        font-size: 16px;
+        padding: 12px 6px;
+      }
+
+      .dim-sep {
+        font-size: 20px;
       }
     }
   </style>
 </head>
-<div class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
-    ← Voltar
-</div>
 
 <body>
-  <div class="form-container">
+  <div class="header">
+    <button class="btn-back" onclick="voltarPagina()">← Voltar</button>
     <h2>Gerador de Etiquetas</h2>
+  </div>
 
-    <div class="form-group">
-      <label for="prop">Propriedade</label>
-      <input type="text" id="prop" value="TUBA FERRAMENTARIA">
-    </div>
-
-    <div class="form-group">
-      <label for="tipo">Tipo</label>
-      <select id="tipo">
-        <option value="">Selecione</option>
-        <option value="Retalho" selected>Retalho</option>
-        <option value="Int.">Int.</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="dim">Dimensões (mm)</label>
-      <div class="dim-input">
-        <input id="dim1" inputmode="numeric" pattern="\d*" maxlength="5" value="3000" />
-        <span class="dim-sep">x</span>
-        <input id="dim2" inputmode="numeric" pattern="\d*" maxlength="5" value="1200" />
+  <div class="form-container">
+    <!-- Identificação -->
+    <div class="card">
+      <h3 class="card-title">📋 Identificação</h3>
+      
+      <div class="form-group">
+        <label for="prop">Propriedade</label>
+        <input type="text" id="prop" value="TUBA FERRAMENTARIA">
       </div>
-    </div>
 
-    <div class="two">
+      <div class="form-group">
+        <label for="tipo">Tipo</label>
+        <select id="tipo">
+          <option value="">Selecione</option>
+          <option value="Retalho" selected>Retalho</option>
+          <option value="Int.">Int.</option>
+        </select>
+      </div>
+
+    <!-- Dimensões e Material -->
+    <div class="card">
+      <h3 class="card-title">📏 Dimensões e Material</h3>
+      
+      <div class="form-group">
+        <label>Dimensões (mm)</label>
+        <div class="dim-grid">
+          <div class="dim-field">
+            <span class="dim-label">Comprimento</span>
+            <input id="dim1" type="text" inputmode="numeric" pattern="\d*" maxlength="5" value="3000" />
+          </div>
+          <span class="dim-sep">×</span>
+          <div class="dim-field">
+            <span class="dim-label">Largura</span>
+            <input id="dim2" type="text" inputmode="numeric" pattern="\d*" maxlength="5" value="1200" />
+          </div>
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="esp">Espessura (mm)</label>
         <input type="text" id="esp" value="4,5">
@@ -187,8 +308,8 @@
 
       <div class="form-group">
         <label for="material">Material</label>
-        <div style="display:flex; gap:8px;">
-          <select id="material" style="flex:1;">
+        <div class="input-group">
+          <select id="material">
             <option value="ALUMÍNIO">Alumínio</option>
             <option value="AÇO NÃO QUALIFICADO" selected>Aço não qualificado</option>
             <option value="AÇO INOX">Aço inox</option>
@@ -200,22 +321,24 @@
             <option value="LATÃO">Latão</option>
             <option value="outro">Outro…</option>
           </select>
-          <input type="text" id="materialOutro" placeholder="Digite material" style="flex:2; display:none;">
+          <input type="text" id="materialOutro" placeholder="Digite material" style="display:none;">
         </div>
+      </div>
+
+      <div class="form-group">
+        <label for="qtde">Quantidade de Chapas</label>
+        <input type="text" id="qtde" value="1" inputmode="numeric">
       </div>
     </div>
 
-    <div class="two">
-      <div class="form-group">
-        <label for="dataEntrada">Data de Entrada</label>
-        <input type="date" id="dataEntrada" value="">
-        <div id="dataPreview" class="preview-data"></div>
-      </div>
-
+    <!-- Fornecedor e NF -->
+    <div class="card">
+      <h3 class="card-title">🏢 Fornecedor e Nota Fiscal</h3>
+      
       <div class="form-group">
         <label for="fornecedor">Fornecedor</label>
-        <div style="display:flex; gap:8px;">
-          <select id="fornecedor" style="flex:1;">
+        <div class="input-group">
+          <select id="fornecedor">
             <option value="ALDIFER" selected>Aldifer</option>
             <option value="ALUMÍNIO ABD">Alumínio ABD</option>
             <option value="ACERLOR MITTAL">Acerlor Mittal</option>
@@ -227,33 +350,28 @@
             <option value="SUL FERRO">Sul Ferro</option>
             <option value="outro">Outro…</option>
           </select>
-          <input type="text" id="fornecedorOutro" placeholder="Digite fornecedor" style="flex:2; display:none;">
+          <input type="text" id="fornecedorOutro" placeholder="Digite fornecedor" style="display:none;">
         </div>
       </div>
-    </div>
 
-    <div class="two">
+      <div class="form-group">
+        <label for="dataEntrada">Data de Entrada</label>
+        <input type="date" id="dataEntrada" value="">
+        <div id="dataPreview" class="preview-data"></div>
+      </div>
+
       <div class="form-group">
         <label for="nf">Nota Fiscal (NF)</label>
-        <input type="text" id="nf" value="1234">
-      </div>
-      <div class="form-group">
-        <label for="codigo">Código da Chapa</label>
-        <input type="text" id="codigo" value="CHP-001">
+        <input type="text" id="nf" value="1234" inputmode="numeric">
       </div>
     </div>
 
-    <div class="form-group">
-      <label for="qtde">Qtde Chapas</label>
-      <input type="text" id="qtde" value="1">
-    </div>
-
-    <button id="gerarBtn" type="button">Gerar Etiqueta</button>
+    <!-- Botão Gerar -->
+    <button class="btn-gerar" id="gerarBtn" type="button">Gerar Etiqueta</button>
   </div>
 
   <script>
     const token = "<?= token ?>";
-
 
     (function () {
 
@@ -269,7 +387,6 @@
       const fornecedor = document.getElementById("fornecedor");
       const fornecedorOutro = document.getElementById("fornecedorOutro");
       const nf = document.getElementById("nf");
-      const codigo = document.getElementById("codigo");
       const dataPreview = document.getElementById("dataPreview");
       const qtde = document.getElementById("qtde");
 
@@ -292,7 +409,12 @@
       // lidar com "Outro"
       function setupOutro(selectEl, outroEl) {
         selectEl.addEventListener("change", () => {
-          outroEl.style.display = selectEl.value === "outro" ? "block" : "none";
+          if (selectEl.value === "outro") {
+            outroEl.style.display = "block";
+            setTimeout(() => outroEl.focus(), 100);
+          } else {
+            outroEl.style.display = "none";
+          }
         });
         outroEl.addEventListener("blur", () => {
           const val = outroEl.value.trim();
@@ -326,7 +448,6 @@
           dataEntrada: dataEntrada.value,
           fornecedor: forn,
           nf: nf.value.trim(),
-          codigo: codigo.value.trim(),
           qtde: qtde.value.trim()
         };
       }
@@ -341,7 +462,7 @@
         google.script.run
           .withSuccessHandler(function (url) {
             if (url) window.open(url, "_blank");
-            btn.innerText = "✅ Gerada!";
+            btn.innerText = "✅ Etiqueta Gerada!";
             setTimeout(() => {
               btn.disabled = false;
               btn.innerText = "Gerar Etiqueta";
@@ -355,6 +476,7 @@
           .gerarEtiqueta(dados, token);
       });
     })();
+
     function voltarPagina() {
       if (!token) {
         alert("Token não encontrado — recarregue a página.");

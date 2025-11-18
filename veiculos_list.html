@@ -3,10 +3,18 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
   <title>Controle de Veículos — Visualização</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      overscroll-behavior: contain;
+    }
+
     .btn {
       appearance: none;
       border: none;
@@ -19,11 +27,23 @@
       align-items: center;
       background: #1a73e8;
       color: white;
+      transition: all 0.2s;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
     }
 
     th.sortable {
       cursor: pointer;
       user-select: none;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+
+    th.sortable:hover {
+      background: #cbd5e1;
     }
 
     th.sortable .arrow {
@@ -34,87 +54,295 @@
       vertical-align: middle;
       border-left: 4px solid transparent;
       border-right: 4px solid transparent;
+      opacity: 0.3;
     }
 
     th.sortable.asc .arrow {
-      border-bottom: 6px solid #334155; /* dark slate */
+      border-bottom: 6px solid #334155;
+      opacity: 1;
     }
 
     th.sortable.desc .arrow {
       border-top: 6px solid #334155;
+      opacity: 1;
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      table {
+        font-size: 12px;
+        min-width: 900px;
+      }
+
+      th, td {
+        padding: 8px 6px !important;
+      }
+
+      .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      .mobile-scroll-hint {
+        display: block;
+        text-align: center;
+        color: #64748b;
+        font-size: 11px;
+        padding: 8px;
+        background: #f8fafc;
+        border-radius: 6px;
+        margin-bottom: 8px;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .mobile-scroll-hint {
+        display: none;
+      }
+    }
+
+    /* Status badges */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .status-em-uso {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .status-finalizado {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-pendente {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    /* Loading spinner */
+    .spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #1a73e8;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Better button states */
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button:not(:disabled):active {
+      transform: scale(0.96);
+    }
+
+    /* Smooth transitions */
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Improved filter section */
+    .filter-section {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+
+    /* Better input styles */
+    input, select {
+      transition: all 0.2s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+    }
+
+    /* Sticky header for mobile */
+    @media (max-width: 768px) {
+      thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+    }
+
+    /* Compact header for mobile */
+    @media (max-width: 640px) {
+      .header-logo {
+        width: 48px;
+        height: 48px;
+      }
+
+      .header-title {
+        font-size: 18px;
+      }
+
+      .header-subtitle {
+        font-size: 12px;
+      }
+
+      .btn-voltar {
+        position: relative;
+        top: 0;
+        left: 0;
+        margin-bottom: 12px;
+      }
     }
   </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen p-6">
-  <div>
-    <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+<body class="bg-slate-50 min-h-screen p-3 md:p-6">
+  <!-- Botão Voltar -->
+  <div class="mb-3 md:mb-0">
+    <button class="btn btn-voltar md:absolute md:top-4 md:left-4" onclick="voltarPagina()" title="Voltar">
       ← Voltar
     </button>
   </div>
 
-  <div class="max-w-6xl mx-auto">
-    <header class="flex items-center gap-4 mb-6">
-      <img src="https://i.imgur.com/ncKzLXK.png" alt="Logo" class="w-20 h-20 object-contain" />
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-800">Controle de Veículos</h1>
-        <p class="text-sm text-slate-500">Visualize as saídas registradas e registre a volta dos veículos em uso.</p>
+  <div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-6">
+      <img src="https://i.imgur.com/ncKzLXK.png" alt="Logo" class="header-logo w-16 h-16 md:w-20 md:h-20 object-contain" />
+      <div class="flex-1 min-w-0">
+        <h1 class="header-title text-xl md:text-2xl font-semibold text-slate-800">Controle de Veículos</h1>
+        <p class="header-subtitle text-xs md:text-sm text-slate-500 mt-1">Visualize as saídas e registre o retorno dos veículos</p>
       </div>
-      <div class="ml-auto">
-        <button id="btnAtualizar" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Atualizar</button>
+      <div class="w-full sm:w-auto">
+        <button id="btnAtualizar" class="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Atualizar
+        </button>
       </div>
     </header>
 
-    <div class="bg-white rounded-xl shadow p-4">
-      <div id="mensagem" class="mb-4 hidden p-3 rounded text-sm"></div>
+    <div class="bg-white rounded-xl shadow-sm md:shadow p-3 md:p-4">
+      <!-- Mensagem de feedback -->
+      <div id="mensagem" class="mb-4 hidden p-3 rounded-lg text-sm font-medium"></div>
 
-      <!-- filtros -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <div class="flex gap-2 items-center">
-          <input id="txtBusca" type="search" placeholder="Pesquisar (funcionário, veículo, motivo)" class="w-full border rounded px-3 py-2 text-sm" />
-          <button id="btnLimparBusca" class="ml-2 px-3 py-2 bg-slate-100 border rounded text-sm">Limpar</button>
+      <!-- Filtros -->
+      <div class="filter-section">
+        <h3 class="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          Filtros
+        </h3>
+        
+        <!-- Busca textual -->
+        <div class="mb-3">
+          <div class="flex gap-2">
+            <input 
+              id="txtBusca" 
+              type="search" 
+              placeholder="🔍 Pesquisar funcionário, veículo ou motivo" 
+              class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500"
+              autocomplete="off"
+            />
+            <button id="btnLimparBusca" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition">
+              Limpar
+            </button>
+          </div>
         </div>
-        <div class="flex gap-2">
-          <select id="selStatus" class="w-1/2 border rounded px-3 py-2 text-sm">
-            <option value="">Todos os status</option>
-            <option value="Em uso">Em uso</option>
-            <option value="Finalizado">Finalizado</option>
-            <option value="Pendente">Pendente</option>
+
+        <!-- Filtros de seleção -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+          <select id="selStatus" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500">
+            <option value="">📋 Todos os status</option>
+            <option value="Em uso">🚗 Em uso</option>
+            <option value="Finalizado">✅ Finalizado</option>
+            <option value="Pendente">⏳ Pendente</option>
           </select>
 
-          <select id="selVeiculo" class="w-1/2 border rounded px-3 py-2 text-sm">
-            <option value="">Todos os veículos</option>
+          <select id="selVeiculo" class="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500">
+            <option value="">🚙 Todos os veículos</option>
           </select>
         </div>
-        <div class="flex gap-2 items-center">
-          <input id="dtInicio" type="date" class="border rounded px-3 py-2 text-sm" />
-          <input id="dtFim" type="date" class="border rounded px-3 py-2 text-sm" />
-          <button id="btnLimparDatas" class="ml-2 px-3 py-2 bg-slate-100 border rounded text-sm">Limpar datas</button>
+
+        <!-- Filtro de datas -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+          <div>
+            <label class="text-xs text-slate-600 mb-1 block">Data Início</label>
+            <input id="dtInicio" type="date" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500" />
+          </div>
+          <div>
+            <label class="text-xs text-slate-600 mb-1 block">Data Fim</label>
+            <input id="dtFim" type="date" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500" />
+          </div>
+          <button id="btnLimparDatas" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 rounded-lg text-sm font-medium transition">
+            Limpar datas
+          </button>
         </div>
       </div>
 
-      <div class="overflow-x-auto">
+      <!-- Hint de scroll para mobile -->
+      <div class="mobile-scroll-hint">
+        ← Deslize horizontalmente para ver mais colunas →
+      </div>
+
+      <!-- Tabela -->
+      <div class="table-container overflow-x-auto rounded-lg border border-slate-200">
         <table id="tblVeiculos" class="w-full text-sm table-auto border-collapse">
           <thead>
-            <tr class="bg-slate-100 text-slate-600">
-              <th data-col="row" class="px-3 py-2 text-left sortable"># <span class="arrow"></span></th>
-              <th data-col="0" class="px-3 py-2 text-left sortable">DATA <span class="arrow"></span></th>
-              <th data-col="1" class="px-3 py-2 text-left sortable">FUNCIONÁRIO <span class="arrow"></span></th>
-              <th data-col="2" class="px-3 py-2 text-left sortable">VEÍCULO <span class="arrow"></span></th>
-              <th data-col="3" class="px-3 py-2 text-left sortable">HORA SAÍDA <span class="arrow"></span></th>
-              <th data-col="4" class="px-3 py-2 text-left sortable">PREVISÃO RETORNO <span class="arrow"></span></th>
-              <th data-col="5" class="px-3 py-2 text-left sortable">MOTIVO <span class="arrow"></span></th>
-              <th data-col="6" class="px-3 py-2 text-left sortable">STATUS <span class="arrow"></span></th>
-              <th data-col="7" class="px-3 py-2 text-left sortable">HORA RETORNO <span class="arrow"></span></th>
-              <th class="px-3 py-2 text-left">AÇÕES</th>
+            <tr class="bg-slate-100 text-slate-700">
+              <th data-col="row" class="px-3 py-3 text-left sortable font-semibold"># <span class="arrow"></span></th>
+              <th data-col="0" class="px-3 py-3 text-left sortable font-semibold">DATA <span class="arrow"></span></th>
+              <th data-col="1" class="px-3 py-3 text-left sortable font-semibold">FUNCIONÁRIO <span class="arrow"></span></th>
+              <th data-col="2" class="px-3 py-3 text-left sortable font-semibold">VEÍCULO <span class="arrow"></span></th>
+              <th data-col="3" class="px-3 py-3 text-left sortable font-semibold">SAÍDA <span class="arrow"></span></th>
+              <th data-col="4" class="px-3 py-3 text-left sortable font-semibold">PREVISÃO <span class="arrow"></span></th>
+              <th data-col="5" class="px-3 py-3 text-left sortable font-semibold">MOTIVO <span class="arrow"></span></th>
+              <th data-col="6" class="px-3 py-3 text-left sortable font-semibold">STATUS <span class="arrow"></span></th>
+              <th data-col="7" class="px-3 py-3 text-left sortable font-semibold">RETORNO <span class="arrow"></span></th>
+              <th class="px-3 py-3 text-center font-semibold">AÇÕES</th>
             </tr>
           </thead>
-          <tbody id="corpoTabela" class="divide-y"></tbody>
+          <tbody id="corpoTabela" class="divide-y divide-slate-200"></tbody>
         </table>
       </div>
 
-      <p class="text-xs text-slate-500 mt-3">Obs: clique em "Registrar Volta" para marcar o retorno do veículo (atualiza
-        status para "Finalizado" e grava horário de retorno).</p>
+      <!-- Rodapé informativo -->
+      <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+        <p class="text-xs text-blue-800 flex items-start gap-2">
+          <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+          <span><strong>Dica:</strong> Clique em "Registrar Volta" para marcar o retorno do veículo. O status será atualizado para "Finalizado" e o horário de retorno será registrado automaticamente.</span>
+        </p>
+      </div>
     </div>
   </div>
 
@@ -134,14 +362,19 @@
     const btnLimparDatas = document.getElementById('btnLimparDatas');
 
     // estado local
-    let allRows = []; // array original vindo do servidor
-    let sortCol = 'row'; // 'row' para número da linha, ou índice da coluna (string)
-    let sortDir = 'asc'; // 'asc' | 'desc'
+    let allRows = [];
+    let sortCol = 'row';
+    let sortDir = 'asc';
 
-    // carregar dados da planilha (server-side)
+    // carregar dados da planilha
     function carregarDados() {
       mostrarMensagem('', '');
-      corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-slate-500">Carregando...</td></tr>';
+      corpo.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-500">
+        <div class="flex flex-col items-center gap-3">
+          <div class="spinner"></div>
+          <span>Carregando dados...</span>
+        </div>
+      </td></tr>`;
 
       google.script.run
         .withSuccessHandler(rows => {
@@ -150,13 +383,13 @@
           aplicarFiltrosERender();
         })
         .withFailureHandler(err => {
-          mostrarMensagem('Erro ao carregar dados: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700');
-          corpo.innerHTML = '';
+          mostrarMensagem('❌ Erro ao carregar dados: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700 border border-red-200');
+          corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-red-600">Erro ao carregar dados</td></tr>';
         })
-        .getControleVeiculos(); // server function retorna array de linhas com {row: número, values: [...]}
+        .getControleVeiculos();
     }
 
-    // popular select de veículos com valores únicos
+    // popular select de veículos
     function popularOpcoesVeiculo(rows) {
       const set = new Set();
       rows.forEach(r => {
@@ -164,8 +397,7 @@
         if (v) set.add(v);
       });
 
-      // limpar e adicionar
-      selVeiculo.innerHTML = '<option value="">Todos os veículos</option>';
+      selVeiculo.innerHTML = '<option value="">🚙 Todos os veículos</option>';
       Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })).forEach(v => {
         const opt = document.createElement('option');
         opt.value = v;
@@ -175,9 +407,9 @@
     }
 
     function aplicarFiltrosERender() {
-      let rows = allRows.slice(); // clone
+      let rows = allRows.slice();
 
-      // aplicar pesquisa textual (funcionário, veículo, motivo)
+      // filtro textual
       const q = (txtBusca.value || '').trim().toLowerCase();
       if (q) {
         rows = rows.filter(r => {
@@ -198,7 +430,7 @@
         });
       }
 
-      // filtro veiculo
+      // filtro veículo
       const vFilter = (selVeiculo.value || '').trim().toLowerCase();
       if (vFilter) {
         rows = rows.filter(r => {
@@ -207,7 +439,7 @@
         });
       }
 
-      // filtro por intervalo de datas (coluna 0)
+      // filtro datas
       const start = dtInicio.value ? new Date(dtInicio.value) : null;
       const end = dtFim.value ? new Date(dtFim.value) : null;
       if (start || end) {
@@ -217,7 +449,6 @@
           if (!d) return false;
           if (start && d < start) return false;
           if (end) {
-            // include end day entirely
             const endOfDay = new Date(end);
             endOfDay.setHours(23, 59, 59, 999);
             if (d > endOfDay) return false;
@@ -233,22 +464,18 @@
       atualizarSetaOrdenacao();
     }
 
-    // tenta parsear data comum (YYYY-MM-DD, DD/MM/YYYY, Date ISO, or Excel serial is not handled)
     function parseDateLike(text) {
       if (!text) return null;
-      // se estiver no formato DD/MM/YYYY
       const ddmmy = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
       if (ddmmy) {
         const d = new Date(Number(ddmmy[3]), Number(ddmmy[2]) - 1, Number(ddmmy[1]));
         if (!isNaN(d)) return d;
       }
-      // tentativa direta
       const d2 = new Date(text);
       if (!isNaN(d2)) return d2;
       return null;
     }
 
-    // comparação entre duas linhas para ordenação
     function compareRows(a, b, col, dir) {
       const mul = dir === 'asc' ? 1 : -1;
       if (col === 'row') {
@@ -260,7 +487,6 @@
       const ai = a.values && a.values[col] !== undefined ? a.values[col] : '';
       const bi = b.values && b.values[col] !== undefined ? b.values[col] : '';
 
-      // se coluna é data (col === '0')
       if (String(col) === '0') {
         const da = parseDateLike(String(ai));
         const db = parseDateLike(String(bi));
@@ -269,12 +495,10 @@
         if (!da && db) return 1 * mul;
       }
 
-      // tentar número
       const na = Number(String(ai).replace(/[^\d\.-]/g, ''));
       const nb = Number(String(bi).replace(/[^\d\.-]/g, ''));
       if (!isNaN(na) && !isNaN(nb)) return (na - nb) * mul;
 
-      // fallback string compare
       return String(ai).localeCompare(String(bi), undefined, { sensitivity: 'base' }) * mul;
     }
 
@@ -286,15 +510,30 @@
       });
     }
 
+    function getStatusClass(status) {
+      const s = String(status).trim().toLowerCase();
+      if (s === 'em uso') return 'status-em-uso';
+      if (s === 'finalizado') return 'status-finalizado';
+      if (s === 'pendente') return 'status-pendente';
+      return '';
+    }
+
     function renderizarTabela(rows) {
       if (!Array.isArray(rows) || rows.length === 0) {
-        corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-slate-500">Nenhum registro encontrado.</td></tr>';
+        corpo.innerHTML = `<tr><td colspan="10" class="p-8 text-center text-slate-500">
+          <div class="flex flex-col items-center gap-2">
+            <svg class="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="font-medium">Nenhum registro encontrado</span>
+            <span class="text-xs">Tente ajustar os filtros</span>
+          </div>
+        </td></tr>`;
         return;
       }
 
       corpo.innerHTML = rows.map(r => {
         const vals = r.values || [];
-        // garantir índices (colunas esperadas): 0:DATA,1:FUNC,2:VEIC,3:HORA SAÍDA,4:PREV RET,5:MOTIVO,6:STATUS,7:HORA RETORNO (opcional)
         const data = vals[0] || '';
         const func = vals[1] || '';
         const veic = vals[2] || '';
@@ -305,47 +544,51 @@
         const horaRetorno = vals[7] || '';
         const rowNum = r.row;
 
-        const isEnabled = !(status && String(status).trim().toLowerCase() !== 'em uso');
+        const isEnabled = (status && String(status).trim().toLowerCase() === 'em uso');
+        const statusClass = getStatusClass(status);
 
-        // botão: só habilita se status == "Em uso"
         const btn = isEnabled
-          ? `<button data-row="${rowNum}" class="registrar-volta inline-flex items-center gap-2 px-3 py-1 rounded border text-sm border-blue-600 text-blue-600 hover:bg-blue-50">Registrar Volta</button>`
-          : `<button data-row="${rowNum}" disabled class="inline-flex items-center gap-2 px-3 py-1 rounded border text-sm text-slate-400 border-slate-200 bg-slate-50 cursor-not-allowed">Registrar Volta</button>`;
+          ? `<button data-row="${rowNum}" class="registrar-volta px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 text-white hover:bg-green-700 transition whitespace-nowrap">
+              ✓ Registrar Volta
+            </button>`
+          : `<button disabled class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-400 cursor-not-allowed whitespace-nowrap">
+              Registrar Volta
+            </button>`;
 
-        return `<tr class="hover:bg-slate-50">
-          <td class="px-3 py-2">${rowNum}</td>
-          <td class="px-3 py-2">${escapeHtml(data)}</td>
-          <td class="px-3 py-2">${escapeHtml(func)}</td>
-          <td class="px-3 py-2">${escapeHtml(veic)}</td>
-          <td class="px-3 py-2">${escapeHtml(horaSaida)}</td>
-          <td class="px-3 py-2">${escapeHtml(previsao)}</td>
-          <td class="px-3 py-2">${escapeHtml(motivo)}</td>
-          <td class="px-3 py-2 font-medium">${escapeHtml(status)}</td>
-          <td class="px-3 py-2">${escapeHtml(horaRetorno)}</td>
-          <td class="px-3 py-2">${btn}</td>
+        return `<tr class="hover:bg-slate-50 transition fade-in">
+          <td class="px-3 py-3 font-medium text-slate-600">${rowNum}</td>
+          <td class="px-3 py-3">${escapeHtml(data)}</td>
+          <td class="px-3 py-3 font-medium">${escapeHtml(func)}</td>
+          <td class="px-3 py-3">${escapeHtml(veic)}</td>
+          <td class="px-3 py-3">${escapeHtml(horaSaida)}</td>
+          <td class="px-3 py-3">${escapeHtml(previsao)}</td>
+          <td class="px-3 py-3 max-w-xs truncate" title="${escapeHtml(motivo)}">${escapeHtml(motivo)}</td>
+          <td class="px-3 py-3"><span class="status-badge ${statusClass}">${escapeHtml(status)}</span></td>
+          <td class="px-3 py-3">${escapeHtml(horaRetorno)}</td>
+          <td class="px-3 py-3 text-center">${btn}</td>
         </tr>`;
       }).join('');
 
-      // adicionar listeners nos botões
+      // adicionar listeners
       document.querySelectorAll('.registrar-volta').forEach(btn => {
-        // já que reconstruímos o DOM, rebind
         btn.addEventListener('click', () => {
           const row = parseInt(btn.getAttribute('data-row'), 10);
           if (!row) return;
-          if (!confirm('Registrar volta deste veículo agora?')) return;
+          if (!confirm('Confirma o registro de volta deste veículo agora?')) return;
+          
           btn.disabled = true;
-          btn.textContent = 'Registrando...';
+          btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>';
 
           google.script.run
             .withSuccessHandler(() => {
-              mostrarMensagem('Volta registrada com sucesso.', 'bg-green-100 text-green-700');
+              mostrarMensagem('✅ Volta registrada com sucesso!', 'bg-green-100 text-green-800 border border-green-200');
               carregarDados();
             })
             .withFailureHandler(err => {
-              mostrarMensagem('Erro ao registrar volta: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700');
+              mostrarMensagem('❌ Erro ao registrar volta: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700 border border-red-200');
               carregarDados();
             })
-            .registrarRetornoVeiculo(row); // envia o número da linha na planilha
+            .registrarRetornoVeiculo(row);
         });
       });
     }
@@ -357,11 +600,15 @@
         return;
       }
       mensagemEl.textContent = texto;
-      mensagemEl.className = 'mb-4 p-3 rounded text-sm ' + classes;
+      mensagemEl.className = 'mb-4 p-3 rounded-lg text-sm font-medium fade-in ' + classes;
       mensagemEl.classList.remove('hidden');
+      
+      // Auto-hide após 5 segundos
+      setTimeout(() => {
+        mensagemEl.classList.add('hidden');
+      }, 5000);
     }
 
-    // proteção simples de XSS — os dados vêm da planilha
     function escapeHtml(str) {
       if (str === undefined || str === null) return '';
       return String(str)
@@ -372,12 +619,11 @@
         .replaceAll("'", '&#039;');
     }
 
-    // se clicar nos headers ordenáveis
+    // ordenação por clique nos headers
     document.querySelectorAll('th.sortable').forEach(th => {
       th.addEventListener('click', () => {
         const col = th.getAttribute('data-col') || 'row';
         if (String(col) === String(sortCol)) {
-          // alterna direção
           sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
         } else {
           sortCol = col;
@@ -404,7 +650,17 @@
       aplicarFiltrosERender();
     });
 
-    btnAtualizar.addEventListener('click', carregarDados);
+    btnAtualizar.addEventListener('click', () => {
+      btnAtualizar.disabled = true;
+      btnAtualizar.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div> Atualizando...';
+      carregarDados();
+      setTimeout(() => {
+        btnAtualizar.disabled = false;
+        btnAtualizar.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg> Atualizar`;
+      }, 1000);
+    });
 
     // carregamento inicial
     carregarDados();
@@ -414,7 +670,6 @@
       window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
     }
 
-    // debounce util
     function debounce(fn, wait) {
       let t;
       return (...args) => {

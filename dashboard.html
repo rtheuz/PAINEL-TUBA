@@ -263,7 +263,6 @@
     document.getElementById('linkGeradorEtiquetas').href = WEBAPP_URL + "?page=geradoretiquetas&token=" + token;
     document.getElementById('linkMateriais').href = WEBAPP_URL + "?page=materiais&token=" + token;
     document.getElementById('linkPedidos').href = WEBAPP_URL + "?page=pedidos&token=" + token;
-    document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
     document.getElementById('linkLogs').href = WEBAPP_URL + "?page=logs&token=" + token;
     document.getElementById('linkTESTE').href = WEBAPP_URL + "?page=paginasprotegidas&token=" + token;
     document.getElementById('linkManutencao').href = WEBAPP_URL + "?page=manutencao&token=" + token;
@@ -279,7 +278,6 @@
         document.getElementById('statKanban').textContent = res.kanban || 0;
         document.getElementById('statEtiquetas').textContent = res.etiquetas || 0;
         document.getElementById('statMateriais').textContent = res.materiais || 0;
-        document.getElementById('statProdutos').textContent = res.produtos || 0;
         document.getElementById('statLogs').textContent = res.logs || 0;
       }).getDashboardStats();
     }

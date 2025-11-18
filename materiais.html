@@ -3,266 +3,517 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <base target="_top">
   <title>Controle de Materiais</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
     body {
       font-family: 'Montserrat', sans-serif;
       margin: 0;
-      padding: 20px;
+      padding: 10px;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
       background: linear-gradient(90deg, #1125d6, #187a5d, #004b5e);
       background-size: 400% 400%;
       animation: gradMove 15s linear infinite;
-      border: #2195f300;
+      overflow-x: hidden;
     }
 
     @keyframes gradMove {
-      0% {
-        background-position: 0% 50%;
-      }
-
-      50% {
-        background-position: 100% 50%;
-      }
-
-      100% {
-        background-position: 0% 50%;
-      }
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
 
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding-bottom: 20px;
+    }
+
+    /* Header */
     .header {
       display: flex;
       align-items: center;
-      gap: 20px;
-      padding: 20px 30px;
-      background: rgba(255, 255, 255, 0.7);
-      border-radius: 16px;
-      margin-bottom: 20px;
+      gap: 15px;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
     .header img {
-      width: 120px;
+      width: 80px;
+      height: auto;
     }
 
     .header h1 {
       margin: 0;
       color: #1a73e8;
+      font-size: 20px;
+      font-weight: 700;
     }
 
-    .table-container {
-      width: 100%;
+    /* Botão Voltar */
+    .btn-voltar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a73e8;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       display: flex;
-      justify-content: center;
-      flex-direction: column;
       align-items: center;
-      s
+      gap: 6px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-voltar:active {
+      transform: scale(0.95);
+      background: rgba(230, 230, 230, 0.95);
+    }
+
+    /* Cards de Peso */
+    .peso-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .peso-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a73e8;
+      margin-bottom: 12px;
+    }
+
+    .peso-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .peso-item {
+      background: rgba(26, 115, 232, 0.08);
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .peso-item-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .peso-item-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a73e8;
+    }
+
+    /* Controles */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary:active {
+      background: #155ec7;
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a73e8;
+      border: 2px solid #1a73e8;
+    }
+
+    .btn-secondary:active {
+      background: rgba(230, 230, 230, 0.95);
+      transform: scale(0.98);
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* Tabela Container */
+    .table-wrapper {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     table {
+      width: 100%;
       border-collapse: collapse;
-      background: rgba(255, 255, 255, 0.7);
-      backdrop-filter: blur(12px);
-      border-radius: 16px;
-      overflow: hidden;
-      margin: 0 auto;
-      width: auto;
-      max-width: 1400px;
+      min-width: 800px;
     }
 
-    th,
-    td {
-      padding: 10px 14px;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    th, td {
+      padding: 12px 8px;
       text-align: left;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 13px;
     }
 
     th {
-      background: rgba(26, 115, 232, 0.7);
+      background: #1a73e8;
       color: white;
       position: sticky;
       top: 0;
+      z-index: 10;
       cursor: pointer;
+      font-weight: 600;
+      user-select: none;
     }
 
-    tr:hover {
-      background: rgba(26, 115, 232, 0.1);
+    th:active {
+      background: #155ec7;
+    }
+
+    th.sorted-asc::after {
+      content: " ▲";
+      font-size: 10px;
+    }
+
+    th.sorted-desc::after {
+      content: " ▼";
+      font-size: 10px;
     }
 
     th input {
       width: 100%;
-      margin-top: 4px;
-      padding: 4px 6px;
+      margin-top: 6px;
+      padding: 6px 8px;
       border-radius: 4px;
-      border: none;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.95);
+      font-size: 12px;
+      font-family: inherit;
     }
 
-    .btn-filtros,
-    .btn-gerar {
-      padding: 4px 8px;
-      border: none;
+    td input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
       border-radius: 4px;
-      background: #1a73e8;
-      color: white;
-      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: border-color 0.3s ease;
     }
 
-    .btn {
-      appearance: none;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 10px;
+    td input:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+    }
+
+    tr:nth-child(even) {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    tr:hover {
+      background: rgba(26, 115, 232, 0.08);
+    }
+
+    .pdf-link {
+      color: #1a73e8;
+      text-decoration: none;
       font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      background: #1a73e8;
-      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      transition: all 0.3s ease;
     }
 
-    .btn-filtros:hover,
-    .btn-gerar:hover {
-      background: #155ec7;
-    }
-
-    .peso-card {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 12px 20px;
-      margin-bottom: 20px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #40404154, #40404154);
-      color: white;
-      font-size: 18px;
-      font-weight: bold;
-    }
-
-    .peso-card div strong {
-      font-weight: bold;
-    }
-
-    .peso-card {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    }
-
-    .peso-icone {
-      font-size: 22px;
-    }
-
-    .peso-texto strong {
-      font-size: 20px;
-      color: #ffeb3b;
+    .pdf-link:hover {
+      background: rgba(26, 115, 232, 0.1);
     }
 
     .input-saving {
-      box-shadow: 0 0 0 3px rgba(90, 130, 255, 0.12) inset;
+      border-color: #ff9800 !important;
+      background: #fff3e0 !important;
     }
 
-    @media (max-width:900px) {
-      table {
+    /* Loading State */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 5px;
+      }
+
+      .header {
+        padding: 12px 15px;
+        gap: 10px;
+      }
+
+      .header img {
+        width: 60px;
+      }
+
+      .header h1 {
+        font-size: 16px;
+      }
+
+      .btn-voltar {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      .peso-card {
+        padding: 12px;
+      }
+
+      .peso-card-title {
+        font-size: 16px;
+      }
+
+      .peso-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .peso-item-value {
+        font-size: 16px;
+      }
+
+      .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      th, td {
+        padding: 8px 6px;
         font-size: 12px;
+      }
+
+      th input {
+        padding: 4px 6px;
+        font-size: 11px;
+      }
+
+      td input {
+        padding: 5px 6px;
+        font-size: 12px;
+      }
+
+      table {
+        min-width: 700px;
       }
     }
 
-    @media (max-width:640px) {
-      table {
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 14px;
+      }
+
+      .peso-card-title {
+        font-size: 14px;
+      }
+
+      .peso-item-label {
         font-size: 11px;
+      }
+
+      .peso-item-value {
+        font-size: 14px;
+      }
+
+      th, td {
+        font-size: 11px;
+        padding: 6px 4px;
+      }
+    }
+
+    /* Scroll Hint */
+    .scroll-hint {
+      text-align: center;
+      padding: 8px;
+      background: rgba(26, 115, 232, 0.1);
+      color: #1a73e8;
+      font-size: 12px;
+      font-weight: 600;
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .scroll-hint {
+        display: block;
       }
     }
   </style>
 </head>
-<div>
-  <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
-    ← Voltar
-  </button>
-</div>
 
 <body>
-  <div class="header">
-    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
-    <h1>Controle de Materiais</h1>
-  </div>
+  <button class="btn-voltar" onclick="voltarPagina()" title="Voltar">
+    ← Voltar
+  </button>
 
-  <div class="table-container">
-    <button class="btn-filtros" onclick="limparFiltros()">Limpar Filtros</button>
+  <div class="container">
+    <div class="header">
+      <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+      <h1>Controle de Materiais</h1>
+    </div>
 
-    <div id="pesoEstimado" class="peso-card" style="flex-direction:column; align-items:flex-start; gap:6px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span class="peso-icone" style="font-size:22px;">⚖️</span>
-        <strong style="font-size:20px;">Pesos Estimados</strong>
+    <div class="peso-card">
+      <div class="peso-card-title">
+        <span>⚖️</span>
+        <span>Pesos Estimados</span>
       </div>
-      <div style="display:flex; flex-direction:column; gap:4px; margin-left:30px;">
-        <div style="color:#4caf50;">🟢 Estoque: <strong id="pesoEstoque">0.00 Kg</strong></div>
-        <div style="color:#2196f3;">🔵 Cliente: <strong id="pesoCliente">0.00 Kg</strong></div>
-        <div style="color:#ffeb3b;">🟡 Total: <strong id="pesoTotal" style="color:#ffeb3b;">0.00 Kg</strong></div>
+      <div class="peso-grid">
+        <div class="peso-item">
+          <div class="peso-item-label">🟢 Estoque</div>
+          <div class="peso-item-value" id="pesoEstoque">0.00 Kg</div>
+        </div>
+        <div class="peso-item">
+          <div class="peso-item-label">🔵 Cliente</div>
+          <div class="peso-item-value" id="pesoCliente">0.00 Kg</div>
+        </div>
+        <div class="peso-item">
+          <div class="peso-item-label">🟡 Total</div>
+          <div class="peso-item-value" id="pesoTotal">0.00 Kg</div>
+        </div>
       </div>
     </div>
 
+    <div class="controls">
+      <button class="btn btn-secondary" onclick="limparFiltros()">🔄 Limpar Filtros</button>
+    </div>
 
-
-    <table id="etiquetasTable">
-      <thead>
-        <tr>
-          <? for (let key in dados[0]) { ?>
-          <th>
-            <?= key ?><br>
-            <input type="text" placeholder="Filtrar" data-col="<?= key ?>">
-          </th>
-          <? } ?>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <? for (let i = 0; i < dados.length; i++) { ?>
-        <tr data-row="<?= i+2 ?>">
-          <? for (let key in dados[i]) {
-            if(key === "ETIQUETA") { ?>
-          <td><a class="pdf-link" href="<?= dados[i][key] ?>" target="_blank">Abrir PDF</a></td>
-          <? } else if(key === "QTDE") { ?>
-          <td><input type="number" value="<?= dados[i][key] ?>" data-field="qtde"></td>
-          <? } else if(key === "DIM") { ?>
-          <td><input type="text" value="<?= dados[i][key] ?>" data-field="dim"></td>
-          <? } else if(key === "TIPO") { ?>
-          <td><input type="text" value="<?= dados[i][key] ?>" data-field="tipo"></td>
-          <? } else if(key === "PROP") { ?>
-          <td><input type="text" value="<?= dados[i][key] ?>" data-field="prop"></td>
-          <? } else if(key === "MATERIAL") { ?>
-          <td><input type="text" value="<?= dados[i][key] ?>" data-field="material"></td>
-          <? } else if(key === "ESPESSURA") { ?>
-          <td><input type="text" value="<?= dados[i][key] ?>" data-field="esp"></td>
-          <? } else if(key === "PESO APROXIMADO") { ?>
-          <td class="peso" data-valor="<?= dados[i][key] ?>">
-            <?= parseFloat(dados[i][key]).toFixed(2) ?>
-          </td>
-          <? } else { ?>
-          <td>
-            <?= dados[i][key] ?>
-          </td>
-          <? } } ?>
-          <td><button class="btn-gerar" onclick="gerarNovaEtiqueta(this)">Gerar Nova Etiqueta</button></td>
-        </tr>
-        <? } ?>
-      </tbody>
-    </table>
+    <div class="table-wrapper">
+      <div class="scroll-hint">← Deslize para ver mais →</div>
+      <div class="table-scroll">
+        <table id="etiquetasTable">
+          <thead>
+            <tr>
+              <? for (let key in dados[0]) { ?>
+              <th data-col="<?= key ?>">
+                <?= key ?>
+                <input type="text" placeholder="Filtrar..." data-col="<?= key ?>" onclick="event.stopPropagation()">
+              </th>
+              <? } ?>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? for (let i = 0; i < dados.length; i++) { ?>
+            <tr data-row="<?= i+2 ?>">
+              <? for (let key in dados[i]) {
+                if(key === "ETIQUETA") { ?>
+              <td><a class="pdf-link" href="<?= dados[i][key] ?>" target="_blank">📄 Abrir PDF</a></td>
+              <? } else if(key === "QTDE") { ?>
+              <td><input type="number" value="<?= dados[i][key] ?>" data-field="qtde" inputmode="numeric"></td>
+              <? } else if(key === "DIM") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="dim"></td>
+              <? } else if(key === "TIPO") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="tipo"></td>
+              <? } else if(key === "PROP") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="prop"></td>
+              <? } else if(key === "MATERIAL") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="material"></td>
+              <? } else if(key === "ESPESSURA") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="esp" inputmode="decimal"></td>
+              <? } else if(key === "PESO APROXIMADO") { ?>
+              <td class="peso" data-valor="<?= dados[i][key] ?>">
+                <?= parseFloat(dados[i][key]).toFixed(2) ?>
+              </td>
+              <? } else { ?>
+              <td><?= dados[i][key] ?></td>
+              <? } } ?>
+              <td><button class="btn btn-primary btn-small" onclick="gerarNovaEtiqueta(this)">Gerar Etiqueta</button></td>
+            </tr>
+            <? } ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <script>
     const token = "<?= token ?>";
-    // ---------------- helpers ----------------
-    function debounce(fn, ms) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
 
-    // ---------------- soma pesos ----------------
+    // Previne zoom em double tap (iOS)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+
+    // Helpers
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    // Soma de Pesos
     function atualizarSomaPesos() {
       const rows = document.querySelectorAll('#etiquetasTable tbody tr');
       let pesoEstoque = 0, pesoCliente = 0, pesoTotal = 0;
+
       rows.forEach(row => {
         if (row.style.display === 'none') return;
 
@@ -280,14 +531,13 @@
           }
         }
       });
-      // Atualiza os valores com duas casas decimais e "Kg"
+
       document.getElementById('pesoEstoque').textContent = pesoEstoque.toFixed(2) + " Kg";
       document.getElementById('pesoCliente').textContent = pesoCliente.toFixed(2) + " Kg";
       document.getElementById('pesoTotal').textContent = pesoTotal.toFixed(2) + " Kg";
     }
 
-
-    // ---------------- filtros (header inputs) ----------------
+    // Filtros
     function aplicarFiltros() {
       const table = document.getElementById('etiquetasTable');
       const headerInputs = table.querySelectorAll('th input');
@@ -308,17 +558,12 @@
               : cell.textContent;
             cellValue = (cellValue || '').trim();
 
-            // --- FILTRO DE ESPESSURA ESPECIAL ---
             if (header.includes("ESPESSURA")) {
               const cellNorm = cellValue.replace(",", ".");
               const filtroNorm = filtro.replace(",", ".");
-              // Exemplo: filtro "6" deve pegar 6, 6.1, 6.2, mas não 2.6 ou 16
               const padrao = new RegExp("^" + filtroNorm.replace(".", "\\.") + "(\\b|,|$)");
               if (!padrao.test(cellNorm)) visivel = false;
-            }
-
-            // --- FILTROS NUMÉRICOS (QTDE, PESO) ---
-            else if (header.includes("QTDE") || header.includes("PESO")) {
+            } else if (header.includes("QTDE") || header.includes("PESO")) {
               const valNum = parseFloat(cellValue.replace(",", ".")) || 0;
               const filtroNum = parseFloat(filtro.replace(",", ".")) || null;
               if (filtroNum !== null && !isNaN(filtroNum)) {
@@ -326,10 +571,7 @@
               } else if (!cellValue.toLowerCase().includes(filtro)) {
                 visivel = false;
               }
-            }
-
-            // --- FILTROS TEXTUAIS PADRÃO ---
-            else {
+            } else {
               if (!cellValue.toLowerCase().includes(filtro)) visivel = false;
             }
           }
@@ -341,7 +583,6 @@
       atualizarSomaPesos();
     }
 
-
     function limparFiltros() {
       const table = document.getElementById('etiquetasTable');
       const headerInputs = table.querySelectorAll('th input');
@@ -350,13 +591,14 @@
       atualizarSomaPesos();
     }
 
-    // ---------------- ordenação (mesma lógica) ----------------
+    // Ordenação
     let ordemAtual = {};
-    (function setupOrdenacao() {
+    function setupOrdenacao() {
       const table = document.getElementById('etiquetasTable');
       Array.from(table.tHead.rows[0].cells).forEach((th, i) => {
         th.addEventListener('click', (e) => {
           if (e.target.tagName === 'INPUT') return;
+          
           const tbody = table.tBodies[0];
           const linhas = Array.from(tbody.rows);
           ordemAtual[i] = ordemAtual[i] === 'asc' ? 'desc' : 'asc';
@@ -385,48 +627,28 @@
           });
 
           linhas.forEach(r => tbody.appendChild(r));
-          Array.from(table.tHead.rows[0].cells).forEach(thx => thx.classList.remove('asc', 'desc'));
-          th.classList.add(ordemAtual[i]);
+          
+          // Atualiza indicadores visuais
+          Array.from(table.tHead.rows[0].cells).forEach(thx => {
+            thx.classList.remove('sorted-asc', 'sorted-desc');
+          });
+          th.classList.add(ordemAtual[i] === 'asc' ? 'sorted-asc' : 'sorted-desc');
+          
           atualizarSomaPesos();
         });
       });
-    })();
-
-    // ---------------- atualizar célula (compatível com seu .gs existente) ----------------
-    function atualizarCelula(linha, campo, valor) {
-      // compatibilidade: se algo chamar essa função diretamente
-      const tr = document.querySelector(`tr[data-row='${linha}']`);
-      if (tr) {
-        const inp = tr.querySelector(`input[data-field='${campo}']`);
-        if (inp) {
-          inp.value = valor;
-          inp.dataset.original = valor;
-        }
-      }
-      google.script.run
-        .withSuccessHandler(msg => {
-          if (msg === "Linha removida") {
-            if (tr) tr.remove();
-          }
-          // tenta recalcular visualmente a linha alterada
-          if (tr) recomputeRowPeso(tr, campo);
-          atualizarSomaPesos();
-        })
-        .withFailureHandler(err => alert("Erro: " + err.message))
-        .atualizarCelulaNaPlanilha(linha, campo, valor);
     }
 
-    // ---------------- re-cálculo local de peso por linha (heurística) ----------------
+    // Recalcular peso por linha
     function recomputeRowPeso(tr, changedField) {
       const tdPeso = tr.querySelector('td.peso');
       if (!tdPeso) return;
-      // perUnit: peso por unidade atualmente armazenado na linha
+
       let perUnit = parseFloat(tr.dataset.perUnit) || 0;
       let qtde = parseFloat(tr.querySelector('input[data-field="qtde"]')?.value) || 0;
       let origEsp = parseFloat(tr.dataset.originalEsp) || 0;
       let currEsp = parseFloat(tr.querySelector('input[data-field="esp"]')?.value) || origEsp;
 
-      // Se houver perUnit válido, atualiza quando qtde muda
       if (changedField === 'qtde' && perUnit > 0) {
         const newPeso = perUnit * qtde;
         tdPeso.dataset.valor = newPeso;
@@ -436,7 +658,6 @@
         return;
       }
 
-      // Se espessura mudou e temos uma espessura original, ajustar proporcionalmente (heurística)
       if (changedField === 'esp' && origEsp > 0 && perUnit > 0) {
         const newPerUnit = perUnit * (currEsp / origEsp);
         const newPeso = newPerUnit * qtde;
@@ -447,11 +668,9 @@
         tr.dataset.originalPeso = newPeso;
         return;
       }
-
-      // Outros campos: não podemos recalcular sem fórmula; apenas atualizamos soma geral
     }
 
-    // ---------------- salvar célula via UI (debounced + blur/enter) ----------------
+    // Salvar célula
     function saveCell(input) {
       const tr = input.closest('tr');
       if (!tr) return;
@@ -459,7 +678,6 @@
       const campo = input.dataset.field;
       const valor = input.value;
 
-      // evita duplicação
       if (input.dataset.saving === 'true') return;
 
       input.dataset.saving = 'true';
@@ -478,38 +696,41 @@
             return;
           }
 
-          // tenta atualizar peso localmente (heurística)
           recomputeRowPeso(tr, campo);
           atualizarSomaPesos();
         })
         .withFailureHandler(err => {
           input.dataset.saving = 'false';
           input.classList.remove('input-saving');
-          alert("Erro: " + err.message);
+          alert("Erro ao salvar: " + err.message);
         })
         .atualizarCelulaNaPlanilha(linha, campo, valor);
     }
 
-    // ---------------- geração de etiqueta (mantive sua lógica) ----------------
+    // Gerar etiqueta
     function gerarNovaEtiqueta(btn) {
       btn.disabled = true;
       btn.textContent = "Gerando...";
       const tr = btn.closest("tr");
       const rowIndex = parseInt(tr.dataset.row);
-      google.script.run.withSuccessHandler(url => {
-        const link = tr.querySelector('a.pdf-link');
-        if (link) link.href = url;
-        btn.textContent = "Gerar Nova Etiqueta";
-        btn.disabled = false;
-        atualizarSomaPesos();
-      }).withFailureHandler(err => {
-        alert("Erro: " + err.message);
-        btn.textContent = "Gerar Nova Etiqueta";
-        btn.disabled = false;
-      }).gerarNovaEtiqueta({ rowIndex });
+      
+      google.script.run
+        .withSuccessHandler(url => {
+          const link = tr.querySelector('a.pdf-link');
+          if (link) link.href = url;
+          btn.textContent = "Gerar Etiqueta";
+          btn.disabled = false;
+          atualizarSomaPesos();
+        })
+        .withFailureHandler(err => {
+          alert("Erro ao gerar etiqueta: " + err.message);
+          btn.textContent = "Gerar Etiqueta";
+          btn.disabled = false;
+        })
+        .gerarNovaEtiqueta({ rowIndex });
     }
 
-    // ---------------- datas ----------------
+    // Padronizar datas
     function padronizarDatas() {
       const table = document.getElementById("etiquetasTable");
       const headers = Array.from(table.tHead.rows[0].cells).map(th => th.textContent.trim().toUpperCase());
@@ -532,18 +753,24 @@
       });
     }
 
-    // ---------------- inicialização (event listeners) ----------------
+    // Voltar
+    function voltarPagina() {
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+
+    // Inicialização
     window.addEventListener('load', () => {
       padronizarDatas();
 
       const table = document.getElementById('etiquetasTable');
       if (!table) return;
 
-      // reaplica listeners de filtro (header)
+      // Filtros
       const headerInputs = table.querySelectorAll('th input');
       headerInputs.forEach(input => input.addEventListener('input', aplicarFiltros));
 
-      // dados iniciais por linha: original qtde/peso/espessura → usado para heurísticas locais
+      // Dados iniciais
       Array.from(table.tBodies[0].rows).forEach(tr => {
         const tdPeso = tr.querySelector('td.peso');
         const peso = tdPeso ? parseFloat(tdPeso.dataset.valor) || 0 : 0;
@@ -557,51 +784,45 @@
         tr.dataset.perUnit = (qtdeVal > 0) ? (peso / qtdeVal) : 0;
         tr.dataset.originalEsp = espVal;
 
-        // set original marker on inputs
         tr.querySelectorAll('input').forEach(inp => inp.dataset.original = inp.value);
       });
 
-      // adiciona listeners nos inputs de cada célula (debounce + blur + enter)
+      // Event listeners nos inputs
       const rowInputs = table.querySelectorAll('tbody input');
       rowInputs.forEach(input => {
         const debouncedSave = debounce(() => {
-          // marca dirty (vai salvar automaticamente após 800ms de inatividade)
           input.dataset.dirty = 'true';
           saveCell(input);
-        }, 800);
+        }, 1000);
 
-        input.addEventListener('focus', () => { input.dataset.editing = 'true'; });
+        input.addEventListener('focus', () => {
+          input.dataset.editing = 'true';
+        });
+
         input.addEventListener('blur', () => {
           input.dataset.editing = 'false';
           if (input.dataset.dirty === 'true') {
-            saveCell(input); // salva agora
+            saveCell(input);
           }
         });
 
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            input.blur(); // blur dispara o save
+            input.blur();
           }
         });
 
         input.addEventListener('input', () => {
-          // marca dirty e tenta salvar após debounce
           input.dataset.dirty = 'true';
           debouncedSave();
         });
       });
 
-      // calcula soma inicial
+      setupOrdenacao();
       atualizarSomaPesos();
     });
-
-    function voltarPagina() {
-      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
-    }
   </script>
-
 </body>
 
 </html>

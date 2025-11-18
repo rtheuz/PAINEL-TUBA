@@ -4,50 +4,441 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Planos de Manutenção (Multimáquina)</title>
+    <title>Manutenção de Equipamentos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
             --bg: #0f172a;
-            --card: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            --card: #ffffff;
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
             --muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
         }
 
         html,
         body {
             height: 100%;
             margin: 0;
-            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-            background-color: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
         }
 
         .container {
-            max-width: 1100px;
-            padding-left: 1rem;
-            padding-right: 1rem;
+            max-width: 100%;
+            padding: 0.75rem;
+            min-height: 100vh;
         }
 
         .card {
-            box-shadow: 0 10px 30px -10px rgba(2, 6, 23, 0.6);
             background: var(--card);
-            border-radius: 1rem;
+            border-radius: 1.25rem;
             padding: 1.25rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1rem;
         }
 
-        #statusMessage {
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin: 0 0 0.25rem 0;
+            line-height: 1.3;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            opacity: 0.95;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .back-btn {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            z-index: 100;
+            background: white;
+            border: none;
+            padding: 0.875rem 1.25rem;
+            border-radius: 3rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--primary);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .form-section {
+            background: #f8fafc;
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 2px solid #e2e8f0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        select,
+        input[type="date"],
+        input[type="time"],
+        input[type="text"] {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.2s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .frequency-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.625rem;
+            margin-top: 0.75rem;
+        }
+
+        .frequency-option {
+            position: relative;
+        }
+
+        .frequency-option input[type="checkbox"] {
+            position: absolute;
             opacity: 0;
-            transition: opacity 0.25s ease-in-out;
+            width: 0;
+            height: 0;
+        }
+
+        .frequency-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.875rem 0.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.875rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 72px;
+            text-align: center;
+        }
+
+        .frequency-option input:checked + .frequency-label {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.05) 100%);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+        }
+
+        .frequency-label .freq-name {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            color: #334155;
+        }
+
+        .frequency-label .freq-count {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .frequency-option input:checked + .frequency-label .freq-count {
+            color: var(--primary-dark);
+        }
+
+        /* Badges de status coloridos */
+        .frequency-option.nunca .frequency-label {
+            border-color: #cbd5e1;
+        }
+
+        .frequency-option.nunca input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(148, 163, 184, 0.05) 100%);
+            border-color: #64748b;
+        }
+
+        .frequency-option.atrasada .frequency-label {
+            border-color: #fecaca;
+        }
+
+        .frequency-option.atrasada input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+            border-color: #ef4444;
+        }
+
+        .frequency-option.atrasada .freq-count {
+            color: #dc2626;
+        }
+
+        .frequency-option.liberada .frequency-label {
+            border-color: #bfdbfe;
+        }
+
+        .frequency-option.liberada input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border-color: #3b82f6;
+        }
+
+        .frequency-option.liberada .freq-count {
+            color: #2563eb;
+        }
+
+        .frequency-option.pendente .frequency-label {
+            border-color: #bbf7d0;
+        }
+
+        .frequency-option.pendente input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+            border-color: #10b981;
+        }
+
+        .frequency-option.pendente .freq-count {
+            color: #059669;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .task-card.selected {
+            border-color: var(--primary);
+            box-shadow: 0 4px 16px rgba(79, 70, 229, 0.15);
+        }
+
+        .task-card.overdue {
+            border-left: 5px solid #ef4444;
+            background: linear-gradient(90deg, #fef2f2 0%, white 20px);
+        }
+
+        .task-header {
+            padding: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.875rem;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .task-checkbox {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            border-radius: 0.5rem;
+            border: 2px solid #cbd5e1;
+            cursor: pointer;
+            margin-top: 0.25rem;
+            accent-color: var(--primary);
+        }
+
+        .task-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-component {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.625rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            max-width: 100%;
+        }
+
+        .task-component.atrasada {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .task-component.liberada {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .task-component.pendente {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .task-component.nunca_feito {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .task-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.4;
+            margin-bottom: 0.375rem;
+            word-wrap: break-word;
+        }
+
+        .task-subtitle {
+            font-size: 0.8125rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .task-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            margin-top: 0.375rem;
+        }
+
+        .task-status-badge.atrasada {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .task-status-badge.liberada {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .task-status-badge.pendente {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .task-status-badge.nunca_feito {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .task-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .task-details.visible {
+            max-height: 500px;
+            padding: 1rem;
+        }
+
+        .task-details-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.375rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1.125rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 1rem;
+            font-size: 1.0625rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 5rem;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: scale(0.98);
         }
 
         .loading-spinner {
-            border: 3px solid rgba(255, 255, 255, 0.2);
-            border-top: 3px solid #ffffff;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
             border-radius: 50%;
             width: 1.25rem;
             height: 1.25rem;
-            animation: spin 0.9s linear infinite;
+            animation: spin 0.8s linear infinite;
             display: none;
         }
 
@@ -57,260 +448,146 @@
             }
         }
 
-        .task-detail {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.28s ease, opacity 0.28s ease, padding 0.2s ease;
+        .status-message {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transform: translateY(-150%);
+            transition: transform 0.3s ease;
         }
 
-        .task-detail.visible {
-            max-height: 240px;
-            opacity: 1;
-            padding-top: 0.5rem;
+        .status-message.visible {
+            transform: translateY(0);
         }
 
-        .task-item {
-            transition: transform 0.12s ease, box-shadow 0.12s ease;
+        .status-message.success {
+            background: #10b981;
+            color: white;
         }
 
-        .task-item:active {
-            transform: translateY(1px);
+        .status-message.error {
+            background: #ef4444;
+            color: white;
         }
 
-        .task-item.overdue {
-            border-left: 4px solid #ef4444;
-            background: linear-gradient(180deg, #fff7f6 0%, #fff1f0 100%);
+        .status-message.info {
+            background: #3b82f6;
+            color: white;
         }
 
-        .task-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            width: 100%;
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+            color: #64748b;
         }
 
-        /* Badge agora permite quebra para mostrar nomes completos */
-        .component-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.28rem 0.6rem;
-            border-radius: 9999px;
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 0.8125rem;
             font-weight: 700;
-            font-size: 0.78rem;
-            max-width: 520px; /* ajustar se quiser mais espaço */
-            overflow-wrap: anywhere;
-            word-break: break-word;
-            box-shadow: 0 6px 18px rgba(2, 6, 23, 0.06);
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 1.5rem 0 0.75rem;
+            padding-left: 0.25rem;
         }
 
-        .component-full-name {
-            margin-left: 0.25rem;
-            display: inline-block;
-            vertical-align: middle;
-        }
-
-        .status-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 34px;
-            height: 34px;
-            border-radius: 10px;
-            flex-shrink: 0;
-            margin-left: 0.5rem;
-        }
-
-        .task-meta {
-            display: flex;
-            flex-direction: column;
-            gap: 0.18rem;
-            min-width: 0;
-        }
-
-        .action-title {
-            font-size: 1rem;
-            font-weight: 800;
-            color: #0f172a;
-            margin: 0;
-            line-height: 1.15;
-            overflow-wrap: anywhere;
-        }
-
-        .component-subtext {
-            font-size: 0.82rem;
-            color: var(--muted);
-            margin-top: 0.1rem;
-        }
-
-        .component-badge.liberada {
-            background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
-            color: #1e3a8a;
-        }
-
-        .component-badge.pendente {
-            background: linear-gradient(180deg, #dcfce7 0%, #bbf7d0 100%);
-            color: #065f46;
-        }
-
-        .component-badge.nunca_feito {
-            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-            color: #0f172a;
-        }
-
-        .component-badge.atrasada {
-            background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
-            color: #7f1d1d;
-        }
-
-        .status-icon.liberada {
-            background: #dbeafe;
-            color: #1e3a8a;
-        }
-
-        .status-icon.pendente {
-            background: #dcfce7;
-            color: #065f46;
-        }
-
-        .status-icon.nunca_feito {
-            background: #f1f5f9;
-            color: #0f172a;
-        }
-
-        .status-icon.atrasada {
-            background: #fee2e2;
-            color: #7f1d1d;
-        }
-
-        input[type="checkbox"].task-checkbox {
-            width: 40px;
-            height: 40px;
-            min-width: 40px;
-            min-height: 40px;
-        }
-
-        .task-item .task-header {
-            padding: 0.25rem 0;
-        }
-
-        .task-item .action-title {
-            font-size: 1rem;
-        }
-
-        .task-item .component-subtext {
-            font-size: 0.78rem;
-        }
-
-        .task-detail .date-input,
-        .task-detail .time-input,
-        .task-detail .responsible-input {
-            font-size: 0.95rem;
-            padding: 0.6rem 0.6rem;
-        }
-
-        @media (min-width:640px) {
-            .card {
-                padding: 2.25rem;
-            }
-
-            .component-badge {
-                font-size: 0.78rem;
-                padding: 0.32rem 0.6rem;
-            }
-
-            .btn {
-                appearance: none;
-                border: none;
-                padding: 10px 14px;
-                border-radius: 10px;
-                font-weight: 600;
-                cursor: pointer;
-                display: inline-flex;
-                gap: 8px;
-                align-items: center;
-                background: #1a73e8;
-                color: white;
-            }
-
-            .status-icon {
-                width: 36px;
-                height: 36px;
-                border-radius: 12px;
-            }
-        }
-
-        @media (min-width:1024px) {
-            .action-title {
-                font-size: 1.05rem;
-            }
-
-            .card {
-                max-width: 1100px;
+        @media (min-width: 640px) {
+            .container {
+                max-width: 640px;
                 margin: 0 auto;
+                padding: 1.5rem;
             }
-        }
 
-        input:focus,
-        select:focus,
-        button:focus {
-            outline: 3px solid rgba(99, 102, 241, 0.12);
-            outline-offset: 2px;
+            .card {
+                padding: 2rem;
+            }
+
+            .header h1 {
+                font-size: 1.75rem;
+            }
+
+            .frequency-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .back-btn {
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .back-btn:active {
+                transform: translateX(-50%) scale(0.96);
+            }
         }
     </style>
 </head>
 
-<body class="min-h-screen">
-    <div class="container mx-auto">
-        <div class="card bg-white">
-            <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-600 mb-4 sm:mb-6 border-b pb-2">
-                Registro de Manutenção de Equipamentos
-            </h1>
-            <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
-                ← Voltar
-            </button>
-            <p class="text-sm sm:text-base text-gray-600 mb-4">
-                Selecione o plano de manutenção, a(s) frequência(s) e preencha os detalhes para cada ação concluída.
-            </p>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>🔧 Manutenção de Equipamentos</h1>
+                <p>Selecione o plano e registre as tarefas realizadas</p>
+            </div>
 
-            <form id="maintenanceForm" class="space-y-4" autocomplete="off">
-                <div class="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <label for="maintenancePlan" class="block text-sm font-bold text-gray-700 mb-2">Plano de
-                        Manutenção</label>
-                    <select id="maintenancePlan" name="maintenancePlan" onchange="handlePlanChange()" required
-                        class="w-full p-3 border border-gray-300 bg-white rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition text-base">
+            <form id="maintenanceForm" autocomplete="off">
+                <!-- Seleção do Plano -->
+                <div class="form-section">
+                    <label class="form-label" for="maintenancePlan">📋 Plano de Manutenção</label>
+                    <select id="maintenancePlan" name="maintenancePlan" required>
+                        <option value="" disabled selected>Selecione um plano...</option>
                     </select>
                 </div>
 
-                <div id="frequencySection" class="mb-2 p-3 bg-indigo-50 rounded-lg border border-indigo-200 hidden">
-                    <label class="block text-sm font-bold text-indigo-700 mb-2">Selecione a(s) Frequência(s)</label>
-                    <div id="frequencyOptions" class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    </div>
+                <!-- Filtros de Frequência -->
+                <div id="frequencySection" class="form-section" style="display: none;">
+                    <label class="form-label">🎯 Filtrar por Status</label>
+                    <div class="frequency-grid" id="frequencyOptions"></div>
                 </div>
 
-                <div id="checklistContainer" class="p-3 bg-gray-50 rounded-lg border border-gray-200 hidden">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-3 border-b pb-2">Checklist das Ações de Manutenção
-                    </h2>
-                    <div id="maintenanceChecklist" class="space-y-3">
-                        <p class="text-gray-500 italic text-sm">Selecione uma frequência acima para ver as tarefas.</p>
-                    </div>
+                <!-- Lista de Tarefas -->
+                <div id="checklistContainer" style="display: none;">
+                    <h2 class="section-title">Lista de Tarefas</h2>
+                    <div id="maintenanceChecklist" class="task-list"></div>
                 </div>
 
-                <div class="mt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    <button type="submit" id="submitButton" disabled
-                        class="w-full sm:w-auto px-5 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:opacity-95 transition btn-indigo">
-                        <span id="buttonText">Registrar Manutenção</span>
-                        <div id="loadingSpinner" class="loading-spinner ml-3 inline-block align-middle"
-                            aria-hidden="true"></div>
-                    </button>
-                    <div id="statusMessage"
-                        class="mt-2 sm:mt-0 p-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center"
-                        aria-live="polite"></div>
-                </div>
+                <!-- Botão de Envio -->
+                <button type="submit" id="submitButton" class="submit-btn" disabled>
+                    <span id="buttonText">✓ Registrar Manutenção</span>
+                    <div id="loadingSpinner" class="loading-spinner"></div>
+                </button>
             </form>
         </div>
     </div>
+
+    <!-- Botão Voltar -->
+    <button class="back-btn" onclick="voltarPagina()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        <span>Voltar</span>
+    </button>
+
+    <!-- Mensagem de Status -->
+    <div id="statusMessage" class="status-message"></div>
 
     <script>
         const token = "<?= token ?>";
@@ -326,8 +603,6 @@
                 }).withFailureHandler(function (err) {
                     console.warn('Não foi possível obter usuário por token:', err);
                 }).getUsuarioLogadoPorToken(token);
-            } else {
-                console.warn("google.script.run não definido — modo local.");
             }
         }
 
@@ -337,7 +612,6 @@
             inputs.forEach(inp => { if (inp && !inp.value) inp.value = currentUser.usuario || ''; });
         }
 
-        // Dados de tarefa
         const MAINTENANCE_PLANS = {
             "MAQUINA_LASER": {
                 name: "Máquina Laser",
@@ -381,40 +655,26 @@
         let tempTaskState = {};
         let currentTaskStatusMap = {};
 
-        // refs DOM
-        let maintenancePlanSelect = document.getElementById('maintenancePlan');
-        let frequencyOptionsContainer = document.getElementById('frequencyOptions');
-        let maintenanceChecklist = document.getElementById('maintenanceChecklist');
-        let maintenanceForm = document.getElementById('maintenanceForm');
-        let frequencySection = document.getElementById('frequencySection');
-        let checklistContainer = document.getElementById('checklistContainer');
-        let submitButton = document.getElementById('submitButton');
-        let buttonText = document.getElementById('buttonText');
-        let loadingSpinner = document.getElementById('loadingSpinner');
-        let statusMessage = document.getElementById('statusMessage');
+        const maintenancePlanSelect = document.getElementById('maintenancePlan');
+        const frequencyOptionsContainer = document.getElementById('frequencyOptions');
+        const maintenanceChecklist = document.getElementById('maintenanceChecklist');
+        const maintenanceForm = document.getElementById('maintenanceForm');
+        const frequencySection = document.getElementById('frequencySection');
+        const checklistContainer = document.getElementById('checklistContainer');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const statusMessage = document.getElementById('statusMessage');
 
         document.addEventListener('DOMContentLoaded', () => {
-            maintenancePlanSelect = document.getElementById('maintenancePlan');
-            frequencyOptionsContainer = document.getElementById('frequencyOptions');
-            maintenanceChecklist = document.getElementById('maintenanceChecklist');
-            maintenanceForm = document.getElementById('maintenanceForm');
-            frequencySection = document.getElementById('frequencySection');
-            checklistContainer = document.getElementById('checklistContainer');
-            submitButton = document.getElementById('submitButton');
-            buttonText = document.getElementById('buttonText');
-            loadingSpinner = document.getElementById('loadingSpinner');
-            statusMessage = document.getElementById('statusMessage');
-
-            if (loadingSpinner && loadingSpinner.style) loadingSpinner.style.display = 'none';
-            if (submitButton) submitButton.disabled = true;
-
             initializePlanSelect();
             loadUserByToken();
             maintenanceForm.addEventListener('submit', handleSubmit);
+            maintenancePlanSelect.addEventListener('change', handlePlanChange);
 
             if (typeof google !== 'undefined' && google.script && google.script.run) {
                 google.script.run.withSuccessHandler(processHistoryAndInit).withFailureHandler(handleError).getMaintenanceHistory();
-                showStatusMessage('Carregando histórico de manutenções...', 'info');
+                showStatusMessage('Carregando histórico...', 'info');
             } else {
                 processHistoryAndInit([]);
             }
@@ -422,19 +682,12 @@
 
         function processHistoryAndInit(history) {
             maintenanceHistory = history || [];
-            showStatusMessage('Histórico carregado.', 'success');
-            try {
-                setButtonLoading(false);
-            } catch (e) {
-                if (loadingSpinner && loadingSpinner.style) loadingSpinner.style.display = 'none';
-                if (submitButton) submitButton.disabled = false;
-            }
-            setTimeout(() => { statusMessage.style.opacity = 0 }, 1400);
-            if (maintenancePlanSelect.value) handlePlanChange();
+            showStatusMessage('Histórico carregado!', 'success');
+            setTimeout(() => hideStatusMessage(), 2000);
         }
 
         function initializePlanSelect() {
-            let optionsHtml = '<option value="" disabled selected>-- Selecione um Plano --</option>';
+            let optionsHtml = '<option value="" disabled selected>Selecione um plano...</option>';
             for (const key in MAINTENANCE_PLANS) {
                 optionsHtml += `<option value="${key}">${MAINTENANCE_PLANS[key].name}</option>`;
             }
@@ -460,7 +713,9 @@
             return { currentDate: `${year}-${month}-${day}`, currentTime: `${hours}:${minutes}` };
         }
 
-        function getTaskKey(componente, acao) { return (componente || '').trim() + '||' + (acao || '').trim(); }
+        function getTaskKey(componente, acao) { 
+            return (componente || '').trim() + '||' + (acao || '').trim(); 
+        }
 
         function normalizeString(s) {
             if (!s) return '';
@@ -471,7 +726,8 @@
             const planName = MAINTENANCE_PLANS[planKey].name;
             const planNameNormalized = normalizeString(planName);
             const statusMap = {};
-            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const today = new Date(); 
+            today.setHours(0, 0, 0, 0);
             const validHistory = Array.isArray(maintenanceHistory) ? maintenanceHistory : [];
 
             const lastExecutionMap = {};
@@ -479,12 +735,10 @@
                 .forEach(h => {
                     const taskKey = getTaskKey(h.componente, h.acao);
                     const executionDate = new Date(h.date);
-                    if (isNaN(executionDate)) {
-                        console.warn('Entrada de histórico com data inválida:', h);
-                        return;
-                    }
+                    if (isNaN(executionDate)) return;
                     executionDate.setHours(0, 0, 0, 0);
-                    if (!lastExecutionMap[taskKey] || executionDate > lastExecutionMap[taskKey]) lastExecutionMap[taskKey] = executionDate;
+                    if (!lastExecutionMap[taskKey] || executionDate > lastExecutionMap[taskKey]) 
+                        lastExecutionMap[taskKey] = executionDate;
                 });
 
             for (const freq in MAINTENANCE_PLANS[planKey].tasks) {
@@ -496,19 +750,27 @@
                     const taskKey = getTaskKey(task.componente, task.acao);
                     const lastDate = lastExecutionMap[taskKey] || null;
                     let nextDate = null, releaseDate = null, overdueDate = null, statusCategory = 'PENDENTE';
+                    
                     if (lastDate) {
                         nextDate = new Date(lastDate);
                         nextDate.setDate(nextDate.getDate() + intervalDays);
                         nextDate.setHours(0, 0, 0, 0);
-                        releaseDate = new Date(nextDate); releaseDate.setDate(releaseDate.getDate() - toleranceDays);
-                        overdueDate = new Date(nextDate); overdueDate.setDate(overdueDate.getDate() + toleranceDays);
+                        releaseDate = new Date(nextDate); 
+                        releaseDate.setDate(releaseDate.getDate() - toleranceDays);
+                        overdueDate = new Date(nextDate); 
+                        overdueDate.setDate(overdueDate.getDate() + toleranceDays);
+                        
                         if (today > overdueDate) statusCategory = 'ATRASADA';
                         else if (today >= releaseDate) statusCategory = 'LIBERADA';
                         else statusCategory = 'PENDENTE';
                     } else {
                         statusCategory = 'NUNCA_FEITO';
                     }
-                    statusMap[task.id] = { lastDate, nextDate, releaseDate, overdueDate, statusCategory, frequency: freq, intervalDays };
+                    
+                    statusMap[task.id] = { 
+                        lastDate, nextDate, releaseDate, overdueDate, statusCategory, 
+                        frequency: freq, intervalDays 
+                    };
                 });
             }
 
@@ -520,33 +782,41 @@
             const checkedTasks = document.querySelectorAll('input[name="task_id"]:checked');
             checkedTasks.forEach(cb => {
                 const id = cb.value;
-                const item = cb.closest('.task-item');
-                if (!item) return;
-                const d = item.querySelector('.date-input')?.value || '';
-                const t = item.querySelector('.time-input')?.value || '';
-                const r = item.querySelector('.responsible-input')?.value.trim() || '';
+                const card = cb.closest('.task-card');
+                if (!card) return;
+                const d = card.querySelector('.date-input')?.value || '';
+                const t = card.querySelector('.time-input')?.value || '';
+                const r = card.querySelector('.responsible-input')?.value.trim() || '';
                 tempTaskState[id] = { date: d, time: t, responsible: r };
             });
         }
 
         function toggleTaskDetails(checkbox) {
-            const taskItem = checkbox.closest('.task-item');
-            if (!taskItem) return;
-            const detailDiv = taskItem.querySelector('.task-detail');
-            const dateInput = taskItem.querySelector('.date-input');
-            const timeInput = taskItem.querySelector('.time-input');
-            const responsibleInput = taskItem.querySelector('.responsible-input');
+            const taskCard = checkbox.closest('.task-card');
+            if (!taskCard) return;
+            
+            const detailDiv = taskCard.querySelector('.task-details');
+            const dateInput = taskCard.querySelector('.date-input');
+            const timeInput = taskCard.querySelector('.time-input');
+            const responsibleInput = taskCard.querySelector('.responsible-input');
 
             if (checkbox.checked) {
+                taskCard.classList.add('selected');
                 detailDiv.classList.add('visible');
-                dateInput.required = true; timeInput.required = true; responsibleInput.required = true;
+                dateInput.required = true; 
+                timeInput.required = true; 
+                responsibleInput.required = true;
+                
                 const { currentDate, currentTime } = getCurrentDateTime();
                 if (!dateInput.value) dateInput.value = currentDate;
                 if (!timeInput.value) timeInput.value = currentTime;
                 if (!responsibleInput.value && currentUser) responsibleInput.value = currentUser.usuario || '';
             } else {
+                taskCard.classList.remove('selected');
                 detailDiv.classList.remove('visible');
-                dateInput.required = false; timeInput.required = false; responsibleInput.required = false;
+                dateInput.required = false; 
+                timeInput.required = false; 
+                responsibleInput.required = false;
             }
         }
 
@@ -555,6 +825,7 @@
             const selectedPlanKey = maintenancePlanSelect.value;
             const currentPlan = MAINTENANCE_PLANS[selectedPlanKey];
             if (!currentPlan) return;
+            
             const selectedFilters = Array.from(document.querySelectorAll('input[name="frequency"]:checked')).map(cb => cb.value);
             renderChecklist(currentPlan.tasks, selectedFilters, currentTaskStatusMap);
             populateResponsibleFields();
@@ -562,19 +833,27 @@
 
         function handlePlanChange() {
             const selectedPlanKey = maintenancePlanSelect.value;
-            tempTaskState = {}; currentTaskStatusMap = {};
+            tempTaskState = {}; 
+            currentTaskStatusMap = {};
+            
             if (selectedPlanKey) {
                 currentTaskStatusMap = calculateTaskStatus(selectedPlanKey);
                 renderFrequencyOptions(currentTaskStatusMap);
-                frequencySection.classList.remove('hidden'); checklistContainer.classList.remove('hidden'); submitButton.disabled = false;
+                frequencySection.style.display = 'block';
+                checklistContainer.style.display = 'block';
+                submitButton.disabled = false;
             } else {
-                frequencySection.classList.add('hidden'); checklistContainer.classList.add('hidden'); submitButton.disabled = true;
+                frequencySection.style.display = 'none';
+                checklistContainer.style.display = 'none';
+                submitButton.disabled = true;
             }
+            
             handleFrequencyChange();
         }
 
         function renderFrequencyOptions(taskStatusMap) {
             let atrasadas = 0, liberadas = 0, nunca = 0, pendentes = 0;
+            
             Object.values(taskStatusMap).forEach(s => {
                 if (s.statusCategory === 'ATRASADA') atrasadas++;
                 else if (s.statusCategory === 'LIBERADA') liberadas++;
@@ -583,95 +862,49 @@
             });
 
             const html = `
-                <label class="flex items-center p-2 border border-gray-300 bg-white rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input type="checkbox" name="frequency" value="NUNCA_FEITO" onchange="handleFrequencyChange()" class="h-4 w-4 text-gray-600 rounded">
-                    <span class="ml-2 text-sm font-medium text-gray-800">NUNCA FEITAS (${nunca})</span>
-                </label>
-                <label class="flex items-center p-2 border border-red-200 bg-white rounded-lg cursor-pointer hover:bg-red-50">
-                    <input type="checkbox" name="frequency" value="ATRASADA" onchange="handleFrequencyChange()" class="h-4 w-4 text-red-600 rounded">
-                    <span class="ml-2 text-sm font-medium text-red-800">EM ATRASO (${atrasadas})</span>
-                </label>
-                <label class="flex items-center p-2 border border-blue-200 bg-white rounded-lg cursor-pointer hover:bg-blue-50">
-                    <input type="checkbox" name="frequency" value="LIBERADA" onchange="handleFrequencyChange()" class="h-4 w-4 text-blue-600 rounded">
-                    <span class="ml-2 text-sm font-medium text-blue-800">LIBERADAS (${liberadas})</span>
-                </label>
-                <label class="flex items-center p-2 border border-green-200 bg-white rounded-lg cursor-pointer hover:bg-green-50">
-                    <input type="checkbox" name="frequency" value="PENDENTE" onchange="handleFrequencyChange()" class="h-4 w-4 text-green-600 rounded">
-                    <span class="ml-2 text-sm font-medium text-green-800">PRÓXIMAS (${pendentes})</span>
-                </label>
+                <div class="frequency-option nunca">
+                    <input type="checkbox" id="freq-nunca" name="frequency" value="NUNCA_FEITO" onchange="handleFrequencyChange()">
+                    <label for="freq-nunca" class="frequency-label">
+                        <span class="freq-name">Nunca</span>
+                        <span class="freq-count">${nunca}</span>
+                    </label>
+                </div>
+                <div class="frequency-option atrasada">
+                    <input type="checkbox" id="freq-atrasada" name="frequency" value="ATRASADA" onchange="handleFrequencyChange()">
+                    <label for="freq-atrasada" class="frequency-label">
+                        <span class="freq-name">Atrasadas</span>
+                        <span class="freq-count">${atrasadas}</span>
+                    </label>
+                </div>
+                <div class="frequency-option liberada">
+                    <input type="checkbox" id="freq-liberada" name="frequency" value="LIBERADA" onchange="handleFrequencyChange()">
+                    <label for="freq-liberada" class="frequency-label">
+                        <span class="freq-name">Liberadas</span>
+                        <span class="freq-count">${liberadas}</span>
+                    </label>
+                </div>
+                <div class="frequency-option pendente">
+                    <input type="checkbox" id="freq-pendente" name="frequency" value="PENDENTE" onchange="handleFrequencyChange()">
+                    <label for="freq-pendente" class="frequency-label">
+                        <span class="freq-name">Próximas</span>
+                        <span class="freq-count">${pendentes}</span>
+                    </label>
+                </div>
             `;
+            
             frequencyOptionsContainer.innerHTML = html;
-        }
-
-        function iconForComponent(name) {
-            const n = (name || '').toLowerCase();
-            // ícones simples SVG para evitar muitos caracteres e garantir integridade do HTML
-            if (n.includes('compressor')) {
-                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M3 12h18" />
-                    <path d="M12 3v18" />
-                </svg>`;
-            }
-            if (n.includes('laser') || n.includes('lente') || n.includes('óptica')) {
-                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
-                </svg>`;
-            }
-            if (n.includes('chiller') || n.includes('resfriamento')) {
-                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 2v20" />
-                    <path d="M6 8h12" />
-                </svg>`;
-            }
-            if (n.includes('filtros') || n.includes('filtro')) {
-                return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M4 6h16M7 12h10M10 18h4" />
-                </svg>`;
-            }
-            // ícone genérico
-            return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="8" />
-            </svg>`;
-        }
-
-        function statusIconSvg(cat) {
-            switch (cat) {
-                case 'ATRASADA':
-                    return `<div class="status-icon atrasada" title="Atrasada" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 8v4l2 2" />
-                            <circle cx="12" cy="12" r="9" />
-                        </svg>
-                    </div>`;
-                case 'LIBERADA':
-                    return `<div class="status-icon liberada" title="Liberada" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                    </div>`;
-                case 'PENDENTE':
-                    return `<div class="status-icon pendente" title="Pendente" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 8v4l2 2" />
-                            <circle cx="12" cy="12" r="9" />
-                        </svg>
-                    </div>`;
-                case 'NUNCA_FEITO':
-                default:
-                    return `<div class="status-icon nunca_feito" title="Nunca feito" aria-hidden="true">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z" />
-                            <path d="M12 7v5l3 3" />
-                        </svg>
-                    </div>`;
-            }
         }
 
         function renderChecklist(allTasks, selectedFilters, taskStatus) {
             maintenanceChecklist.innerHTML = '';
+            
             if (!selectedFilters || selectedFilters.length === 0) {
-                maintenanceChecklist.innerHTML = '<p class="text-gray-500 italic text-sm">Selecione um filtro (NUNCA FEITAS / EM ATRASO / LIBERADAS / PRÓXIMAS) acima para ver as tarefas.</p>';
+                maintenanceChecklist.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p class="empty-state-text">Selecione um filtro acima para ver as tarefas</p>
+                    </div>
+                `;
                 return;
             }
 
@@ -689,6 +922,7 @@
             let html = '';
             let tasksFound = 0;
             const frequencyKeys = Object.keys(tasksToRender).sort((a, b) => (FREQUENCY_DAYS[a] || 9999) - (FREQUENCY_DAYS[b] || 9999));
+            
             for (const freq of frequencyKeys) {
                 const tasks = tasksToRender[freq];
                 tasksFound += tasks.length;
@@ -702,109 +936,154 @@
                     return ta - tb;
                 });
 
-                html += `<div class="mb-4"><h3 class="text-sm font-bold text-indigo-600 mb-2 uppercase tracking-wider">${freq}</h3><div class="space-y-2">`;
+                if (tasks.length > 0) {
+                    html += `<h3 class="section-title">${freq} (${tasks.length})</h3>`;
+                }
 
                 tasks.forEach(({ task, status }) => {
-                    let statusText = '', statusClass = 'text-gray-500';
-                    const lastDateStr = formatDate(status.lastDate), releaseDateStr = formatDate(status.releaseDate), overdueDateStr = formatDate(status.overdueDate);
-                    if (status.statusCategory === 'ATRASADA') { statusClass = 'text-red-700'; statusText = `EM ATRASO · Venceu: ${overdueDateStr}`; }
-                    else if (status.statusCategory === 'LIBERADA') { statusClass = 'text-blue-700'; statusText = `LIBERADA · Até: ${overdueDateStr}`; }
-                    else if (status.statusCategory === 'NUNCA_FEITO') { statusClass = 'text-gray-800'; statusText = 'NUNCA FEITO'; }
-                    else if (status.statusCategory === 'PENDENTE') { statusClass = 'text-green-700'; statusText = `PRÓXIMA: ${releaseDateStr}`; }
+                    let statusText = '', statusClass = '';
+                    const lastDateStr = formatDate(status.lastDate);
+                    const releaseDateStr = formatDate(status.releaseDate);
+                    const overdueDateStr = formatDate(status.overdueDate);
+                    
+                    if (status.statusCategory === 'ATRASADA') { 
+                        statusClass = 'atrasada'; 
+                        statusText = `⚠️ Venceu: ${overdueDateStr}`; 
+                    } else if (status.statusCategory === 'LIBERADA') { 
+                        statusClass = 'liberada'; 
+                        statusText = `✓ Até: ${overdueDateStr}`; 
+                    } else if (status.statusCategory === 'NUNCA_FEITO') { 
+                        statusClass = 'nunca_feito'; 
+                        statusText = '❗ Nunca realizada'; 
+                    } else if (status.statusCategory === 'PENDENTE') { 
+                        statusClass = 'pendente'; 
+                        statusText = `📅 Libera: ${releaseDateStr}`; 
+                    }
 
-                    const taskItemClasses = (status.statusCategory === 'ATRASADA' || status.statusCategory === 'NUNCA_FEITO') ? 'task-item overdue' : 'task-item';
+                    const taskCardClasses = (status.statusCategory === 'ATRASADA' || status.statusCategory === 'NUNCA_FEITO') ? 'task-card overdue' : 'task-card';
                     const savedState = tempTaskState[task.id] || null;
                     const isChecked = savedState ? 'checked' : '';
                     const detailVisible = savedState ? 'visible' : '';
+                    const selectedClass = savedState ? 'selected' : '';
                     const isRequired = savedState ? 'required' : '';
                     const savedDate = savedState ? savedState.date : '';
                     const savedTime = savedState ? savedState.time : '';
                     const savedResponsible = savedState && savedState.responsible ? savedState.responsible : (currentUser ? currentUser.usuario || '' : '');
 
-                    let badgeClass = 'component-badge';
-                    switch (status.statusCategory) {
-                        case 'LIBERADA': badgeClass += ' liberada'; break;
-                        case 'PENDENTE': badgeClass += ' pendente'; break;
-                        case 'NUNCA_FEITO': badgeClass += ' nunca_feito'; break;
-                        case 'ATRASADA': badgeClass += ' atrasada'; break;
-                        default: break;
-                    }
-
                     html += `
-                        <div class="${taskItemClasses} p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-                            <label class="flex items-start cursor-pointer" style="gap:0.75rem;">
-                                <input type="checkbox" name="task_id" value="${task.id}"
+                        <div class="${taskCardClasses} ${selectedClass}">
+                            <div class="task-header" onclick="this.querySelector('input[type=checkbox]').click()">
+                                <input type="checkbox" 
+                                       name="task_id" 
+                                       value="${task.id}"
                                        data-frequency="${status.frequency || ''}"
                                        ${isChecked}
-                                       onchange="toggleTaskDetails(this)"
+                                       onclick="event.stopPropagation(); toggleTaskDetails(this)"
                                        class="task-checkbox">
-                                <div class="ml-1 flex-1">
-                                    <div class="task-header">
-                                        <div class="${badgeClass}" title="${escapeHtml(task.componente)}">${iconForComponent(task.componente)}<span class="component-full-name">${escapeHtml(task.componente)}</span></div>
-                                        <div class="task-meta">
-                                            <p class="action-title">${escapeHtml(task.acao)}</p>
-                                            <p class="component-subtext"><span style="color:var(--muted); font-style:italic">Sugerido:</span> ${escapeHtml(task.responsavelSugerido || '')}</p>
-                                        </div>
-                                        <div style="margin-left:auto; display:flex; align-items:center; gap:0.5rem;">
-                                            ${statusIconSvg(status.statusCategory)}
-                                        </div>
+                                
+                                <div class="task-info">
+                                    <div class="task-component ${statusClass}">
+                                        ${escapeHtml(task.componente)}
                                     </div>
-                                    <div class="task-detail ${detailVisible}">
-                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Data</label>
-                                                <input type="date" class="date-input w-full border rounded-md" value="${savedDate}" ${isRequired}>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Hora</label>
-                                                <input type="time" class="time-input w-full border rounded-md" value="${savedTime}" ${isRequired}>
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Responsável</label>
-                                                <input type="text" placeholder="Nome do Técnico" class="responsible-input w-full border rounded-md" value="${savedResponsible}" ${isRequired}>
-                                            </div>
-                                        </div>
+                                    <div class="task-title">${escapeHtml(task.acao)}</div>
+                                    <div class="task-subtitle">
+                                        👤 ${escapeHtml(task.responsavelSugerido || 'N/A')}
+                                    </div>
+                                    <div class="task-status-badge ${statusClass}">
+                                        ${statusText}
                                     </div>
                                 </div>
-                            </label>
-                        </div>`;
+                            </div>
+                            
+                            <div class="task-details ${detailVisible}">
+                                <div class="task-details-grid">
+                                    <div class="input-group">
+                                        <label class="input-label">📅 Data</label>
+                                        <input type="date" class="date-input" value="${savedDate}" ${isRequired}>
+                                    </div>
+                                    <div class="input-group">
+                                        <label class="input-label">⏰ Hora</label>
+                                        <input type="time" class="time-input" value="${savedTime}" ${isRequired}>
+                                    </div>
+                                    <div class="input-group">
+                                        <label class="input-label">👤 Responsável</label>
+                                        <input type="text" 
+                                               placeholder="Nome completo" 
+                                               class="responsible-input" 
+                                               value="${savedResponsible}" 
+                                               ${isRequired}>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
                 });
-
-                html += `</div></div>`;
             }
 
-            if (tasksFound === 0) html = '<p class="text-gray-500 italic text-sm">Nenhuma tarefa encontrada para os filtros selecionados.</p>';
+            if (tasksFound === 0) {
+                html = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✓</div>
+                        <p class="empty-state-text">Nenhuma tarefa encontrada para os filtros selecionados</p>
+                    </div>
+                `;
+            }
+            
             maintenanceChecklist.innerHTML = html;
         }
 
         function escapeHtml(str) {
             if (typeof str !== 'string') return '';
-            return str.replace(/[&<>"'`=\/]/g, function (s) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;' })[s]; });
+            return str.replace(/[&<>"'`=\/]/g, function (s) { 
+                return ({ 
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', 
+                    "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;' 
+                })[s]; 
+            });
         }
 
         function handleSubmit(e) {
             e.preventDefault();
             setButtonLoading(true);
             showStatusMessage('Registrando tarefas...', 'info');
+            
             const selectedPlanKey = maintenancePlanSelect.value;
             const currentPlan = MAINTENANCE_PLANS[selectedPlanKey];
-            if (!currentPlan) { handleError(new Error("Nenhum plano selecionado.")); return; }
+            if (!currentPlan) { 
+                handleError(new Error("Nenhum plano selecionado.")); 
+                return; 
+            }
+            
             const planName = currentPlan.name;
             const checkedTasks = document.querySelectorAll('input[name="task_id"]:checked');
-            if (checkedTasks.length === 0) { showStatusMessage('Nenhuma tarefa foi selecionada para registro.', 'error'); setButtonLoading(false); return; }
+            
+            if (checkedTasks.length === 0) { 
+                showStatusMessage('Selecione pelo menos uma tarefa!', 'error'); 
+                setButtonLoading(false); 
+                return; 
+            }
+            
             const taskDataById = {};
-            for (const freq in currentPlan.tasks) currentPlan.tasks[freq].forEach(t => taskDataById[t.id] = { ...t, frequency: freq });
+            for (const freq in currentPlan.tasks) 
+                currentPlan.tasks[freq].forEach(t => taskDataById[t.id] = { ...t, frequency: freq });
+            
             const tasksToSubmit = [];
             let formIsValid = true;
+            
             checkedTasks.forEach(cb => {
                 const taskId = cb.value;
                 const def = taskDataById[taskId];
-                const item = cb.closest('.task-item');
-                const dateInput = item.querySelector('.date-input');
-                const timeInput = item.querySelector('.time-input');
-                const responsibleInput = item.querySelector('.responsible-input');
+                const card = cb.closest('.task-card');
+                const dateInput = card.querySelector('.date-input');
+                const timeInput = card.querySelector('.time-input');
+                const responsibleInput = card.querySelector('.responsible-input');
                 const dateValue = dateInput.value, timeValue = timeInput.value, responsibleValue = responsibleInput.value.trim();
-                if (!dateValue || !timeValue || !responsibleValue) { formIsValid = false; return; }
+                
+                if (!dateValue || !timeValue || !responsibleValue) { 
+                    formIsValid = false; 
+                    return; 
+                }
+                
                 const localDate = new Date(`${dateValue}T${timeValue}:00`);
                 tasksToSubmit.push({
                     planName,
@@ -817,47 +1096,47 @@
                 });
             });
 
-            if (!formIsValid) { handleError(new Error("Preencha todos os campos (Data, Hora, Responsável) para as tarefas selecionadas.")); return; }
+            if (!formIsValid) { 
+                handleError(new Error("Preencha todos os campos das tarefas selecionadas!")); 
+                return; 
+            }
 
             if (typeof google !== 'undefined' && google.script && google.script.run) {
-                google.script.run.withSuccessHandler(handleSuccess).withFailureHandler(handleError).recordMaintenance(tasksToSubmit);
+                google.script.run
+                    .withSuccessHandler(handleSuccess)
+                    .withFailureHandler(handleError)
+                    .recordMaintenance(tasksToSubmit);
             } else {
                 console.log("Simulando envio:", tasksToSubmit);
-                setTimeout(() => handleSuccess({ status: "OK", totalTasks: tasksToSubmit.length }), 850);
+                setTimeout(() => handleSuccess({ status: "OK", totalTasks: tasksToSubmit.length }), 1000);
             }
         }
 
         function showStatusMessage(message, type) {
             statusMessage.textContent = message;
-            statusMessage.className = 'mt-2 p-2 rounded text-sm font-medium w-full sm:w-auto text-center';
-            if (type === 'success') { statusMessage.style.background = '#ecfdf5'; statusMessage.style.color = '#065f46'; }
-            else if (type === 'error') { statusMessage.style.background = '#fff1f2'; statusMessage.style.color = '#991b1b'; }
-            else { statusMessage.style.background = '#eff6ff'; statusMessage.style.color = '#1e3a8a'; }
-            statusMessage.style.opacity = 1;
+            statusMessage.className = `status-message ${type} visible`;
+            
+            setTimeout(() => {
+                if (!statusMessage.textContent.includes('Enviando') && !statusMessage.textContent.includes('Registrando')) {
+                    hideStatusMessage();
+                }
+            }, 3000);
+        }
+
+        function hideStatusMessage() {
+            statusMessage.classList.remove('visible');
         }
 
         function setButtonLoading(isLoading) {
-            if (!submitButton || !loadingSpinner || !buttonText) {
-                try {
-                    submitButton = document.getElementById('submitButton');
-                    loadingSpinner = document.getElementById('loadingSpinner');
-                    buttonText = document.getElementById('buttonText');
-                } catch (e) { /* ignore */ }
-            }
-
-            if (!submitButton) return;
-
             submitButton.disabled = !!isLoading;
 
             if (isLoading) {
-                if (buttonText) buttonText.textContent = 'Enviando...';
-                if (loadingSpinner) loadingSpinner.style.display = 'inline-block';
-                submitButton.classList.add('opacity-80', 'cursor-not-allowed');
+                buttonText.textContent = '⏳ Enviando...';
+                loadingSpinner.style.display = 'inline-block';
             } else {
-                if (buttonText) buttonText.textContent = 'Registrar Manutenção';
-                if (loadingSpinner) loadingSpinner.style.display = 'none';
-                submitButton.classList.remove('opacity-80', 'cursor-not-allowed');
-                if (maintenancePlanSelect && maintenancePlanSelect.value) {
+                buttonText.textContent = '✓ Registrar Manutenção';
+                loadingSpinner.style.display = 'none';
+                if (maintenancePlanSelect.value) {
                     submitButton.disabled = false;
                 }
             }
@@ -866,25 +1145,33 @@
         function handleError(err) {
             console.error(err);
             setButtonLoading(false);
-            showStatusMessage('Erro: ' + (err && err.message ? err.message : String(err)), 'error');
+            showStatusMessage('❌ ' + (err && err.message ? err.message : String(err)), 'error');
         }
 
         function handleSuccess(result) {
             setButtonLoading(false);
             tempTaskState = {};
+            
             if (typeof google !== 'undefined' && google.script && google.script.run) {
-                showStatusMessage('Registrado. Recarregando histórico...', 'info');
-                google.script.run.withSuccessHandler((newHistory) => {
-                    maintenanceHistory = newHistory || [];
-                    const selectedPlanKey = maintenancePlanSelect.value;
-                    if (selectedPlanKey) { currentTaskStatusMap = calculateTaskStatus(selectedPlanKey); renderFrequencyOptions(currentTaskStatusMap); }
-                    showStatusMessage(`${result.totalTasks} tarefa(s) registrada(s) com sucesso!`, 'success');
-                    document.querySelectorAll('input[name="frequency"]').forEach(cb => cb.checked = false);
-                    handleFrequencyChange();
-                    setTimeout(() => statusMessage.style.opacity = 0, 3000);
-                }).withFailureHandler(handleError).getMaintenanceHistory();
+                showStatusMessage('Recarregando dados...', 'info');
+                google.script.run
+                    .withSuccessHandler((newHistory) => {
+                        maintenanceHistory = newHistory || [];
+                        const selectedPlanKey = maintenancePlanSelect.value;
+                        if (selectedPlanKey) { 
+                            currentTaskStatusMap = calculateTaskStatus(selectedPlanKey); 
+                            renderFrequencyOptions(currentTaskStatusMap); 
+                        }
+                        showStatusMessage(`✅ ${result.totalTasks} tarefa(s) registrada(s)!`, 'success');
+                        document.querySelectorAll('input[name="frequency"]').forEach(cb => cb.checked = false);
+                        handleFrequencyChange();
+                    })
+                    .withFailureHandler(handleError)
+                    .getMaintenanceHistory();
             } else {
-                maintenanceHistory = []; handleFrequencyChange(); showStatusMessage('Sucesso (simulado)!', 'success'); setTimeout(() => statusMessage.style.opacity = 0, 2000);
+                maintenanceHistory = []; 
+                handleFrequencyChange(); 
+                showStatusMessage('✅ Sucesso (simulado)!', 'success');
             }
         }
 

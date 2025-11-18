@@ -2,236 +2,428 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <!-- viewport-fit=cover permite usar a área total em dispositivos com notch / safe-area -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#ffffff" />
-  <title>Registro de Saída de Veículo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Saída de Veículo</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
 
   <style>
-    /* Aumenta targets de toque e usa safe-area insets para dispositivos com notch */
-    :root {
-      --gap: 16px;
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
     }
 
     html, body {
       height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
     }
 
     body {
-      margin: 0;
-      -webkit-tap-highlight-color: transparent;
-      background: #f8fafc; /* bg-slate-50 */
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      /* garante que o conteúdo não fique atrás das áreas seguras (notch) */
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
 
-    /* Botão voltar em posição fixa, respeitando safe-area */
-    .back-btn {
-      appearance: none;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      background: #1a73e8;
-      color: white;
+    /* Header com gradiente e botão voltar */
+    .top-header {
       position: fixed;
-      top: calc(env(safe-area-inset-top) + 12px);
-      left: 12px;
-      z-index: 60;
-      box-shadow: 0 6px 14px rgba(10, 10, 10, 0.12);
-      min-height: 44px; /* tamanho mínimo para toque confortável */
-      min-width: 44px;
-    }
-    .back-btn:active { transform: translateY(1px); }
-
-    /* Container principal ocupa toda a tela; o cartão interna é scrollable */
-    .app-container {
-      min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      justify-content: flex-start;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      padding: calc(env(safe-area-inset-top) + 16px) 20px 20px 20px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
     }
 
-    .card {
-      flex: 1 1 auto;
-      width: 100%;
-      max-width: none; /* ocupa largura total em celular */
-      border-radius: 12px 12px 0 0; /* card com cantos arredondados no topo */
-      margin: 0;
-      box-shadow: 0 8px 24px rgba(2,6,23,0.08);
-      background: white;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .card-body {
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      overflow: auto; /* permite scroll interno no formulário */
-      -webkit-overflow-scrolling: touch;
-    }
-
-    /* Inputs e botões maiores para toque confortável */
-    input[type="text"], input[type="datetime-local"], textarea, select, .touch-input {
-      font-size: 1rem;
-      padding: 12px 14px;
-      border-radius: 10px;
-    }
-
-    textarea { min-height: 110px; }
-
-    /* Área de ações fixa na base do cartão (sempre visível) */
-    .card-footer {
-      padding: 12px 18px;
-      border-top: 1px solid rgba(15, 23, 42, 0.04);
-      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.9));
-      display: flex;
-      gap: 12px;
-      flex-direction: column;
-    }
-
-    /* Tornar botões grandes e fáceis de tocar */
-    .primary-btn {
-      background: #0ea5e9; /* blue-500-ish */
-      color: white;
-      border-radius: 10px;
-      padding: 14px;
-      font-weight: 700;
-      text-align: center;
-      width: 100%;
+    .back-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(12px);
       border: none;
+      color: white;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     }
-    .primary-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
 
-    .secondary-btn {
-      background: transparent;
-      color: #475569; /* slate-600 */
-      border-radius: 10px;
-      padding: 12px;
-      border: 1px solid rgba(15, 23, 42, 0.06);
+    .back-button:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Container com scroll */
+    .page-wrapper {
+      min-height: 100vh;
+      padding-top: calc(env(safe-area-inset-top) + 80px);
+      padding-bottom: calc(env(safe-area-inset-bottom) + 160px);
+    }
+
+    /* Card branco principal */
+    .content-card {
+      background: white;
+      border-radius: 28px 28px 0 0;
+      min-height: calc(100vh - 100px);
+      padding: 28px 20px 40px 20px;
+      box-shadow: 0 -6px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    /* Header do card com ícone */
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #f1f5f9;
+    }
+
+    .icon-box {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.35);
+    }
+
+    .header-text h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 4px 0;
+      line-height: 1.2;
+    }
+
+    .header-text p {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    /* Campos do formulário */
+    .field-wrapper {
+      margin-bottom: 24px;
+    }
+
+    .field-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+
+    .label-icon {
+      font-size: 20px;
+    }
+
+    .field-input, .field-select, .field-textarea {
       width: 100%;
+      font-size: 16px;
+      padding: 16px 18px;
+      border: 2.5px solid #e2e8f0;
+      border-radius: 14px;
+      background: #ffffff;
+      color: #0f172a;
+      transition: all 0.25s ease;
+      font-family: inherit;
+      font-weight: 500;
+    }
+
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      outline: none;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 5px rgba(14, 165, 233, 0.12);
+      background: #fafeff;
+    }
+
+    .field-input:disabled, .field-input[readonly] {
+      background: #f8fafc;
+      color: #64748b;
+      border-color: #f1f5f9;
+      cursor: not-allowed;
+    }
+
+    .field-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%230ea5e9' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 24px;
+      padding-right: 48px;
       cursor: pointer;
     }
 
-    /* Mensagem de feedback (visível acima do rodapé) */
-    #mensagem {
-      margin: 0 18px 8px 18px;
+    .field-textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.5;
     }
 
-    /* Pequenos ajustes para paisagem e tablets (mantém boa usabilidade) */
+    /* Mensagens */
+    .alert-box {
+      padding: 16px 18px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideDown 0.35s ease-out;
+    }
+
+    .alert-success {
+      background: #dcfce7;
+      color: #166534;
+      border: 2.5px solid #86efac;
+    }
+
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 2.5px solid #fca5a5;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Footer fixo */
+    .bottom-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 18px 20px calc(env(safe-area-inset-bottom) + 18px) 20px;
+      box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 90;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    /* Botões grandes */
+    .action-btn {
+      width: 100%;
+      min-height: 56px;
+      border: none;
+      border-radius: 16px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-register {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: white;
+      box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+    }
+
+    .btn-register:active:not(:disabled) {
+      transform: scale(0.97);
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.5);
+    }
+
+    .btn-register:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-clear {
+      background: #f1f5f9;
+      color: #475569;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-clear:active {
+      background: #e2e8f0;
+      transform: scale(0.97);
+    }
+
+    /* Spinner de loading */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: rotate 0.7s linear infinite;
+    }
+
+    @keyframes rotate {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsivo tablet */
     @media (min-width: 640px) {
-      .card { border-radius: 14px; max-width: 640px; margin: 12px auto; }
-      .app-container { padding-left: 12px; padding-right: 12px; }
+      .page-wrapper {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .content-card {
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 28px;
+      }
+
+      .bottom-actions {
+        max-width: 600px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 28px 28px 0 0;
+      }
     }
   </style>
 </head>
-<body class="app-container">
-  <!-- Botão Voltar fixo (respeita safe-area) -->
-  <button class="back-btn" onclick="voltarPagina()" title="Voltar">←</button>
+<body>
+  <!-- Header Superior -->
+  <header class="top-header">
+    <button class="back-button" onclick="voltarPagina()" aria-label="Voltar">
+      ←
+    </button>
+  </header>
 
-  <main class="card" role="main" aria-label="Registro de saída de veículo">
-    <div class="card-body">
-      <div class="flex items-center gap-4">
-        <!-- ícone veiculo -->
-        <img src="https://i.imgur.com/ncKzLXK.png" alt="Ícone veículo" class="w-16 h-16 object-contain flex-shrink-0"/>
-
-        <div>
-          <h1 class="text-lg font-semibold text-slate-800">Registro de Saída de Veículo</h1>
-          <p class="text-sm text-slate-600">Preencha o formulário abaixo para registrar a saída de um veículo.</p>
+  <!-- Conteúdo Principal -->
+  <div class="page-wrapper">
+    <main class="content-card">
+      <!-- Cabeçalho do Card -->
+      <div class="card-header">
+        <div class="icon-box">🚗</div>
+        <div class="header-text">
+          <h1>Saída de Veículo</h1>
+          <p>Preencha os dados abaixo</p>
         </div>
       </div>
 
-      <form id="formSaida" class="grid grid-cols-1 gap-4" autocomplete="on">
-        <!-- Funcionário (auto preenchido e bloqueado) -->
-        <div>
-          <label for="campoFuncionario" class="block text-sm font-medium text-slate-600 mb-1">Funcionário</label>
+      <!-- Mensagem de Feedback -->
+      <div id="mensagem" class="hidden"></div>
+
+      <!-- Formulário -->
+      <form id="formSaida" autocomplete="on">
+        <!-- Funcionário -->
+        <div class="field-wrapper">
+          <label for="campoFuncionario" class="field-label">
+            <span class="label-icon">👤</span>
+            Funcionário
+          </label>
           <input
+            type="text"
             name="FUNCIONÁRIO"
             id="campoFuncionario"
-            class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 text-slate-800 touch-input"
+            class="field-input"
             required
             readonly
-            aria-readonly="true"
           />
         </div>
 
         <!-- Veículo -->
-        <div>
-          <label for="campoVeiculo" class="block text-sm font-medium text-slate-600 mb-1">Veículo</label>
-          <select name="VEÍCULO" id="campoVeiculo" class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-800 touch-input" required>
+        <div class="field-wrapper">
+          <label for="campoVeiculo" class="field-label">
+            <span class="label-icon">🚙</span>
+            Veículo
+          </label>
+          <select name="VEÍCULO" id="campoVeiculo" class="field-select" required>
             <option value="Saveiro" selected>Saveiro</option>
             <option value="Outro">Outro</option>
           </select>
         </div>
 
-        <!-- Data e Hora de Saída (datetime-local) -->
-        <div>
-          <label for="campoHoraSaida" class="block text-sm font-medium text-slate-600 mb-1">Data e Hora de Saída</label>
+        <!-- Data e Hora de Saída -->
+        <div class="field-wrapper">
+          <label for="campoHoraSaida" class="field-label">
+            <span class="label-icon">📅</span>
+            Data e Hora de Saída
+          </label>
           <input
             type="datetime-local"
             name="HORA SAÍDA"
             id="campoHoraSaida"
-            class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-800 touch-input"
+            class="field-input"
             required
           />
         </div>
 
-        <!-- Previsão de Retorno (datetime-local) -->
-        <div>
-          <label for="campoHoraRetorno" class="block text-sm font-medium text-slate-600 mb-1">Previsão de Retorno</label>
+        <!-- Previsão de Retorno -->
+        <div class="field-wrapper">
+          <label for="campoHoraRetorno" class="field-label">
+            <span class="label-icon">⏰</span>
+            Previsão de Retorno
+          </label>
           <input
             type="datetime-local"
             name="PREVISÃO RETORNO"
             id="campoHoraRetorno"
-            class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-800 touch-input"
-            placeholder="Informe a previsão de retorno..."
+            class="field-input"
             required
           />
         </div>
 
         <!-- Motivo -->
-        <div>
-          <label for="campoMotivo" class="block text-sm font-medium text-slate-600 mb-1">Motivo</label>
+        <div class="field-wrapper">
+          <label for="campoMotivo" class="field-label">
+            <span class="label-icon">📝</span>
+            Motivo
+          </label>
           <textarea
             id="campoMotivo"
             name="MOTIVO"
-            class="w-full border border-slate-200 rounded-lg px-3 py-2 resize-y min-h-[80px] text-slate-800 touch-input"
+            class="field-textarea"
             placeholder="Descreva o motivo da saída..."
-            required></textarea>
+            required
+          ></textarea>
         </div>
       </form>
+    </main>
+  </div>
 
-      <div id="mensagem" class="hidden rounded-lg px-4 py-3 text-sm font-medium"></div>
-    </div>
-
-    <!-- Footer com ações sempre visível na base (melhor para mobile) -->
-    <div class="card-footer" role="region" aria-label="Ações do formulário">
-      <button type="button" id="btnRegistrar" class="primary-btn" aria-live="polite" aria-disabled="false">
-        <span id="btnRegistrarText">Registrar Saída</span>
-      </button>
-      <button type="button" id="btnLimpar" class="secondary-btn">
-        Limpar
-      </button>
-    </div>
-  </main>
+  <!-- Footer com Botões -->
+  <footer class="bottom-actions">
+    <button type="button" id="btnRegistrar" class="action-btn btn-register">
+      <span id="btnRegistrarText">Registrar</span>
+    </button>
+    <button type="button" id="btnLimpar" class="action-btn btn-clear">
+      Limpar
+    </button>
+  </footer>
 
   <script>
-    // Valores que normalmente são injetados pelo servidor (Apps Script templating)
     const token = '<?= token ?>';
     const usuario = '<?= usuario ?>';
 
@@ -244,17 +436,10 @@
     const btnRegistrar = document.getElementById('btnRegistrar');
     const btnRegistrarText = document.getElementById('btnRegistrarText');
 
-    // flag para evitar submissões duplicadas
     let enviando = false;
 
-    // Preenche o nome do usuário (readonly)
-    if (usuario) {
-      campoFuncionario.value = usuario;
-    } else {
-      campoFuncionario.value = '';
-    }
+    campoFuncionario.value = usuario || '';
 
-    // Função utilitária para formatar a data atual para input[type=datetime-local]
     function agoraParaDatetimeLocal(offsetMinutes = 0) {
       const now = new Date(Date.now() + offsetMinutes * 60000);
       const ano = now.getFullYear();
@@ -265,58 +450,61 @@
       return `${ano}-${mes}-${dia}T${hh}:${mm}`;
     }
 
-    // Preenche com data e hora atual
     campoHoraSaida.value = agoraParaDatetimeLocal();
 
-    // Limpar formulário (mantendo funcionário e horário atualizados)
     btnLimpar.addEventListener('click', () => {
-      if (enviando) return; // evita limpar durante envio
+      if (enviando) return;
       form.reset();
       campoFuncionario.value = usuario || '';
       campoHoraSaida.value = agoraParaDatetimeLocal();
       campoHoraRetorno.value = '';
-      msg.classList.add('hidden');
+      esconderMensagem();
     });
 
-    // Funções utilitárias para botão (acessibilidade)
     function desabilitarBotao() {
       enviando = true;
-      btnRegistrar.setAttribute('disabled', 'true');
-      btnRegistrar.setAttribute('aria-disabled', 'true');
-      btnRegistrar.setAttribute('aria-busy', 'true');
-      btnRegistrarText.textContent = 'Registrando...';
+      btnRegistrar.disabled = true;
+      btnRegistrarText.innerHTML = '<span class="loading-spinner"></span> Enviando...';
     }
+
     function habilitarBotao() {
       enviando = false;
-      btnRegistrar.removeAttribute('disabled');
-      btnRegistrar.setAttribute('aria-disabled', 'false');
-      btnRegistrar.removeAttribute('aria-busy');
-      btnRegistrarText.textContent = 'Registrar Saída';
+      btnRegistrar.disabled = false;
+      btnRegistrarText.textContent = 'Registrar';
     }
 
-    // Envio do formulário para o Apps Script (adaptado para usar o botão fora do <form>)
+    function mostrarMensagem(texto, tipo) {
+      msg.textContent = texto;
+      msg.className = `alert-box alert-${tipo}`;
+      msg.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function esconderMensagem() {
+      msg.classList.add('hidden');
+    }
+
     btnRegistrar.addEventListener('click', () => {
-      // evita submissões duplicadas
       if (enviando) return;
 
-      // coleta os dados do form
-      const dados = Object.fromEntries(new FormData(form).entries());
-
-      // validação simples (ex.: garantir que datetime-local esteja correto)
-      if (!dados["HORA SAÍDA"]) {
-        mostrarMensagem('Por favor informe a data e hora de saída.', 'bg-red-100 text-red-700');
+      if (!form.checkValidity()) {
+        form.reportValidity();
         return;
       }
 
-      // desabilita botão para evitar cliques duplos
+      const dados = Object.fromEntries(new FormData(form).entries());
+
+      if (!dados["HORA SAÍDA"]) {
+        mostrarMensagem('⚠️ Informe a data e hora de saída', 'error');
+        return;
+      }
+
       desabilitarBotao();
 
-      // chamada para Apps Script
       if (window.google && google.script && typeof google.script.run !== 'undefined') {
         google.script.run
           .withSuccessHandler(() => {
-            mostrarMensagem('✅ Saída registrada com sucesso!', 'bg-green-100 text-green-700');
-            // reseta mantendo alguns campos
+            mostrarMensagem('✅ Saída registrada com sucesso!', 'success');
             form.reset();
             campoFuncionario.value = usuario || '';
             campoHoraSaida.value = agoraParaDatetimeLocal();
@@ -325,14 +513,13 @@
           })
           .withFailureHandler((err) => {
             console.error(err);
-            mostrarMensagem('❌ Erro ao registrar saída: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700');
+            mostrarMensagem('❌ Erro: ' + (err?.message || err), 'error');
             habilitarBotao();
           })
           .registrarSaidaVeiculo(dados, token);
       } else {
-        // Em ambiente de desenvolvimento (sem google.script), simula sucesso
         setTimeout(() => {
-          mostrarMensagem('✅ (Simulado) Saída registrada com sucesso!', 'bg-green-100 text-green-700');
+          mostrarMensagem('✅ Saída registrada! (dev)', 'success');
           form.reset();
           campoFuncionario.value = usuario || '';
           campoHoraSaida.value = agoraParaDatetimeLocal();
@@ -342,26 +529,10 @@
       }
     });
 
-    function mostrarMensagem(texto, classes) {
-      msg.textContent = texto;
-      msg.className = 'mt-4 rounded-lg px-4 py-3 text-sm font-medium ' + classes;
-      msg.classList.remove('hidden');
-    }
-
     function voltarPagina() {
       const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
       window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
     }
-
-    // Ajustes menores: rolagem para o topo quando o teclado for fechado (melhora UX móvel)
-    document.addEventListener('focusout', () => {
-      // pequena espera para permitir que o teclado feche
-      setTimeout(() => {
-        if (document.activeElement === document.body) {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-      }, 200);
-    });
   </script>
 </body>
 </html>

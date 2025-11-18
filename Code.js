@@ -5,7 +5,6 @@ const SHEET_VEIC = ss.getSheetByName('Controle de Veículos');
 const SHEET_ORC = ss.getSheetByName("Orçamentos");
 const SHEET_MANU_NAME = ss.getSheetByName("Registro de Manutenções");
 const SHEET_PED = ss.getSheetByName("Pedidos");
-const SHEET_PROD = ss.getSheetByName("Produtos");
 const SHEET_MAT = ss.getSheetByName("Controle de Materiais");
 const SHEET_AVAL = ss.getSheetByName("Avaliações");
 const SHEET_LOGS = ss.getSheetByName("Logs");
@@ -47,11 +46,6 @@ function _lerPrecosMateriais() {
   return res;
 }
 
-/**
- * Escreve as células do cálculo para uma chapa+peça em um número reduzido de chamadas.
- * Recebe mat (obj MATERIAIS[...]), chapa, peca.
- * Faz 3 chamadas setValues ao invés de 8+.
- */
 function _preencherInputsCalcParaPeca(mat, chapa, peca) {
   const linhaChapa = mat.linhaChapa;
   const linhaPeca = mat.linhaPeca;
@@ -645,8 +639,6 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
   }
 }
 
-// =================== CONTADORES ===================
-// Incrementa contadores de eventos como propostas e etiquetas
 function incrementarContador(tipo) {
   const props = PropertiesService.getScriptProperties();
   const valorAtual = Number(props.getProperty(tipo)) || 0;
@@ -679,10 +671,8 @@ function getDashboardStats() {
   // Orçamentos ativos
   const orcamentos = SHEET_ORC ? Math.max(SHEET_ORC.getLastRow() - 1, 0) : 0;
 
-  // Produtos cadastrados
-  const produtos = SHEET_PROD ? Math.max(SHEET_PROD.getLastRow() - 1, 0) : 0;
 
-  return { propostas, orcamentos, pedidos, kanban, etiquetas, materiais, produtos, logs };
+  return { propostas, orcamentos, pedidos, kanban, etiquetas, materiais, logs };
 }
 
 // --- helper para achar índice de cabeçalho de forma robusta ---
@@ -1057,7 +1047,6 @@ function doGet(e) {
   const paginasProtegidas = {
     'dashboard': ['admin', 'mod', 'usuario'],
     'orcamento': ['admin', 'mod'],
-    'produtos': ['admin', 'mod'],
     'materiais': ['admin', 'mod', 'usuario'],
     'geradoretiquetas': ['admin', 'mod', 'usuario'],
     'kanban': ['admin', 'mod', 'usuario'],
@@ -1211,31 +1200,6 @@ function doGet(e) {
         const templateVeiculosList = HtmlService.createTemplateFromFile('veiculos_list');
         templateVeiculosList.token = token;
         return templateVeiculosList.evaluate()
-          .setFaviconUrl(FAVICON)
-          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
-      case 'produtos':
-        if (!SHEET_PROD) throw new Error("Aba 'Produtos' não encontrada");
-
-        const valuesProd = SHEET_PROD.getDataRange().getValues();
-        const headersProd = valuesProd[0];
-        const dataProd = valuesProd.slice(1).map((row) => {
-          let obj = {};
-          headersProd.forEach((h, i) => {
-            let valor = row[i];
-            if (valor instanceof Date) {
-              valor = Utilities.formatDate(valor, Session.getScriptTimeZone(), "dd/MM/yyyy");
-            }
-            obj[h] = valor;
-          });
-          return obj;
-        });
-
-        const templateProdutos = HtmlService.createTemplateFromFile('produtos');
-        templateProdutos.dados = dataProd;
-        templateProdutos.logo = "https://i.imgur.com/F8X7ZMs.png";
-        templateProdutos.token = token;
-        return templateProdutos.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
@@ -1406,7 +1370,7 @@ function adicionarOrcamentoNaPlanilha(dados) {
     SHEET_ORC.getRange(targetRow, 1, 1, rowValues.length).setValues([rowValues]);
 
     // Incrementa contador de propostas (se aplicável)
-    try { incrementarContador("totalPropostas"); } catch (e) { /* não crítico */ }
+    // try { incrementarContador("totalPropostas"); } catch (e) { /* não crítico */ }
 
     return { linha: targetRow };
   } catch (err) {
@@ -1490,15 +1454,6 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
 
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
-
-    // --- Aba Produtos (NOVO) ---
-    if (SHEET_PROD) {
-      const idxData = headers.indexOf("DATA");
-      const idxMemoria = headers.indexOf("LINK DA MEMÓRIA DE CÁLCULO");
-      const data = linhaDados[idxData] || "";
-      const memoriaCalc = linhaDados[idxMemoria] || "";
-      SHEET_PROD.appendRow([cliente, projeto, data, memoriaCalc]);
-    }
   }
 }
 
@@ -1667,7 +1622,6 @@ function gerarEtiqueta(dados, token) {
     dados.qtde || "",
     dados.fornecedor || "",
     dados.nf || "",
-    dados.codigo || "",
     urlPdf,
     "",                     // PESO APROXIMADO (fórmula será inserida depois)
 
@@ -1677,7 +1631,7 @@ function gerarEtiqueta(dados, token) {
 
   // =================== FÓRMULA DO PESO ===================
   const ultimaLinha = SHEET_MAT.getLastRow();
-  const colunaPeso = 14; // coluna N = PESO APROXIMADO
+  const colunaPeso = 13; // coluna M = PESO APROXIMADO
   const f = ultimaLinha; // linha nova
   const formulaNova = `=IF(OR(F${f}="";G${f}="";H${f}="";I${f}="");"";(VALUE(INDEX(SPLIT(REGEXREPLACE(F${f};"[^\\d]+";"x");"x");1))/1000)*(VALUE(INDEX(SPLIT(REGEXREPLACE(F${f};"[^\\d]+";"x");"x");2))/1000)*G${f}*IF(REGEXMATCH(UPPER(H${f});"AÇO|ACO");7,86;IF(REGEXMATCH(UPPER(H${f});"ALUM");2,7;IF(REGEXMATCH(UPPER(H${f});"LAT");8,73;IF(REGEXMATCH(UPPER(H${f});"COBRE");8,96;0))))*I${f})`;
 
@@ -1708,7 +1662,6 @@ function gerarNovaEtiqueta(dadosLinha, token) {
     qtde: linhaValores[8],      // Coluna I
     fornecedor: linhaValores[9],// Coluna J
     nf: linhaValores[10],       // Coluna K
-    codigo: linhaValores[11],    // Coluna L
   };
 
   // Cria PDF a partir do template
