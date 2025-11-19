@@ -844,7 +844,7 @@
             const el = typeof idOrElem === "string" ? document.getElementById(idOrElem) : idOrElem;
             if (!el) return;
 
-            if (el.classList && (el.classList.contains('peca') || el.classList.contains('processo') || el.classList.contains('chapa'))) {
+            if (el.classList && (el.classList.contains('peca') || el.classList.contains('processo') || el.classList.contains('chapa') || el.classList.contains('produto-cadastrado'))) {
                 el.remove();
                 return;
             }
@@ -999,7 +999,7 @@
             document.getElementById("obsMaterialCond").value = data.observacoes.materialCond || "";
             document.getElementById("obsPagamento").value = data.observacoes.pagamento || "";
             document.getElementById("obsAdicional").value = data.observacoes.adicional || "";
-            document.getElementById("obsProjeto").value = codigoProjeto;
+            document.getElementById("obsProjeto").value = data.observacoes.projeto || "";
 
             // 4. Chapas / Peças / Processos (limpar e recriar)
             document.getElementById("chapasContainer").innerHTML = "";
