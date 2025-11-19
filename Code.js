@@ -136,6 +136,40 @@ function inserirProdutoNaRelacao(produto) {
   }
 }
 
+/**
+ * Insere produtos com código PRD das chapas na "Relação de produtos"
+ * @param {Array} chapas - Array com dados das chapas e peças
+ */
+function inserirProdutosDasChapas(chapas) {
+  try {
+    if (!Array.isArray(chapas)) {
+      return;
+    }
+    
+    chapas.forEach(chapa => {
+      if (chapa.pecas && Array.isArray(chapa.pecas)) {
+        chapa.pecas.forEach(peca => {
+          // Só insere se tiver código PRD
+          if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
+            const produto = {
+              codigo: peca.codigo,
+              descricao: peca.descricao || "",
+              familia: chapa.material || "",
+              tipo: "Peça",
+              preco: peca.precoUnitario || 0,
+              unidade: "UN",
+              caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
+            };
+            inserirProdutoNaRelacao(produto);
+          }
+        });
+      }
+    });
+  } catch (err) {
+    Logger.log("Erro ao inserir produtos das chapas: " + err);
+  }
+}
+
 // ==================== HELPERS DE OTIMIZAÇÃO ====================
 /**
  * Retorna índice (0-based) do material na ordem do objeto MATERIAIS.
@@ -757,6 +791,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
       SHEET_ORC.appendRow(rowValues);
     }
+    
+    // Insere produtos com código PRD na "Relação de produtos" ao criar o orçamento
+    inserirProdutosDasChapas(chapas);
+    
   } catch (err) {
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
@@ -774,6 +812,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         "Enviado",
         chapasJson
       ]);
+      
+      // Insere produtos mesmo no fallback
+      inserirProdutosDasChapas(chapas);
+      
     } catch (e2) {
       Logger.log("Erro fallback appendRow em registrarOrcamento: " + e2);
       throw e2;
@@ -1597,7 +1639,7 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
     
-    // --- Inserir produtos na "Relação de produtos" ---
+    // --- Inserir produtos na "Relação de produtos" (se ainda não foram inseridos) ---
     try {
       // Tenta recuperar os dados das chapas da última coluna (JSON)
       const idxChapas = linhaDados.length - 1; // Última coluna onde armazenamos o JSON
@@ -1605,29 +1647,8 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
       
       if (chapasJson && typeof chapasJson === 'string') {
         const chapas = JSON.parse(chapasJson);
-        
-        // Percorre todas as chapas e peças para inserir na relação de produtos
-        if (Array.isArray(chapas)) {
-          chapas.forEach(chapa => {
-            if (chapa.pecas && Array.isArray(chapa.pecas)) {
-              chapa.pecas.forEach(peca => {
-                // Só insere se tiver código PRD
-                if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
-                  const produto = {
-                    codigo: peca.codigo,
-                    descricao: peca.descricao || "",
-                    familia: chapa.material || "",
-                    tipo: "Peça",
-                    preco: peca.precoUnitario || 0,
-                    unidade: "UN",
-                    caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
-                  };
-                  inserirProdutoNaRelacao(produto);
-                }
-              });
-            }
-          });
-        }
+        // Usa a função helper para inserir produtos
+        inserirProdutosDasChapas(chapas);
       }
     } catch (err) {
       Logger.log("Erro ao inserir produtos na relação: " + err);
