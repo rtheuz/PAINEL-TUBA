@@ -95,17 +95,23 @@ function getProximoCodigoPRD() {
  */
 function inserirProdutoNaRelacao(produto) {
   try {
+    Logger.log("Tentando inserir produto: " + JSON.stringify(produto));
+    
     const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
     if (!SHEET_PRODUTOS) {
-      Logger.log("Aba 'Relação de produtos' não encontrada");
+      Logger.log("ERRO: Aba 'Relação de produtos' não encontrada");
       return false;
     }
     
+    Logger.log("Aba 'Relação de produtos' encontrada. Verificando duplicatas...");
+    
     // Verifica se o produto já existe
     const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    Logger.log("Total de linhas na planilha: " + dados.length);
+    
     for (let i = 1; i < dados.length; i++) {
       if (dados[i][0] === produto.codigo) {
-        Logger.log("Produto " + produto.codigo + " já existe na relação");
+        Logger.log("Produto " + produto.codigo + " já existe na relação (linha " + (i+1) + ")");
         return false; // Produto já existe
       }
     }
@@ -127,11 +133,13 @@ function inserirProdutoNaRelacao(produto) {
       produto.caracteristicas || ""   // J - Características
     ];
     
+    Logger.log("Inserindo nova linha: " + JSON.stringify(novaLinha));
     SHEET_PRODUTOS.appendRow(novaLinha);
-    Logger.log("Produto " + produto.codigo + " inserido na relação");
+    Logger.log("✓ Produto " + produto.codigo + " inserido com sucesso na relação");
     return true;
   } catch (err) {
-    Logger.log("Erro ao inserir produto na relação: " + err);
+    Logger.log("ERRO ao inserir produto na relação: " + err);
+    Logger.log("Stack trace: " + err.stack);
     return false;
   }
 }
@@ -143,14 +151,22 @@ function inserirProdutoNaRelacao(produto) {
 function inserirProdutosDasChapas(chapas) {
   try {
     if (!Array.isArray(chapas)) {
+      Logger.log("inserirProdutosDasChapas: chapas não é um array");
       return;
     }
     
-    chapas.forEach(chapa => {
+    Logger.log("inserirProdutosDasChapas: Processando " + chapas.length + " chapas");
+    
+    let produtosInseridos = 0;
+    let produtosPulados = 0;
+    
+    chapas.forEach((chapa, chapaIdx) => {
       if (chapa.pecas && Array.isArray(chapa.pecas)) {
-        chapa.pecas.forEach(peca => {
+        Logger.log("Chapa " + chapaIdx + ": " + chapa.pecas.length + " peças encontradas");
+        chapa.pecas.forEach((peca, pecaIdx) => {
           // Só insere se tiver código PRD
           if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
+            Logger.log("Peça " + pecaIdx + " tem código PRD: " + peca.codigo);
             const produto = {
               codigo: peca.codigo,
               descricao: peca.descricao || "",
@@ -160,11 +176,23 @@ function inserirProdutosDasChapas(chapas) {
               unidade: "UN",
               caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
             };
-            inserirProdutoNaRelacao(produto);
+            const resultado = inserirProdutoNaRelacao(produto);
+            if (resultado) {
+              produtosInseridos++;
+            } else {
+              produtosPulados++;
+            }
+          } else {
+            Logger.log("Peça " + pecaIdx + " não tem código PRD válido: " + (peca.codigo || "sem código"));
+            produtosPulados++;
           }
         });
+      } else {
+        Logger.log("Chapa " + chapaIdx + ": sem peças ou peças não é array");
       }
     });
+    
+    Logger.log("Total: " + produtosInseridos + " produtos inseridos, " + produtosPulados + " pulados");
   } catch (err) {
     Logger.log("Erro ao inserir produtos das chapas: " + err);
   }
