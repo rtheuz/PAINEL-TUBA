@@ -166,13 +166,13 @@ function inserirProdutosDasChapas(chapas) {
         chapa.pecas.forEach((peca, pecaIdx) => {
           // Só insere se tiver código PRD
           if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
-            Logger.log("Peça " + pecaIdx + " tem código PRD: " + peca.codigo);
+            Logger.log("Peça " + pecaIdx + " tem código PRD: " + peca.codigo + ", precoUnitario: " + peca.precoUnitario);
             const produto = {
               codigo: peca.codigo,
               descricao: peca.descricao || "",
               familia: chapa.material || "",
               tipo: "Peça",
-              preco: peca.precoUnitario || 0,
+              preco: parseFloat(peca.precoUnitario) || 0,
               unidade: "UN",
               caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
             };
@@ -835,9 +835,6 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
-    // Serializa os dados das chapas para JSON (para armazenar e recuperar depois)
-    const chapasJson = JSON.stringify(chapas || []);
-    
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
     const rowValues = [
       cliente.nome || "",
@@ -848,8 +845,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       processosStr || "",
       urlPdf || "",
       urlMemoria || "",
-      "Enviado",
-      chapasJson  // Nova coluna para armazenar dados das chapas/peças
+      "Enviado"
     ];
 
     // tenta encontrar linha existente com o mesmo PROJETO (coluna "PROJETO")
@@ -870,7 +866,6 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
     try {
-      const chapasJson = JSON.stringify(chapas || []);
       SHEET_ORC.appendRow([
         cliente.nome || "",
         cliente.responsavel || "",
@@ -880,8 +875,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         processosStr || "",
         urlPdf || "",
         urlMemoria || "",
-        "Enviado",
-        chapasJson
+        "Enviado"
       ]);
       
       // Insere produtos mesmo no fallback
@@ -1710,21 +1704,9 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
     
-    // --- Inserir produtos na "Relação de produtos" (se ainda não foram inseridos) ---
-    try {
-      // Tenta recuperar os dados das chapas da última coluna (JSON)
-      const idxChapas = linhaDados.length - 1; // Última coluna onde armazenamos o JSON
-      const chapasJson = linhaDados[idxChapas];
-      
-      if (chapasJson && typeof chapasJson === 'string') {
-        const chapas = JSON.parse(chapasJson);
-        // Usa a função helper para inserir produtos
-        inserirProdutosDasChapas(chapas);
-      }
-    } catch (err) {
-      Logger.log("Erro ao inserir produtos na relação: " + err);
-      // Não interrompe a conversão se houver erro ao inserir produtos
-    }
+    // Nota: Produtos já foram inseridos na "Relação de produtos" quando o orçamento foi criado
+    // A detecção de duplicados evita reinserção
+    Logger.log("Conversão para pedido concluída. Produtos já foram inseridos anteriormente.");
   }
 }
 
