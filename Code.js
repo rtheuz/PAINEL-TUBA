@@ -592,7 +592,7 @@ function gerarPdfOrcamento(
 
     let memoriaUrl = null;
     try {
-      const memoria = gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, comSubFolder, file.getName());
+      const memoria = gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, comSubFolder, file.getName(), produtosCadastrados);
       memoriaUrl = memoria && memoria.url ? memoria.url : null;
     } catch (eMem) {
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
@@ -607,7 +607,7 @@ function gerarPdfOrcamento(
 }
 
 /* ======= gerarPdfMemoriaCalculo corrigido: lê linha de referência APÓS flush ======= */
-function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento) {
+function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento, produtosCadastrados) {
   function formatarNumero(v) {
     if (v === null || v === undefined || v === "") return "";
     const n = Number(v);
@@ -627,6 +627,8 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   th { background-color: #eee; }
   .titulo-material { font-weight: bold; font-size: 11pt; margin-top: 20px; }
   .subtitulo-peca { margin-left: 20px; font-weight: bold; font-size: 10pt; margin-bottom: 5px; }
+  .titulo-produtos-cadastrados { font-weight: bold; font-size: 12pt; margin-top: 30px; margin-bottom: 10px; background-color: #f0f0f0; padding: 8px; }
+  .produto-cadastrado-item { margin-left: 20px; font-size: 10pt; margin-bottom: 8px; }
   </style>
   </head>
   <body>
@@ -691,6 +693,47 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   </table>`;
     });
   });
+
+  // Adiciona seção de produtos cadastrados se houver
+  if (produtosCadastrados && Array.isArray(produtosCadastrados) && produtosCadastrados.length > 0) {
+    htmlMemoria += `<div class="titulo-produtos-cadastrados">PRODUTOS CADASTRADOS</div>`;
+    
+    htmlMemoria += `<table>
+      <tr>
+        <th>Código</th>
+        <th>Descrição</th>
+        <th>Família</th>
+        <th>Tipo</th>
+        <th>Unidade</th>
+        <th>Quantidade</th>
+        <th>Preço Unitário (R$)</th>
+        <th>Preço Total (R$)</th>
+      </tr>`;
+    
+    produtosCadastrados.forEach(produto => {
+      htmlMemoria += `<tr>
+        <td>${produto.codigo || "-"}</td>
+        <td>${produto.descricao || "-"}</td>
+        <td>${produto.familia || "-"}</td>
+        <td>${produto.tipo || "-"}</td>
+        <td>${produto.unidade || "UN"}</td>
+        <td>${formatarNumero(produto.quantidade || 0)}</td>
+        <td>${formatarNumero(produto.precoUnitario || 0)}</td>
+        <td>${formatarNumero(produto.precoTotal || 0)}</td>
+      </tr>`;
+    });
+    
+    htmlMemoria += `</table><br>`;
+    
+    // Calcula total dos produtos cadastrados
+    const totalProdutosCadastrados = produtosCadastrados.reduce((sum, p) => {
+      return sum + (parseFloat(p.precoTotal) || 0);
+    }, 0);
+    
+    htmlMemoria += `<div class="produto-cadastrado-item">
+      <strong>Total de Produtos Cadastrados: R$ ${formatarNumero(totalProdutosCadastrados)}</strong>
+    </div><br>`;
+  }
 
   htmlMemoria += `</body></html>`;
 
