@@ -13,6 +13,191 @@ const ID_PASTA_PRINCIPAL = "1jqIVHbThV3SPBM8MOHek4r5tr2DoHbqz";
 const ID_LOGO = "1pnRLV6YZYMD6Yhv1cUb4FXVr0ol_Zzzf";
 const FAVICON = "https://i.imgur.com/C0dSTyE.png"
 
+// ==================== PRODUTOS CADASTRADOS ====================
+/**
+ * Busca produtos cadastrados da aba "Relação de produtos"
+ * @returns {Array} Array de objetos com dados dos produtos
+ */
+function getProdutosCadastrados() {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      Logger.log("Aba 'Relação de produtos' não encontrada");
+      return [];
+    }
+    
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    if (dados.length < 2) return [];
+    
+    // Estrutura da planilha:
+    // A=Código do Produto, B=Descrição do Produto, H=Preço Unitário de Venda, I=Unidade
+    const produtos = [];
+    for (let i = 1; i < dados.length; i++) {
+      const row = dados[i];
+      if (row[0]) { // se tem código (coluna A)
+        produtos.push({
+          codigo: row[0],                    // Coluna A - Código do Produto
+          descricao: row[1] || "",           // Coluna B - Descrição do Produto
+          familia: row[3] || "",             // Coluna D - Família de Produto
+          tipo: row[4] || "",                // Coluna E - Tipo do Produto
+          preco: parseFloat(row[7]) || 0,    // Coluna H - Preço Unitário de Venda
+          unidade: row[8] || "UN"            // Coluna I - Unidade
+        });
+      }
+    }
+    return produtos;
+  } catch (err) {
+    Logger.log("Erro ao buscar produtos cadastrados: " + err);
+    return [];
+  }
+}
+
+/**
+ * Obtém o próximo código PRD disponível
+ * @returns {string} Próximo código no formato PRD00001, PRD00002, etc.
+ */
+function getProximoCodigoPRD() {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      return "PRD00001"; // Primeiro código se a aba não existe
+    }
+    
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    if (dados.length < 2) {
+      return "PRD00001"; // Primeiro código se não há produtos
+    }
+    
+    // Encontra o maior número PRD
+    let maxNumero = 0;
+    for (let i = 1; i < dados.length; i++) {
+      const codigo = String(dados[i][0] || "");
+      if (codigo.startsWith("PRD")) {
+        const numero = parseInt(codigo.substring(3), 10);
+        if (!isNaN(numero) && numero > maxNumero) {
+          maxNumero = numero;
+        }
+      }
+    }
+    
+    // Retorna o próximo número formatado
+    const proximoNumero = maxNumero + 1;
+    return "PRD" + String(proximoNumero).padStart(5, "0");
+  } catch (err) {
+    Logger.log("Erro ao obter próximo código PRD: " + err);
+    return "PRD00001";
+  }
+}
+
+/**
+ * Insere um produto na aba "Relação de produtos"
+ * @param {Object} produto - Objeto com os dados do produto
+ */
+function inserirProdutoNaRelacao(produto) {
+  try {
+    Logger.log("Tentando inserir produto: " + JSON.stringify(produto));
+    
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      Logger.log("ERRO: Aba 'Relação de produtos' não encontrada");
+      return false;
+    }
+    
+    Logger.log("Aba 'Relação de produtos' encontrada. Verificando duplicatas...");
+    
+    // Verifica se o produto já existe
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    Logger.log("Total de linhas na planilha: " + dados.length);
+    
+    for (let i = 1; i < dados.length; i++) {
+      if (dados[i][0] === produto.codigo) {
+        Logger.log("Produto " + produto.codigo + " já existe na relação (linha " + (i+1) + ")");
+        return false; // Produto já existe
+      }
+    }
+    
+    // Estrutura da planilha:
+    // A=Código do Produto, B=Descrição, C=Código da Família, D=Família de Produto, 
+    // E=Tipo do Produto, F=Código EAN, G=Código NCM, H=Preço Unitário de Venda, 
+    // I=Unidade, J=Características
+    const novaLinha = [
+      produto.codigo || "",           // A - Código do Produto
+      produto.descricao || "",        // B - Descrição do Produto
+      "",                             // C - Código da Família (vazio)
+      produto.familia || "",          // D - Família de Produto
+      produto.tipo || "",             // E - Tipo do Produto
+      "",                             // F - Código EAN (vazio)
+      "",                             // G - Código NCM (vazio)
+      produto.preco || 0,             // H - Preço Unitário de Venda
+      produto.unidade || "UN",        // I - Unidade
+      produto.caracteristicas || ""   // J - Características
+    ];
+    
+    Logger.log("Inserindo nova linha: " + JSON.stringify(novaLinha));
+    SHEET_PRODUTOS.appendRow(novaLinha);
+    Logger.log("✓ Produto " + produto.codigo + " inserido com sucesso na relação");
+    return true;
+  } catch (err) {
+    Logger.log("ERRO ao inserir produto na relação: " + err);
+    Logger.log("Stack trace: " + err.stack);
+    return false;
+  }
+}
+
+/**
+ * Insere produtos com código PRD das chapas na "Relação de produtos"
+ * @param {Array} chapas - Array com dados das chapas e peças
+ */
+function inserirProdutosDasChapas(chapas) {
+  try {
+    if (!Array.isArray(chapas)) {
+      Logger.log("inserirProdutosDasChapas: chapas não é um array");
+      return;
+    }
+    
+    Logger.log("inserirProdutosDasChapas: Processando " + chapas.length + " chapas");
+    
+    let produtosInseridos = 0;
+    let produtosPulados = 0;
+    
+    chapas.forEach((chapa, chapaIdx) => {
+      if (chapa.pecas && Array.isArray(chapa.pecas)) {
+        Logger.log("Chapa " + chapaIdx + ": " + chapa.pecas.length + " peças encontradas");
+        chapa.pecas.forEach((peca, pecaIdx) => {
+          // Só insere se tiver código PRD
+          if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
+            Logger.log("Peça " + pecaIdx + " tem código PRD: " + peca.codigo + ", precoUnitario: " + peca.precoUnitario);
+            const produto = {
+              codigo: peca.codigo,
+              descricao: peca.descricao || "",
+              familia: chapa.material || "",
+              tipo: "Peça",
+              preco: parseFloat(peca.precoUnitario) || 0,
+              unidade: "UN",
+              caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
+            };
+            const resultado = inserirProdutoNaRelacao(produto);
+            if (resultado) {
+              produtosInseridos++;
+            } else {
+              produtosPulados++;
+            }
+          } else {
+            Logger.log("Peça " + pecaIdx + " não tem código PRD válido: " + (peca.codigo || "sem código"));
+            produtosPulados++;
+          }
+        });
+      } else {
+        Logger.log("Chapa " + chapaIdx + ": sem peças ou peças não é array");
+      }
+    });
+    
+    Logger.log("Total: " + produtosInseridos + " produtos inseridos, " + produtosPulados + " pulados");
+  } catch (err) {
+    Logger.log("Erro ao inserir produtos das chapas: " + err);
+  }
+}
+
 // ==================== HELPERS DE OTIMIZAÇÃO ====================
 /**
  * Retorna índice (0-based) do material na ordem do objeto MATERIAIS.
@@ -252,7 +437,7 @@ function buscarNomePastaPorCodigo(codigoProjeto) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados
 ) {
   try {
 
@@ -260,6 +445,19 @@ function gerarPdfOrcamento(
     incrementarContador("totalPropostas");
 
     const resultados = calcularOrcamento(chapas);
+    
+    // Adiciona produtos cadastrados aos resultados
+    if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      produtosCadastrados.forEach(prod => {
+        resultados.push({
+          codigo: prod.codigo || "",
+          descricao: prod.descricao || "",
+          quantidade: prod.quantidade || 0,
+          precoUnitario: prod.precoUnitario || 0,
+          precoTotal: prod.precoTotal || 0
+        });
+      });
+    }
 
     const pasta = criarOuUsarPasta(codigoProjeto, nomePasta, data);
     const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
@@ -422,7 +620,7 @@ function gerarPdfOrcamento(
 
     let memoriaUrl = null;
     try {
-      const memoria = gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, comSubFolder, file.getName());
+      const memoria = gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, comSubFolder, file.getName(), produtosCadastrados);
       memoriaUrl = memoria && memoria.url ? memoria.url : null;
     } catch (eMem) {
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
@@ -437,7 +635,7 @@ function gerarPdfOrcamento(
 }
 
 /* ======= gerarPdfMemoriaCalculo corrigido: lê linha de referência APÓS flush ======= */
-function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento) {
+function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento, produtosCadastrados) {
   function formatarNumero(v) {
     if (v === null || v === undefined || v === "") return "";
     const n = Number(v);
@@ -457,6 +655,8 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   th { background-color: #eee; }
   .titulo-material { font-weight: bold; font-size: 11pt; margin-top: 20px; }
   .subtitulo-peca { margin-left: 20px; font-weight: bold; font-size: 10pt; margin-bottom: 5px; }
+  .titulo-produtos-cadastrados { font-weight: bold; font-size: 12pt; margin-top: 30px; margin-bottom: 10px; background-color: #f0f0f0; padding: 8px; }
+  .produto-cadastrado-item { margin-left: 20px; font-size: 10pt; margin-bottom: 8px; }
   </style>
   </head>
   <body>
@@ -521,6 +721,47 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   </table>`;
     });
   });
+
+  // Adiciona seção de produtos cadastrados se houver
+  if (produtosCadastrados && Array.isArray(produtosCadastrados) && produtosCadastrados.length > 0) {
+    htmlMemoria += `<div class="titulo-produtos-cadastrados">PRODUTOS CADASTRADOS</div>`;
+    
+    htmlMemoria += `<table>
+      <tr>
+        <th>Código</th>
+        <th>Descrição</th>
+        <th>Família</th>
+        <th>Tipo</th>
+        <th>Unidade</th>
+        <th>Quantidade</th>
+        <th>Preço Unitário (R$)</th>
+        <th>Preço Total (R$)</th>
+      </tr>`;
+    
+    produtosCadastrados.forEach(produto => {
+      htmlMemoria += `<tr>
+        <td>${produto.codigo || "-"}</td>
+        <td>${produto.descricao || "-"}</td>
+        <td>${produto.familia || "-"}</td>
+        <td>${produto.tipo || "-"}</td>
+        <td>${produto.unidade || "UN"}</td>
+        <td>${formatarNumero(produto.quantidade || 0)}</td>
+        <td>${formatarNumero(produto.precoUnitario || 0)}</td>
+        <td>${formatarNumero(produto.precoTotal || 0)}</td>
+      </tr>`;
+    });
+    
+    htmlMemoria += `</table><br>`;
+    
+    // Calcula total dos produtos cadastrados
+    const totalProdutosCadastrados = produtosCadastrados.reduce((sum, p) => {
+      return sum + (parseFloat(p.precoTotal) || 0);
+    }, 0);
+    
+    htmlMemoria += `<div class="produto-cadastrado-item">
+      <strong>Total de Produtos Cadastrados: R$ ${formatarNumero(totalProdutosCadastrados)}</strong>
+    </div><br>`;
+  }
 
   htmlMemoria += `</body></html>`;
 
@@ -617,6 +858,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
       SHEET_ORC.appendRow(rowValues);
     }
+    
+    // Insere produtos com código PRD na "Relação de produtos" ao criar o orçamento
+    inserirProdutosDasChapas(chapas);
+    
   } catch (err) {
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
@@ -632,6 +877,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         urlMemoria || "",
         "Enviado"
       ]);
+      
+      // Insere produtos mesmo no fallback
+      inserirProdutosDasChapas(chapas);
+      
     } catch (e2) {
       Logger.log("Erro fallback appendRow em registrarOrcamento: " + e2);
       throw e2;
@@ -1454,6 +1703,10 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
 
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
+    
+    // Nota: Produtos já foram inseridos na "Relação de produtos" quando o orçamento foi criado
+    // A detecção de duplicados evita reinserção
+    Logger.log("Conversão para pedido concluída. Produtos já foram inseridos anteriormente.");
   }
 }
 
