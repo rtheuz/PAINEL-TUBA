@@ -786,6 +786,12 @@
                 if (lblD) lblD.style.display = "none";
                 const lblC = div.querySelector(".lblCodigo");
                 if (lblC) lblC.style.display = "none";
+            } else {
+                // Auto-preenche o código PRD se não for conjunto
+                const codigoInput = div.querySelector(".codigo");
+                google.script.run.withSuccessHandler(function(codigoPRD) {
+                    codigoInput.value = codigoPRD;
+                }).getProximoCodigoPRD();
             }
         }
 

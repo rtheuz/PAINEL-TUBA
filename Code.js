@@ -52,6 +52,90 @@ function getProdutosCadastrados() {
   }
 }
 
+/**
+ * Obtém o próximo código PRD disponível
+ * @returns {string} Próximo código no formato PRD00001, PRD00002, etc.
+ */
+function getProximoCodigoPRD() {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      return "PRD00001"; // Primeiro código se a aba não existe
+    }
+    
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    if (dados.length < 2) {
+      return "PRD00001"; // Primeiro código se não há produtos
+    }
+    
+    // Encontra o maior número PRD
+    let maxNumero = 0;
+    for (let i = 1; i < dados.length; i++) {
+      const codigo = String(dados[i][0] || "");
+      if (codigo.startsWith("PRD")) {
+        const numero = parseInt(codigo.substring(3), 10);
+        if (!isNaN(numero) && numero > maxNumero) {
+          maxNumero = numero;
+        }
+      }
+    }
+    
+    // Retorna o próximo número formatado
+    const proximoNumero = maxNumero + 1;
+    return "PRD" + String(proximoNumero).padStart(5, "0");
+  } catch (err) {
+    Logger.log("Erro ao obter próximo código PRD: " + err);
+    return "PRD00001";
+  }
+}
+
+/**
+ * Insere um produto na aba "Relação de produtos"
+ * @param {Object} produto - Objeto com os dados do produto
+ */
+function inserirProdutoNaRelacao(produto) {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      Logger.log("Aba 'Relação de produtos' não encontrada");
+      return false;
+    }
+    
+    // Verifica se o produto já existe
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    for (let i = 1; i < dados.length; i++) {
+      if (dados[i][0] === produto.codigo) {
+        Logger.log("Produto " + produto.codigo + " já existe na relação");
+        return false; // Produto já existe
+      }
+    }
+    
+    // Estrutura da planilha:
+    // A=Código do Produto, B=Descrição, C=Código da Família, D=Família de Produto, 
+    // E=Tipo do Produto, F=Código EAN, G=Código NCM, H=Preço Unitário de Venda, 
+    // I=Unidade, J=Características
+    const novaLinha = [
+      produto.codigo || "",           // A - Código do Produto
+      produto.descricao || "",        // B - Descrição do Produto
+      "",                             // C - Código da Família (vazio)
+      produto.familia || "",          // D - Família de Produto
+      produto.tipo || "",             // E - Tipo do Produto
+      "",                             // F - Código EAN (vazio)
+      "",                             // G - Código NCM (vazio)
+      produto.preco || 0,             // H - Preço Unitário de Venda
+      produto.unidade || "UN",        // I - Unidade
+      produto.caracteristicas || ""   // J - Características
+    ];
+    
+    SHEET_PRODUTOS.appendRow(novaLinha);
+    Logger.log("Produto " + produto.codigo + " inserido na relação");
+    return true;
+  } catch (err) {
+    Logger.log("Erro ao inserir produto na relação: " + err);
+    return false;
+  }
+}
+
 // ==================== HELPERS DE OTIMIZAÇÃO ====================
 /**
  * Retorna índice (0-based) do material na ordem do objeto MATERIAIS.
@@ -646,6 +730,9 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
+    // Serializa os dados das chapas para JSON (para armazenar e recuperar depois)
+    const chapasJson = JSON.stringify(chapas || []);
+    
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
     const rowValues = [
       cliente.nome || "",
@@ -656,7 +743,8 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       processosStr || "",
       urlPdf || "",
       urlMemoria || "",
-      "Enviado"
+      "Enviado",
+      chapasJson  // Nova coluna para armazenar dados das chapas/peças
     ];
 
     // tenta encontrar linha existente com o mesmo PROJETO (coluna "PROJETO")
@@ -673,6 +761,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
     try {
+      const chapasJson = JSON.stringify(chapas || []);
       SHEET_ORC.appendRow([
         cliente.nome || "",
         cliente.responsavel || "",
@@ -682,7 +771,8 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         processosStr || "",
         urlPdf || "",
         urlMemoria || "",
-        "Enviado"
+        "Enviado",
+        chapasJson
       ]);
     } catch (e2) {
       Logger.log("Erro fallback appendRow em registrarOrcamento: " + e2);
@@ -1506,6 +1596,43 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
 
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
+    
+    // --- Inserir produtos na "Relação de produtos" ---
+    try {
+      // Tenta recuperar os dados das chapas da última coluna (JSON)
+      const idxChapas = linhaDados.length - 1; // Última coluna onde armazenamos o JSON
+      const chapasJson = linhaDados[idxChapas];
+      
+      if (chapasJson && typeof chapasJson === 'string') {
+        const chapas = JSON.parse(chapasJson);
+        
+        // Percorre todas as chapas e peças para inserir na relação de produtos
+        if (Array.isArray(chapas)) {
+          chapas.forEach(chapa => {
+            if (chapa.pecas && Array.isArray(chapa.pecas)) {
+              chapa.pecas.forEach(peca => {
+                // Só insere se tiver código PRD
+                if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
+                  const produto = {
+                    codigo: peca.codigo,
+                    descricao: peca.descricao || "",
+                    familia: chapa.material || "",
+                    tipo: "Peça",
+                    preco: peca.precoUnitario || 0,
+                    unidade: "UN",
+                    caracteristicas: `${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
+                  };
+                  inserirProdutoNaRelacao(produto);
+                }
+              });
+            }
+          });
+        }
+      }
+    } catch (err) {
+      Logger.log("Erro ao inserir produtos na relação: " + err);
+      // Não interrompe a conversão se houver erro ao inserir produtos
+    }
   }
 }
 
