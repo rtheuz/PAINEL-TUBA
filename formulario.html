@@ -287,6 +287,20 @@
             <div id="chapasContainer"></div>
         </div>
 
+        <!-- PRODUTOS CADASTRADOS -->
+        <div class="section" id="produtosCadastradosSection">
+            <div class="section-header">
+                <div>
+                    <h3>Produtos Cadastrados</h3>
+                    <small>Adicione produtos já cadastrados com preço fixo da aba "Relação de produtos"</small>
+                </div>
+                <div>
+                    <button type="button" onclick="addProdutoCadastrado()">+ Adicionar Produto</button>
+                </div>
+            </div>
+            <div id="produtosCadastradosContainer"></div>
+        </div>
+
         <!-- PROCESSOS ADICIONAIS DO PEDIDO -->
         <div class="section" id="processosPedidoSection">
             <div class="section-header">
@@ -421,6 +435,146 @@
                 ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => document.getElementById(id).value = "");
             }
         });
+
+        /* ---------- PRODUTOS CADASTRADOS ---------- */
+        let produtosCatalogo = [];
+
+        // Carrega produtos da planilha ao iniciar
+        function carregarProdutosCadastrados() {
+            google.script.run.withSuccessHandler(function(produtos) {
+                produtosCatalogo = produtos;
+            }).getProdutosCadastrados();
+        }
+        carregarProdutosCadastrados();
+
+        function addProdutoCadastrado() {
+            const container = document.getElementById("produtosCadastradosContainer");
+            const div = document.createElement("div");
+            div.className = "produto-cadastrado";
+            div.style.border = "1px solid #e0e6f0";
+            div.style.padding = "12px";
+            div.style.marginBottom = "12px";
+            div.style.borderRadius = "8px";
+            div.style.background = "#f9fbff";
+            
+            div.innerHTML = `
+                <div class="row">
+                    <div class="col" style="flex: 2;">
+                        <label>Selecionar Produto:</label>
+                        <select class="produtoSelect" onchange="preencherDadosProduto(this)">
+                            <option value="">-- Selecione um produto --</option>
+                            ${produtosCatalogo.map((p, idx) => 
+                                `<option value="${idx}">${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label>Código:</label>
+                        <input type="text" class="produtoCodigo" readonly style="background:#f5f5f5;">
+                    </div>
+                </div>
+                
+                <div class="row" style="margin-top:8px;">
+                    <div class="col" style="flex: 2;">
+                        <label>Descrição:</label>
+                        <input type="text" class="produtoDescricao" readonly style="background:#f5f5f5;">
+                    </div>
+                    <div class="col">
+                        <label>Família:</label>
+                        <input type="text" class="produtoFamilia" readonly style="background:#f5f5f5;">
+                    </div>
+                    <div class="col">
+                        <label>Tipo:</label>
+                        <input type="text" class="produtoTipo" readonly style="background:#f5f5f5;">
+                    </div>
+                </div>
+                
+                <div class="row" style="margin-top:8px;">
+                    <div class="col">
+                        <label>Preço Unitário (R$):</label>
+                        <input type="number" step="0.01" class="produtoPrecoUnit" readonly style="background:#f5f5f5;">
+                    </div>
+                    <div class="col">
+                        <label>Unidade:</label>
+                        <input type="text" class="produtoUnidade" readonly style="background:#f5f5f5;">
+                    </div>
+                    <div class="col">
+                        <label>Quantidade:</label>
+                        <input type="number" class="produtoQuantidade" value="1" min="1" style="font-weight:600;">
+                    </div>
+                    <div class="col">
+                        <label>Preço Total (R$):</label>
+                        <input type="number" step="0.01" class="produtoPrecoTotal" readonly style="background:#e8f5e9; font-weight:600;">
+                    </div>
+                </div>
+                
+                <div class="controls" style="margin-top:8px;">
+                    <button type="button" class="secondary" onclick="removeElement(this.parentElement.parentElement)">Remover Produto</button>
+                </div>
+            `;
+            
+            container.appendChild(div);
+            
+            // Adiciona listener para atualizar total quando quantidade mudar
+            const qtdInput = div.querySelector(".produtoQuantidade");
+            qtdInput.addEventListener("input", function() {
+                calcularTotalProduto(div);
+            });
+        }
+
+        function preencherDadosProduto(selectElement) {
+            const div = selectElement.closest(".produto-cadastrado");
+            const idx = selectElement.value;
+            
+            if (idx === "") {
+                div.querySelector(".produtoCodigo").value = "";
+                div.querySelector(".produtoDescricao").value = "";
+                div.querySelector(".produtoFamilia").value = "";
+                div.querySelector(".produtoTipo").value = "";
+                div.querySelector(".produtoPrecoUnit").value = "";
+                div.querySelector(".produtoUnidade").value = "";
+                div.querySelector(".produtoQuantidade").value = "1";
+                div.querySelector(".produtoPrecoTotal").value = "";
+                return;
+            }
+            
+            const produto = produtosCatalogo[idx];
+            div.querySelector(".produtoCodigo").value = produto.codigo;
+            div.querySelector(".produtoDescricao").value = produto.descricao;
+            div.querySelector(".produtoFamilia").value = produto.familia || "";
+            div.querySelector(".produtoTipo").value = produto.tipo || "";
+            div.querySelector(".produtoPrecoUnit").value = produto.preco.toFixed(2);
+            div.querySelector(".produtoUnidade").value = produto.unidade;
+            div.querySelector(".produtoQuantidade").value = "1";
+            calcularTotalProduto(div);
+        }
+
+        function calcularTotalProduto(div) {
+            const precoUnit = parseFloat(div.querySelector(".produtoPrecoUnit").value) || 0;
+            const qtd = parseFloat(div.querySelector(".produtoQuantidade").value) || 0;
+            const total = precoUnit * qtd;
+            div.querySelector(".produtoPrecoTotal").value = total.toFixed(2);
+        }
+
+        function coletarProdutosCadastrados() {
+            const produtos = [];
+            document.querySelectorAll(".produto-cadastrado").forEach(div => {
+                const codigo = div.querySelector(".produtoCodigo").value;
+                if (!codigo) return; // pula se não foi selecionado
+                
+                produtos.push({
+                    codigo: codigo,
+                    descricao: div.querySelector(".produtoDescricao").value,
+                    familia: div.querySelector(".produtoFamilia").value,
+                    tipo: div.querySelector(".produtoTipo").value,
+                    unidade: div.querySelector(".produtoUnidade").value,
+                    precoUnitario: parseFloat(div.querySelector(".produtoPrecoUnit").value) || 0,
+                    quantidade: parseFloat(div.querySelector(".produtoQuantidade").value) || 0,
+                    precoTotal: parseFloat(div.querySelector(".produtoPrecoTotal").value) || 0
+                });
+            });
+            return produtos;
+        }
 
         /* ---------- PROJETO / PASTA ---------- */
         function atualizarCamposProjeto() {
@@ -811,6 +965,9 @@
                 projeto: document.getElementById("obsProjeto").value
             };
 
+            // 6. Produtos Cadastrados
+            formData.produtosCadastrados = coletarProdutosCadastrados();
+
             return formData;
         }
 
@@ -925,6 +1082,24 @@
                 procDiv.querySelector(".procPedidoQtdMat").value = procData.qtdMat || "";
                 procDiv.querySelector(".procPedidoValorFixo").value = procData.valorFixo || "";
             });
+
+            // 6. Produtos Cadastrados
+            document.getElementById("produtosCadastradosContainer").innerHTML = "";
+            if (data.produtosCadastrados && data.produtosCadastrados.length > 0) {
+                data.produtosCadastrados.forEach(prodData => {
+                    addProdutoCadastrado();
+                    const prodDiv = document.querySelector("#produtosCadastradosContainer .produto-cadastrado:last-child");
+                    
+                    // Encontra o índice do produto no catálogo
+                    const idx = produtosCatalogo.findIndex(p => p.codigo === prodData.codigo);
+                    if (idx >= 0) {
+                        prodDiv.querySelector(".produtoSelect").value = idx;
+                        preencherDadosProduto(prodDiv.querySelector(".produtoSelect"));
+                        prodDiv.querySelector(".produtoQuantidade").value = prodData.quantidade;
+                        calcularTotalProduto(prodDiv);
+                    }
+                });
+            }
 
             alert("Rascunho carregado com sucesso!");
         }
@@ -1155,6 +1330,8 @@
             // Cria a descrição do(s) processo(s) do pedido
             let descricaoProcessosPedido = processosPedidoDescricoes.join(" / ");
 
+            // --- coletar produtos cadastrados ---
+            const produtosCadastrados = coletarProdutosCadastrados();
 
             // --- gerar PDF ---
             google.script.run
@@ -1173,7 +1350,7 @@
                     btn.disabled = false;
                     btn.textContent = "Calcular Orçamento e Gerar PDF";
                 })
-                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido);
+                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados);
 
         }
         function voltarPagina() {

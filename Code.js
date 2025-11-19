@@ -13,6 +13,45 @@ const ID_PASTA_PRINCIPAL = "1jqIVHbThV3SPBM8MOHek4r5tr2DoHbqz";
 const ID_LOGO = "1pnRLV6YZYMD6Yhv1cUb4FXVr0ol_Zzzf";
 const FAVICON = "https://i.imgur.com/C0dSTyE.png"
 
+// ==================== PRODUTOS CADASTRADOS ====================
+/**
+ * Busca produtos cadastrados da aba "Relação de produtos"
+ * @returns {Array} Array de objetos com dados dos produtos
+ */
+function getProdutosCadastrados() {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      Logger.log("Aba 'Relação de produtos' não encontrada");
+      return [];
+    }
+    
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    if (dados.length < 2) return [];
+    
+    // Estrutura da planilha:
+    // A=Código do Produto, B=Descrição do Produto, H=Preço Unitário de Venda, I=Unidade
+    const produtos = [];
+    for (let i = 1; i < dados.length; i++) {
+      const row = dados[i];
+      if (row[0]) { // se tem código (coluna A)
+        produtos.push({
+          codigo: row[0],                    // Coluna A - Código do Produto
+          descricao: row[1] || "",           // Coluna B - Descrição do Produto
+          familia: row[3] || "",             // Coluna D - Família de Produto
+          tipo: row[4] || "",                // Coluna E - Tipo do Produto
+          preco: parseFloat(row[7]) || 0,    // Coluna H - Preço Unitário de Venda
+          unidade: row[8] || "UN"            // Coluna I - Unidade
+        });
+      }
+    }
+    return produtos;
+  } catch (err) {
+    Logger.log("Erro ao buscar produtos cadastrados: " + err);
+    return [];
+  }
+}
+
 // ==================== HELPERS DE OTIMIZAÇÃO ====================
 /**
  * Retorna índice (0-based) do material na ordem do objeto MATERIAIS.
@@ -252,7 +291,7 @@ function buscarNomePastaPorCodigo(codigoProjeto) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados
 ) {
   try {
 
@@ -260,6 +299,19 @@ function gerarPdfOrcamento(
     incrementarContador("totalPropostas");
 
     const resultados = calcularOrcamento(chapas);
+    
+    // Adiciona produtos cadastrados aos resultados
+    if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      produtosCadastrados.forEach(prod => {
+        resultados.push({
+          codigo: prod.codigo || "",
+          descricao: prod.descricao || "",
+          quantidade: prod.quantidade || 0,
+          precoUnitario: prod.precoUnitario || 0,
+          precoTotal: prod.precoTotal || 0
+        });
+      });
+    }
 
     const pasta = criarOuUsarPasta(codigoProjeto, nomePasta, data);
     const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
