@@ -1620,7 +1620,7 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
                     tipo: "Peça",
                     preco: peca.precoUnitario || 0,
                     unidade: "UN",
-                    caracteristicas: `${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
+                    caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
                   };
                   inserirProdutoNaRelacao(produto);
                 }

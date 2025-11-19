@@ -447,6 +447,33 @@
         }
         carregarProdutosCadastrados();
 
+        /* ---------- GERAÇÃO DE CÓDIGOS PRD ---------- */
+        let proximoCodigoPRD = null;
+        let contadorPRDLocal = 0;
+
+        // Carrega o próximo código PRD da planilha ao iniciar
+        function carregarProximoCodigoPRD() {
+            google.script.run.withSuccessHandler(function(codigoPRD) {
+                proximoCodigoPRD = codigoPRD;
+                contadorPRDLocal = 0;
+            }).getProximoCodigoPRD();
+        }
+        carregarProximoCodigoPRD();
+
+        // Gera o próximo código PRD localmente
+        function gerarCodigoPRDLocal() {
+            if (!proximoCodigoPRD) {
+                return "PRD00001"; // Fallback se ainda não carregou
+            }
+            
+            // Extrai o número do código base
+            const numeroBase = parseInt(proximoCodigoPRD.substring(3), 10);
+            const novoNumero = numeroBase + contadorPRDLocal;
+            contadorPRDLocal++;
+            
+            return "PRD" + String(novoNumero).padStart(5, "0");
+        }
+
         function addProdutoCadastrado() {
             const container = document.getElementById("produtosCadastradosContainer");
             const div = document.createElement("div");
@@ -467,6 +494,10 @@
                                 `<option value="${idx}">${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})</option>`
                             ).join('')}
                         </select>
+                    </div>
+                    <div class="col">
+                        <label>Ou digite o Código PRD:</label>
+                        <input type="text" class="produtoCodigoBusca" placeholder="PRD00001" style="font-weight:600;">
                     </div>
                     <div class="col">
                         <label>Código:</label>
@@ -520,11 +551,61 @@
             qtdInput.addEventListener("input", function() {
                 calcularTotalProduto(div);
             });
+            
+            // Adiciona listener para busca por código PRD
+            const codigoBuscaInput = div.querySelector(".produtoCodigoBusca");
+            const selectElement = div.querySelector(".produtoSelect");
+            
+            codigoBuscaInput.addEventListener("input", function() {
+                const codigoBusca = this.value.trim().toUpperCase();
+                if (!codigoBusca) {
+                    return;
+                }
+                
+                // Procura o produto pelo código
+                const idx = produtosCatalogo.findIndex(p => 
+                    String(p.codigo).toUpperCase() === codigoBusca
+                );
+                
+                if (idx >= 0) {
+                    // Seleciona o produto no dropdown
+                    selectElement.value = idx;
+                    preencherDadosProduto(selectElement);
+                    // Destaca o campo para indicar que encontrou
+                    this.style.background = "#e8f5e9";
+                } else if (codigoBusca.length >= 3) {
+                    // Se digitou pelo menos 3 caracteres e não encontrou, indica
+                    this.style.background = "#ffebee";
+                } else {
+                    this.style.background = "";
+                }
+            });
+            
+            codigoBuscaInput.addEventListener("blur", function() {
+                // Remove a cor de fundo quando sair do campo
+                setTimeout(() => {
+                    if (this.value.trim()) {
+                        const idx = produtosCatalogo.findIndex(p => 
+                            String(p.codigo).toUpperCase() === this.value.trim().toUpperCase()
+                        );
+                        if (idx >= 0) {
+                            this.style.background = "#e8f5e9";
+                        }
+                    }
+                }, 200);
+            });
         }
 
         function preencherDadosProduto(selectElement) {
             const div = selectElement.closest(".produto-cadastrado");
             const idx = selectElement.value;
+            
+            // Limpa o campo de busca se selecionou do dropdown
+            const buscaInput = div.querySelector(".produtoCodigoBusca");
+            if (buscaInput) {
+                buscaInput.value = "";
+                buscaInput.style.background = "";
+            }
             
             if (idx === "") {
                 div.querySelector(".produtoCodigo").value = "";
@@ -789,9 +870,7 @@
             } else {
                 // Auto-preenche o código PRD se não for conjunto
                 const codigoInput = div.querySelector(".codigo");
-                google.script.run.withSuccessHandler(function(codigoPRD) {
-                    codigoInput.value = codigoPRD;
-                }).getProximoCodigoPRD();
+                codigoInput.value = gerarCodigoPRDLocal();
             }
         }
 
