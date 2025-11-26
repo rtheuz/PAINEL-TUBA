@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <style>
   @page {
-    size: 108mm 54mm;
+    size: 104mm 53mm;
     margin: 0;
   }
 
@@ -18,15 +18,13 @@
     background: #fff;
   }
 
-  /* 🔒 Garante que a etiqueta inteira fique em 1 página */
+  /* Garante que a etiqueta inteira fique em 1 página */
   .etiqueta {
     display: flex;
     flex-direction: column;
     height: 100%;
     box-sizing: border-box;
-    border-left: 1mm solid #000;
-    border-right: 1mm solid #000;
-    border-bottom: 1mm solid #000;
+    border: 1mm solid #000;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     overflow: hidden;
@@ -42,41 +40,86 @@
     width: 100%;
     height: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
   }
 
   td {
     border: 1px solid #000;
-    padding: 1mm 2mm;
+    padding: 0.8mm 1.5mm;
     vertical-align: middle;
     box-sizing: border-box;
+    overflow: hidden;
   }
 
-  .label { font-size: 10px; color: #333; margin-right: 4px; }
-  .tipo { font-size: 14px; font-weight: bold; text-transform: uppercase; }
-  .dimensao {
-    font-size: 18px;
+  .label { 
+    font-size: 8px; 
+    color: #555; 
+    margin-right: 2px;
     font-weight: bold;
-    text-align: center;
-    display: block;
-    padding: 0.1mm 0;
-    white-space: nowrap; /* 🔸 evita quebrar linha */
+    display: inline-block;
   }
-  .espessura { font-size: 18px; font-weight: bold; }
-  .material { font-size: 14px; font-weight: bold; text-transform: uppercase; }
-  .nf { font-size: 12px; font-weight: bold; }
-  .data { font-size: 14px; font-weight: bold; }
-  .fornecedor { font-size: 14px; font-weight: bold; text-transform: uppercase; }
-  .qtde { font-size: 15px; font-weight: bold; text-transform: uppercase; }
- 
-  /* 🔸 Evita quebra no campo Prop */
+  
   .prop {
     font-size: 18px;
     font-weight: bold;
     text-transform: uppercase;
-    display: block;
+    display: inline-block;
+    white-space: nowrap;
+  }
+  
+  .dimensao {
+    font-size: 16px;
+    font-weight: bold;
     text-align: center;
-    padding: 0.5mm 0;
-    white-space: nowrap; /* mantém numa linha só */
+    display: block;
+    white-space: nowrap;
+  }
+  
+  .espessura { 
+    font-size: 14px; 
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .tipo { 
+    font-size: 13px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  
+  .material { 
+    font-size: 12px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  
+  .data { 
+    font-size: 12px; 
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .fornecedor { 
+    font-size: 11px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  
+  .nf { 
+    font-size: 12px; 
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .qtde { 
+    font-size: 16px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    color: #c00;
+    display: inline-block;
   }
 
   /* Segunda página */
@@ -88,18 +131,32 @@
     height: 100%;
     width: 100%;
     box-sizing: border-box;
-    border-left: 1mm solid #000;
-    border-right: 1mm solid #000;
-    border-bottom: 1mm solid #000;
+    border: 2mm solid #000;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 18px;
     text-align: center;
     padding: 5mm;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    background: #fffacd;
+  }
+
+  .aviso-linha {
+    font-size: 16px;
+    margin: 2mm 0;
+    line-height: 1.4;
+  }
+
+  .aviso-chapa {
+    font-size: 24px;
+    margin-top: 3mm;
+    padding: 2mm 5mm;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 2mm;
   }
 
   @media print {
@@ -115,29 +172,29 @@
   <div class="etiqueta">
     <div class="conteudo">
       <table>
-        <tr>
-          <td colspan="4">
-            <span class="label">Prop:</span>
+        <tr style="height: 15%;">
+          <td colspan="4" style="background: #000; color: #fff;">
+            <span class="label" style="color: #ccc;">Prop:</span>
             <span class="prop"><?= dados.prop ?></span>
           </td>
         </tr>
-        <tr>
-          <td colspan="3">
+        <tr style="height: 14%;">
+          <td colspan="4" style="background: #f0f0f0;">
             <span class="label">Dim.:</span>
             <span class="dimensao"><?= dados.dim1 ?> x <?= dados.dim2 ?> mm</span>
           </td>
         </tr>
-        <tr>
-          <td colspan="2">
+        <tr style="height: 14%;">
+          <td colspan="2" style="width: 50%;">
             <span class="label">Esp.:</span>
             <span class="espessura"><?= dados.esp ?> mm</span>
           </td>
-          <td colspan="2">
+          <td colspan="2" style="width: 50%;">
             <span class="label">Tipo:</span>
             <span class="tipo"><?= dados.tipo ?></span>
           </td>
         </tr>
-        <tr>
+        <tr style="height: 14%;">
           <td colspan="2">
             <span class="label">Mat.:</span>
             <span class="material"><?= dados.material ?></span>
@@ -147,7 +204,7 @@
             <span class="data"><?= dados.dataEntrada ?></span>
           </td>
         </tr>
-        <tr>
+        <tr style="height: 14%;">
           <td colspan="2">
             <span class="label">Fornecedor:</span>
             <span class="fornecedor"><?= dados.fornecedor ?></span>
@@ -157,8 +214,8 @@
             <span class="nf"><?= dados.nf ?></span>
           </td>
         </tr>
-        <tr>
-          <td colspan="2">
+        <tr style="height: 15%;">
+          <td colspan="4" style="background: #ffffcc;">
             <span class="label">Qtde:</span>
             <span class="qtde"><?= dados.qtde ?></span>
           </td>
@@ -170,9 +227,9 @@
   <!-- Segunda página -->
   <div class="page-break"></div>
   <div class="aviso">
-    ATUALIZAR DADOS APÓS USAR<br>
-    GUARDAR ETIQUETA PARA CONTROLE<br>
-    CHAPA #<?= dados.numeroChapa ?>
+    <div class="aviso-linha">⚠️ ATUALIZAR DADOS APÓS USAR ⚠️</div>
+    <div class="aviso-linha">GUARDAR ETIQUETA PARA CONTROLE</div>
+    <div class="aviso-chapa">CHAPA #<?= dados.numeroChapa ?></div>
   </div>
 </body>
 </html>

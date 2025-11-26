@@ -1045,7 +1045,7 @@ function doGet(e) {
   let token = e?.parameter?.token || null;
 
   const paginasProtegidas = {
-    'dashboard': ['admin', 'mod', 'usuario'],
+
     'orcamento': ['admin', 'mod'],
     'materiais': ['admin', 'mod', 'usuario'],
     'geradoretiquetas': ['admin', 'mod', 'usuario'],

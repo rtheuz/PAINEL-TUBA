@@ -244,15 +244,24 @@
     </div>
 
     <div class="card">
-        <div class="icon">🏁</div>
-        <h3>Retorno de veículos</h3>
-        <p>Registrar e consultar retorno de veículos</p>
-        <a id="linkVeiculoslist" href="#">Abrir</a>
-      </div>
+      <div class="icon">🏁</div>
+      <h3>Retorno de veículos</h3>
+      <p>Registrar e consultar retorno de veículos</p>
+      <a id="linkVeiculoslist" href="#">Abrir</a>
+    </div>
   </div>
 
   <script>
-    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    const WEBAPP_URL = "https://script. google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+
+    // Verifica se o token veio na URL, se sim, salva no localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+
+    if (urlToken) {
+      localStorage.setItem('token', urlToken);
+    }
+
     const token = localStorage.getItem('token');
 
     if (!token) { window.location.href = WEBAPP_URL + "?page=login"; }

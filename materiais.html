@@ -32,7 +32,7 @@
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 100%;
       margin: 0 auto;
       padding-bottom: 20px;
     }
@@ -108,13 +108,13 @@
 
     .peso-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 10px;
     }
 
     .peso-item {
       background: rgba(26, 115, 232, 0.08);
-      padding: 10px;
+      padding: 12px;
       border-radius: 8px;
       display: flex;
       flex-direction: column;
@@ -122,7 +122,7 @@
     }
 
     .peso-item-label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       color: #666;
       display: flex;
@@ -131,7 +131,7 @@
     }
 
     .peso-item-value {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
       color: #1a73e8;
     }
@@ -142,6 +142,31 @@
       gap: 10px;
       margin-bottom: 15px;
       flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-global-container {
+      flex: 1;
+      min-width: 250px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filter-global-container input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid #1a73e8;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: rgba(255, 255, 255, 0.95);
+      transition: all 0.3s ease;
+    }
+
+    .filter-global-container input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
     }
 
     .btn {
@@ -180,8 +205,8 @@
     }
 
     .btn-small {
-      padding: 6px 12px;
-      font-size: 12px;
+      padding: 8px 14px;
+      font-size: 13px;
     }
 
     /* Tabela Container */
@@ -200,14 +225,15 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 800px;
+      min-width: 1200px;
     }
 
     th, td {
-      padding: 12px 8px;
+      padding: 14px 12px;
       text-align: left;
       border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-      font-size: 13px;
+      font-size: 14px;
+      white-space: nowrap;
     }
 
     th {
@@ -219,41 +245,81 @@
       cursor: pointer;
       font-weight: 600;
       user-select: none;
+      vertical-align: top;
+    }
+
+    /* Cabeçalho com filtro - estrutura em coluna */
+    th.has-filter {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    th .th-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    th .th-title {
+      display: block;
+      width: 100%;
     }
 
     th:active {
       background: #155ec7;
     }
 
-    th.sorted-asc::after {
+    th.sorted-asc .th-title::after {
       content: " ▲";
       font-size: 10px;
     }
 
-    th.sorted-desc::after {
+    th.sorted-desc .th-title::after {
       content: " ▼";
       font-size: 10px;
     }
 
-    th input {
+    /* Coluna FEITO POR - quebra de linha no nome */
+    td.feito-por {
+      white-space: normal;
+      word-break: break-word;
+      max-width: 100px;
+      min-width: 80px;
+      line-height: 1.3;
+    }
+
+    /* Input de filtro em N DA CHAPA */
+    th .filter-input {
       width: 100%;
-      margin-top: 6px;
       padding: 6px 8px;
       border-radius: 4px;
       border: 1px solid rgba(255, 255, 255, 0.3);
       background: rgba(255, 255, 255, 0.95);
       font-size: 12px;
       font-family: inherit;
+      display: block;
+    }
+
+    th .filter-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
     }
 
     td input {
       width: 100%;
-      padding: 6px 8px;
+      min-width: 100px;
+      padding: 8px 10px;
       border: 1px solid #ddd;
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 14px;
       font-family: inherit;
       transition: border-color 0.3s ease;
+    }
+
+    /* Input DIM - garantir largura mínima adequada */
+    td input[data-field="dim"] {
+      min-width: 120px;
     }
 
     td input:focus {
@@ -274,10 +340,11 @@
       color: #1a73e8;
       text-decoration: none;
       font-weight: 600;
-      padding: 4px 8px;
+      padding: 6px 12px;
       border-radius: 4px;
       display: inline-block;
       transition: all 0.3s ease;
+      white-space: nowrap;
     }
 
     .pdf-link:hover {
@@ -332,7 +399,12 @@
       }
 
       .peso-item-value {
-        font-size: 16px;
+        font-size: 18px;
+      }
+
+      .filter-global-container {
+        width: 100%;
+        min-width: auto;
       }
 
       .btn {
@@ -341,22 +413,42 @@
       }
 
       th, td {
-        padding: 8px 6px;
-        font-size: 12px;
+        padding: 10px 8px;
+        font-size: 13px;
       }
 
-      th input {
-        padding: 4px 6px;
+      th.has-filter {
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+
+      th .filter-input {
         font-size: 11px;
+        padding: 5px 6px;
       }
 
       td input {
-        padding: 5px 6px;
+        padding: 6px 8px;
+        font-size: 13px;
+        min-width: 80px;
+      }
+
+      /* DIM no mobile - largura adequada */
+      td input[data-field="dim"] {
+        min-width: 130px;
+        font-size: 14px;
+        padding: 8px 10px;
+      }
+
+      /* FEITO POR no mobile */
+      td.feito-por {
+        max-width: 85px;
+        min-width: 70px;
         font-size: 12px;
       }
 
       table {
-        min-width: 700px;
+        min-width: 1300px;
       }
     }
 
@@ -370,31 +462,55 @@
       }
 
       .peso-item-label {
-        font-size: 11px;
+        font-size: 12px;
       }
 
       .peso-item-value {
-        font-size: 14px;
+        font-size: 16px;
       }
 
       th, td {
+        font-size: 12px;
+        padding: 8px 6px;
+      }
+
+      th.has-filter {
+        padding-top: 6px;
+        padding-bottom: 6px;
+      }
+
+      th .filter-input {
+        font-size: 10px;
+        padding: 4px 5px;
+      }
+
+      /* DIM em telas muito pequenas */
+      td input[data-field="dim"] {
+        min-width: 140px;
+        font-size: 13px;
+      }
+
+      /* FEITO POR em telas pequenas */
+      td.feito-por {
+        max-width: 75px;
+        min-width: 65px;
         font-size: 11px;
-        padding: 6px 4px;
       }
     }
 
     /* Scroll Hint */
     .scroll-hint {
       text-align: center;
-      padding: 8px;
-      background: rgba(26, 115, 232, 0.1);
+      padding: 10px;
+      background: rgba(26, 115, 232, 0.15);
       color: #1a73e8;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       display: none;
+      border-bottom: 2px solid rgba(26, 115, 232, 0.3);
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: 1024px) {
       .scroll-hint {
         display: block;
       }
@@ -420,34 +536,45 @@
       </div>
       <div class="peso-grid">
         <div class="peso-item">
-          <div class="peso-item-label">🟢 Estoque</div>
+          <div class="peso-item-label">🟢 Peso Estoque</div>
           <div class="peso-item-value" id="pesoEstoque">0.00 Kg</div>
         </div>
         <div class="peso-item">
-          <div class="peso-item-label">🔵 Cliente</div>
+          <div class="peso-item-label">🔵 Peso Cliente</div>
           <div class="peso-item-value" id="pesoCliente">0.00 Kg</div>
         </div>
         <div class="peso-item">
-          <div class="peso-item-label">🟡 Total</div>
+          <div class="peso-item-label">🟡 Peso Total</div>
           <div class="peso-item-value" id="pesoTotal">0.00 Kg</div>
         </div>
       </div>
     </div>
 
     <div class="controls">
+      <div class="filter-global-container">
+        <span style="font-weight: 600; color: white;">🔍</span>
+        <input type="text" id="filtroGlobal" placeholder="Buscar em todas as colunas...">
+      </div>
       <button class="btn btn-secondary" onclick="limparFiltros()">🔄 Limpar Filtros</button>
     </div>
 
     <div class="table-wrapper">
-      <div class="scroll-hint">← Deslize para ver mais →</div>
+      <div class="scroll-hint">← Deslize horizontalmente para ver todos os campos →</div>
       <div class="table-scroll">
         <table id="etiquetasTable">
           <thead>
             <tr>
-              <? for (let key in dados[0]) { ?>
-              <th data-col="<?= key ?>">
-                <?= key ?>
-                <input type="text" placeholder="Filtrar..." data-col="<?= key ?>" onclick="event.stopPropagation()">
+              <? for (let key in dados[0]) { 
+                const isNChapa = (key.toUpperCase().includes("N") || key.toUpperCase().includes("Nº") || key.toUpperCase().includes("N°")) && 
+                                 (key.toUpperCase().includes("CHAPA"));
+              ?>
+              <th data-col="<?= key ?>" class="<?= isNChapa ? 'has-filter' : '' ?>">
+                <div class="th-content">
+                  <span class="th-title"><?= key ?></span>
+                  <? if (isNChapa) { ?>
+                  <input type="text" class="filter-input" id="filtroNChapa" placeholder="Filtrar Nº..." onclick="event.stopPropagation()">
+                  <? } ?>
+                </div>
               </th>
               <? } ?>
               <th>Ações</th>
@@ -456,8 +583,10 @@
           <tbody>
             <? for (let i = 0; i < dados.length; i++) { ?>
             <tr data-row="<?= i+2 ?>">
-              <? for (let key in dados[i]) {
-                if(key === "ETIQUETA") { ?>
+              <? for (let key in dados[i]) { 
+                const isFeitoPor = key.toUpperCase().includes("FEITO POR") || key.toUpperCase().includes("FEITO_POR");
+              ?>
+              <? if(key === "ETIQUETA") { ?>
               <td><a class="pdf-link" href="<?= dados[i][key] ?>" target="_blank">📄 Abrir PDF</a></td>
               <? } else if(key === "QTDE") { ?>
               <td><input type="number" value="<?= dados[i][key] ?>" data-field="qtde" inputmode="numeric"></td>
@@ -475,10 +604,14 @@
               <td class="peso" data-valor="<?= dados[i][key] ?>">
                 <?= parseFloat(dados[i][key]).toFixed(2) ?>
               </td>
+              <? } else if(isFeitoPor) { ?>
+              <td class="feito-por" data-nome-original="<?= dados[i][key] ?>">
+                <span class="nome-formatado"></span>
+              </td>
               <? } else { ?>
               <td><?= dados[i][key] ?></td>
               <? } } ?>
-              <td><button class="btn btn-primary btn-small" onclick="gerarNovaEtiqueta(this)">Gerar Etiqueta</button></td>
+              <td><button class="btn btn-primary btn-small" onclick="gerarNovaEtiqueta(this)">Gerar Nova Etiqueta</button></td>
             </tr>
             <? } ?>
           </tbody>
@@ -509,6 +642,42 @@
       };
     }
 
+    // Função para extrair apenas números de uma string
+    function extrairNumero(str) {
+      if (!str) return 0;
+      const num = str.toString().replace(/\D/g, '');
+      return num ? parseInt(num, 10) : 0;
+    }
+
+    // Função para extrair dimensões (largura x altura) e converter para número
+    function parseDimension(dim) {
+      if (!dim) return 0;
+      const parts = dim.toString().match(/\d+/g);
+      if (!parts || parts.length === 0) return 0;
+      return parts.reduce((acc, val) => acc * parseInt(val), 1);
+    }
+
+    // Formatar nome "FEITO POR" - quebra o sobrenome
+    function formatarNomeFeitoPor() {
+      const cellsFeitoPor = document.querySelectorAll('td.feito-por');
+      cellsFeitoPor.forEach(cell => {
+        const nomeOriginal = cell.dataset.nomeOriginal;
+        const span = cell.querySelector('.nome-formatado');
+        
+        if (!nomeOriginal || !span) return;
+        
+        const partes = nomeOriginal.trim().split(' ');
+        if (partes.length >= 2) {
+          // Primeiro nome na primeira linha, resto na segunda
+          const primeiroNome = partes[0];
+          const sobrenomes = partes.slice(1).join(' ');
+          span.innerHTML = `${primeiroNome}<br>${sobrenomes}`;
+        } else {
+          span.textContent = nomeOriginal;
+        }
+      });
+    }
+
     // Soma de Pesos
     function atualizarSomaPesos() {
       const rows = document.querySelectorAll('#etiquetasTable tbody tr');
@@ -537,61 +706,72 @@
       document.getElementById('pesoTotal').textContent = pesoTotal.toFixed(2) + " Kg";
     }
 
-    // Filtros
+    // Filtros combinados (Global + N DA CHAPA)
     function aplicarFiltros() {
+      const filtroGlobal = document.getElementById('filtroGlobal').value.toLowerCase().trim();
+      const filtroNChapa = document.getElementById('filtroNChapa')?.value.toLowerCase().trim() || '';
       const table = document.getElementById('etiquetasTable');
-      const headerInputs = table.querySelectorAll('th input');
-      const filtros = Array.from(headerInputs).map(inp => inp.value.toLowerCase());
-      const headers = Array.from(table.tHead.rows[0].cells).map(th => th.textContent.trim().toUpperCase());
-
-      Array.from(table.tBodies[0].rows).forEach(row => {
-        let visivel = true;
-
-        Array.from(row.cells).forEach((cell, i) => {
-          if (i < filtros.length) {
-            const filtro = filtros[i].trim();
-            if (!filtro) return;
-
-            const header = headers[i];
-            let cellValue = cell.querySelector('input')
-              ? cell.querySelector('input').value
-              : cell.textContent;
-            cellValue = (cellValue || '').trim();
-
-            if (header.includes("ESPESSURA")) {
-              const cellNorm = cellValue.replace(",", ".");
-              const filtroNorm = filtro.replace(",", ".");
-              const padrao = new RegExp("^" + filtroNorm.replace(".", "\\.") + "(\\b|,|$)");
-              if (!padrao.test(cellNorm)) visivel = false;
-            } else if (header.includes("QTDE") || header.includes("PESO")) {
-              const valNum = parseFloat(cellValue.replace(",", ".")) || 0;
-              const filtroNum = parseFloat(filtro.replace(",", ".")) || null;
-              if (filtroNum !== null && !isNaN(filtroNum)) {
-                if (valNum !== filtroNum) visivel = false;
-              } else if (!cellValue.toLowerCase().includes(filtro)) {
-                visivel = false;
-              }
-            } else {
-              if (!cellValue.toLowerCase().includes(filtro)) visivel = false;
-            }
+      const rows = table.tBodies[0].rows;
+      
+      // Encontra o índice da coluna N DA CHAPA
+      const headers = Array.from(table.tHead.rows[0].cells);
+      let nChapaIndex = -1;
+      headers.forEach((th, i) => {
+        const colName = th.dataset.col;
+        if (colName) {
+          const upper = colName.toUpperCase();
+          if ((upper.includes("N") || upper.includes("Nº") || upper.includes("N°")) && upper.includes("CHAPA")) {
+            nChapaIndex = i;
           }
-        });
+        }
+      });
 
-        row.style.display = visivel ? '' : 'none';
+      Array.from(rows).forEach(row => {
+        let visivelGlobal = true;
+        let visivelNChapa = true;
+
+        // Filtro Global
+        if (filtroGlobal) {
+          let textoLinha = '';
+          Array.from(row.cells).forEach(cell => {
+            const input = cell.querySelector('input');
+            if (input) {
+              textoLinha += input.value + ' ';
+            } else if (cell.classList.contains('feito-por')) {
+              textoLinha += cell.dataset.nomeOriginal + ' ';
+            } else {
+              textoLinha += cell.textContent + ' ';
+            }
+          });
+          visivelGlobal = textoLinha.toLowerCase().includes(filtroGlobal);
+        }
+
+        // Filtro N DA CHAPA
+        if (filtroNChapa && nChapaIndex >= 0) {
+          const cellNChapa = row.cells[nChapaIndex];
+          if (cellNChapa) {
+            const valorNChapa = cellNChapa.textContent.toLowerCase().trim();
+            visivelNChapa = valorNChapa.includes(filtroNChapa);
+          }
+        }
+
+        row.style.display = (visivelGlobal && visivelNChapa) ? '' : 'none';
       });
 
       atualizarSomaPesos();
     }
 
     function limparFiltros() {
+      document.getElementById('filtroGlobal').value = '';
+      const filtroNChapa = document.getElementById('filtroNChapa');
+      if (filtroNChapa) filtroNChapa.value = '';
+      
       const table = document.getElementById('etiquetasTable');
-      const headerInputs = table.querySelectorAll('th input');
-      headerInputs.forEach(input => input.value = '');
       Array.from(table.tBodies[0].rows).forEach(row => row.style.display = '');
       atualizarSomaPesos();
     }
 
-    // Ordenação
+    // Ordenação corrigida por tipo de coluna
     let ordemAtual = {};
     function setupOrdenacao() {
       const table = document.getElementById('etiquetasTable');
@@ -599,31 +779,84 @@
         th.addEventListener('click', (e) => {
           if (e.target.tagName === 'INPUT') return;
           
+          const colName = th.dataset.col;
+          if (!colName || colName === 'Ações') return;
+          
           const tbody = table.tBodies[0];
           const linhas = Array.from(tbody.rows);
           ordemAtual[i] = ordemAtual[i] === 'asc' ? 'desc' : 'asc';
 
           linhas.sort((a, b) => {
-            let valA = a.cells[i].querySelector('input') ? a.cells[i].querySelector('input').value : a.cells[i].textContent.trim();
-            let valB = b.cells[i].querySelector('input') ? b.cells[i].querySelector('input').value : b.cells[i].textContent.trim();
+            let valA, valB;
+            
+            // Se for coluna FEITO POR, pega o nome original
+            if (a.cells[i].classList.contains('feito-por')) {
+              valA = a.cells[i].dataset.nomeOriginal || '';
+              valB = b.cells[i].dataset.nomeOriginal || '';
+            } else {
+              valA = a.cells[i].querySelector('input') ? a.cells[i].querySelector('input').value : a.cells[i].textContent.trim();
+              valB = b.cells[i].querySelector('input') ? b.cells[i].querySelector('input').value : b.cells[i].textContent.trim();
+            }
 
-            if (th.textContent.toUpperCase().includes("DATA")) {
+            const colUpper = colName.toUpperCase();
+
+            // N DA CHAPA / Nº DA CHAPA - por número puro
+            if ((colUpper.includes("N") || colUpper.includes("Nº") || colUpper.includes("N°")) && colUpper.includes("CHAPA")) {
+              const numA = extrairNumero(valA);
+              const numB = extrairNumero(valB);
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // DATA - por data
+            if (colUpper.includes("DATA")) {
               const parseDate = (str) => {
-                const [dia, mes, ano] = str.split("/");
-                return new Date(`${ano}-${mes}-${dia}`);
+                if (!str || !str.includes('/')) return new Date(0);
+                const parts = str.split("/");
+                if (parts.length !== 3) return new Date(0);
+                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
               };
               const dateA = parseDate(valA);
               const dateB = parseDate(valB);
               return ordemAtual[i] === 'asc' ? dateA - dateB : dateB - dateA;
             }
 
-            if (th.textContent.includes('QTDE') || th.textContent.includes('PESO')) {
-              valA = parseFloat(valA.replace(',', '.')) || 0;
-              valB = parseFloat(valB.replace(',', '.')) || 0;
-              return ordemAtual[i] === 'asc' ? valA - valB : valB - valA;
+            // DIM - por tamanho (área)
+            if (colName === "DIM") {
+              const dimA = parseDimension(valA);
+              const dimB = parseDimension(valB);
+              return ordemAtual[i] === 'asc' ? dimA - dimB : dimB - dimA;
             }
 
-            return ordemAtual[i] === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            // ESP (ESPESSURA) - por número
+            if (colName === "ESPESSURA" || colName === "ESP") {
+              const numA = parseFloat(valA.replace(',', '.')) || 0;
+              const numB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // QTDE - por número
+            if (colName === "QTDE") {
+              const numA = parseFloat(valA.replace(',', '.')) || 0;
+              const numB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // NF - por número
+            if (colName === "NF" || colUpper.includes("NOTA")) {
+              const numA = extrairNumero(valA);
+              const numB = extrairNumero(valB);
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // PESO - por número
+            if (colUpper.includes('PESO')) {
+              const numA = parseFloat(valA.replace(',', '.')) || 0;
+              const numB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // FEITO POR, PROP, TIPO, MATERIAL, FORNECEDOR - por nome (texto)
+            return ordemAtual[i] === 'asc' ? valA.localeCompare(valB, 'pt-BR') : valB.localeCompare(valA, 'pt-BR');
           });
 
           linhas.forEach(r => tbody.appendChild(r));
@@ -718,13 +951,13 @@
         .withSuccessHandler(url => {
           const link = tr.querySelector('a.pdf-link');
           if (link) link.href = url;
-          btn.textContent = "Gerar Etiqueta";
+          btn.textContent = "Gerar Nova Etiqueta";
           btn.disabled = false;
           atualizarSomaPesos();
         })
         .withFailureHandler(err => {
           alert("Erro ao gerar etiqueta: " + err.message);
-          btn.textContent = "Gerar Etiqueta";
+          btn.textContent = "Gerar Nova Etiqueta";
           btn.disabled = false;
         })
         .gerarNovaEtiqueta({ rowIndex });
@@ -739,6 +972,7 @@
 
       Array.from(table.tBodies[0].rows).forEach(row => {
         const cell = row.cells[dataIndex];
+        if (!cell) return;
         let txt = cell.textContent.trim();
         if (txt && txt.includes("/")) {
           let parts = txt.split("/");
@@ -762,13 +996,22 @@
     // Inicialização
     window.addEventListener('load', () => {
       padronizarDatas();
+      formatarNomeFeitoPor();
 
       const table = document.getElementById('etiquetasTable');
       if (!table) return;
 
-      // Filtros
-      const headerInputs = table.querySelectorAll('th input');
-      headerInputs.forEach(input => input.addEventListener('input', aplicarFiltros));
+      // Filtro Global
+      const filtroGlobal = document.getElementById('filtroGlobal');
+      if (filtroGlobal) {
+        filtroGlobal.addEventListener('input', debounce(aplicarFiltros, 300));
+      }
+
+      // Filtro N DA CHAPA
+      const filtroNChapa = document.getElementById('filtroNChapa');
+      if (filtroNChapa) {
+        filtroNChapa.addEventListener('input', debounce(aplicarFiltros, 300));
+      }
 
       // Dados iniciais
       Array.from(table.tBodies[0].rows).forEach(tr => {

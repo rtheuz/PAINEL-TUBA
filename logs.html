@@ -3,221 +3,506 @@
 
 <head>
   <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
     body {
-      margin: 0;
-      font-family: 'Montserrat', sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      background: linear-gradient(270deg, #047777, #287eff, #21f77a, #c9f506);
-      background-size: 800% 800%;
-      animation: gradientBG 20s ease infinite;
-      color: #fff;
-    }
-
-    @keyframes gradientBG {
-      0% {
-        background-position: 0% 50%;
-      }
-
-      50% {
-        background-position: 100% 50%;
-      }
-
-      100% {
-        background-position: 0% 50%;
-      }
+      background: #f5f7fa;
+      color: #2c3e50;
     }
 
     header {
       display: flex;
       align-items: center;
-      padding: 15px 30px;
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+      justify-content: space-between;
+      padding: 24px 48px;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      border-bottom: 1px solid #e1e8ed;
+      position: relative;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
     }
 
     header img {
-      height: 150px;
-      margin-right: 20px;
-      margin-top: 50px;
+      height: 48px;
+      filter: none;
     }
 
-    .btn {
-      appearance: none;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 10px;
+    header h1 {
+      font-size: 24px;
       font-weight: 600;
+      color: #1a237e;
+      letter-spacing: -0.5px;
+    }
+
+    .btn-voltar {
+      appearance: none;
+      border: 1px solid #e1e8ed;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 14px;
       cursor: pointer;
       display: inline-flex;
       gap: 8px;
       align-items: center;
-      background: #1a73e8;
-      color: white;
+      background: #ffffff;
+      color: #5f6368;
+      transition: all 0.2s ease;
+      font-family: 'Inter', sans-serif;
     }
 
-    header h1 {
-      font-size: 28px;
-      font-weight: bold;
-      color: #fff;
-      margin: 0;
+    .btn-voltar:hover {
+      background: #f8f9fa;
+      border-color: #c5cdd5;
+      color: #1a237e;
     }
 
     main {
       flex: 1;
-      padding: 30px;
+      padding: 32px 48px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .controles {
       display: flex;
-      flex-direction: column;
+      gap: 16px;
       align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      min-width: 320px;
+      max-width: 480px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      pointer-events: none;
     }
 
     input#filtro {
-      margin-bottom: 15px;
-      padding: 8px 12px;
+      width: 100%;
+      padding: 11px 16px 11px 42px;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      background: #ffffff;
+      color: #374151;
+      transition: all 0.2s ease;
+    }
+
+    input#filtro:focus {
+      outline: none;
+      border-color: #2196F3;
+      box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    input#filtro::placeholder {
+      color: #9ca3af;
+    }
+
+    .info-registros {
+      padding: 8px 16px;
+      background: #ffffff;
+      border: 1px solid #e1e8ed;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 13px;
+      color: #5f6368;
+      white-space: nowrap;
+    }
+
+    .table-container {
+      background: #ffffff;
       border-radius: 8px;
-      border: none;
-      width: 300px;
-      font-size: 16px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border: 1px solid #e1e8ed;
     }
 
     table {
       border-collapse: collapse;
-      width: 90%;
-      backdrop-filter: blur(10px);
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-      color: #fff;
-      font-size: 16px;
-    }
-
-    .btn {
-      appearance: none;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      background: #1a73e8;
-      color: white;
+      width: 100%;
+      font-size: 14px;
     }
 
     th,
     td {
-      padding: 12px 15px;
+      padding: 16px 20px;
       text-align: left;
+      border-bottom: 1px solid #e1e8ed;
     }
 
     th {
-      background: rgba(255, 255, 255, 0.2);
-      font-weight: bold;
-      font-size: 17px;
+      background: #f8f9fa;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #5f6368;
       cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: background 0.2s ease;
     }
 
-    tr:nth-child(even) {
-      background: rgba(255, 255, 255, 0.05);
+    th:hover {
+      background: #f1f3f4;
     }
 
-    tr:hover {
-      background: rgba(255, 255, 255, 0.2);
+    th::after {
+      content: "⇅";
+      position: absolute;
+      right: 8px;
+      opacity: 0.3;
+      font-size: 11px;
     }
 
-    a {
-      color: #fff;
-      text-decoration: underline;
+    th.sorted-asc::after {
+      content: "↑";
+      opacity: 0.8;
+      color: #2196F3;
+    }
+
+    th.sorted-desc::after {
+      content: "↓";
+      opacity: 0.8;
+      color: #2196F3;
+    }
+
+    tbody tr {
+      transition: background 0.15s ease;
+    }
+
+    tbody tr:hover {
+      background: #f8f9fa;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    td {
+      font-weight: 400;
+      color: #374151;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 64px 20px;
+      color: #9ca3af;
+      font-size: 15px;
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.4;
     }
 
     #paginacao {
-      margin-top: 15px;
+      margin-top: 24px;
       display: flex;
-      gap: 10px;
+      gap: 6px;
       flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
     }
 
     #paginacao button {
-      padding: 6px 12px;
+      padding: 8px 14px;
       border-radius: 6px;
-      border: none;
+      border: 1px solid #d1d5db;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
-      font-weight: bold;
+      background: #ffffff;
+      color: #374151;
+      font-weight: 500;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s ease;
+      min-width: 38px;
+    }
+
+    #paginacao button:hover:not(.active):not(:disabled) {
+      background: #f8f9fa;
+      border-color: #2196F3;
+      color: #2196F3;
     }
 
     #paginacao button.active {
-      background: rgba(255, 255, 255, 0.5);
+      background: #2196F3;
+      border-color: #2196F3;
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
+    }
+
+    #paginacao button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #paginacao .nav-btn {
+      font-size: 18px;
+      padding: 8px 12px;
+      font-weight: 600;
+    }
+
+    #paginacao .ellipsis {
+      background: transparent;
+      border: none;
+      cursor: default;
+      pointer-events: none;
+      color: #9ca3af;
+    }
+
+    .loading {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #e1e8ed;
+      border-radius: 50%;
+      border-top-color: #2196F3;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Status badge */
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      header {
+        padding: 20px 24px;
+      }
+
+      main {
+        padding: 24px;
+      }
+
+      header h1 {
+        font-size: 20px;
+      }
+
+      .controles {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .search-box {
+        max-width: 100%;
+      }
+
+      .info-registros {
+        text-align: center;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .btn-voltar {
+        align-self: flex-start;
+      }
+
+      header img {
+        height: 40px;
+      }
+
+      th, td {
+        padding: 12px 10px;
+        font-size: 13px;
+      }
+
+      th {
+        font-size: 11px;
+      }
+
+      .table-container {
+        overflow-x: auto;
+      }
+
+      table {
+        min-width: 800px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+      }
+
+      .btn-voltar,
+      #filtro,
+      #paginacao {
+        display: none;
+      }
+
+      .table-container {
+        box-shadow: none;
+        border: 1px solid #000;
+      }
     }
   </style>
 </head>
 
 <body>
   <header>
-    <div>
-      <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()" title="Voltar">
+    <div class="header-left">
+      <button class="btn-voltar" onclick="voltarPagina()" title="Voltar à página anterior">
         ← Voltar
       </button>
+      <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+      <h1>Logs de Produção</h1>
     </div>
-    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo da Empresa">
-    <h1>Logs de Produção</h1>
   </header>
 
   <main>
-    <input type="text" id="filtro" placeholder="Filtrar Logs...">
-    <table id="LogsTable">
-      <thead>
-        <tr>
-          <th data-col="0">Cliente</th>
-          <th data-col="1">Número do Projeto</th>
-          <th data-col="2">Observações</th>
-          <th data-col="3">Tempo estimado / tempo real de corte</th>
-          <th data-col="4">Tempo estimado / tempo real de dobra</th>
-          <th data-col="5">Tempo estimado / tempo real de adicionais</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="controles">
+      <div class="search-box">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" id="filtro" placeholder="Buscar por cliente, projeto, observações...">
+      </div>
+      <div class="info-registros" id="infoRegistros">
+        <span class="loading"></span> Carregando dados...
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table id="LogsTable">
+        <thead>
+          <tr>
+            <th data-col="0">Cliente</th>
+            <th data-col="1">Nº Projeto</th>
+            <th data-col="2">Observações</th>
+            <th data-col="3">Prep (Est/Real)</th>
+            <th data-col="4">Corte (Est/Real)</th>
+            <th data-col="5">Dobra (Est/Real)</th>
+            <th data-col="6">Adicionais (Est/Real)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colspan="7" class="empty-state">
+              <div class="empty-icon">📊</div>
+              Carregando registros...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     <div id="paginacao"></div>
   </main>
 
   <script>
     const token = "<?= token ?>";
-    const ROWS_PER_PAGE = 10;
+    const ROWS_PER_PAGE = 15;
+    const MAX_PAGE_BUTTONS = 7;
     let currentPage = 1;
     let dados = [];
     let filteredData = [];
+    let sortColumn = null;
+    let sortAscending = true;
 
     const tbody = document.querySelector('#LogsTable tbody');
     const filtroInput = document.getElementById('filtro');
     const paginacaoDiv = document.getElementById('paginacao');
+    const infoRegistros = document.getElementById('infoRegistros');
 
     function atualizarDados() {
       google.script.run.withSuccessHandler((novaData) => {
         dados = novaData;
         aplicarFiltro();
-      }).getLogs(); // chama a função do Google Apps Script
+      }).withFailureHandler((error) => {
+        console.error('Erro ao carregar dados:', error);
+        infoRegistros.innerHTML = '⚠️ Erro ao carregar dados';
+        tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><div class="empty-icon">⚠️</div>Erro ao carregar dados. Tentando novamente...</td></tr>`;
+      }).getLogs();
     }
 
     function aplicarFiltro() {
-      const filtro = filtroInput.value.toLowerCase();
-      filteredData = dados.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(filtro)));
+      const filtro = filtroInput.value.toLowerCase().trim();
+      filteredData = dados.filter(item => 
+        Object.values(item).some(val => 
+          String(val).toLowerCase().includes(filtro)
+        )
+      );
+      
+      if (sortColumn !== null) {
+        ordenarDados(sortColumn, sortAscending);
+      }
+      
       currentPage = 1;
       renderTabela();
+      atualizarInfo();
+    }
+
+    function atualizarInfo() {
+      const total = dados.length;
+      const filtrados = filteredData.length;
+      
+      if (total === 0) {
+        infoRegistros.innerHTML = 'Nenhum registro disponível';
+      } else if (filtrados === total) {
+        infoRegistros.innerHTML = `${total.toLocaleString('pt-BR')} registro${total !== 1 ? 's' : ''}`;
+      } else {
+        infoRegistros.innerHTML = `${filtrados.toLocaleString('pt-BR')} de ${total.toLocaleString('pt-BR')} registro${total !== 1 ? 's' : ''}`;
+      }
     }
 
     function renderTabela() {
       tbody.innerHTML = '';
+      
       if (!filteredData.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center">Nenhum log encontrado</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div class="empty-icon">🔍</div>Nenhum registro encontrado com os filtros aplicados</td></tr>`;
         paginacaoDiv.innerHTML = '';
         return;
       }
@@ -226,14 +511,24 @@
       const end = start + ROWS_PER_PAGE;
       const pageData = filteredData.slice(start, end);
 
+      const colunas = [
+        "Cliente", 
+        "Número do Projeto", 
+        "Observações",
+        "Tempo estimado / tempo real preparação",
+        "Tempo estimado / tempo real de corte",
+        "Tempo estimado / tempo real de dobra", 
+        "Tempo estimado / tempo real de adicionais"
+      ];
+
       pageData.forEach(item => {
         const tr = document.createElement('tr');
-        ["Cliente", "Número do Projeto", "Observações", "Tempo estimado / tempo real de corte",
-          "Tempo estimado / tempo real de dobra", "Tempo estimado / tempo real de adicionais"].forEach(col => {
-            const td = document.createElement('td');
-            td.textContent = item[col] || '';
-            tr.appendChild(td);
-          });
+        colunas.forEach(col => {
+          const td = document.createElement('td');
+          const valor = item[col];
+          td.textContent = valor || '—';
+          tr.appendChild(td);
+        });
         tbody.appendChild(tr);
       });
 
@@ -243,46 +538,169 @@
     function renderPaginacao() {
       paginacaoDiv.innerHTML = '';
       const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
-      for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement('button');
-        btn.textContent = i;
-        if (i === currentPage) btn.classList.add('active');
-        btn.addEventListener('click', () => { currentPage = i; renderTabela(); });
-        paginacaoDiv.appendChild(btn);
+      
+      if (totalPages <= 1) return;
+
+      // Botão Anterior
+      const btnPrev = document.createElement('button');
+      btnPrev.innerHTML = '‹';
+      btnPrev.className = 'nav-btn';
+      btnPrev.disabled = currentPage === 1;
+      btnPrev.title = 'Página anterior';
+      btnPrev.addEventListener('click', () => { 
+        if (currentPage > 1) {
+          currentPage--; 
+          renderTabela();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      paginacaoDiv.appendChild(btnPrev);
+
+      // Lógica de paginação
+      let startPage = Math.max(1, currentPage - Math.floor(MAX_PAGE_BUTTONS / 2));
+      let endPage = Math.min(totalPages, startPage + MAX_PAGE_BUTTONS - 1);
+      
+      if (endPage - startPage < MAX_PAGE_BUTTONS - 1) {
+        startPage = Math.max(1, endPage - MAX_PAGE_BUTTONS + 1);
       }
+
+      // Primeira página
+      if (startPage > 1) {
+        addPageButton(1);
+        if (startPage > 2) {
+          const ellipsis = document.createElement('button');
+          ellipsis.textContent = '...';
+          ellipsis.className = 'ellipsis';
+          paginacaoDiv.appendChild(ellipsis);
+        }
+      }
+
+      // Páginas do meio
+      for (let i = startPage; i <= endPage; i++) {
+        addPageButton(i);
+      }
+
+      // Última página
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          const ellipsis = document.createElement('button');
+          ellipsis.textContent = '...';
+          ellipsis.className = 'ellipsis';
+          paginacaoDiv.appendChild(ellipsis);
+        }
+        addPageButton(totalPages);
+      }
+
+      // Botão Próximo
+      const btnNext = document.createElement('button');
+      btnNext.innerHTML = '›';
+      btnNext.className = 'nav-btn';
+      btnNext.disabled = currentPage === totalPages;
+      btnNext.title = 'Próxima página';
+      btnNext.addEventListener('click', () => { 
+        if (currentPage < totalPages) {
+          currentPage++; 
+          renderTabela();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      });
+      paginacaoDiv.appendChild(btnNext);
     }
 
-    filtroInput.addEventListener('input', aplicarFiltro);
+    function addPageButton(pageNum) {
+      const btn = document.createElement('button');
+      btn.textContent = pageNum;
+      btn.title = `Ir para página ${pageNum}`;
+      if (pageNum === currentPage) btn.classList.add('active');
+      btn.addEventListener('click', () => { 
+        currentPage = pageNum; 
+        renderTabela();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      paginacaoDiv.appendChild(btn);
+    }
 
-    // ===== ORDENAÇÃO =====
+    function ordenarDados(colIndex, asc) {
+      const colunas = [
+        "Cliente", 
+        "Número do Projeto", 
+        "Observações",
+        "Tempo estimado / tempo real preparação",
+        "Tempo estimado / tempo real de corte",
+        "Tempo estimado / tempo real de dobra", 
+        "Tempo estimado / tempo real de adicionais"
+      ];
+      
+      filteredData.sort((a, b) => {
+        let valA = a[colunas[colIndex]] || '';
+        let valB = b[colunas[colIndex]] || '';
+        
+        // Tenta ordenar como número
+        const numA = parseFloat(valA);
+        const numB = parseFloat(valB);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return asc ? numA - numB : numB - numA;
+        }
+        
+        // Tenta ordenar como data
+        const dateA = new Date(valA);
+        const dateB = new Date(valB);
+        if (!isNaN(dateA) && !isNaN(dateB)) {
+          return asc ? dateA - dateB : dateB - dateA;
+        }
+        
+        // Ordenação alfabética
+        return asc ? 
+          valA.toString().localeCompare(valB.toString(), 'pt-BR') : 
+          valB.toString().localeCompare(valA.toString(), 'pt-BR');
+      });
+    }
+
+    // Eventos de ordenação
     const cabecalhos = document.querySelectorAll('#LogsTable th');
     cabecalhos.forEach((th, index) => {
       th.addEventListener('click', () => {
-        const asc = !th.asc;
-        th.asc = asc;
-        filteredData.sort((a, b) => {
-          const colunas = ["Cliente", "Número do Projeto", "Observações", "Tempo estimado / tempo real de corte",
-            "Tempo estimado / tempo real de dobra", "Tempo estimado / tempo real de adicionais"];
-          let valA = a[colunas[index]] || '';
-          let valB = b[colunas[index]] || '';
-          // tenta ordenar como data se possível
-          const dateA = new Date(valA);
-          const dateB = new Date(valB);
-          if (!isNaN(dateA) && !isNaN(dateB)) {
-            return asc ? dateA - dateB : dateB - dateA;
-          }
-          return asc ? valA.toString().localeCompare(valB.toString()) : valB.toString().localeCompare(valA.toString());
+        cabecalhos.forEach(h => {
+          h.classList.remove('sorted-asc', 'sorted-desc');
         });
+        
+        if (sortColumn === index) {
+          sortAscending = !sortAscending;
+        } else {
+          sortAscending = true;
+          sortColumn = index;
+        }
+        
+        th.classList.add(sortAscending ? 'sorted-asc' : 'sorted-desc');
+        
+        ordenarDados(index, sortAscending);
         renderTabela();
       });
     });
+
+    // Evento de filtro com debounce
+    let timeoutId;
+    filtroInput.addEventListener('input', () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(aplicarFiltro, 300);
+    });
+
+    // Atalho de teclado para focar no filtro
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        filtroInput.focus();
+      }
+    });
+
     function voltarPagina() {
       const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
       window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
     }
-    // Atualiza a cada 5 segundos
+
+    // Inicialização
     atualizarDados();
-    setInterval(atualizarDados, 5000);
+    setInterval(atualizarDados, 10000); // Atualiza a cada 10 segundos
   </script>
 </body>
 

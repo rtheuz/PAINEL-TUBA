@@ -180,92 +180,93 @@
     <button id="loginBtn" onclick="login()">Entrar</button>
   </div>
 
-<script>
-  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
 
-  var redirectTo = <?!= (typeof redirectTo !== 'undefined' && redirectTo) ? ("'" + String(redirectTo).replace(/'/g, "\\'") + "'") : "null" ?>;
-  var postLoginMsg = <?!= (typeof postLoginMsg !== 'undefined' && postLoginMsg) ? ("'" + String(postLoginMsg).replace(/'/g, "\\'") + "'") : "null" ?>;
+    var redirectTo = <?!= (typeof redirectTo !== 'undefined' && redirectTo) ? ("'" + String(redirectTo).replace(/'/g, "\\'") + "'") : "null" ?>;
+    var postLoginMsg = <?!= (typeof postLoginMsg !== 'undefined' && postLoginMsg) ? ("'" + String(postLoginMsg).replace(/'/g, "\\'") + "'") : "null" ?>;
 
-  // Flag vinda do Code.gs: templateLogin.embedded
-  var embeddedMode = <?!= (typeof embedded !== 'undefined' && embedded) ? 'true' : 'false' ?>;
+    // Flag vinda do Code.gs: templateLogin.embedded
+    var embeddedMode = <?!= (typeof embedded !== 'undefined' && embedded) ? 'true' : 'false' ?>;
 
-  function isEmbeddedMode() {
-    return embeddedMode === true || embeddedMode === 'true';
-  }
+    function isEmbeddedMode() {
+      return embeddedMode === true || embeddedMode === 'true';
+    }
 
-  // (initInfo permanece igual)
-  (function initInfo() {
-    const infoEl = document.getElementById('info');
-    if (redirectTo) {
-      try {
-        const u = new URL(WEBAPP_URL + (redirectTo.startsWith('?') ? redirectTo : ('?' + redirectTo)));
-        const p = u.searchParams.get('page') || redirectTo;
-        infoEl.textContent = "Ao entrar você será redirecionado para: " + p;
-      } catch (e) {
-        infoEl.textContent = "Ao entrar você será redirecionado para a página solicitada.";
+    // (initInfo permanece igual)
+    (function initInfo() {
+      const infoEl = document.getElementById('info');
+      if (redirectTo) {
+        try {
+          const u = new URL(WEBAPP_URL + (redirectTo.startsWith('?') ? redirectTo : ('?' + redirectTo)));
+          const p = u.searchParams.get('page') || redirectTo;
+          infoEl.textContent = "Ao entrar você será redirecionado para: " + p;
+        } catch (e) {
+          infoEl.textContent = "Ao entrar você será redirecionado para a página solicitada.";
+        }
+      } else if (postLoginMsg) {
+        infoEl.textContent = postLoginMsg;
       }
-    } else if (postLoginMsg) {
-      infoEl.textContent = postLoginMsg;
-    }
-  })();
+    })();
 
-  function login() {
-    console.log('isEmbeddedMode() =', isEmbeddedMode());
+    function login() {
+      console.log('isEmbeddedMode() =', isEmbeddedMode());
 
-    const usuario = document.getElementById('usuario').value.trim();
-    const senha = document.getElementById('senha').value.trim();
-    const btn = document.getElementById('loginBtn');
-    const erro = document.getElementById('erro');
+      const usuario = document.getElementById('usuario').value.trim();
+      const senha = document.getElementById('senha').value.trim();
+      const btn = document.getElementById('loginBtn');
+      const erro = document.getElementById('erro');
 
-    if (!usuario || !senha) {
-      erro.innerText = "Preencha usuário e senha";
-      return;
-    }
+      if (!usuario || !senha) {
+        erro.innerText = "Preencha usuário e senha";
+        return;
+      }
 
-    btn.disabled = true;
-    btn.textContent = "Entrando...";
-    erro.innerText = "";
+      btn.disabled = true;
+      btn.textContent = "Entrando...";
+      erro.innerText = "";
 
-    google.script.run
-      .withSuccessHandler(res => {
-        if (res && res.success) {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res && res.success) {
 
-          if (isEmbeddedMode()) {
-            console.log("Executando em modo EMBEDDED: Enviando token para o app externo.");
-            const message = { type: 'AUTH_TOKEN', token: res.token, redirectTo: redirectTo };
-            window.top.postMessage(message, '*');
-            btn.textContent = "Sucesso!";
-          } else {
-            console.log("Executando em modo Standalone: Redirecionando para o dashboard.");
-            let destinationUrl = WEBAPP_URL + "?page=dashboard&token=" + encodeURIComponent(res.token);
+            if (isEmbeddedMode()) {
+              console.log("Executando em modo EMBEDDED: Enviando token para o app externo.");
+              const message = { type: 'AUTH_TOKEN', token: res.token, redirectTo: redirectTo };
+              window.top.postMessage(message, '*');
+              btn.textContent = "Sucesso!";
+            } else {
+              console.log("Executando em modo Standalone: Redirecionando para o dashboard.");
+              localStorage.setItem('token', res.token);  // <-- ADICIONE ESTA LINHA
+              let destinationUrl = WEBAPP_URL + "?page=dashboard&token=" + encodeURIComponent(res.token);
 
-            if (redirectTo) {
-              destinationUrl = WEBAPP_URL + redirectTo +
-                (redirectTo.includes('?') ? '&' : '?') +
-                'token=' + encodeURIComponent(res.token);
+              if (redirectTo) {
+                destinationUrl = WEBAPP_URL + redirectTo +
+                  (redirectTo.includes('?') ? '&' : '?') +
+                  'token=' + encodeURIComponent(res.token);
+              }
+
+              window.top.location.href = destinationUrl;
             }
 
-            window.top.location.href = destinationUrl;
+          } else {
+            erro.innerText = "Usuário ou senha incorretos";
+            btn.disabled = false;
+            btn.textContent = "Entrar";
           }
-
-        } else {
-          erro.innerText = "Usuário ou senha incorretos";
+        })
+        .withFailureHandler(err => {
+          erro.innerText = "Erro: " + err.message;
           btn.disabled = false;
           btn.textContent = "Entrar";
-        }
-      })
-      .withFailureHandler(err => {
-        erro.innerText = "Erro: " + err.message;
-        btn.disabled = false;
-        btn.textContent = "Entrar";
-      })
-      .autenticarUsuario(usuario, senha);
-  }
+        })
+        .autenticarUsuario(usuario, senha);
+    }
 
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Enter') login();
-  });
-</script>
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') login();
+    });
+  </script>
 </body>
 
 </html>
