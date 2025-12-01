@@ -1,271 +1,621 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 
 <head>
-  <base target="_top">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relação de Produtos - TUBA</title>
+    <link rel="icon" href="https://i.imgur.com/C0dSTyE.png" type="image/png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    body {
-      margin: 0;
-      font-family: 'Montserrat', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: linear-gradient(270deg, #23b9ff, #4effbb, #e5a8fd, #ffdb63);
-      background-size: 800% 800%;
-      animation: gradientBG 20s ease infinite;
-      color: #fff;
-    }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
 
-    @keyframes gradientBG {
-      0% {
-        background-position: 0% 50%;
-      }
+        .container {
+            max-width: 98%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
 
-      50% {
-        background-position: 100% 50%;
-      }
+        .header {
+            background: linear-gradient(135deg, #FF9933 0%, #FF7700 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
 
-      100% {
-        background-position: 0% 50%;
-      }
-    }
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
 
-    header {
-      display: flex;
-      align-items: center;
-      padding: 15px 30px;
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    }
+        .header . subtitle {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
 
-    header img {
-      height: 150px;
-      margin-right: 20px;
-      margin-top: 50px;
-    }
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
 
-    header h1 {
-      font-size: 28px;
-      font-weight: bold;
-      color: #fff;
-      margin: 0;
-    }
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
 
-    main {
-      flex: 1;
-      padding: 30px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
 
-    .btn {
-      appearance: none;
-      border: none;
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      background: #1a73e8;
-      color: white;
-    }
+        .search-box input:focus {
+            outline: none;
+            border-color: #FF9933;
+            box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.1);
+        }
 
-    input#filtro {
-      margin-bottom: 15px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: none;
-      width: 300px;
-      font-size: 16px;
-    }
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 1.2em;
+        }
 
-    table {
-      border-collapse: collapse;
-      width: 90%;
-      backdrop-filter: blur(10px);
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 15px;
-      overflow: hidden;
-      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-      color: #fff;
-      font-size: 16px;
-    }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
 
-    th,
-    td {
-      padding: 12px 15px;
-      text-align: left;
-    }
+        .btn-primary {
+            background: #FF9933;
+            color: white;
+        }
 
-    th {
-      background: rgba(255, 255, 255, 0.2);
-      font-weight: bold;
-      font-size: 17px;
-      cursor: pointer;
-    }
+        .btn-primary:hover {
+            background: #FF7700;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
+        }
 
-    tr:nth-child(even) {
-      background: rgba(255, 255, 255, 0.05);
-    }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
 
-    tr:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
+        . btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
 
-    a {
-      color: #fff;
-      text-decoration: underline;
-    }
+        .stats {
+            padding: 15px 30px;
+            background: #fff3e0;
+            border-bottom: 2px solid #ffe0b2;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
 
-    #paginacao {
-      margin-top: 15px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-    #paginacao button {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
-      font-weight: bold;
-    }
+        .stat-label {
+            color: #666;
+            font-weight: 500;
+        }
 
-    #paginacao button.active {
-      background: rgba(255, 255, 255, 0.5);
-    }
-  </style>
+        .stat-value {
+            color: #FF9933;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+
+        . table-container {
+            padding: 30px;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: calc(100vh - 400px);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+            table-layout: auto;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #FF9933 0%, #FF7700 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            white-space: nowrap;
+            font-size: 0.9em;
+            min-width: 80px;
+        }
+
+        th:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        th. sortable::after {
+            content: ' ⇅';
+            opacity: 0. 5;
+            font-size: 0.8em;
+        }
+
+        th. sort-asc::after {
+            content: ' ▲';
+            opacity: 1;
+        }
+
+        th. sort-desc::after {
+            content: ' ▼';
+            opacity: 1;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: all 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #fff3e0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        td {
+            padding: 10px 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+            font-size: 0.9em;
+        }
+
+        /* Adiciona tooltip ao passar o mouse em células com conteúdo longo */
+        td:hover {
+            overflow: visible;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        . no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .no-results-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #FF9933;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #FF9933;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .back-button {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Scrollbar personalizada */
+        . table-container::-webkit-scrollbar {
+            height: 12px;
+            width: 12px;
+        }
+
+        . table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        . table-container::-webkit-scrollbar-thumb {
+            background: #FF9933;
+            border-radius: 10px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #FF7700;
+        }
+
+        /* Responsivo para telas médias */
+        @media (max-width: 1400px) {
+            .container {
+                max-width: 95%;
+            }
+
+            table {
+                font-size: 0.8em;
+            }
+
+            th,
+            td {
+                padding: 8px 6px;
+                font-size: 0.85em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                max-width: 100%;
+                border-radius: 10px;
+            }
+
+            . header h1 {
+                font-size: 1.5em;
+            }
+
+            .header .subtitle {
+                font-size: 0.9em;
+            }
+
+            .controls {
+                flex-direction: column;
+                padding: 15px;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .table-container {
+                padding: 15px;
+                max-height: calc(100vh - 450px);
+            }
+
+            table {
+                font-size: 0.75em;
+            }
+
+            th,
+            td {
+                padding: 6px 4px;
+                font-size: 0.8em;
+                min-width: 60px;
+            }
+
+            .back-button {
+                position: static;
+                transform: none;
+                margin-bottom: 15px;
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Para telas muito pequenas */
+        @media (max-width: 480px) {
+
+            th,
+            td {
+                padding: 4px 2px;
+                font-size: 0.7em;
+                min-width: 50px;
+            }
+
+            .header h1 {
+                font-size: 1.2em;
+            }
+        }
+    </style>
 </head>
 
 <body>
-  <header>
-    <div>
-      <button class="btn" style="position:absolute; top:16px; left:16px;" onclick="voltarPagina()"
-        title="Voltar">
-        ← Voltar
-      </button>
+    <div class="container">
+        <div class="header">
+            <button class="back-button" onclick="voltarDashboard()">← Voltar</button>
+            <h1>📦 Relação de Produtos</h1>
+            <div class="subtitle">Gerenciamento e controle de produtos</div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar em todos os campos... ">
+                <span class="search-icon">🔍</span>
+            </div>
+            <button class="btn btn-primary" onclick="exportarExcel()">
+                📊 Exportar Excel
+            </button>
+            <button class="btn btn-secondary" onclick="limparFiltros()">
+                🔄 Limpar Filtros
+            </button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total de produtos:</span>
+                <span class="stat-value" id="totalProdutos">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Exibindo:</span>
+                <span class="stat-value" id="produtosVisiveis">0</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="loadingIndicator" class="loading">
+                <div class="loading-spinner"></div>
+                <p>Carregando produtos...</p>
+            </div>
+            <div id="tableContent" style="display: none;">
+                <table id="produtosTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <div id="noResults" class="no-results" style="display: none;">
+                    <div class="no-results-icon">🔍</div>
+                    <h3>Nenhum produto encontrado</h3>
+                    <p>Tente ajustar os filtros de busca</p>
+                </div>
+            </div>
+        </div>
     </div>
-    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo da Empresa">
-    <h1>Produtos</h1>
-  </header>
 
-  <main>
-    <input type="text" id="filtro" placeholder="Filtrar produtos...">
-    <table id="produtosTable">
-      <thead>
-        <tr>
-          <th data-col="0">Cliente</th>
-          <th data-col="1">Código</th>
-          <th data-col="2">Data</th>
-          <th data-col="3">Informações do Produto</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <div id="paginacao"></div>
-  </main>
+    <script>
+        const token = '<?= token ?>';
+        let produtosData = [];
+        let headers = [];
+        let sortColumn = null;
+        let sortDirection = 'asc';
 
-  <script>
-    const token = "<?= token ?>";
-    // ===== DADOS PASSADOS PELO HTML / GAS =====
-    const dados = <?!= JSON.stringify(dados || []) ?>;
-    const ROWS_PER_PAGE = 10;
+        // Carrega dados ao abrir a página
+        window.onload = function () {
+            carregarProdutos();
+        };
 
-    let currentPage = 1;
-    let filteredData = dados;
+        function carregarProdutos() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+            document.getElementById('tableContent').style.display = 'none';
 
-    const tbody = document.querySelector('#produtosTable tbody');
-    const filtroInput = document.getElementById('filtro');
-    const paginacaoDiv = document.getElementById('paginacao');
+            google.script.run
+                .withSuccessHandler(function (result) {
+                    headers = result.headers || [];
+                    produtosData = result.data || [];
 
-    // ===== FUNÇÃO PARA RENDERIZAR TABELA =====
-    function renderTabela() {
-      tbody.innerHTML = '';
-      if (!filteredData || filteredData.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center">Nenhum produto encontrado</td></tr>`;
-        paginacaoDiv.innerHTML = '';
-        return;
-      }
+                    renderizarTabela();
+                    atualizarEstatisticas();
 
-      const start = (currentPage - 1) * ROWS_PER_PAGE;
-      const end = start + ROWS_PER_PAGE;
-      const pageData = filteredData.slice(start, end);
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                    document.getElementById('tableContent').style.display = 'block';
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao carregar produtos: ' + error.message);
+                    document.getElementById('loadingIndicator').style.display = 'none';
+                })
+                .getProdutos();
+        }
 
-      pageData.forEach(item => {
-        const tr = document.createElement('tr');
-        const pdfLink = item["Informações do Produto"] || '';
-        [item["Cliente"] || '', item["Código"] || '', item["Data"] || '', ''].forEach((text, i) => {
-          const td = document.createElement('td');
-          if (i === 3 && pdfLink) {
-            const a = document.createElement('a');
-            a.href = pdfLink;
-            a.target = '_blank';
-            a.textContent = 'Abrir PDF';
-            td.appendChild(a);
-          } else { td.textContent = text; }
-          tr.appendChild(td);
+        function renderizarTabela() {
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('tableBody');
+
+            // Renderiza cabeçalho
+            let headerHtml = '<tr>';
+            headers.forEach((header, index) => {
+                if (header !== '_linhaPlanilha') {
+                    const sortClass = sortColumn === index ? `sort-${sortDirection}` : '';
+                    headerHtml += `<th class="sortable ${sortClass}" onclick="ordenarPor(${index})">${header}</th>`;
+                }
+            });
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
+
+            // Renderiza corpo
+            const filtro = document.getElementById('searchInput').value.toLowerCase();
+            let bodyHtml = '';
+            let count = 0;
+
+            produtosData.forEach(produto => {
+                // Aplica filtro
+                const matches = Object.values(produto).some(val =>
+                    String(val).toLowerCase().includes(filtro)
+                );
+
+                if (matches) {
+                    count++;
+                    bodyHtml += '<tr>';
+                    headers.forEach(header => {
+                        if (header !== '_linhaPlanilha') {
+                            bodyHtml += `<td>${produto[header] || ''}</td>`;
+                        }
+                    });
+                    bodyHtml += '</tr>';
+                }
+            });
+
+            tbody.innerHTML = bodyHtml;
+
+            // Mostra mensagem se não houver resultados
+            document.getElementById('noResults').style.display = count === 0 ? 'block' : 'none';
+            document.getElementById('produtosVisiveis').textContent = count;
+        }
+
+        function ordenarPor(columnIndex) {
+            const columnName = headers[columnIndex];
+
+            if (sortColumn === columnIndex) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = columnIndex;
+                sortDirection = 'asc';
+            }
+
+            produtosData.sort((a, b) => {
+                let valA = a[columnName] || '';
+                let valB = b[columnName] || '';
+
+                // Tenta converter para número se possível
+                const numA = parseFloat(String(valA).replace(/[^\d,.-]/g, '').replace(',', '.'));
+                const numB = parseFloat(String(valB).replace(/[^\d,.-]/g, '').replace(',', '.'));
+
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    return sortDirection === 'asc' ? numA - numB : numB - numA;
+                }
+
+                // Ordenação alfabética
+                const compare = String(valA).localeCompare(String(valB));
+                return sortDirection === 'asc' ? compare : -compare;
+            });
+
+            renderizarTabela();
+        }
+
+        function atualizarEstatisticas() {
+            document.getElementById('totalProdutos').textContent = produtosData.length;
+            document.getElementById('produtosVisiveis').textContent = produtosData.length;
+        }
+
+        function limparFiltros() {
+            document.getElementById('searchInput').value = '';
+            sortColumn = null;
+            sortDirection = 'asc';
+            renderizarTabela();
+        }
+
+        function exportarExcel() {
+            const filtro = document.getElementById('searchInput').value.toLowerCase();
+            const dadosFiltrados = produtosData.filter(produto =>
+                Object.values(produto).some(val =>
+                    String(val).toLowerCase().includes(filtro)
+                )
+            );
+
+            if (dadosFiltrados.length === 0) {
+                alert('Nenhum dado para exportar');
+                return;
+            }
+
+            let csv = headers.filter(h => h !== '_linhaPlanilha').join(',') + '\n';
+
+            dadosFiltrados.forEach(produto => {
+                const row = headers
+                    .filter(h => h !== '_linhaPlanilha')
+                    .map(header => {
+                        const valor = produto[header] || '';
+                        return `"${String(valor).replace(/"/g, '""')}"`;
+                    })
+                    .join(',');
+                csv += row + '\n';
+            });
+
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `produtos_${new Date().toISOString().split('T')[0]}. csv`;
+            link.click();
+        }
+
+        function voltarDashboard() {
+            window.location.href = `? page=dashboard&token=${token}`;
+        }
+
+        // Filtro em tempo real
+        document.addEventListener('DOMContentLoaded', function () {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', renderizarTabela);
+            }
         });
-        tbody.appendChild(tr);
-      });
-
-      renderPaginacao();
-    }
-
-    // ===== PAGINAÇÃO =====
-    function renderPaginacao() {
-      paginacaoDiv.innerHTML = '';
-      const totalPages = Math.ceil(filteredData.length / ROWS_PER_PAGE);
-      for (let i = 1; i <= totalPages; i++) {
-        const btn = document.createElement('button');
-        btn.textContent = i;
-        if (i === currentPage) btn.classList.add('active');
-        btn.addEventListener('click', () => { currentPage = i; renderTabela(); });
-        paginacaoDiv.appendChild(btn);
-      }
-    }
-
-    // ===== FILTRO =====
-    filtroInput.addEventListener('input', function () {
-      const filtro = this.value.toLowerCase();
-      filteredData = dados.filter(item => Object.values(item).some(val => String(val).toLowerCase().includes(filtro)));
-      currentPage = 1;
-      renderTabela();
-    });
-
-    // ===== ORDENAÇÃO =====
-    const cabecalhos = document.querySelectorAll('#produtosTable th');
-    cabecalhos.forEach(th => {
-      th.addEventListener('click', () => {
-        const index = parseInt(th.dataset.col);
-        const asc = !th.asc;
-        th.asc = asc;
-        filteredData.sort((a, b) => {
-          const keys = ["Cliente", "Código", "Data", "Informações do Produto"];
-          let valA = a[keys[index]] || '';
-          let valB = b[keys[index]] || '';
-          if (index === 2) { // data
-            return asc ? new Date(valA) - new Date(valB) : new Date(valB) - new Date(valA);
-          }
-          return asc ? valA.toString().localeCompare(valB.toString()) : valB.toString().localeCompare(valA.toString());
-        });
-        renderTabela();
-      });
-    });
-    function voltarPagina() {
-      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
-    }
-    renderTabela();
-  </script>
+    </script>
 </body>
 
 </html>

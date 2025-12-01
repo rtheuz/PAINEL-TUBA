@@ -181,7 +181,7 @@
       <p>Pedidos em andamento e realizados</p>
       <a id="linkPedidos" href="#">Abrir</a>
     </div>
-
+    
     <div class="card">
       <div class="icon">🏭</div>
       <h3>Linha de Produção</h3>
@@ -277,6 +277,7 @@
     document.getElementById('linkManutencao').href = WEBAPP_URL + "?page=manutencao&token=" + token;
     document.getElementById('linkVeiculos').href = WEBAPP_URL + "?page=veiculos&token=" + token;
     document.getElementById('linkVeiculoslist').href = WEBAPP_URL + "?page=veiculos_list&token=" + token;
+    document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
 
     // Atualiza estatísticas em tempo real
     function atualizarEstatisticas() {
@@ -288,6 +289,7 @@
         document.getElementById('statEtiquetas').textContent = res.etiquetas || 0;
         document.getElementById('statMateriais').textContent = res.materiais || 0;
         document.getElementById('statLogs').textContent = res.logs || 0;
+        document.getElementById('statProdutos').textContent = res.produtos || 0;
       }).getDashboardStats();
     }
 

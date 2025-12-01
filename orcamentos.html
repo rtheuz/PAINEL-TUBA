@@ -298,6 +298,7 @@
 
     /* Mobile: Cards em vez de tabela */
     @media (max-width: 768px) {
+
       table,
       thead,
       tbody,
@@ -587,6 +588,7 @@
         opacity: 0;
         transform: translateY(10px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -633,8 +635,16 @@
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+      }
     }
 
     /* Empty state */
@@ -680,7 +690,8 @@
       </div>
 
       <div class="actions">
-        <button class="btn btn-ghost btn-icon" onclick="limparFiltros()" title="Limpar filtros" aria-label="Limpar filtros">
+        <button class="btn btn-ghost btn-icon" onclick="limparFiltros()" title="Limpar filtros"
+          aria-label="Limpar filtros">
           🔄
         </button>
         <button class="btn btn-primary" onclick="abrirModalNovo()" id="btnNovoOrcamento">
@@ -695,14 +706,12 @@
         <div class="controls-row">
           <div class="search" role="search">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M21 21l-4.35-4.35" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              <circle cx="11" cy="11" r="6" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M21 21l-4.35-4.35" stroke="#0f172a" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+              <circle cx="11" cy="11" r="6" stroke="#0f172a" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
             </svg>
-            <input 
-              id="globalSearch" 
-              placeholder="Buscar..." 
-              oninput="filtroGlobal()"
-              aria-label="Pesquisar orçamentos">
+            <input id="globalSearch" placeholder="Buscar..." oninput="filtroGlobal()" aria-label="Pesquisar orçamentos">
           </div>
         </div>
 
@@ -739,7 +748,7 @@
           <thead>
             <tr>
               <th>Cliente</th>
-              <th>Responsável</th>
+              <th>Responsável Cliente</th>
               <th>Projeto</th>
               <th>Valor</th>
               <th>Data</th>
@@ -753,12 +762,24 @@
           <tbody>
             <? for (var i = 0; i < dados.length; i++) { ?>
             <tr data-row="<?!= dados[i]['_linhaPlanilha'] ?>">
-              <td data-label="Cliente" class="col-cliente"><?!= dados[i]["CLIENTE"] ?></td>
-              <td data-label="Responsável" class="col-resp"><?!= dados[i]["RESPONSÁVEL"] ?></td>
-              <td data-label="Projeto" class="col-projeto"><?!= dados[i]["PROJETO"] ?></td>
-              <td data-label="Valor" class="col-valor"><?!= dados[i]["VALOR TOTAL"] ?></td>
-              <td data-label="Data" class="col-data"><?!= dados[i]["DATA"] ?></td>
-              <td data-label="Processos" class="col-processos"><?!= dados[i]["Processos"] ?></td>
+              <td data-label="Cliente" class="col-cliente">
+                <?!= dados[i]["CLIENTE"] ?>
+              </td>
+              <td data-label="Responsável Cliente" class="col-resp">
+                <?!= dados[i]["RESPONSÁVEL CLIENTE"] ?>
+              </td>
+              <td data-label="Projeto" class="col-projeto">
+                <?!= dados[i]["PROJETO"] ?>
+              </td>
+              <td data-label="Valor" class="col-valor">
+                <?!= dados[i]["VALOR TOTAL"] ?>
+              </td>
+              <td data-label="Data" class="col-data">
+                <?!= dados[i]["DATA"] ?>
+              </td>
+              <td data-label="Processos" class="col-processos">
+                <?!= dados[i]["Processos"] ?>
+              </td>
               <td data-label="PDF">
                 <a class="link" href="<?!= dados[i]['LINK DO PDF'] ?>" target="_blank">
                   <?!= dados[i]['LINK DO PDF'] ? "Abrir" : "-" ?>
@@ -770,18 +791,25 @@
                 </a>
               </td>
               <td data-label="Status">
-                <select class="status-select" onchange="atualizarStatus(this, <?!= dados[i]['_linhaPlanilha'] ?>)" aria-label="Status do orçamento">
+                <select class="status-select" onchange="atualizarStatus(this, <?!= dados[i]['_linhaPlanilha'] ?>)"
+                  aria-label="Status do orçamento">
                   <option value="Rascunho" <?!=dados[i]["STATUS"]==="Rascunho" ? "selected" : "" ?>>Rascunho</option>
                   <option value="Enviado" <?!=dados[i]["STATUS"]==="Enviado" ? "selected" : "" ?>>Enviado</option>
-                  <option value="Em análise" <?!=dados[i]["STATUS"]==="Em análise" ? "selected" : "" ?>>Em análise</option>
-                  <option value="Negociação" <?!=dados[i]["STATUS"]==="Negociação" ? "selected" : "" ?>>Negociação</option>
-                  <option value="Expirado/Perdido" <?!=dados[i]["STATUS"]==="Expirado/Perdido" ? "selected" : "" ?>>Expirado/Perdido</option>
-                  <option value="Convertido em Pedido" <?!=dados[i]["STATUS"]==="Convertido em Pedido" ? "selected" : "" ?>>Convertido</option>
+                  <option value="Em análise" <?!=dados[i]["STATUS"]==="Em análise" ? "selected" : "" ?>>Em análise
+                  </option>
+                  <option value="Negociação" <?!=dados[i]["STATUS"]==="Negociação" ? "selected" : "" ?>>Negociação
+                  </option>
+                  <option value="Expirado/Perdido" <?!=dados[i]["STATUS"]==="Expirado/Perdido" ? "selected" : "" ?>
+                    >Expirado/Perdido</option>
+                  <option value="Convertido em Pedido" <?!=dados[i]["STATUS"]==="Convertido em Pedido" ? "selected" : ""
+                    ?>>Convertido</option>
                 </select>
               </td>
               <td class="td-actions">
-                <button class="btn" title="Editar" onclick="editarLinha(this)" aria-label="Editar orçamento">✎ Editar</button>
-                <button class="btn btn-danger" title="Excluir" onclick="confirmExcluir(this)" aria-label="Excluir orçamento">🗑 Excluir</button>
+                <button class="btn" title="Editar" onclick="editarLinha(this)" aria-label="Editar orçamento">✎
+                  Editar</button>
+                <button class="btn btn-danger" title="Excluir" onclick="confirmExcluir(this)"
+                  aria-label="Excluir orçamento">🗑 Excluir</button>
               </td>
             </tr>
             <? } ?>
@@ -790,10 +818,10 @@
 
         <div id="emptyState" class="empty-state" style="display:none;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/>
-            <line x1="9" y1="9" x2="15" y2="9" stroke-width="2"/>
-            <line x1="9" y1="12" x2="15" y2="12" stroke-width="2"/>
-            <line x1="9" y1="15" x2="12" y2="15" stroke-width="2"/>
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2" />
+            <line x1="9" y1="9" x2="15" y2="9" stroke-width="2" />
+            <line x1="9" y1="12" x2="15" y2="12" stroke-width="2" />
+            <line x1="9" y1="15" x2="12" y2="15" stroke-width="2" />
           </svg>
           <h3>Nenhum orçamento encontrado</h3>
           <p>Tente ajustar os filtros ou adicione um novo orçamento</p>
@@ -802,9 +830,13 @@
     </div>
 
     <footer class="card">
-      &copy; <?!= new Date().getFullYear() ?> — <?!= empresa.nome ?><br>
-      <?!= empresa.endereco ?> | CNPJ: <?!= empresa.cnpj ?><br>
-      <?!= empresa.email ?> | <?!= empresa.tel ?>
+      &copy;
+      <?!= new Date().getFullYear() ?> —
+      <?!= empresa.nome ?><br>
+      <?!= empresa.endereco ?> | CNPJ:
+      <?!= empresa.cnpj ?><br>
+      <?!= empresa.email ?> |
+      <?!= empresa.tel ?>
     </footer>
   </div>
 
@@ -820,20 +852,15 @@
         <div class="grid">
           <div class="field">
             <label for="inputCliente">Cliente *</label>
-            <input 
-              id="inputCliente" 
-              name="cliente" 
-              list="clientesList" 
-              required 
-              autocomplete="off"
+            <input id="inputCliente" name="cliente" list="clientesList" required autocomplete="off"
               placeholder="Digite ou selecione">
             <datalist id="clientesList"></datalist>
             <small>Se não existir, será criado automaticamente</small>
           </div>
 
           <div class="field">
-            <label for="inputResponsavel">Responsável</label>
-            <input id="inputResponsavel" name="responsavel" placeholder="Nome do responsável">
+            <label for="inputResponsavelCliente">Responsável Cliente</label>
+            <input id="inputResponsavelCliente" name="responsavelcliente" placeholder="Nome do Cliente Responsável">
           </div>
 
           <div class="field">
@@ -893,7 +920,8 @@
       <div class="modal-header">
         <h3 id="confirmTitle" style="margin:0;font-size:16px;">Confirmar exclusão</h3>
       </div>
-      <p id="confirmMsg" style="margin:12px 0;line-height:1.5;">Tem certeza que deseja excluir este orçamento? Esta ação não pode ser desfeita.</p>
+      <p id="confirmMsg" style="margin:12px 0;line-height:1.5;">Tem certeza que deseja excluir este orçamento? Esta ação
+        não pode ser desfeita.</p>
       <div style="display:flex;gap:8px;margin-top:16px;">
         <button class="btn btn-ghost" onclick="cancelExcluir()" style="flex:1;">Cancelar</button>
         <button id="btnConfirmExcluir" class="btn btn-danger" style="flex:1;">Excluir</button>
@@ -906,7 +934,7 @@
   <script>
     const token = "<?= token ?>";
     const dados = <?!= JSON.stringify(dados) ?>;
-    
+
     let clientesNomes = [];
     let editingLinha = null;
     let editingTr = null;
@@ -936,11 +964,12 @@
 
     // Voltar página
     function voltarPagina() {
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        window.location.href = '/';
+      if (!token) {
+        alert("Token não encontrado. Por favor, recarregue a página.");
+        return;
       }
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
     }
 
     // Abrir modal novo
@@ -967,7 +996,7 @@
       const form = document.getElementById('formNovoOrcamento');
 
       form.cliente.value = tr.querySelector('.col-cliente')?.textContent.trim() || '';
-      form.responsavel.value = tr.querySelector('.col-resp')?.textContent.trim() || '';
+      form.responsavelcliente.value = tr.querySelector('.col-resp')?.textContent.trim() || '';
       form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
       form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
       form.data.value = tr.querySelector('.col-data')?.textContent.trim() || '';
@@ -1015,13 +1044,13 @@
       const novoStatus = selectElem.value;
       const oldValue = selectElem.getAttribute('data-old-value') || selectElem.value;
       selectElem.setAttribute('data-old-value', novoStatus);
-      
+
       google.script.run
         .withSuccessHandler(() => {
           selectElem.classList.add('updated');
           setTimeout(() => selectElem.classList.remove('updated'), 700);
           showToast('Status atualizado', 1400);
-          
+
           if (novoStatus === "Convertido em Pedido") {
             showToast('Convertendo em pedido...', 2000);
           }
@@ -1094,7 +1123,7 @@
       const emptyState = document.getElementById('emptyState');
       const rows = tbody.querySelectorAll('tr');
       const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
-      
+
       if (forceEmpty || visibleRows.length === 0) {
         tbody.style.display = 'none';
         emptyState.style.display = 'block';
@@ -1150,7 +1179,7 @@
     function submitNovoOrcamento() {
       const form = document.getElementById('formNovoOrcamento');
       const clienteNome = (form.cliente.value || '').trim();
-      const responsavel = (form.responsavel.value || '').trim();
+      const responsavelcliente = (form.responsavelcliente.value || '').trim();
       const projeto = (form.projeto.value || '').trim();
       const valor = (form.valor.value || '').trim();
       const data = (form.data.value || '').trim();
@@ -1166,7 +1195,7 @@
 
       const dataObj = {
         CLIENTE: clienteNome,
-        "RESPONSÁVEL": responsavel,
+        "RESPONSÁVEL CLIENTE": responsavelcliente,
         PROJETO: projeto,
         "VALOR TOTAL": valor,
         DATA: data,
@@ -1267,7 +1296,7 @@
       tr.setAttribute('data-row', String(linhaPlanilha));
       tr.innerHTML = `
         <td data-label="Cliente" class="col-cliente">${dados.CLIENTE || ''}</td>
-        <td data-label="Responsável" class="col-resp">${dados["RESPONSÁVEL"] || ''}</td>
+        <td data-label="Responsável Cliente" class="col-resp">${dados["RESPONSÁVEL CLIENTE"] || ''}</td>
         <td data-label="Projeto" class="col-projeto">${dados.PROJETO || ''}</td>
         <td data-label="Valor" class="col-valor">${dados["VALOR TOTAL"] || ''}</td>
         <td data-label="Data" class="col-data">${dados.DATA || ''}</td>
@@ -1297,7 +1326,7 @@
           <button class="btn btn-danger" onclick="confirmExcluir(this)" aria-label="Excluir">🗑 Excluir</button>
         </td>
       `;
-      
+
       const sel = tr.querySelector('.status-select');
       sel.value = dados.STATUS || 'Rascunho';
       tbody.insertBefore(tr, tbody.firstChild);
@@ -1314,7 +1343,7 @@
       }
 
       tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';
-      tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL"] || '';
+      tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL CLIENTE"] || '';
       tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
       tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
       tr.querySelector('.col-data').textContent = dados.DATA || '';
@@ -1339,7 +1368,7 @@
 
       const sel = tr.querySelector('.status-select');
       if (sel) sel.value = dados.STATUS || 'Rascunho';
-      
+
       filtroGlobal();
     }
 
@@ -1424,7 +1453,7 @@
     */
 
     // Atalhos de teclado
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
       // ESC fecha modals
       if (e.key === 'Escape') {
         if (document.getElementById('modalBackdrop').style.display === 'flex') {
@@ -1437,7 +1466,8 @@
     });
 
     // Prevenir zoom em inputs no iOS
-    document.addEventListener('touchstart', function() {}, {passive: true});
+    document.addEventListener('touchstart', function () { }, { passive: true });
   </script>
 </body>
+
 </html>

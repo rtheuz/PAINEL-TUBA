@@ -9,9 +9,195 @@ const SHEET_MAT = ss.getSheetByName("Controle de Materiais");
 const SHEET_AVAL = ss.getSheetByName("Avaliações");
 const SHEET_LOGS = ss.getSheetByName("Logs");
 const SHEET_CLIENTES = ss.getSheetByName("Cadastro de Clientes");
+const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
 const ID_PASTA_PRINCIPAL = "1jqIVHbThV3SPBM8MOHek4r5tr2DoHbqz";
 const ID_LOGO = "1pnRLV6YZYMD6Yhv1cUb4FXVr0ol_Zzzf";
 const FAVICON = "https://i.imgur.com/C0dSTyE.png"
+
+// ==================== PRODUTOS CADASTRADOS ====================
+/**
+ * Busca produtos cadastrados da aba "Relação de produtos"
+ * @returns {Array} Array de objetos com dados dos produtos
+ */
+function getProdutosCadastrados() {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      Logger.log("Aba 'Relação de produtos' não encontrada");
+      return [];
+    }
+    
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    if (dados.length < 2) return [];
+    
+    // Estrutura da planilha:
+    // A=Código do Produto, B=Descrição do Produto, H=Preço Unitário de Venda, I=Unidade
+    const produtos = [];
+    for (let i = 1; i < dados.length; i++) {
+      const row = dados[i];
+      if (row[0]) { // se tem código (coluna A)
+        produtos.push({
+          codigo: row[0],                    // Coluna A - Código do Produto
+          descricao: row[1] || "",           // Coluna B - Descrição do Produto
+          familia: row[3] || "",             // Coluna D - Família de Produto
+          tipo: row[4] || "",                // Coluna E - Tipo do Produto
+          preco: parseFloat(row[7]) || 0,    // Coluna H - Preço Unitário de Venda
+          unidade: row[8] || "UN"            // Coluna I - Unidade
+        });
+      }
+    }
+    return produtos;
+  } catch (err) {
+    Logger.log("Erro ao buscar produtos cadastrados: " + err);
+    return [];
+  }
+}
+
+/**
+ * Obtém o próximo código PRD disponível
+ * @returns {string} Próximo código no formato PRD00001, PRD00002, etc.
+ */
+function getProximoCodigoPRD() {
+  try {
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      return "PRD00001"; // Primeiro código se a aba não existe
+    }
+    
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    if (dados.length < 2) {
+      return "PRD00001"; // Primeiro código se não há produtos
+    }
+    
+    // Encontra o maior número PRD
+    let maxNumero = 0;
+    for (let i = 1; i < dados.length; i++) {
+      const codigo = String(dados[i][0] || "");
+      if (codigo.startsWith("PRD")) {
+        const numero = parseInt(codigo.substring(3), 10);
+        if (!isNaN(numero) && numero > maxNumero) {
+          maxNumero = numero;
+        }
+      }
+    }
+    
+    // Retorna o próximo número formatado
+    const proximoNumero = maxNumero + 1;
+    return "PRD" + String(proximoNumero).padStart(5, "0");
+  } catch (err) {
+    Logger.log("Erro ao obter próximo código PRD: " + err);
+    return "PRD00001";
+  }
+}
+
+/**
+ * Insere um produto na aba "Relação de produtos"
+ * @param {Object} produto - Objeto com os dados do produto
+ */
+function inserirProdutoNaRelacao(produto) {
+  try {
+    Logger.log("Tentando inserir produto: " + JSON.stringify(produto));
+    
+    const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+    if (!SHEET_PRODUTOS) {
+      Logger.log("ERRO: Aba 'Relação de produtos' não encontrada");
+      return false;
+    }
+    
+    Logger.log("Aba 'Relação de produtos' encontrada. Verificando duplicatas...");
+    
+    // Verifica se o produto já existe
+    const dados = SHEET_PRODUTOS.getDataRange().getValues();
+    Logger.log("Total de linhas na planilha: " + dados.length);
+    
+    for (let i = 1; i < dados.length; i++) {
+      if (dados[i][0] === produto.codigo) {
+        Logger.log("Produto " + produto.codigo + " já existe na relação (linha " + (i+1) + ")");
+        return false; // Produto já existe
+      }
+    }
+    
+    // Estrutura da planilha:
+    // A=Código do Produto, B=Descrição, C=Código da Família, D=Família de Produto, 
+    // E=Tipo do Produto, F=Código EAN, G=Código NCM, H=Preço Unitário de Venda, 
+    // I=Unidade, J=Características
+    const novaLinha = [
+      produto.codigo || "",           // A - Código do Produto
+      produto.descricao || "",        // B - Descrição do Produto
+      "",                             // C - Código da Família (vazio)
+      produto.familia || "",          // D - Família de Produto
+      produto.tipo || "",             // E - Tipo do Produto
+      "",                             // F - Código EAN (vazio)
+      "",                             // G - Código NCM (vazio)
+      produto.preco || 0,             // H - Preço Unitário de Venda
+      produto.unidade || "UN",        // I - Unidade
+      produto.caracteristicas || ""   // J - Características
+    ];
+    
+    Logger.log("Inserindo nova linha: " + JSON.stringify(novaLinha));
+    SHEET_PRODUTOS.appendRow(novaLinha);
+    Logger.log("✓ Produto " + produto.codigo + " inserido com sucesso na relação");
+    return true;
+  } catch (err) {
+    Logger.log("ERRO ao inserir produto na relação: " + err);
+    Logger.log("Stack trace: " + err.stack);
+    return false;
+  }
+}
+
+/**
+ * Insere produtos com código PRD das chapas na "Relação de produtos"
+ * @param {Array} chapas - Array com dados das chapas e peças
+ */
+function inserirProdutosDasChapas(chapas) {
+  try {
+    if (!Array.isArray(chapas)) {
+      Logger.log("inserirProdutosDasChapas: chapas não é um array");
+      return;
+    }
+    
+    Logger.log("inserirProdutosDasChapas: Processando " + chapas.length + " chapas");
+    
+    let produtosInseridos = 0;
+    let produtosPulados = 0;
+    
+    chapas.forEach((chapa, chapaIdx) => {
+      if (chapa.pecas && Array.isArray(chapa.pecas)) {
+        Logger.log("Chapa " + chapaIdx + ": " + chapa.pecas.length + " peças encontradas");
+        chapa.pecas.forEach((peca, pecaIdx) => {
+          // Só insere se tiver código PRD
+          if (peca.codigo && String(peca.codigo).startsWith("PRD")) {
+            Logger.log("Peça " + pecaIdx + " tem código PRD: " + peca.codigo);
+            const produto = {
+              codigo: peca.codigo,
+              descricao: peca.descricao || "",
+              familia: chapa.material || "",
+              tipo: "Peça",
+              preco: peca.precoUnitario || 0,
+              unidade: "UN",
+              caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
+            };
+            const resultado = inserirProdutoNaRelacao(produto);
+            if (resultado) {
+              produtosInseridos++;
+            } else {
+              produtosPulados++;
+            }
+          } else {
+            Logger.log("Peça " + pecaIdx + " não tem código PRD válido: " + (peca.codigo || "sem código"));
+            produtosPulados++;
+          }
+        });
+      } else {
+        Logger.log("Chapa " + chapaIdx + ": sem peças ou peças não é array");
+      }
+    });
+    
+    Logger.log("Total: " + produtosInseridos + " produtos inseridos, " + produtosPulados + " pulados");
+  } catch (err) {
+    Logger.log("Erro ao inserir produtos das chapas: " + err);
+  }
+}
 
 // ==================== HELPERS DE OTIMIZAÇÃO ====================
 /**
@@ -252,7 +438,7 @@ function buscarNomePastaPorCodigo(codigoProjeto) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados
 ) {
   try {
 
@@ -260,6 +446,19 @@ function gerarPdfOrcamento(
     incrementarContador("totalPropostas");
 
     const resultados = calcularOrcamento(chapas);
+    
+    // Adiciona produtos cadastrados aos resultados
+    if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      produtosCadastrados.forEach(prod => {
+        resultados.push({
+          codigo: prod.codigo || "",
+          descricao: prod.descricao || "",
+          quantidade: prod.quantidade || 0,
+          precoUnitario: prod.precoUnitario || 0,
+          precoTotal: prod.precoTotal || 0
+        });
+      });
+    }
 
     const pasta = criarOuUsarPasta(codigoProjeto, nomePasta, data);
     const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
@@ -422,7 +621,7 @@ function gerarPdfOrcamento(
 
     let memoriaUrl = null;
     try {
-      const memoria = gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, comSubFolder, file.getName());
+      const memoria = gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, comSubFolder, file.getName(), produtosCadastrados);
       memoriaUrl = memoria && memoria.url ? memoria.url : null;
     } catch (eMem) {
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
@@ -437,7 +636,7 @@ function gerarPdfOrcamento(
 }
 
 /* ======= gerarPdfMemoriaCalculo corrigido: lê linha de referência APÓS flush ======= */
-function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento) {
+function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento, produtosCadastrados) {
   function formatarNumero(v) {
     if (v === null || v === undefined || v === "") return "";
     const n = Number(v);
@@ -457,6 +656,8 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   th { background-color: #eee; }
   .titulo-material { font-weight: bold; font-size: 11pt; margin-top: 20px; }
   .subtitulo-peca { margin-left: 20px; font-weight: bold; font-size: 10pt; margin-bottom: 5px; }
+  .titulo-produtos-cadastrados { font-weight: bold; font-size: 12pt; margin-top: 30px; margin-bottom: 10px; background-color: #f0f0f0; padding: 8px; }
+  .produto-cadastrado-item { margin-left: 20px; font-size: 10pt; margin-bottom: 8px; }
   </style>
   </head>
   <body>
@@ -521,6 +722,47 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   </table>`;
     });
   });
+
+  // Adiciona seção de produtos cadastrados se houver
+  if (produtosCadastrados && Array.isArray(produtosCadastrados) && produtosCadastrados.length > 0) {
+    htmlMemoria += `<div class="titulo-produtos-cadastrados">PRODUTOS CADASTRADOS</div>`;
+    
+    htmlMemoria += `<table>
+      <tr>
+        <th>Código</th>
+        <th>Descrição</th>
+        <th>Família</th>
+        <th>Tipo</th>
+        <th>Unidade</th>
+        <th>Quantidade</th>
+        <th>Preço Unitário (R$)</th>
+        <th>Preço Total (R$)</th>
+      </tr>`;
+    
+    produtosCadastrados.forEach(produto => {
+      htmlMemoria += `<tr>
+        <td>${produto.codigo || "-"}</td>
+        <td>${produto.descricao || "-"}</td>
+        <td>${produto.familia || "-"}</td>
+        <td>${produto.tipo || "-"}</td>
+        <td>${produto.unidade || "UN"}</td>
+        <td>${formatarNumero(produto.quantidade || 0)}</td>
+        <td>${formatarNumero(produto.precoUnitario || 0)}</td>
+        <td>${formatarNumero(produto.precoTotal || 0)}</td>
+      </tr>`;
+    });
+    
+    htmlMemoria += `</table><br>`;
+    
+    // Calcula total dos produtos cadastrados
+    const totalProdutosCadastrados = produtosCadastrados.reduce((sum, p) => {
+      return sum + (parseFloat(p.precoTotal) || 0);
+    }, 0);
+    
+    htmlMemoria += `<div class="produto-cadastrado-item">
+      <strong>Total de Produtos Cadastrados: R$ ${formatarNumero(totalProdutosCadastrados)}</strong>
+    </div><br>`;
+  }
 
   htmlMemoria += `</body></html>`;
 
@@ -594,6 +836,9 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
+    // Serializa os dados das chapas para JSON (para armazenar e recuperar depois)
+    const chapasJson = JSON.stringify(chapas || []);
+    
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
     const rowValues = [
       cliente.nome || "",
@@ -604,7 +849,8 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       processosStr || "",
       urlPdf || "",
       urlMemoria || "",
-      "Enviado"
+      "Enviado",
+      chapasJson  // Nova coluna para armazenar dados das chapas/peças
     ];
 
     // tenta encontrar linha existente com o mesmo PROJETO (coluna "PROJETO")
@@ -617,10 +863,15 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
       SHEET_ORC.appendRow(rowValues);
     }
+    
+    // Insere produtos com código PRD na "Relação de produtos" ao criar o orçamento
+    inserirProdutosDasChapas(chapas);
+    
   } catch (err) {
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
     try {
+      const chapasJson = JSON.stringify(chapas || []);
       SHEET_ORC.appendRow([
         cliente.nome || "",
         cliente.responsavel || "",
@@ -630,8 +881,13 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         processosStr || "",
         urlPdf || "",
         urlMemoria || "",
-        "Enviado"
+        "Enviado",
+        chapasJson
       ]);
+      
+      // Insere produtos mesmo no fallback
+      inserirProdutosDasChapas(chapas);
+      
     } catch (e2) {
       Logger.log("Erro fallback appendRow em registrarOrcamento: " + e2);
       throw e2;
@@ -645,6 +901,7 @@ function incrementarContador(tipo) {
   props.setProperty(tipo, valorAtual + 1);
 }
 
+// ========================= DASHBOARD STATS =========================
 function getDashboardStats() {
   const props = PropertiesService.getScriptProperties();
 
@@ -657,6 +914,9 @@ function getDashboardStats() {
 
   // Pedidos
   const pedidos = SHEET_PED ? Math.max(SHEET_PED.getLastRow() - 1, 0) : 0;
+
+  // Produtos cadastrados
+  const produtos = SHEET_PRODUTOS ? Math.max(SHEET_PRODUTOS.getLastRow() - 1, 0) : 0;
 
   // Logs
   const logs = SHEET_LOGS ? Math.max(SHEET_LOGS.getLastRow() - 1, 0) : 0;
@@ -672,7 +932,7 @@ function getDashboardStats() {
   const orcamentos = SHEET_ORC ? Math.max(SHEET_ORC.getLastRow() - 1, 0) : 0;
 
 
-  return { propostas, orcamentos, pedidos, kanban, etiquetas, materiais, logs };
+  return { propostas, orcamentos, pedidos, kanban, etiquetas, materiais, logs, produtos };
 }
 
 // --- helper para achar índice de cabeçalho de forma robusta ---
@@ -1045,7 +1305,7 @@ function doGet(e) {
   let token = e?.parameter?.token || null;
 
   const paginasProtegidas = {
-
+    'dashboard': ['admin', 'mod', 'usuario'],
     'orcamento': ['admin', 'mod'],
     'materiais': ['admin', 'mod', 'usuario'],
     'geradoretiquetas': ['admin', 'mod', 'usuario'],
@@ -1059,7 +1319,8 @@ function doGet(e) {
     'manu_registros': ['admin', 'mod', 'usuario'],
     'paginasprotegidas': ['admin'],
     'veiculos': ['admin', 'mod', 'usuario', 'visitante'],
-    'veiculos_list': ['admin', 'mod']
+    'veiculos_list': ['admin', 'mod'],
+    'produtos': ['admin', 'mod', 'usuario']
   };
 
   // Helper que constrói a query de redirecionamento,
@@ -1118,6 +1379,19 @@ function doGet(e) {
         const templateDashboard = HtmlService.createTemplateFromFile('dashboard');
         templateDashboard.token = token;
         return templateDashboard.evaluate()
+          .setFaviconUrl(FAVICON)
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      case 'produtos':
+        if (!SHEET_PRODUTOS) throw new Error("Aba 'Relação de produtos' não encontrada");
+
+        const produtosResult = getProdutos();
+
+        const templateProdutos = HtmlService.createTemplateFromFile('produtos');
+        templateProdutos.headers = produtosResult.headers;
+        templateProdutos.dados = produtosResult.data;
+        templateProdutos.token = token;
+        return templateProdutos.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
@@ -1454,6 +1728,22 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
 
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
+     
+    // --- Inserir produtos na "Relação de produtos" (se ainda não foram inseridos) ---
+    try {
+      // Tenta recuperar os dados das chapas da última coluna (JSON)
+      const idxChapas = linhaDados.length - 1; // Última coluna onde armazenamos o JSON
+      const chapasJson = linhaDados[idxChapas];
+      
+      if (chapasJson && typeof chapasJson === 'string') {
+        const chapas = JSON.parse(chapasJson);
+        // Usa a função helper para inserir produtos
+        inserirProdutosDasChapas(chapas);
+      }
+    } catch (err) {
+      Logger.log("Erro ao inserir produtos na relação: " + err);
+      // Não interrompe a conversão se houver erro ao inserir produtos
+    }
   }
 }
 
@@ -1540,12 +1830,6 @@ function registrarLog(cliente, projeto, statusAntigo, statusNovo, processosStr, 
   }
 }
 
-// Incrementa contadores de eventos como propostas e etiquetas
-function incrementarContador(tipo) {
-  const props = PropertiesService.getScriptProperties();
-  const valorAtual = Number(props.getProperty(tipo)) || 0;
-  props.setProperty(tipo, valorAtual + 1);
-}
 // =================== ETIQUETAS ===================
 function gerarEtiqueta(dados, token) {
 
@@ -1625,6 +1909,7 @@ function gerarEtiqueta(dados, token) {
     urlPdf,
     "",                     // PESO APROXIMADO (fórmula será inserida depois)
 
+
   ];
 
   SHEET_MAT.appendRow(novaLinha);
@@ -1662,6 +1947,8 @@ function gerarNovaEtiqueta(dadosLinha, token) {
     qtde: linhaValores[8],      // Coluna I
     fornecedor: linhaValores[9],// Coluna J
     nf: linhaValores[10],       // Coluna K
+    etiqueta: linhaValores[11]  // Coluna L
+    
   };
 
   // Cria PDF a partir do template
@@ -1708,7 +1995,8 @@ function atualizarCelulaNaPlanilha(linha, campo, novoValor) {
     material: 8,
     qtde: 9,
     fornecedor: 10,
-    nf: 11
+    nf: 11,
+    etiqueta: 12
   };
 
   const coluna = colunas[campo];
@@ -1910,6 +2198,39 @@ function deletePedido(row) {
   }
 }
 
+function getProdutos() {
+  try {
+    if (!SHEET_PRODUTOS) throw new Error("Aba 'Relação de produtos' não encontrada");
+
+    const values = SHEET_PRODUTOS.getDataRange().getDisplayValues();
+    if (values.length === 0) return { headers: [], data: [] };
+
+    const headers = values[0];
+    const data = values.slice(1).map((row, index) => {
+      let obj = {};
+      headers.forEach((h, i) => {
+        let valor = row[i];
+
+        // Formatação de data se a coluna for DATA
+        if (h === "DATA" && valor) {
+          const dataObj = new Date(valor);
+          if (!isNaN(dataObj)) {
+            valor = Utilities.formatDate(dataObj, Session.getScriptTimeZone(), "dd/MM/yyyy");
+          }
+        }
+
+        obj[h] = valor;
+      });
+      obj["_linhaPlanilha"] = index + 2;
+      return obj;
+    });
+
+    return { headers: headers, data: data };
+  } catch (err) {
+    Logger.log("Erro getProdutos: " + err.message);
+    throw err;
+  }
+}
 
 function atualizarStatusKanban(cliente, projeto, novoStatus) {
   try {
