@@ -1560,6 +1560,21 @@ function doGet(e) {
 
         const values = SHEET_ORC.getDataRange().getValues();
         const headers = values[0];
+        
+        // Função para normalizar nomes de cabeçalho (remove acentos, espaços extras, converte para maiúsculas)
+        function normalizeHeader(h) {
+          if (!h) return '';
+          return String(h).trim().toUpperCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ');
+        }
+        
+        // Mapeia índices de cabeçalhos normalizados para facilitar busca
+        const headerNormalizedMap = {};
+        headers.forEach((h, i) => {
+          headerNormalizedMap[normalizeHeader(h)] = i;
+        });
+        
         const data = values.slice(1).map((row, index) => {
           let obj = {};
           headers.forEach((h, i) => {
@@ -1572,6 +1587,25 @@ function doGet(e) {
             }
             obj[h] = valor;
           });
+          
+          // Adiciona chaves padronizadas para campos que podem ter variações de nome
+          // Isso garante que o template sempre encontre os dados esperados
+          const standardKeys = {
+            'DESCRICAO': 'DESCRIÇÃO',
+            'RESPONSAVEL': 'RESPONSÁVEL',
+            'RESPONSAVEL CLIENTE': 'RESPONSÁVEL CLIENTE'
+          };
+          
+          Object.entries(standardKeys).forEach(([normalizedKey, standardKey]) => {
+            if (obj[standardKey] === undefined) {
+              // Procura por variação do cabeçalho
+              const idx = headerNormalizedMap[normalizedKey];
+              if (idx !== undefined && row[idx] !== undefined) {
+                obj[standardKey] = row[idx];
+              }
+            }
+          });
+          
           obj["_linhaPlanilha"] = index + 2;
           return obj;
         });
@@ -1612,27 +1646,41 @@ function adicionarOrcamentoNaPlanilha(dados) {
     if (lastCol < 1) throw new Error('Cabeçalho da planilha "Orçamentos" não encontrado.');
     const headers = SHEET_ORC.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
 
+    // Função para normalizar strings (para comparação de headers)
+    function normalizeKey(s) {
+      if (!s) return '';
+      return String(s).trim().toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]/g, '');
+    }
+    
+    // Cria um mapa de headers normalizados para índices
+    const normalizedHeaderMap = {};
+    headers.forEach((h, i) => {
+      normalizedHeaderMap[normalizeKey(h)] = i;
+    });
+
     // Prepara array com valores na ordem dos headers
     const rowValues = new Array(headers.length).fill('');
 
     // Campos que esperamos receber (mapear conforme sua planilha)
-    // O front-end envia os dados com nomes específicos, e precisamos mapear para os cabeçalhos da planilha
+    // Cada entrada: headerNormalizado -> [possíveis chaves do objeto dados]
     const campoMap = {
       'CLIENTE': ['CLIENTE'],
-      'DESCRIÇÃO': ['DESCRIÇÃO'],
-      'RESPONSÁVEL': ['RESPONSÁVEL', 'RESPONSÁVEL CLIENTE'],  // Aceita ambos os nomes
+      'DESCRICAO': ['DESCRIÇÃO', 'DESCRICAO'],  // Normalizado sem acento
+      'RESPONSAVEL': ['RESPONSÁVEL', 'RESPONSÁVEL CLIENTE', 'RESPONSAVEL', 'RESPONSAVEL CLIENTE'],
       'PROJETO': ['PROJETO'],
-      'VALOR TOTAL': ['VALOR TOTAL'],
+      'VALORTOTAL': ['VALOR TOTAL'],
       'DATA': ['DATA'],
-      'Processos': ['Processos'],
-      'LINK DO PDF': ['LINK DO PDF'],
-      'LINK DA MEMÓRIA DE CÁLCULO': ['LINK DA MEMÓRIA DE CÁLCULO'],
+      'PROCESSOS': ['Processos', 'PROCESSOS'],
+      'LINKDOPDF': ['LINK DO PDF'],
+      'LINKDAMEMORIADECALCULO': ['LINK DA MEMÓRIA DE CÁLCULO'],
       'STATUS': ['STATUS']
     };
 
-    Object.entries(campoMap).forEach(([headerName, possibleKeys]) => {
-      const colIdx = headers.indexOf(headerName);
-      if (colIdx !== -1) {
+    Object.entries(campoMap).forEach(([normalizedHeader, possibleKeys]) => {
+      const colIdx = normalizedHeaderMap[normalizedHeader];
+      if (colIdx !== undefined) {
         // Tenta encontrar o valor usando qualquer uma das chaves possíveis
         let valor = '';
         for (const key of possibleKeys) {
@@ -1642,7 +1690,7 @@ function adicionarOrcamentoNaPlanilha(dados) {
           }
         }
         // Se for DATA e estiver no formato dd/mm/yyyy, converte para Date para manter formatação na planilha
-        if (headerName === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
+        if (normalizedHeader === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
           const parts = valor.split('/');
           const d = parseInt(parts[0], 10);
           const m = parseInt(parts[1], 10) - 1;
