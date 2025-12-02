@@ -2285,11 +2285,17 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
   }
 }
 
+// Número de colunas esperadas na planilha Orçamentos
+// CLIENTE, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+const ORCAMENTOS_NUM_COLUNAS = 10;
+
 function salvarRascunho(nomeRascunho, dados) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
     
     // Extrai dados relevantes do formulário
+    // Dados do cliente vêm de dados.cliente
+    // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
     const clienteNome = (dados.cliente && dados.cliente.nome) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
@@ -2305,8 +2311,7 @@ function salvarRascunho(nomeRascunho, dados) {
       dados: dados
     });
     
-    // Estrutura da linha para a planilha Orçamentos:
-    // CLIENTE, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+    // Estrutura da linha para a planilha Orçamentos
     const rowValues = [
       clienteNome,
       clienteResponsavel,
@@ -2320,24 +2325,26 @@ function salvarRascunho(nomeRascunho, dados) {
       dadosJson
     ];
     
-    // Verifica se já existe um rascunho com o mesmo código de projeto
-    // Se existir, atualiza; senão, cria novo
+    // Verifica se já existe um registro com o mesmo código de projeto
     const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
     
     if (linhaExistente) {
       // Verifica se é um rascunho (só atualiza se for rascunho)
       const statusAtual = SHEET_ORC.getRange(linhaExistente, 9).getValue();
       if (statusAtual === "RASCUNHO") {
+        // Atualiza o rascunho existente
         SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
       } else {
-        // Se não for rascunho, cria um novo registro (versão diferente)
+        // Se o projeto já foi finalizado (não é rascunho), cria um novo rascunho
+        // Isso permite criar novas versões de orçamentos já finalizados
         SHEET_ORC.appendRow(rowValues);
       }
     } else {
+      // Cria novo rascunho
       SHEET_ORC.appendRow(rowValues);
     }
     
-    return { success: true, projeto: codigoProjeto };
+    return { success: true };
   } catch (e) {
     Logger.log("Erro ao salvar rascunho: " + e.message);
     throw new Error("Erro ao salvar rascunho: " + e.message);
@@ -2348,27 +2355,27 @@ function carregarRascunho(linhaOuKey) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
     
-    // linhaOuKey pode ser o número da linha na planilha
+    // linhaOuKey é o número da linha na planilha
     const linha = parseInt(linhaOuKey, 10);
     if (isNaN(linha) || linha < 2) {
       throw new Error("Linha inválida: " + linhaOuKey);
     }
     
-    // Verifica se a linha existe e é um rascunho
+    // Verifica se a linha existe
     const lastRow = SHEET_ORC.getLastRow();
     if (linha > lastRow) {
       throw new Error("Rascunho não encontrado");
     }
     
-    // Lê a linha da planilha
-    const rowData = SHEET_ORC.getRange(linha, 1, 1, 10).getValues()[0];
-    const status = rowData[8]; // Coluna 9 = STATUS
+    // Lê a linha da planilha usando a constante de número de colunas
+    const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
+    const status = rowData[8]; // Coluna 9 = STATUS (índice 8)
     
     if (status !== "RASCUNHO") {
       throw new Error("Este registro não é um rascunho");
     }
     
-    // Coluna 10 contém o JSON com todos os dados do formulário
+    // Coluna 10 (índice 9) contém o JSON com todos os dados do formulário
     const dadosJson = rowData[9];
     if (!dadosJson) {
       throw new Error("Dados do rascunho não encontrados");
@@ -2389,8 +2396,8 @@ function getListaRascunhos() {
     const lastRow = SHEET_ORC.getLastRow();
     if (lastRow < 2) return []; // Sem dados
     
-    // Lê todas as linhas da planilha
-    const data = SHEET_ORC.getRange(2, 1, lastRow - 1, 10).getValues();
+    // Lê todas as linhas da planilha usando a constante de número de colunas
+    const data = SHEET_ORC.getRange(2, 1, lastRow - 1, ORCAMENTOS_NUM_COLUNAS).getValues();
     
     const rascunhos = [];
     data.forEach((row, index) => {
