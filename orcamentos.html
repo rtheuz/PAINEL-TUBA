@@ -748,6 +748,7 @@
           <thead>
             <tr>
               <th>Cliente</th>
+              <th>Descrição</th>
               <th>Responsável Cliente</th>
               <th>Projeto</th>
               <th>Valor</th>
@@ -765,8 +766,11 @@
               <td data-label="Cliente" class="col-cliente">
                 <?!= dados[i]["CLIENTE"] ?>
               </td>
+              <td data-label="Descrição" class="col-descricao">
+                <?!= dados[i]["DESCRIÇÃO"] || "" ?>
+              </td>
               <td data-label="Responsável Cliente" class="col-resp">
-                <?!= dados[i]["RESPONSÁVEL CLIENTE"] ?>
+                <?!= dados[i]["RESPONSÁVEL CLIENTE"] || dados[i]["RESPONSÁVEL"] || "" ?>
               </td>
               <td data-label="Projeto" class="col-projeto">
                 <?!= dados[i]["PROJETO"] ?>
@@ -856,6 +860,11 @@
               placeholder="Digite ou selecione">
             <datalist id="clientesList"></datalist>
             <small>Se não existir, será criado automaticamente</small>
+          </div>
+
+          <div class="field">
+            <label for="inputDescricao">Descrição</label>
+            <input id="inputDescricao" name="descricao" placeholder="Descrição do orçamento/projeto">
           </div>
 
           <div class="field">
@@ -996,6 +1005,7 @@
       const form = document.getElementById('formNovoOrcamento');
 
       form.cliente.value = tr.querySelector('.col-cliente')?.textContent.trim() || '';
+      form.descricao.value = tr.querySelector('.col-descricao')?.textContent.trim() || '';
       form.responsavelcliente.value = tr.querySelector('.col-resp')?.textContent.trim() || '';
       form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
       form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
@@ -1082,13 +1092,14 @@
 
       rows.forEach(r => {
         const cliente = normalizeText(r.querySelector('.col-cliente')?.textContent || '');
+        const descricao = normalizeText(r.querySelector('.col-descricao')?.textContent || '');
         const resp = normalizeText(r.querySelector('.col-resp')?.textContent || '');
         const projeto = normalizeText(r.querySelector('.col-projeto')?.textContent || '');
         const valor = normalizeText(r.querySelector('.col-valor')?.textContent || '');
         const data = normalizeText(r.querySelector('.col-data')?.textContent || '');
         const processos = normalizeText(r.querySelector('.col-processos')?.textContent || '');
 
-        const combined = [cliente, resp, projeto, valor, data, processos].join(' ');
+        const combined = [cliente, descricao, resp, projeto, valor, data, processos].join(' ');
         let matchesText = true;
         if (q) matchesText = combined.indexOf(q) !== -1;
 
@@ -1179,6 +1190,7 @@
     function submitNovoOrcamento() {
       const form = document.getElementById('formNovoOrcamento');
       const clienteNome = (form.cliente.value || '').trim();
+      const descricao = (form.descricao.value || '').trim();
       const responsavelcliente = (form.responsavelcliente.value || '').trim();
       const projeto = (form.projeto.value || '').trim();
       const valor = (form.valor.value || '').trim();
@@ -1195,6 +1207,7 @@
 
       const dataObj = {
         CLIENTE: clienteNome,
+        "DESCRIÇÃO": descricao,
         "RESPONSÁVEL CLIENTE": responsavelcliente,
         PROJETO: projeto,
         "VALOR TOTAL": valor,
@@ -1296,6 +1309,7 @@
       tr.setAttribute('data-row', String(linhaPlanilha));
       tr.innerHTML = `
         <td data-label="Cliente" class="col-cliente">${dados.CLIENTE || ''}</td>
+        <td data-label="Descrição" class="col-descricao">${dados["DESCRIÇÃO"] || ''}</td>
         <td data-label="Responsável Cliente" class="col-resp">${dados["RESPONSÁVEL CLIENTE"] || ''}</td>
         <td data-label="Projeto" class="col-projeto">${dados.PROJETO || ''}</td>
         <td data-label="Valor" class="col-valor">${dados["VALOR TOTAL"] || ''}</td>
@@ -1343,6 +1357,7 @@
       }
 
       tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';
+      tr.querySelector('.col-descricao').textContent = dados["DESCRIÇÃO"] || '';
       tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL CLIENTE"] || '';
       tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
       tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';

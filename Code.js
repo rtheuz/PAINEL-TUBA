@@ -627,7 +627,7 @@ function gerarPdfOrcamento(
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
     }
 
-    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas);
+    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas, observacoes);
     return { url: file.getUrl(), nome: file.getName(), memoriaUrl: memoriaUrl };
   } catch (err) {
     Logger.log("ERRO gerarPdfOrcamento: " + err.toString());
@@ -791,7 +791,7 @@ function findRowByColumnValue(sheet, colHeader, value) {
 
 
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
-function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas) {
+function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes) {
   // Leitura em bloco das colunas H para as faixas de corte/dobra que você utiliza
   const matKeys = Object.keys(MATERIAIS);
   const idxMap = _getMaterialIndexMap().map; // não usado diretamente, mantido por compatibilidade
@@ -834,14 +834,19 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
   if (totalAdicionais > 0) processosArray.push(`Adicionais: ${totalAdicionais.toFixed(2)}h`);
   const processosStr = processosArray.join(", ");
 
+  // Extrai descrição das observações
+  const descricao = (observacoes && observacoes.descricao) || "";
+
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
     // Serializa os dados das chapas para JSON (para armazenar e recuperar depois)
     const chapasJson = JSON.stringify(chapas || []);
     
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
+    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
     const rowValues = [
       cliente.nome || "",
+      descricao,  // Nova coluna DESCRIÇÃO
       cliente.responsavel || "",
       codigoProjeto || "",
       valorTotal || "",
@@ -874,6 +879,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       const chapasJson = JSON.stringify(chapas || []);
       SHEET_ORC.appendRow([
         cliente.nome || "",
+        descricao,  // Nova coluna DESCRIÇÃO
         cliente.responsavel || "",
         codigoProjeto || "",
         valorTotal || "",
@@ -1610,8 +1616,10 @@ function adicionarOrcamentoNaPlanilha(dados) {
     const rowValues = new Array(headers.length).fill('');
 
     // Campos que esperamos receber (mapear conforme sua planilha)
+    // Ordem: CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS
     const campoMap = [
       'CLIENTE',
+      'DESCRIÇÃO',
       'RESPONSÁVEL',
       'PROJETO',
       'VALOR TOTAL',
@@ -2286,8 +2294,8 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
 }
 
 // Número de colunas esperadas na planilha Orçamentos
-// CLIENTE, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
-const ORCAMENTOS_NUM_COLUNAS = 10;
+// CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+const ORCAMENTOS_NUM_COLUNAS = 11;
 
 function salvarRascunho(nomeRascunho, dados) {
   try {
@@ -2297,6 +2305,7 @@ function salvarRascunho(nomeRascunho, dados) {
     // Dados do cliente vêm de dados.cliente
     // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
     const clienteNome = (dados.cliente && dados.cliente.nome) || "";
+    const descricao = (dados.observacoes && dados.observacoes.descricao) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
     
@@ -2312,8 +2321,10 @@ function salvarRascunho(nomeRascunho, dados) {
     });
     
     // Estrutura da linha para a planilha Orçamentos
+    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
     const rowValues = [
       clienteNome,
+      descricao,  // Nova coluna DESCRIÇÃO
       clienteResponsavel,
       codigoProjeto,
       "",  // VALOR TOTAL - vazio para rascunho
@@ -2330,7 +2341,7 @@ function salvarRascunho(nomeRascunho, dados) {
     
     if (linhaExistente) {
       // Verifica se é um rascunho (só atualiza se for rascunho)
-      const statusAtual = SHEET_ORC.getRange(linhaExistente, 9).getValue();
+      const statusAtual = SHEET_ORC.getRange(linhaExistente, 10).getValue(); // Coluna 10 = STATUS
       if (statusAtual === "RASCUNHO") {
         // Atualiza o rascunho existente
         SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
@@ -2369,14 +2380,14 @@ function carregarRascunho(linhaOuKey) {
     
     // Lê a linha da planilha usando a constante de número de colunas
     const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
-    const status = rowData[8]; // Coluna 9 = STATUS (índice 8)
+    const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
     
     if (status !== "RASCUNHO") {
       throw new Error("Este registro não é um rascunho");
     }
     
-    // Coluna 10 (índice 9) contém o JSON com todos os dados do formulário
-    const dadosJson = rowData[9];
+    // Coluna 11 (índice 10) contém o JSON com todos os dados do formulário
+    const dadosJson = rowData[10];
     if (!dadosJson) {
       throw new Error("Dados do rascunho não encontrados");
     }
@@ -2401,16 +2412,17 @@ function getListaRascunhos() {
     
     const rascunhos = [];
     data.forEach((row, index) => {
-      const status = row[8]; // Coluna 9 = STATUS
+      const status = row[9]; // Coluna 10 = STATUS (índice 9)
       if (status === "RASCUNHO") {
         const clienteNome = row[0] || "Sem cliente";
-        const projeto = row[2] || "Sem projeto";
-        const dataOrcamento = row[4] || "";
+        const descricao = row[1] || ""; // Nova coluna DESCRIÇÃO (índice 1)
+        const projeto = row[3] || "Sem projeto"; // PROJETO agora é índice 3
+        const dataOrcamento = row[5] || ""; // DATA agora é índice 5
         
         // Tenta extrair o nome do rascunho do JSON
         let nomeRascunho = "";
         try {
-          const dadosJson = row[9];
+          const dadosJson = row[10]; // JSON_DADOS agora é índice 10
           if (dadosJson) {
             const parsed = JSON.parse(dadosJson);
             nomeRascunho = parsed.nome || "";
@@ -2421,10 +2433,15 @@ function getListaRascunhos() {
         
         const linhaReal = index + 2; // +2 porque índice começa em 0 e há cabeçalho
         
-        // Formata o nome para exibição
-        const nomeExibicao = nomeRascunho 
-          ? `${nomeRascunho} - ${projeto} (${dataOrcamento})`
-          : `${clienteNome} - ${projeto} (${dataOrcamento})`;
+        // Formata o nome para exibição - agora inclui descrição se disponível
+        let nomeExibicao;
+        if (nomeRascunho) {
+          nomeExibicao = `${nomeRascunho} - ${projeto} (${dataOrcamento})`;
+        } else if (descricao) {
+          nomeExibicao = `${descricao} - ${projeto} (${dataOrcamento})`;
+        } else {
+          nomeExibicao = `${clienteNome} - ${projeto} (${dataOrcamento})`;
+        }
         
         rascunhos.push({
           key: linhaReal.toString(),
@@ -2457,7 +2474,7 @@ function deletarRascunho(linhaOuKey) {
     }
     
     // Verifica se é um rascunho antes de deletar
-    const status = SHEET_ORC.getRange(linha, 9).getValue();
+    const status = SHEET_ORC.getRange(linha, 10).getValue(); // Coluna 10 = STATUS
     if (status !== "RASCUNHO") {
       throw new Error("Este registro não é um rascunho e não pode ser deletado por esta função");
     }

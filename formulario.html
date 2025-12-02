@@ -330,6 +330,13 @@
                     <label>Projeto (código):</label>
                     <input type="text" id="obsProjeto" readonly>
                 </div>
+                <div class="col" style="flex: 2;">
+                    <label>Descrição do Orçamento/Projeto:</label>
+                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
                 <div class="col">
                     <label>Previsão de faturamento:</label>
                     <input type="date" id="obsFaturamento">
@@ -1047,7 +1054,8 @@
                 materialCond: document.getElementById("obsMaterialCond").value,
                 pagamento: document.getElementById("obsPagamento").value,
                 adicional: document.getElementById("obsAdicional").value,
-                projeto: document.getElementById("obsProjeto").value
+                projeto: document.getElementById("obsProjeto").value,
+                descricao: document.getElementById("obsDescricao").value
             };
 
             // 6. Produtos Cadastrados
@@ -1085,6 +1093,7 @@
             document.getElementById("obsPagamento").value = data.observacoes.pagamento || "";
             document.getElementById("obsAdicional").value = data.observacoes.adicional || "";
             document.getElementById("obsProjeto").value = data.observacoes.projeto || "";
+            document.getElementById("obsDescricao").value = data.observacoes.descricao || "";
 
             // 4. Chapas / Peças / Processos (limpar e recriar)
             document.getElementById("chapasContainer").innerHTML = "";
