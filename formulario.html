@@ -395,9 +395,12 @@
                     const vendedorInput = document.getElementById("obsVendedor");
                     vendedorInput.value = usuarioObj.usuario || "";
 
-                    // Preenche iniciais personalizadas
-                    // const iniciaisInput = document.getElementById("projetoIniciais");
-                    // iniciaisInput.value = usuarioObj.iniciais || "";
+                    // Preenche iniciais personalizadas (editável pelo usuário)
+                    const iniciaisInput = document.getElementById("projetoIniciais");
+                    if (!iniciaisInput.value) {
+                        // Só preenche se estiver vazio (não sobrescreve se já tiver valor)
+                        iniciaisInput.value = usuarioObj.iniciais || "";
+                    }
 
                 })
                 .getUsuarioLogadoPorToken(token);
