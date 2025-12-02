@@ -2287,36 +2287,95 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
 
 function salvarRascunho(nomeRascunho, dados) {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    // Tenta obter e analisar o JSON, usa um objeto vazio se falhar (primeira vez)
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    // Cria uma chave única baseada no tempo atual
-    const key = new Date().getTime().toString();
-
-    // Salva o rascunho. JSON.stringify() é importante, pois PropertiesService só aceita strings.
-    rascunhosSalvos[key] = {
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    // Extrai dados relevantes do formulário
+    const clienteNome = (dados.cliente && dados.cliente.nome) || "";
+    const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
+    const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
+    
+    // Data formatada para exibição
+    const agora = new Date();
+    const dataBrasil = formatarDataBrasil(agora);
+    
+    // Serializa todos os dados do formulário para JSON
+    const dadosJson = JSON.stringify({
       nome: nomeRascunho,
-      data: new Date().toLocaleString('pt-BR'), // Data e hora para exibir
+      dataSalvo: agora.toISOString(),
       dados: dados
-    };
-
-    userProperties.setProperty('rascunhos_orcamento', JSON.stringify(rascunhosSalvos));
+    });
+    
+    // Estrutura da linha para a planilha Orçamentos:
+    // CLIENTE, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+    const rowValues = [
+      clienteNome,
+      clienteResponsavel,
+      codigoProjeto,
+      "",  // VALOR TOTAL - vazio para rascunho
+      dataBrasil,
+      "",  // Processos - vazio para rascunho
+      "",  // LINK PDF - vazio para rascunho
+      "",  // LINK MEMÓRIA - vazio para rascunho
+      "RASCUNHO",
+      dadosJson
+    ];
+    
+    // Verifica se já existe um rascunho com o mesmo código de projeto
+    // Se existir, atualiza; senão, cria novo
+    const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    
+    if (linhaExistente) {
+      // Verifica se é um rascunho (só atualiza se for rascunho)
+      const statusAtual = SHEET_ORC.getRange(linhaExistente, 9).getValue();
+      if (statusAtual === "RASCUNHO") {
+        SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
+      } else {
+        // Se não for rascunho, cria um novo registro (versão diferente)
+        SHEET_ORC.appendRow(rowValues);
+      }
+    } else {
+      SHEET_ORC.appendRow(rowValues);
+    }
+    
+    return { success: true, projeto: codigoProjeto };
   } catch (e) {
     Logger.log("Erro ao salvar rascunho: " + e.message);
     throw new Error("Erro ao salvar rascunho: " + e.message);
   }
 }
 
-function carregarRascunho(key) {
+function carregarRascunho(linhaOuKey) {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    if (rascunhosSalvos[key]) {
-      return rascunhosSalvos[key].dados;
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    // linhaOuKey pode ser o número da linha na planilha
+    const linha = parseInt(linhaOuKey, 10);
+    if (isNaN(linha) || linha < 2) {
+      throw new Error("Linha inválida: " + linhaOuKey);
     }
-    return null;
+    
+    // Verifica se a linha existe e é um rascunho
+    const lastRow = SHEET_ORC.getLastRow();
+    if (linha > lastRow) {
+      throw new Error("Rascunho não encontrado");
+    }
+    
+    // Lê a linha da planilha
+    const rowData = SHEET_ORC.getRange(linha, 1, 1, 10).getValues()[0];
+    const status = rowData[8]; // Coluna 9 = STATUS
+    
+    if (status !== "RASCUNHO") {
+      throw new Error("Este registro não é um rascunho");
+    }
+    
+    // Coluna 10 contém o JSON com todos os dados do formulário
+    const dadosJson = rowData[9];
+    if (!dadosJson) {
+      throw new Error("Dados do rascunho não encontrados");
+    }
+    
+    const dadosParsed = JSON.parse(dadosJson);
+    return dadosParsed.dados; // Retorna apenas os dados do formulário
   } catch (e) {
     Logger.log("Erro ao carregar rascunho: " + e.message);
     throw new Error("Erro ao carregar rascunho: " + e.message);
@@ -2325,14 +2384,50 @@ function carregarRascunho(key) {
 
 function getListaRascunhos() {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    // Converte o objeto de rascunhos em um array, formatando o nome para o dropdown
-    return Object.keys(rascunhosSalvos).map(key => ({
-      key: key,
-      nome: `${rascunhosSalvos[key].nome} (${rascunhosSalvos[key].data})`
-    })).sort((a, b) => b.key - a.key); // Ordena pelo mais recente
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    const lastRow = SHEET_ORC.getLastRow();
+    if (lastRow < 2) return []; // Sem dados
+    
+    // Lê todas as linhas da planilha
+    const data = SHEET_ORC.getRange(2, 1, lastRow - 1, 10).getValues();
+    
+    const rascunhos = [];
+    data.forEach((row, index) => {
+      const status = row[8]; // Coluna 9 = STATUS
+      if (status === "RASCUNHO") {
+        const clienteNome = row[0] || "Sem cliente";
+        const projeto = row[2] || "Sem projeto";
+        const dataOrcamento = row[4] || "";
+        
+        // Tenta extrair o nome do rascunho do JSON
+        let nomeRascunho = "";
+        try {
+          const dadosJson = row[9];
+          if (dadosJson) {
+            const parsed = JSON.parse(dadosJson);
+            nomeRascunho = parsed.nome || "";
+          }
+        } catch (e) {
+          // Ignora erros de parse
+        }
+        
+        const linhaReal = index + 2; // +2 porque índice começa em 0 e há cabeçalho
+        
+        // Formata o nome para exibição
+        const nomeExibicao = nomeRascunho 
+          ? `${nomeRascunho} - ${projeto} (${dataOrcamento})`
+          : `${clienteNome} - ${projeto} (${dataOrcamento})`;
+        
+        rascunhos.push({
+          key: linhaReal.toString(),
+          nome: nomeExibicao
+        });
+      }
+    });
+    
+    // Ordena pelo mais recente (maior número de linha = mais recente)
+    return rascunhos.sort((a, b) => parseInt(b.key) - parseInt(a.key));
   } catch (e) {
     Logger.log("Erro ao obter lista de rascunhos: " + e.message);
     // Retorna array vazio em caso de erro para não quebrar a UI
@@ -2340,14 +2435,30 @@ function getListaRascunhos() {
   }
 }
 
-function deletarRascunho(key) {
+function deletarRascunho(linhaOuKey) {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    delete rascunhosSalvos[key];
-
-    userProperties.setProperty('rascunhos_orcamento', JSON.stringify(rascunhosSalvos));
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    const linha = parseInt(linhaOuKey, 10);
+    if (isNaN(linha) || linha < 2) {
+      throw new Error("Linha inválida: " + linhaOuKey);
+    }
+    
+    const lastRow = SHEET_ORC.getLastRow();
+    if (linha > lastRow) {
+      throw new Error("Rascunho não encontrado");
+    }
+    
+    // Verifica se é um rascunho antes de deletar
+    const status = SHEET_ORC.getRange(linha, 9).getValue();
+    if (status !== "RASCUNHO") {
+      throw new Error("Este registro não é um rascunho e não pode ser deletado por esta função");
+    }
+    
+    // Remove a linha da planilha
+    SHEET_ORC.deleteRow(linha);
+    
+    return { success: true };
   } catch (e) {
     Logger.log("Erro ao deletar rascunho: " + e.message);
     throw new Error("Erro ao deletar rascunho: " + e.message);
