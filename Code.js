@@ -1616,26 +1616,33 @@ function adicionarOrcamentoNaPlanilha(dados) {
     const rowValues = new Array(headers.length).fill('');
 
     // Campos que esperamos receber (mapear conforme sua planilha)
-    // Ordem: CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS
-    const campoMap = [
-      'CLIENTE',
-      'DESCRIÇÃO',
-      'RESPONSÁVEL',
-      'PROJETO',
-      'VALOR TOTAL',
-      'DATA',
-      'Processos',
-      'LINK DO PDF',
-      'LINK DA MEMÓRIA DE CÁLCULO',
-      'STATUS'
-    ];
+    // O front-end envia os dados com nomes específicos, e precisamos mapear para os cabeçalhos da planilha
+    const campoMap = {
+      'CLIENTE': ['CLIENTE'],
+      'DESCRIÇÃO': ['DESCRIÇÃO'],
+      'RESPONSÁVEL': ['RESPONSÁVEL', 'RESPONSÁVEL CLIENTE'],  // Aceita ambos os nomes
+      'PROJETO': ['PROJETO'],
+      'VALOR TOTAL': ['VALOR TOTAL'],
+      'DATA': ['DATA'],
+      'Processos': ['Processos'],
+      'LINK DO PDF': ['LINK DO PDF'],
+      'LINK DA MEMÓRIA DE CÁLCULO': ['LINK DA MEMÓRIA DE CÁLCULO'],
+      'STATUS': ['STATUS']
+    };
 
-    campoMap.forEach(campo => {
-      const colIdx = headers.indexOf(campo);
+    Object.entries(campoMap).forEach(([headerName, possibleKeys]) => {
+      const colIdx = headers.indexOf(headerName);
       if (colIdx !== -1) {
-        let valor = dados[campo] !== undefined ? dados[campo] : (dados[campo.toUpperCase()] !== undefined ? dados[campo.toUpperCase()] : '');
+        // Tenta encontrar o valor usando qualquer uma das chaves possíveis
+        let valor = '';
+        for (const key of possibleKeys) {
+          if (dados[key] !== undefined) {
+            valor = dados[key];
+            break;
+          }
+        }
         // Se for DATA e estiver no formato dd/mm/yyyy, converte para Date para manter formatação na planilha
-        if (campo === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
+        if (headerName === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
           const parts = valor.split('/');
           const d = parseInt(parts[0], 10);
           const m = parseInt(parts[1], 10) - 1;
