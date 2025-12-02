@@ -400,6 +400,10 @@
                     if (!iniciaisInput.value) {
                         // Só preenche se estiver vazio (não sobrescreve se já tiver valor)
                         iniciaisInput.value = usuarioObj.iniciais || "";
+                        // Atualiza o código do projeto após preencher as iniciais
+                        if (typeof atualizarCamposProjeto === 'function') {
+                            atualizarCamposProjeto();
+                        }
                     }
 
                 })
