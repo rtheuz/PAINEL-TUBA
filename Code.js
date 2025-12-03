@@ -2474,17 +2474,83 @@ function carregarRascunho(linhaOuKey) {
     const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
     const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
     
-    // Agora permite carregar tanto RASCUNHO quanto orçamentos Enviados
-    // (apenas verifica se tem dados JSON para carregar)
-    
     // Coluna 12 (índice 11) contém o JSON com todos os dados do formulário
     const dadosJson = rowData[11];
-    if (!dadosJson) {
-      throw new Error("Dados do orçamento não encontrados. Este orçamento não possui dados salvos para edição.");
+    
+    // Se tiver JSON_DADOS, usa os dados completos do formulário
+    if (dadosJson) {
+      try {
+        const dadosParsed = JSON.parse(dadosJson);
+        return dadosParsed.dados; // Retorna apenas os dados do formulário
+      } catch (parseErr) {
+        Logger.log("Erro ao parsear JSON_DADOS na linha " + linha + ": " + parseErr.message);
+        // Se falhar o parse, continua para construir dados básicos
+      }
     }
     
-    const dadosParsed = JSON.parse(dadosJson);
-    return dadosParsed.dados; // Retorna apenas os dados do formulário
+    // Se não tiver JSON_DADOS, constrói dados básicos a partir das colunas da planilha
+    // Estrutura da planilha: CLIENTE(0), DESCRIÇÃO(1), RESPONSÁVEL(2), PROJETO(3), 
+    // VALOR TOTAL(4), DATA(5), Processos(6), LINK PDF(7), LINK MEMÓRIA(8), STATUS(9), PRAZO(10), JSON_DADOS(11)
+    const clienteNome = rowData[0] || "";
+    const descricao = rowData[1] || "";
+    const responsavel = rowData[2] || "";
+    const projeto = rowData[3] || "";
+    const valorTotal = rowData[4] || "";
+    const dataOrcamento = rowData[5] || "";
+    const processos = rowData[6] || "";
+    const prazo = rowData[10] || "";
+    
+    // Extrai código do projeto (assumindo formato padrão YYMMDD + índice + iniciais)
+    const codigoProjeto = projeto || "";
+    let projetoData = "";
+    let projetoIndice = "";
+    let projetoIniciais = "";
+    
+    if (codigoProjeto.length >= 6) {
+      projetoData = codigoProjeto.substring(0, 6);
+      // Tenta extrair índice (letra) e iniciais
+      const resto = codigoProjeto.substring(6);
+      if (resto.length > 0) {
+        projetoIndice = resto.charAt(0);
+        projetoIniciais = resto.substring(1);
+      }
+    }
+    
+    // Constrói estrutura básica compatível com o formulário
+    const dadosBasicos = {
+      projeto: {
+        data: projetoData,
+        indice: projetoIndice,
+        iniciais: projetoIniciais,
+        versao: "",
+        pasta: ""
+      },
+      cliente: {
+        select: clienteNome,
+        nome: clienteNome,
+        cpf: "",
+        endereco: "",
+        telefone: "",
+        email: "",
+        responsavel: responsavel,
+        data: dataOrcamento
+      },
+      chapas: [],
+      processosPedido: [],
+      observacoes: {
+        faturamento: "",
+        prazo: prazo,
+        vendedor: "",
+        materialCond: "",
+        pagamento: "",
+        adicional: "",
+        projeto: codigoProjeto,
+        descricao: descricao
+      },
+      produtosCadastrados: []
+    };
+    
+    return dadosBasicos;
   } catch (e) {
     Logger.log("Erro ao carregar orçamento: " + e.message);
     throw new Error("Erro ao carregar orçamento: " + e.message);
