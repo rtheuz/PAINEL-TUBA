@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <base target="_top">
-  <title>Orçamentos — Sistema TUBA</title>
+  <title>Projetos — Sistema TUBA</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -684,8 +684,8 @@
       <div class="brand">
         <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo TUBA">
         <div class="brand-text">
-          <h1>Orçamentos</h1>
-          <div class="brand-subtitle">Gerencie seus orçamentos</div>
+          <h1>Projetos</h1>
+          <div class="brand-subtitle">Gerencie seus projetos</div>
         </div>
       </div>
 
@@ -696,7 +696,7 @@
         </button>
         <button class="btn btn-primary" onclick="abrirModalNovo()" id="btnNovoOrcamento">
           <span>+</span>
-          <span class="hide-mobile">Novo Orçamento</span>
+          <span class="hide-mobile">Novo projeto</span>
         </button>
       </div>
     </div>
@@ -711,7 +711,7 @@
               <circle cx="11" cy="11" r="6" stroke="#0f172a" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" />
             </svg>
-            <input id="globalSearch" placeholder="Buscar..." oninput="filtroGlobal()" aria-label="Pesquisar orçamentos">
+            <input id="globalSearch" placeholder="Buscar..." oninput="filtroGlobal()" aria-label="Pesquisar projetos">
           </div>
         </div>
 
@@ -744,10 +744,11 @@
       </div>
 
       <div class="table-wrapper">
-        <table id="tabelaOrcamentos" aria-label="Lista de orçamentos">
+        <table id="tabelaOrcamentos" aria-label="Lista de projetos">
           <thead>
             <tr>
               <th>Cliente</th>
+              <th>Descrição</th>
               <th>Responsável Cliente</th>
               <th>Projeto</th>
               <th>Valor</th>
@@ -765,8 +766,11 @@
               <td data-label="Cliente" class="col-cliente">
                 <?!= dados[i]["CLIENTE"] ?>
               </td>
+              <td data-label="Descrição" class="col-descricao">
+                <?!= dados[i]["DESCRIÇÃO"] || "" ?>
+              </td>
               <td data-label="Responsável Cliente" class="col-resp">
-                <?!= dados[i]["RESPONSÁVEL CLIENTE"] ?>
+                <?!= dados[i]["RESPONSÁVEL CLIENTE"] || dados[i]["RESPONSÁVEL"] || "" ?>
               </td>
               <td data-label="Projeto" class="col-projeto">
                 <?!= dados[i]["PROJETO"] ?>
@@ -806,10 +810,10 @@
                 </select>
               </td>
               <td class="td-actions">
-                <button class="btn" title="Editar" onclick="editarLinha(this)" aria-label="Editar orçamento">✎
+                <button class="btn" title="Editar" onclick="editarLinha(this)" aria-label="Editar projeto">✎
                   Editar</button>
                 <button class="btn btn-danger" title="Excluir" onclick="confirmExcluir(this)"
-                  aria-label="Excluir orçamento">🗑 Excluir</button>
+                  aria-label="Excluir projeto">🗑 Excluir</button>
               </td>
             </tr>
             <? } ?>
@@ -823,8 +827,8 @@
             <line x1="9" y1="12" x2="15" y2="12" stroke-width="2" />
             <line x1="9" y1="15" x2="12" y2="15" stroke-width="2" />
           </svg>
-          <h3>Nenhum orçamento encontrado</h3>
-          <p>Tente ajustar os filtros ou adicione um novo orçamento</p>
+          <h3>Nenhum projeto encontrado</h3>
+          <p>Tente ajustar os filtros ou adicione um novo projeto</p>
         </div>
       </div>
     </div>
@@ -844,7 +848,7 @@
   <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal" role="document" aria-labelledby="modalTitle">
       <div class="modal-header">
-        <h2 id="modalTitle">Novo Orçamento</h2>
+        <h2 id="modalTitle">Novo Projeto</h2>
         <button id="modalCloseBtn" class="modal-close" onclick="fecharModal()" aria-label="Fechar modal">✕</button>
       </div>
 
@@ -856,6 +860,11 @@
               placeholder="Digite ou selecione">
             <datalist id="clientesList"></datalist>
             <small>Se não existir, será criado automaticamente</small>
+          </div>
+
+          <div class="field">
+            <label for="inputDescricao">Descrição</label>
+            <input id="inputDescricao" name="descricao" placeholder="Descrição do orçamento/projeto">
           </div>
 
           <div class="field">
@@ -920,7 +929,7 @@
       <div class="modal-header">
         <h3 id="confirmTitle" style="margin:0;font-size:16px;">Confirmar exclusão</h3>
       </div>
-      <p id="confirmMsg" style="margin:12px 0;line-height:1.5;">Tem certeza que deseja excluir este orçamento? Esta ação
+      <p id="confirmMsg" style="margin:12px 0;line-height:1.5;">Tem certeza que deseja excluir este projeto? Esta ação
         não pode ser desfeita.</p>
       <div style="display:flex;gap:8px;margin-top:16px;">
         <button class="btn btn-ghost" onclick="cancelExcluir()" style="flex:1;">Cancelar</button>
@@ -976,7 +985,7 @@
     function abrirModalNovo() {
       editingLinha = null;
       editingTr = null;
-      document.getElementById('modalTitle').textContent = 'Novo Orçamento';
+      document.getElementById('modalTitle').textContent = 'Novo Projeto';
       document.getElementById('btnSubmitModal').textContent = 'Adicionar';
       document.getElementById('formNovoOrcamento').reset();
       const mb = document.getElementById('modalBackdrop');
@@ -996,6 +1005,7 @@
       const form = document.getElementById('formNovoOrcamento');
 
       form.cliente.value = tr.querySelector('.col-cliente')?.textContent.trim() || '';
+      form.descricao.value = tr.querySelector('.col-descricao')?.textContent.trim() || '';
       form.responsavelcliente.value = tr.querySelector('.col-resp')?.textContent.trim() || '';
       form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
       form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
@@ -1082,13 +1092,14 @@
 
       rows.forEach(r => {
         const cliente = normalizeText(r.querySelector('.col-cliente')?.textContent || '');
+        const descricao = normalizeText(r.querySelector('.col-descricao')?.textContent || '');
         const resp = normalizeText(r.querySelector('.col-resp')?.textContent || '');
         const projeto = normalizeText(r.querySelector('.col-projeto')?.textContent || '');
         const valor = normalizeText(r.querySelector('.col-valor')?.textContent || '');
         const data = normalizeText(r.querySelector('.col-data')?.textContent || '');
         const processos = normalizeText(r.querySelector('.col-processos')?.textContent || '');
 
-        const combined = [cliente, resp, projeto, valor, data, processos].join(' ');
+        const combined = [cliente, descricao, resp, projeto, valor, data, processos].join(' ');
         let matchesText = true;
         if (q) matchesText = combined.indexOf(q) !== -1;
 
@@ -1179,6 +1190,7 @@
     function submitNovoOrcamento() {
       const form = document.getElementById('formNovoOrcamento');
       const clienteNome = (form.cliente.value || '').trim();
+      const descricao = (form.descricao.value || '').trim();
       const responsavelcliente = (form.responsavelcliente.value || '').trim();
       const projeto = (form.projeto.value || '').trim();
       const valor = (form.valor.value || '').trim();
@@ -1195,6 +1207,7 @@
 
       const dataObj = {
         CLIENTE: clienteNome,
+        "DESCRIÇÃO": descricao,
         "RESPONSÁVEL CLIENTE": responsavelcliente,
         PROJETO: projeto,
         "VALOR TOTAL": valor,
@@ -1229,7 +1242,7 @@
               btn.disabled = false;
               btn.textContent = originalText;
               updateLinhaTabela(dataObj, editingLinha);
-              showToast('Orçamento atualizado com sucesso', 2500);
+              showToast('Projeto atualizado com sucesso', 2500);
               fecharModal();
 
               if (dataObj.STATUS === "Convertido em Pedido") {
@@ -1262,7 +1275,7 @@
               appendLinhaTabela(dataObj, linhaPlanilha);
               form.reset();
               document.getElementById('inputCliente').focus();
-              showToast('Orçamento adicionado! Adicione outro ou feche.', 3000);
+              showToast('Projeto adicionado! Adicione outro ou feche.', 3000);
 
               if (dataObj.STATUS === "Convertido em Pedido") {
                 google.script.run
@@ -1296,6 +1309,7 @@
       tr.setAttribute('data-row', String(linhaPlanilha));
       tr.innerHTML = `
         <td data-label="Cliente" class="col-cliente">${dados.CLIENTE || ''}</td>
+        <td data-label="Descrição" class="col-descricao">${dados["DESCRIÇÃO"] || ''}</td>
         <td data-label="Responsável Cliente" class="col-resp">${dados["RESPONSÁVEL CLIENTE"] || ''}</td>
         <td data-label="Projeto" class="col-projeto">${dados.PROJETO || ''}</td>
         <td data-label="Valor" class="col-valor">${dados["VALOR TOTAL"] || ''}</td>
@@ -1343,6 +1357,7 @@
       }
 
       tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';
+      tr.querySelector('.col-descricao').textContent = dados["DESCRIÇÃO"] || '';
       tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL CLIENTE"] || '';
       tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
       tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
@@ -1407,7 +1422,7 @@
           cancelExcluir();
           btn.disabled = false;
           btn.textContent = 'Excluir';
-          showToast('Orçamento excluído', 2000);
+          showToast('Projeto excluído', 2000);
           verificarEstadoVazio();
         })
         .withFailureHandler(function (err) {

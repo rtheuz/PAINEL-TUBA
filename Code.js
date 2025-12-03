@@ -627,7 +627,7 @@ function gerarPdfOrcamento(
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
     }
 
-    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas);
+    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas, observacoes);
     return { url: file.getUrl(), nome: file.getName(), memoriaUrl: memoriaUrl };
   } catch (err) {
     Logger.log("ERRO gerarPdfOrcamento: " + err.toString());
@@ -791,7 +791,7 @@ function findRowByColumnValue(sheet, colHeader, value) {
 
 
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
-function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas) {
+function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes) {
   // Leitura em bloco das colunas H para as faixas de corte/dobra que você utiliza
   const matKeys = Object.keys(MATERIAIS);
   const idxMap = _getMaterialIndexMap().map; // não usado diretamente, mantido por compatibilidade
@@ -834,14 +834,19 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
   if (totalAdicionais > 0) processosArray.push(`Adicionais: ${totalAdicionais.toFixed(2)}h`);
   const processosStr = processosArray.join(", ");
 
+  // Extrai descrição das observações
+  const descricao = (observacoes && observacoes.descricao) || "";
+
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
     // Serializa os dados das chapas para JSON (para armazenar e recuperar depois)
     const chapasJson = JSON.stringify(chapas || []);
     
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
+    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
     const rowValues = [
       cliente.nome || "",
+      descricao,  // Nova coluna DESCRIÇÃO
       cliente.responsavel || "",
       codigoProjeto || "",
       valorTotal || "",
@@ -874,6 +879,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       const chapasJson = JSON.stringify(chapas || []);
       SHEET_ORC.appendRow([
         cliente.nome || "",
+        descricao,  // Nova coluna DESCRIÇÃO
         cliente.responsavel || "",
         codigoProjeto || "",
         valorTotal || "",
@@ -1554,6 +1560,21 @@ function doGet(e) {
 
         const values = SHEET_ORC.getDataRange().getValues();
         const headers = values[0];
+        
+        // Função para normalizar nomes de cabeçalho (remove acentos, espaços extras, converte para maiúsculas)
+        function normalizeHeader(h) {
+          if (!h) return '';
+          return String(h).trim().toUpperCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ');
+        }
+        
+        // Mapeia índices de cabeçalhos normalizados para facilitar busca
+        const headerNormalizedMap = {};
+        headers.forEach((h, i) => {
+          headerNormalizedMap[normalizeHeader(h)] = i;
+        });
+        
         const data = values.slice(1).map((row, index) => {
           let obj = {};
           headers.forEach((h, i) => {
@@ -1566,6 +1587,25 @@ function doGet(e) {
             }
             obj[h] = valor;
           });
+          
+          // Adiciona chaves padronizadas para campos que podem ter variações de nome
+          // Isso garante que o template sempre encontre os dados esperados
+          const standardKeys = {
+            'DESCRICAO': 'DESCRIÇÃO',
+            'RESPONSAVEL': 'RESPONSÁVEL',
+            'RESPONSAVEL CLIENTE': 'RESPONSÁVEL CLIENTE'
+          };
+          
+          Object.entries(standardKeys).forEach(([normalizedKey, standardKey]) => {
+            if (obj[standardKey] === undefined) {
+              // Procura por variação do cabeçalho
+              const idx = headerNormalizedMap[normalizedKey];
+              if (idx !== undefined && row[idx] !== undefined) {
+                obj[standardKey] = row[idx];
+              }
+            }
+          });
+          
           obj["_linhaPlanilha"] = index + 2;
           return obj;
         });
@@ -1606,28 +1646,51 @@ function adicionarOrcamentoNaPlanilha(dados) {
     if (lastCol < 1) throw new Error('Cabeçalho da planilha "Orçamentos" não encontrado.');
     const headers = SHEET_ORC.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
 
+    // Função para normalizar strings (para comparação de headers)
+    function normalizeKey(s) {
+      if (!s) return '';
+      return String(s).trim().toUpperCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^A-Z0-9]/g, '');
+    }
+    
+    // Cria um mapa de headers normalizados para índices
+    const normalizedHeaderMap = {};
+    headers.forEach((h, i) => {
+      normalizedHeaderMap[normalizeKey(h)] = i;
+    });
+
     // Prepara array com valores na ordem dos headers
     const rowValues = new Array(headers.length).fill('');
 
     // Campos que esperamos receber (mapear conforme sua planilha)
-    const campoMap = [
-      'CLIENTE',
-      'RESPONSÁVEL',
-      'PROJETO',
-      'VALOR TOTAL',
-      'DATA',
-      'Processos',
-      'LINK DO PDF',
-      'LINK DA MEMÓRIA DE CÁLCULO',
-      'STATUS'
-    ];
+    // Cada entrada: headerNormalizado -> [possíveis chaves do objeto dados]
+    const campoMap = {
+      'CLIENTE': ['CLIENTE'],
+      'DESCRICAO': ['DESCRIÇÃO', 'DESCRICAO'],  // Normalizado sem acento
+      'RESPONSAVEL': ['RESPONSÁVEL', 'RESPONSÁVEL CLIENTE', 'RESPONSAVEL', 'RESPONSAVEL CLIENTE'],
+      'PROJETO': ['PROJETO'],
+      'VALORTOTAL': ['VALOR TOTAL'],
+      'DATA': ['DATA'],
+      'PROCESSOS': ['Processos', 'PROCESSOS'],
+      'LINKDOPDF': ['LINK DO PDF'],
+      'LINKDAMEMORIADECALCULO': ['LINK DA MEMÓRIA DE CÁLCULO'],
+      'STATUS': ['STATUS']
+    };
 
-    campoMap.forEach(campo => {
-      const colIdx = headers.indexOf(campo);
-      if (colIdx !== -1) {
-        let valor = dados[campo] !== undefined ? dados[campo] : (dados[campo.toUpperCase()] !== undefined ? dados[campo.toUpperCase()] : '');
+    Object.entries(campoMap).forEach(([normalizedHeader, possibleKeys]) => {
+      const colIdx = normalizedHeaderMap[normalizedHeader];
+      if (colIdx !== undefined) {
+        // Tenta encontrar o valor usando qualquer uma das chaves possíveis
+        let valor = '';
+        for (const key of possibleKeys) {
+          if (dados[key] !== undefined) {
+            valor = dados[key];
+            break;
+          }
+        }
         // Se for DATA e estiver no formato dd/mm/yyyy, converte para Date para manter formatação na planilha
-        if (campo === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
+        if (normalizedHeader === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
           const parts = valor.split('/');
           const d = parseInt(parts[0], 10);
           const m = parseInt(parts[1], 10) - 1;
@@ -2285,38 +2348,107 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
   }
 }
 
+// Número de colunas esperadas na planilha Orçamentos
+// CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+const ORCAMENTOS_NUM_COLUNAS = 11;
+
 function salvarRascunho(nomeRascunho, dados) {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    // Tenta obter e analisar o JSON, usa um objeto vazio se falhar (primeira vez)
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    // Cria uma chave única baseada no tempo atual
-    const key = new Date().getTime().toString();
-
-    // Salva o rascunho. JSON.stringify() é importante, pois PropertiesService só aceita strings.
-    rascunhosSalvos[key] = {
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    // Extrai dados relevantes do formulário
+    // Dados do cliente vêm de dados.cliente
+    // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
+    const clienteNome = (dados.cliente && dados.cliente.nome) || "";
+    const descricao = (dados.observacoes && dados.observacoes.descricao) || "";
+    const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
+    const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
+    
+    // Data formatada para exibição
+    const agora = new Date();
+    const dataBrasil = formatarDataBrasil(agora);
+    
+    // Serializa todos os dados do formulário para JSON
+    const dadosJson = JSON.stringify({
       nome: nomeRascunho,
-      data: new Date().toLocaleString('pt-BR'), // Data e hora para exibir
+      dataSalvo: agora.toISOString(),
       dados: dados
-    };
-
-    userProperties.setProperty('rascunhos_orcamento', JSON.stringify(rascunhosSalvos));
+    });
+    
+    // Estrutura da linha para a planilha Orçamentos
+    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+    const rowValues = [
+      clienteNome,
+      descricao,  // Nova coluna DESCRIÇÃO
+      clienteResponsavel,
+      codigoProjeto,
+      "",  // VALOR TOTAL - vazio para rascunho
+      dataBrasil,
+      "",  // Processos - vazio para rascunho
+      "",  // LINK PDF - vazio para rascunho
+      "",  // LINK MEMÓRIA - vazio para rascunho
+      "RASCUNHO",
+      dadosJson
+    ];
+    
+    // Verifica se já existe um registro com o mesmo código de projeto
+    const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    
+    if (linhaExistente) {
+      // Verifica se é um rascunho (só atualiza se for rascunho)
+      const statusAtual = SHEET_ORC.getRange(linhaExistente, 10).getValue(); // Coluna 10 = STATUS
+      if (statusAtual === "RASCUNHO") {
+        // Atualiza o rascunho existente
+        SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
+      } else {
+        // Se o projeto já foi finalizado (não é rascunho), cria um novo rascunho
+        // Isso permite criar novas versões de orçamentos já finalizados
+        SHEET_ORC.appendRow(rowValues);
+      }
+    } else {
+      // Cria novo rascunho
+      SHEET_ORC.appendRow(rowValues);
+    }
+    
+    return { success: true };
   } catch (e) {
     Logger.log("Erro ao salvar rascunho: " + e.message);
     throw new Error("Erro ao salvar rascunho: " + e.message);
   }
 }
 
-function carregarRascunho(key) {
+function carregarRascunho(linhaOuKey) {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    if (rascunhosSalvos[key]) {
-      return rascunhosSalvos[key].dados;
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    // linhaOuKey é o número da linha na planilha
+    const linha = parseInt(linhaOuKey, 10);
+    if (isNaN(linha) || linha < 2) {
+      throw new Error("Linha inválida: " + linhaOuKey);
     }
-    return null;
+    
+    // Verifica se a linha existe
+    const lastRow = SHEET_ORC.getLastRow();
+    if (linha > lastRow) {
+      throw new Error("Rascunho não encontrado");
+    }
+    
+    // Lê a linha da planilha usando a constante de número de colunas
+    const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
+    const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
+    
+    if (status !== "RASCUNHO") {
+      throw new Error("Este registro não é um rascunho");
+    }
+    
+    // Coluna 11 (índice 10) contém o JSON com todos os dados do formulário
+    const dadosJson = rowData[10];
+    if (!dadosJson) {
+      throw new Error("Dados do rascunho não encontrados");
+    }
+    
+    const dadosParsed = JSON.parse(dadosJson);
+    return dadosParsed.dados; // Retorna apenas os dados do formulário
   } catch (e) {
     Logger.log("Erro ao carregar rascunho: " + e.message);
     throw new Error("Erro ao carregar rascunho: " + e.message);
@@ -2325,14 +2457,56 @@ function carregarRascunho(key) {
 
 function getListaRascunhos() {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    // Converte o objeto de rascunhos em um array, formatando o nome para o dropdown
-    return Object.keys(rascunhosSalvos).map(key => ({
-      key: key,
-      nome: `${rascunhosSalvos[key].nome} (${rascunhosSalvos[key].data})`
-    })).sort((a, b) => b.key - a.key); // Ordena pelo mais recente
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    const lastRow = SHEET_ORC.getLastRow();
+    if (lastRow < 2) return []; // Sem dados
+    
+    // Lê todas as linhas da planilha usando a constante de número de colunas
+    const data = SHEET_ORC.getRange(2, 1, lastRow - 1, ORCAMENTOS_NUM_COLUNAS).getValues();
+    
+    const rascunhos = [];
+    data.forEach((row, index) => {
+      const status = row[9]; // Coluna 10 = STATUS (índice 9)
+      if (status === "RASCUNHO") {
+        const clienteNome = row[0] || "Sem cliente";
+        const descricao = row[1] || ""; // Nova coluna DESCRIÇÃO (índice 1)
+        const projeto = row[3] || "Sem projeto"; // PROJETO agora é índice 3
+        const dataOrcamento = row[5] || ""; // DATA agora é índice 5
+        
+        // Tenta extrair o nome do rascunho do JSON
+        let nomeRascunho = "";
+        try {
+          const dadosJson = row[10]; // JSON_DADOS agora é índice 10
+          if (dadosJson) {
+            const parsed = JSON.parse(dadosJson);
+            nomeRascunho = parsed.nome || "";
+          }
+        } catch (e) {
+          // Ignora erros de parse
+        }
+        
+        const linhaReal = index + 2; // +2 porque índice começa em 0 e há cabeçalho
+        
+        // Formata o nome para exibição - agora inclui descrição se disponível
+        let nomeExibicao;
+        if (nomeRascunho) {
+          nomeExibicao = `${nomeRascunho} - ${projeto} (${dataOrcamento})`;
+        } else if (descricao) {
+          nomeExibicao = `${descricao} - ${projeto} (${dataOrcamento})`;
+        } else {
+          nomeExibicao = `${clienteNome} - ${projeto} (${dataOrcamento})`;
+        }
+        
+        rascunhos.push({
+          key: linhaReal.toString(),
+          nome: nomeExibicao
+        });
+      }
+    });
+    
+    // Ordena pelo mais recente (maior número de linha = mais recente)
+    return rascunhos.sort((a, b) => parseInt(b.key) - parseInt(a.key));
   } catch (e) {
     Logger.log("Erro ao obter lista de rascunhos: " + e.message);
     // Retorna array vazio em caso de erro para não quebrar a UI
@@ -2340,14 +2514,30 @@ function getListaRascunhos() {
   }
 }
 
-function deletarRascunho(key) {
+function deletarRascunho(linhaOuKey) {
   try {
-    const userProperties = PropertiesService.getUserProperties();
-    const rascunhosSalvos = JSON.parse(userProperties.getProperty('rascunhos_orcamento') || '{}');
-
-    delete rascunhosSalvos[key];
-
-    userProperties.setProperty('rascunhos_orcamento', JSON.stringify(rascunhosSalvos));
+    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    
+    const linha = parseInt(linhaOuKey, 10);
+    if (isNaN(linha) || linha < 2) {
+      throw new Error("Linha inválida: " + linhaOuKey);
+    }
+    
+    const lastRow = SHEET_ORC.getLastRow();
+    if (linha > lastRow) {
+      throw new Error("Rascunho não encontrado");
+    }
+    
+    // Verifica se é um rascunho antes de deletar
+    const status = SHEET_ORC.getRange(linha, 10).getValue(); // Coluna 10 = STATUS
+    if (status !== "RASCUNHO") {
+      throw new Error("Este registro não é um rascunho e não pode ser deletado por esta função");
+    }
+    
+    // Remove a linha da planilha
+    SHEET_ORC.deleteRow(linha);
+    
+    return { success: true };
   } catch (e) {
     Logger.log("Erro ao deletar rascunho: " + e.message);
     throw new Error("Erro ao deletar rascunho: " + e.message);

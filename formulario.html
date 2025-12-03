@@ -292,7 +292,7 @@
             <div class="section-header">
                 <div>
                     <h3>Produtos Cadastrados</h3>
-                    <small>Adicione produtos já cadastrados com preço fixo da aba "Relação de produtos"</small>
+                    <small>Adicione produtos cadastrados ou crie novos com preço personalizado. O preço pode ser alterado apenas para este orçamento.</small>
                 </div>
                 <div>
                     <button type="button" onclick="addProdutoCadastrado()">+ Adicionar Produto</button>
@@ -330,6 +330,13 @@
                     <label>Projeto (código):</label>
                     <input type="text" id="obsProjeto" readonly>
                 </div>
+                <div class="col" style="flex: 2;">
+                    <label>Descrição do Orçamento/Projeto:</label>
+                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
                 <div class="col">
                     <label>Previsão de faturamento:</label>
                     <input type="date" id="obsFaturamento">
@@ -389,8 +396,8 @@
                     vendedorInput.value = usuarioObj.usuario || "";
 
                     // Preenche iniciais personalizadas
-                    // const iniciaisInput = document.getElementById("projetoIniciais");
-                    // iniciaisInput.value = usuarioObj.iniciais || "";
+                     const iniciaisInput = document.getElementById("projetoIniciais");
+                     iniciaisInput.value = usuarioObj.iniciais || "";
 
                 })
                 .getUsuarioLogadoPorToken(token);
@@ -484,50 +491,62 @@
             div.style.borderRadius = "8px";
             div.style.background = "#f9fbff";
             
+            // Gera código PRD padrão
+            const codigoPRDPadrao = gerarCodigoPRDLocal();
+            
             div.innerHTML = `
                 <div class="row">
                     <div class="col" style="flex: 2;">
                         <label>Selecionar Produto:</label>
                         <select class="produtoSelect" onchange="preencherDadosProduto(this)">
-                            <option value="">-- Selecione um produto --</option>
+                            <option value="">-- Selecione ou preencha manualmente --</option>
                             ${produtosCatalogo.map((p, idx) => 
                                 `<option value="${idx}">${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})</option>`
                             ).join('')}
                         </select>
                     </div>
                     <div class="col">
-                        <label>Ou digite o Código PRD:</label>
+                        <label>Buscar por Código:</label>
                         <input type="text" class="produtoCodigoBusca" placeholder="PRD00001" style="font-weight:600;">
                     </div>
                     <div class="col">
-                        <label>Código:</label>
-                        <input type="text" class="produtoCodigo" readonly style="background:#f5f5f5;">
+                        <label>Buscar por Descrição:</label>
+                        <input type="text" class="produtoDescricaoBusca" placeholder="Digite parte da descrição..." style="font-weight:600;">
                     </div>
                 </div>
                 
                 <div class="row" style="margin-top:8px;">
+                    <div class="col">
+                        <label>Código:</label>
+                        <input type="text" class="produtoCodigo" value="${codigoPRDPadrao}" style="font-weight:600;">
+                        <small style="color:#666;">PRD gerado automaticamente, editável</small>
+                    </div>
                     <div class="col" style="flex: 2;">
                         <label>Descrição:</label>
-                        <input type="text" class="produtoDescricao" readonly style="background:#f5f5f5;">
+                        <input type="text" class="produtoDescricao" placeholder="Descrição do produto" style="font-weight:600;">
                     </div>
+                </div>
+                
+                <div class="row" style="margin-top:8px;">
                     <div class="col">
                         <label>Família:</label>
-                        <input type="text" class="produtoFamilia" readonly style="background:#f5f5f5;">
+                        <input type="text" class="produtoFamilia" placeholder="Família">
                     </div>
                     <div class="col">
                         <label>Tipo:</label>
-                        <input type="text" class="produtoTipo" readonly style="background:#f5f5f5;">
+                        <input type="text" class="produtoTipo" placeholder="Tipo">
+                    </div>
+                    <div class="col">
+                        <label>Unidade:</label>
+                        <input type="text" class="produtoUnidade" placeholder="UN, PÇ, KG..." value="UN">
                     </div>
                 </div>
                 
                 <div class="row" style="margin-top:8px;">
                     <div class="col">
                         <label>Preço Unitário (R$):</label>
-                        <input type="number" step="0.01" class="produtoPrecoUnit" readonly style="background:#f5f5f5;">
-                    </div>
-                    <div class="col">
-                        <label>Unidade:</label>
-                        <input type="text" class="produtoUnidade" readonly style="background:#f5f5f5;">
+                        <input type="number" step="0.01" class="produtoPrecoUnit" placeholder="0.00" style="font-weight:600; background:#fff8e1;">
+                        <small style="color:#ff9800;">Editável apenas para este orçamento</small>
                     </div>
                     <div class="col">
                         <label>Quantidade:</label>
@@ -552,6 +571,12 @@
                 calcularTotalProduto(div);
             });
             
+            // Adiciona listener para atualizar total quando preço unitário mudar
+            const precoUnitInput = div.querySelector(".produtoPrecoUnit");
+            precoUnitInput.addEventListener("input", function() {
+                calcularTotalProduto(div);
+            });
+            
             // Adiciona listener para busca por código PRD
             const codigoBuscaInput = div.querySelector(".produtoCodigoBusca");
             const selectElement = div.querySelector(".produtoSelect");
@@ -559,6 +584,7 @@
             codigoBuscaInput.addEventListener("input", function() {
                 const codigoBusca = this.value.trim().toUpperCase();
                 if (!codigoBusca) {
+                    this.style.background = "";
                     return;
                 }
                 
@@ -594,26 +620,74 @@
                     }
                 }, 200);
             });
+            
+            // Adiciona listener para busca por descrição
+            const descricaoBuscaInput = div.querySelector(".produtoDescricaoBusca");
+            
+            descricaoBuscaInput.addEventListener("input", function() {
+                const descricaoBusca = this.value.trim().toLowerCase();
+                if (!descricaoBusca || descricaoBusca.length < 2) {
+                    this.style.background = "";
+                    return;
+                }
+                
+                // Procura produtos que contenham a descrição
+                const idx = produtosCatalogo.findIndex(p => 
+                    String(p.descricao || '').toLowerCase().includes(descricaoBusca)
+                );
+                
+                if (idx >= 0) {
+                    // Seleciona o primeiro produto encontrado no dropdown
+                    selectElement.value = idx;
+                    preencherDadosProduto(selectElement);
+                    // Destaca o campo para indicar que encontrou
+                    this.style.background = "#e8f5e9";
+                } else if (descricaoBusca.length >= 3) {
+                    // Se digitou pelo menos 3 caracteres e não encontrou, indica
+                    this.style.background = "#ffebee";
+                } else {
+                    this.style.background = "";
+                }
+            });
+            
+            descricaoBuscaInput.addEventListener("blur", function() {
+                // Mantém cor verde se encontrou produto
+                setTimeout(() => {
+                    if (this.value.trim()) {
+                        const idx = produtosCatalogo.findIndex(p => 
+                            String(p.descricao || '').toLowerCase().includes(this.value.trim().toLowerCase())
+                        );
+                        if (idx >= 0) {
+                            this.style.background = "#e8f5e9";
+                        }
+                    }
+                }, 200);
+            });
         }
 
         function preencherDadosProduto(selectElement) {
             const div = selectElement.closest(".produto-cadastrado");
             const idx = selectElement.value;
             
-            // Limpa o campo de busca se selecionou do dropdown
+            // Limpa os campos de busca se selecionou do dropdown
             const buscaInput = div.querySelector(".produtoCodigoBusca");
             if (buscaInput) {
                 buscaInput.value = "";
                 buscaInput.style.background = "";
             }
+            const descricaoBuscaInput = div.querySelector(".produtoDescricaoBusca");
+            if (descricaoBuscaInput) {
+                descricaoBuscaInput.value = "";
+                descricaoBuscaInput.style.background = "";
+            }
             
             if (idx === "") {
-                div.querySelector(".produtoCodigo").value = "";
+                // Não limpa o código PRD gerado automaticamente, apenas os outros campos
                 div.querySelector(".produtoDescricao").value = "";
                 div.querySelector(".produtoFamilia").value = "";
                 div.querySelector(".produtoTipo").value = "";
                 div.querySelector(".produtoPrecoUnit").value = "";
-                div.querySelector(".produtoUnidade").value = "";
+                div.querySelector(".produtoUnidade").value = "UN";
                 div.querySelector(".produtoQuantidade").value = "1";
                 div.querySelector(".produtoPrecoTotal").value = "";
                 return;
@@ -1047,7 +1121,8 @@
                 materialCond: document.getElementById("obsMaterialCond").value,
                 pagamento: document.getElementById("obsPagamento").value,
                 adicional: document.getElementById("obsAdicional").value,
-                projeto: document.getElementById("obsProjeto").value
+                projeto: document.getElementById("obsProjeto").value,
+                descricao: document.getElementById("obsDescricao").value
             };
 
             // 6. Produtos Cadastrados
@@ -1085,6 +1160,7 @@
             document.getElementById("obsPagamento").value = data.observacoes.pagamento || "";
             document.getElementById("obsAdicional").value = data.observacoes.adicional || "";
             document.getElementById("obsProjeto").value = data.observacoes.projeto || "";
+            document.getElementById("obsDescricao").value = data.observacoes.descricao || "";
 
             // 4. Chapas / Peças / Processos (limpar e recriar)
             document.getElementById("chapasContainer").innerHTML = "";
@@ -1175,14 +1251,21 @@
                     addProdutoCadastrado();
                     const prodDiv = document.querySelector("#produtosCadastradosContainer .produto-cadastrado:last-child");
                     
-                    // Encontra o índice do produto no catálogo
+                    // Tenta encontrar o índice do produto no catálogo
                     const idx = produtosCatalogo.findIndex(p => p.codigo === prodData.codigo);
                     if (idx >= 0) {
                         prodDiv.querySelector(".produtoSelect").value = idx;
-                        preencherDadosProduto(prodDiv.querySelector(".produtoSelect"));
-                        prodDiv.querySelector(".produtoQuantidade").value = prodData.quantidade;
-                        calcularTotalProduto(prodDiv);
                     }
+                    
+                    // Preenche os campos diretamente (suporta produtos manuais e customizados)
+                    prodDiv.querySelector(".produtoCodigo").value = prodData.codigo || "";
+                    prodDiv.querySelector(".produtoDescricao").value = prodData.descricao || "";
+                    prodDiv.querySelector(".produtoFamilia").value = prodData.familia || "";
+                    prodDiv.querySelector(".produtoTipo").value = prodData.tipo || "";
+                    prodDiv.querySelector(".produtoUnidade").value = prodData.unidade || "UN";
+                    prodDiv.querySelector(".produtoPrecoUnit").value = prodData.precoUnitario || "";
+                    prodDiv.querySelector(".produtoQuantidade").value = prodData.quantidade || 1;
+                    calcularTotalProduto(prodDiv);
                 });
             }
 
