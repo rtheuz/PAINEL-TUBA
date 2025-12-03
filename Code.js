@@ -834,8 +834,9 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
   if (totalAdicionais > 0) processosArray.push(`Adicionais: ${totalAdicionais.toFixed(2)}h`);
   const processosStr = processosArray.join(", ");
 
-  // Extrai descrição das observações
+  // Extrai descrição e prazo das observações
   const descricao = (observacoes && observacoes.descricao) || "";
+  const prazo = (observacoes && observacoes.prazo) || "";
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
@@ -853,10 +854,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     });
     
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
-    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
     const rowValues = [
       cliente.nome || "",
-      descricao,  // Nova coluna DESCRIÇÃO
+      descricao,  // Coluna DESCRIÇÃO
       cliente.responsavel || "",
       codigoProjeto || "",
       valorTotal || "",
@@ -865,6 +866,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       urlPdf || "",
       urlMemoria || "",
       "Enviado",
+      prazo,  // Nova coluna PRAZO
       dadosJson  // Agora salvamos os dados completos do formulário, não só chapas
     ];
 
@@ -898,7 +900,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       });
       SHEET_ORC.appendRow([
         cliente.nome || "",
-        descricao,  // Nova coluna DESCRIÇÃO
+        descricao,  // Coluna DESCRIÇÃO
         cliente.responsavel || "",
         codigoProjeto || "",
         valorTotal || "",
@@ -907,6 +909,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         urlPdf || "",
         urlMemoria || "",
         "Enviado",
+        prazo,  // Nova coluna PRAZO
         dadosJson
       ]);
       
@@ -1090,6 +1093,7 @@ function getKanbanData() {
         const idxObsP = _findHeaderIndex(headersPed, "Observações") >= 0 ? _findHeaderIndex(headersPed, "Observações") : _findHeaderIndex(headersPed, "Observacoes");
         const idxTempoP = _findHeaderIndex(headersPed, "Tempo estimado por processo");
         const idxPrazoP = _findHeaderIndex(headersPed, "PRAZO");
+        const idxDescricaoP = _findHeaderIndex(headersPed, "DESCRIÇÃO") >= 0 ? _findHeaderIndex(headersPed, "DESCRIÇÃO") : _findHeaderIndex(headersPed, "Descrição");
 
         for (let i = 1; i < valsPed.length; i++) {
           try {
@@ -1102,6 +1106,7 @@ function getKanbanData() {
             const obs = idxObsP >= 0 ? row[idxObsP] : "";
             const tempoRaw = String(idxTempoP >= 0 ? row[idxTempoP] : "");
             let prazo = idxPrazoP >= 0 ? row[idxPrazoP] : "";
+            const descricao = idxDescricaoP >= 0 ? row[idxDescricaoP] : "";
             // --- NORMALIZA PRAZO para string segura ---
             prazo = normalizePrazo(prazo);
 
@@ -1129,6 +1134,7 @@ function getKanbanData() {
               data[status].push({
                 cliente: cliente,
                 projeto: projeto,
+                descricao: descricao,
                 observacoes: obs,
                 tempoEstimado: tempoEstimado,
                 tempoReal: tempoReal,
@@ -1139,6 +1145,7 @@ function getKanbanData() {
               data[status] = [{
                 cliente: cliente,
                 projeto: projeto,
+                descricao: descricao,
                 observacoes: obs,
                 tempoEstimado: tempoEstimado,
                 tempoReal: tempoReal,
@@ -1777,13 +1784,15 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
     const idxProjeto = headers.indexOf("PROJETO");
     const idxProcessos = headers.indexOf("Processos");
     const idxObs = headers.indexOf("OBSERVAÇÕES") >= 0 ? headers.indexOf("OBSERVAÇÕES") : headers.indexOf("Observações");
-
-
+    const idxDescricao = headers.indexOf("DESCRIÇÃO") >= 0 ? headers.indexOf("DESCRIÇÃO") : headers.indexOf("Descrição");
+    const idxPrazo = headers.indexOf("PRAZO") >= 0 ? headers.indexOf("PRAZO") : headers.indexOf("Prazo");
 
     const cliente = linhaDados[idxCliente] || "";
     const projeto = linhaDados[idxProjeto] || "";
     const processos = String(linhaDados[idxProcessos] || "");
     const observacoes = idxObs >= 0 ? (linhaDados[idxObs] || "") : "";
+    const descricao = idxDescricao >= 0 ? (linhaDados[idxDescricao] || "") : "";
+    const prazo = idxPrazo >= 0 ? (linhaDados[idxPrazo] || "") : "";
 
 
     // Determina o primeiro processo
@@ -1794,15 +1803,21 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
     else if (/adicio/i.test(processos)) statusInicial = "Processos Adicionais";
     else if (/envio|coleta/i.test(processos)) statusInicial = "Envio / Coleta";
 
-    // Insere na aba Pedidos
+    // Insere na aba Pedidos (agora incluindo DESCRIÇÃO e PRAZO)
     const novaLinha = [];
     headersPedidos.forEach(h => {
-      switch (String(h).trim()) {
-        case "Cliente": novaLinha.push(cliente); break;
-        case "Número do Projeto": novaLinha.push(projeto); break;
-        case "Status": novaLinha.push(statusInicial); break;
-        case "Observações": novaLinha.push(observacoes); break;
-        case "Tempo estimado por processo": novaLinha.push(processos); break;
+      const headerName = String(h).trim().toUpperCase();
+      switch (headerName) {
+        case "CLIENTE": novaLinha.push(cliente); break;
+        case "NÚMERO DO PROJETO": 
+        case "NUMERO DO PROJETO": novaLinha.push(projeto); break;
+        case "STATUS": novaLinha.push(statusInicial); break;
+        case "OBSERVAÇÕES":
+        case "OBSERVACOES": novaLinha.push(observacoes); break;
+        case "TEMPO ESTIMADO POR PROCESSO": novaLinha.push(processos); break;
+        case "DESCRIÇÃO":
+        case "DESCRICAO": novaLinha.push(descricao); break;
+        case "PRAZO": novaLinha.push(prazo); break;
         default: novaLinha.push("");
       }
     });
@@ -2368,8 +2383,8 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
 }
 
 // Número de colunas esperadas na planilha Orçamentos
-// CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
-const ORCAMENTOS_NUM_COLUNAS = 11;
+// CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
+const ORCAMENTOS_NUM_COLUNAS = 12;
 
 function salvarRascunho(nomeRascunho, dados) {
   try {
@@ -2380,6 +2395,7 @@ function salvarRascunho(nomeRascunho, dados) {
     // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
     const clienteNome = (dados.cliente && dados.cliente.nome) || "";
     const descricao = (dados.observacoes && dados.observacoes.descricao) || "";
+    const prazo = (dados.observacoes && dados.observacoes.prazo) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
     
@@ -2395,10 +2411,10 @@ function salvarRascunho(nomeRascunho, dados) {
     });
     
     // Estrutura da linha para a planilha Orçamentos
-    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
+    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
     const rowValues = [
       clienteNome,
-      descricao,  // Nova coluna DESCRIÇÃO
+      descricao,  // Coluna DESCRIÇÃO
       clienteResponsavel,
       codigoProjeto,
       "",  // VALOR TOTAL - vazio para rascunho
@@ -2407,6 +2423,7 @@ function salvarRascunho(nomeRascunho, dados) {
       "",  // LINK PDF - vazio para rascunho
       "",  // LINK MEMÓRIA - vazio para rascunho
       "RASCUNHO",
+      prazo,  // Nova coluna PRAZO
       dadosJson
     ];
     
@@ -2460,8 +2477,8 @@ function carregarRascunho(linhaOuKey) {
     // Agora permite carregar tanto RASCUNHO quanto orçamentos Enviados
     // (apenas verifica se tem dados JSON para carregar)
     
-    // Coluna 11 (índice 10) contém o JSON com todos os dados do formulário
-    const dadosJson = rowData[10];
+    // Coluna 12 (índice 11) contém o JSON com todos os dados do formulário
+    const dadosJson = rowData[11];
     if (!dadosJson) {
       throw new Error("Dados do orçamento não encontrados. Este orçamento não possui dados salvos para edição.");
     }
@@ -2489,7 +2506,7 @@ function getListaRascunhos(incluirEnviados) {
     const orcamentos = [];
     data.forEach((row, index) => {
       const status = row[9]; // Coluna 10 = STATUS (índice 9)
-      const dadosJson = row[10]; // JSON_DADOS (índice 10)
+      const dadosJson = row[11]; // JSON_DADOS (índice 11)
       
       // Inclui rascunhos sempre, e enviados apenas se solicitado e se tiver JSON_DADOS
       const isRascunho = status === "RASCUNHO";
@@ -2497,9 +2514,10 @@ function getListaRascunhos(incluirEnviados) {
       
       if (isRascunho || (incluirEnviados && isEnviado && dadosJson)) {
         const clienteNome = row[0] || "Sem cliente";
-        const descricao = row[1] || ""; // Nova coluna DESCRIÇÃO (índice 1)
-        const projeto = row[3] || "Sem projeto"; // PROJETO agora é índice 3
-        const dataOrcamento = row[5] || ""; // DATA agora é índice 5
+        const descricao = row[1] || ""; // Coluna DESCRIÇÃO (índice 1)
+        const projeto = row[3] || "Sem projeto"; // PROJETO (índice 3)
+        const dataOrcamento = row[5] || ""; // DATA (índice 5)
+        const prazo = row[10] || ""; // PRAZO (índice 10)
         
         // Tenta extrair o nome do rascunho do JSON
         let nomeRascunho = "";

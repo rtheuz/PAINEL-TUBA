@@ -342,6 +342,10 @@
                     <input type="date" id="obsFaturamento">
                 </div>
                 <div class="col">
+                    <label>Prazo de entrega:</label>
+                    <input type="date" id="obsPrazo">
+                </div>
+                <div class="col">
                     <label>Vendedor:</label>
                     <input type="text" id="obsVendedor" placeholder="Nome do vendedor">
                 </div>
@@ -1124,6 +1128,7 @@
             // 5. Outras Informações
             formData.observacoes = {
                 faturamento: document.getElementById("obsFaturamento").value,
+                prazo: document.getElementById("obsPrazo").value,
                 vendedor: document.getElementById("obsVendedor").value,
                 materialCond: document.getElementById("obsMaterialCond").value,
                 pagamento: document.getElementById("obsPagamento").value,
@@ -1162,6 +1167,7 @@
 
             // 3. Outras Informações
             document.getElementById("obsFaturamento").value = data.observacoes.faturamento || "";
+            document.getElementById("obsPrazo").value = data.observacoes.prazo || "";
             document.getElementById("obsVendedor").value = data.observacoes.vendedor || "";
             document.getElementById("obsMaterialCond").value = data.observacoes.materialCond || "";
             document.getElementById("obsPagamento").value = data.observacoes.pagamento || "";
@@ -1497,6 +1503,7 @@
             const observacoes = {
                 projeto: codigoProjeto,
                 descricao: dadosColetados.observacoes.descricao,  // Adicionado campo descrição
+                prazo: dadosColetados.observacoes.prazo,  // Adicionado campo prazo
                 faturamento: dadosColetados.observacoes.faturamento,
                 vendedor: dadosColetados.observacoes.vendedor,
                 materialCond: dadosColetados.observacoes.materialCond,
