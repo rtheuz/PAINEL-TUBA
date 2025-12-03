@@ -1037,15 +1037,26 @@ function getKanbanData() {
         const idxCliente = _findHeaderIndex(headersOrc, "CLIENTE");
         const idxProjeto = _findHeaderIndex(headersOrc, "PROJETO");
         const idxStatus = _findHeaderIndex(headersOrc, "STATUS");
+        const idxDescricaoResult = _findHeaderIndex(headersOrc, "DESCRIÇÃO");
+        const idxDescricao = idxDescricaoResult >= 0 ? idxDescricaoResult : _findHeaderIndex(headersOrc, "Descrição");
+        const idxPrazoResult = _findHeaderIndex(headersOrc, "PRAZO");
+        const idxPrazo = idxPrazoResult >= 0 ? idxPrazoResult : _findHeaderIndex(headersOrc, "Prazo");
 
         for (let i = 1; i < valsOrc.length; i++) {
           const row = valsOrc[i];
           const status = idxStatus >= 0 ? row[idxStatus] : row[2];
           if (status && !["Expirado/Perdido", "Convertido em Pedido", "Enviado"].includes(status)) {
+            const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
+            let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
+            // Normaliza prazo para string segura
+            prazo = normalizePrazo(prazo);
+            
             data["Processo de Orçamento"].push({
               cliente: idxCliente >= 0 ? row[idxCliente] : "",
               projeto: idxProjeto >= 0 ? row[idxProjeto] : "",
-              descricao: status || ""
+              descricao: descricao || "",
+              status: status || "",
+              prazo: prazo
             });
           }
         }
