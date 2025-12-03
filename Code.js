@@ -438,7 +438,7 @@ function buscarNomePastaPorCodigo(codigoProjeto) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto
 ) {
   try {
 
@@ -627,7 +627,7 @@ function gerarPdfOrcamento(
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
     }
 
-    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas, observacoes);
+    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto);
     return { url: file.getUrl(), nome: file.getName(), memoriaUrl: memoriaUrl };
   } catch (err) {
     Logger.log("ERRO gerarPdfOrcamento: " + err.toString());
@@ -791,7 +791,7 @@ function findRowByColumnValue(sheet, colHeader, value) {
 
 
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
-function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes) {
+function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto) {
   // Leitura em bloco das colunas H para as faixas de corte/dobra que você utiliza
   const matKeys = Object.keys(MATERIAIS);
   const idxMap = _getMaterialIndexMap().map; // não usado diretamente, mantido por compatibilidade
@@ -839,8 +839,18 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
-    // Serializa os dados das chapas para JSON (para armazenar e recuperar depois)
-    const chapasJson = JSON.stringify(chapas || []);
+    // Serializa TODOS os dados do formulário para JSON (para poder reabrir e editar depois)
+    const agora = new Date();
+    const dadosJson = JSON.stringify({
+      nome: codigoProjeto,
+      dataSalvo: agora.toISOString(),
+      dados: dadosFormularioCompleto || {
+        chapas: chapas,
+        cliente: cliente,
+        observacoes: observacoes,
+        produtosCadastrados: produtosCadastrados || []
+      }
+    });
     
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
     // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, JSON_DADOS
@@ -855,17 +865,16 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       urlPdf || "",
       urlMemoria || "",
       "Enviado",
-      chapasJson  // Nova coluna para armazenar dados das chapas/peças
+      dadosJson  // Agora salvamos os dados completos do formulário, não só chapas
     ];
 
     // tenta encontrar linha existente com o mesmo PROJETO (coluna "PROJETO")
     const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
 
     if (linhaExistente) {
-
+      // Atualiza a linha existente (independente do status - assim rascunho vira enviado)
       SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-
       SHEET_ORC.appendRow(rowValues);
     }
     
@@ -876,7 +885,17 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
     try {
-      const chapasJson = JSON.stringify(chapas || []);
+      const agora = new Date();
+      const dadosJson = JSON.stringify({
+        nome: codigoProjeto,
+        dataSalvo: agora.toISOString(),
+        dados: dadosFormularioCompleto || {
+          chapas: chapas,
+          cliente: cliente,
+          observacoes: observacoes,
+          produtosCadastrados: produtosCadastrados || []
+        }
+      });
       SHEET_ORC.appendRow([
         cliente.nome || "",
         descricao,  // Nova coluna DESCRIÇÃO
@@ -888,7 +907,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         urlPdf || "",
         urlMemoria || "",
         "Enviado",
-        chapasJson
+        dadosJson
       ]);
       
       // Insere produtos mesmo no fallback
@@ -2417,6 +2436,7 @@ function salvarRascunho(nomeRascunho, dados) {
   }
 }
 
+// Carrega qualquer orçamento (rascunho ou enviado) pelo número da linha
 function carregarRascunho(linhaOuKey) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
@@ -2430,32 +2450,33 @@ function carregarRascunho(linhaOuKey) {
     // Verifica se a linha existe
     const lastRow = SHEET_ORC.getLastRow();
     if (linha > lastRow) {
-      throw new Error("Rascunho não encontrado");
+      throw new Error("Orçamento não encontrado");
     }
     
     // Lê a linha da planilha usando a constante de número de colunas
     const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
     const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
     
-    if (status !== "RASCUNHO") {
-      throw new Error("Este registro não é um rascunho");
-    }
+    // Agora permite carregar tanto RASCUNHO quanto orçamentos Enviados
+    // (apenas verifica se tem dados JSON para carregar)
     
     // Coluna 11 (índice 10) contém o JSON com todos os dados do formulário
     const dadosJson = rowData[10];
     if (!dadosJson) {
-      throw new Error("Dados do rascunho não encontrados");
+      throw new Error("Dados do orçamento não encontrados. Este orçamento não possui dados salvos para edição.");
     }
     
     const dadosParsed = JSON.parse(dadosJson);
     return dadosParsed.dados; // Retorna apenas os dados do formulário
   } catch (e) {
-    Logger.log("Erro ao carregar rascunho: " + e.message);
-    throw new Error("Erro ao carregar rascunho: " + e.message);
+    Logger.log("Erro ao carregar orçamento: " + e.message);
+    throw new Error("Erro ao carregar orçamento: " + e.message);
   }
 }
 
-function getListaRascunhos() {
+// Retorna lista de orçamentos (rascunhos e/ou enviados) para seleção
+// incluirEnviados: se true, inclui também os orçamentos já enviados
+function getListaRascunhos(incluirEnviados) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
     
@@ -2465,10 +2486,16 @@ function getListaRascunhos() {
     // Lê todas as linhas da planilha usando a constante de número de colunas
     const data = SHEET_ORC.getRange(2, 1, lastRow - 1, ORCAMENTOS_NUM_COLUNAS).getValues();
     
-    const rascunhos = [];
+    const orcamentos = [];
     data.forEach((row, index) => {
       const status = row[9]; // Coluna 10 = STATUS (índice 9)
-      if (status === "RASCUNHO") {
+      const dadosJson = row[10]; // JSON_DADOS (índice 10)
+      
+      // Inclui rascunhos sempre, e enviados apenas se solicitado e se tiver JSON_DADOS
+      const isRascunho = status === "RASCUNHO";
+      const isEnviado = status === "Enviado";
+      
+      if (isRascunho || (incluirEnviados && isEnviado && dadosJson)) {
         const clienteNome = row[0] || "Sem cliente";
         const descricao = row[1] || ""; // Nova coluna DESCRIÇÃO (índice 1)
         const projeto = row[3] || "Sem projeto"; // PROJETO agora é índice 3
@@ -2477,7 +2504,6 @@ function getListaRascunhos() {
         // Tenta extrair o nome do rascunho do JSON
         let nomeRascunho = "";
         try {
-          const dadosJson = row[10]; // JSON_DADOS agora é índice 10
           if (dadosJson) {
             const parsed = JSON.parse(dadosJson);
             nomeRascunho = parsed.nome || "";
@@ -2488,27 +2514,29 @@ function getListaRascunhos() {
         
         const linhaReal = index + 2; // +2 porque índice começa em 0 e há cabeçalho
         
-        // Formata o nome para exibição - agora inclui descrição se disponível
+        // Formata o nome para exibição - agora inclui descrição e status
         let nomeExibicao;
+        const statusLabel = isRascunho ? "[RASCUNHO]" : "[ENVIADO]";
         if (nomeRascunho) {
-          nomeExibicao = `${nomeRascunho} - ${projeto} (${dataOrcamento})`;
+          nomeExibicao = `${statusLabel} ${nomeRascunho} - ${projeto} (${dataOrcamento})`;
         } else if (descricao) {
-          nomeExibicao = `${descricao} - ${projeto} (${dataOrcamento})`;
+          nomeExibicao = `${statusLabel} ${descricao} - ${projeto} (${dataOrcamento})`;
         } else {
-          nomeExibicao = `${clienteNome} - ${projeto} (${dataOrcamento})`;
+          nomeExibicao = `${statusLabel} ${clienteNome} - ${projeto} (${dataOrcamento})`;
         }
         
-        rascunhos.push({
+        orcamentos.push({
           key: linhaReal.toString(),
-          nome: nomeExibicao
+          nome: nomeExibicao,
+          status: status
         });
       }
     });
     
     // Ordena pelo mais recente (maior número de linha = mais recente)
-    return rascunhos.sort((a, b) => parseInt(b.key) - parseInt(a.key));
+    return orcamentos.sort((a, b) => parseInt(b.key) - parseInt(a.key));
   } catch (e) {
-    Logger.log("Erro ao obter lista de rascunhos: " + e.message);
+    Logger.log("Erro ao obter lista de orçamentos: " + e.message);
     // Retorna array vazio em caso de erro para não quebrar a UI
     return [];
   }
