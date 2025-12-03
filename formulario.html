@@ -395,9 +395,16 @@
                     const vendedorInput = document.getElementById("obsVendedor");
                     vendedorInput.value = usuarioObj.usuario || "";
 
-                    // Preenche iniciais personalizadas
-                     const iniciaisInput = document.getElementById("projetoIniciais");
-                     iniciaisInput.value = usuarioObj.iniciais || "";
+                    // Preenche iniciais personalizadas (editável pelo usuário)
+                    const iniciaisInput = document.getElementById("projetoIniciais");
+                    if (!iniciaisInput.value) {
+                        // Só preenche se estiver vazio (não sobrescreve se já tiver valor)
+                        iniciaisInput.value = usuarioObj.iniciais || "";
+                        // Atualiza o código do projeto após preencher as iniciais
+                        if (typeof atualizarCamposProjeto === 'function') {
+                            atualizarCamposProjeto();
+                        }
+                    }
 
                 })
                 .getUsuarioLogadoPorToken(token);
@@ -1272,20 +1279,20 @@
             alert("Rascunho carregado com sucesso!");
         }
 
-        // Inicializa a lista de rascunhos no dropdown
+        // Inicializa a lista de rascunhos no dropdown (inclui rascunhos e orçamentos enviados)
         function carregarListaRascunhos() {
             google.script.run
-                .withSuccessHandler(function (rascunhos) {
+                .withSuccessHandler(function (orcamentos) {
                     const select = document.getElementById("rascunhoSelect");
-                    select.innerHTML = '<option value="">-- Selecionar Rascunho --</option>';
-                    rascunhos.forEach(r => {
+                    select.innerHTML = '<option value="">-- Selecionar Orçamento --</option>';
+                    orcamentos.forEach(r => {
                         const opt = document.createElement("option");
                         opt.value = r.key; // Usar a chave/ID
                         opt.text = r.nome;
                         select.add(opt);
                     });
                 })
-                .getListaRascunhos();
+                .getListaRascunhos(true); // true = incluir orçamentos enviados também
         }
 
         // Função de salvar rascunho (chama o Apps Script)
@@ -1305,11 +1312,11 @@
                 .salvarRascunho(nomeRascunho, dados);
         }
 
-        // Função de carregar rascunho (chama o Apps Script)
+        // Função de carregar orçamento (rascunho ou enviado) - chama o Apps Script
         function carregarRascunhoSelecionado() {
             const key = document.getElementById("rascunhoSelect").value;
             if (!key) {
-                alert("Selecione um rascunho para carregar.");
+                alert("Selecione um orçamento para carregar.");
                 return;
             }
 
@@ -1318,11 +1325,11 @@
                     if (dados) {
                         preencherFormulario(dados);
                     } else {
-                        alert("Erro ao carregar rascunho: dados não encontrados.");
+                        alert("Erro ao carregar orçamento: dados não encontrados.");
                     }
                 })
                 .withFailureHandler(function (err) {
-                    alert("Erro ao carregar rascunho:\n" + err.message);
+                    alert("Erro ao carregar orçamento:\n" + err.message);
                 })
                 .carregarRascunho(key);
         }
@@ -1334,7 +1341,13 @@
             const nome = select.options[select.selectedIndex]?.text;
 
             if (!key) {
-                alert("Selecione um rascunho para deletar.");
+                alert("Selecione um orçamento para deletar.");
+                return;
+            }
+            
+            // Não permite deletar orçamentos já enviados
+            if (nome && nome.includes("[ENVIADO]")) {
+                alert("Não é possível deletar orçamentos já enviados. Apenas rascunhos podem ser deletados.");
                 return;
             }
 
@@ -1483,6 +1496,7 @@
 
             const observacoes = {
                 projeto: codigoProjeto,
+                descricao: dadosColetados.observacoes.descricao,  // Adicionado campo descrição
                 faturamento: dadosColetados.observacoes.faturamento,
                 vendedor: dadosColetados.observacoes.vendedor,
                 materialCond: dadosColetados.observacoes.materialCond,
@@ -1500,6 +1514,9 @@
 
             // --- coletar produtos cadastrados ---
             const produtosCadastrados = coletarProdutosCadastrados();
+            
+            // --- coletar TODOS os dados do formulário para salvar junto com o orçamento ---
+            const dadosFormularioCompleto = coletarDadosFormulario();
 
             // --- gerar PDF ---
             google.script.run
@@ -1509,6 +1526,9 @@
 
                     // abre o PDF em nova aba automaticamente
                     window.open(pdf.url, "_blank");
+                    
+                    // Atualiza lista de rascunhos para refletir a mudança de status
+                    carregarListaRascunhos();
 
                     btn.disabled = false;
                     btn.textContent = "Calcular Orçamento e Gerar PDF";
@@ -1518,7 +1538,7 @@
                     btn.disabled = false;
                     btn.textContent = "Calcular Orçamento e Gerar PDF";
                 })
-                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados);
+                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto);
 
         }
         function voltarPagina() {
