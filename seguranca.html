@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(135deg, #002c74, #30775c);
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* Fundo animado */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 250%;
+      height: 250%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+      animation: rotate 27s ease-in-out infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 90%;
+      max-width: 1200px;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .header {
+      margin-bottom: 60px;
+      animation: fadeInDown 1s ease;
+    }
+
+    .header h1 {
+      color: #fff;
+      font-size: 64px;
+      font-weight: 800;
+      text-shadow: 3px 3px 10px rgba(0, 0, 0, 0.5);
+      margin-bottom: 20px;
+    }
+
+    .header .subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 28px;
+      font-weight: 400;
+      text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .message-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 30px;
+      padding: 60px 80px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      animation: fadeIn 1.5s ease;
+      transition: transform 0.5s ease, box-shadow 0.5s ease;
+    }
+
+    .message-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #f9ca24, #6c5ce7);
+      background-size: 200% 100%;
+      animation: gradientShift 3s ease infinite;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+    }
+
+    .message-icon {
+      font-size: 120px;
+      margin-bottom: 40px;
+      animation: pulse 2s ease-in-out infinite;
+      filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.2));
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.1);
+      }
+    }
+
+    .message-text {
+      font-size: 42px;
+      font-weight: 700;
+      color: #2c3e50;
+      line-height: 1.4;
+      margin-bottom: 30px;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .message-description {
+      font-size: 24px;
+      color: #555;
+      font-weight: 400;
+      line-height: 1.6;
+      max-width: 900px;
+    }
+
+    .indicators {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+
+    .indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .indicator.active {
+      background: #fff;
+      transform: scale(1.3);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 18px;
+      z-index: 1;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header h1 {
+        font-size: 36px;
+      }
+
+      .header .subtitle {
+        font-size: 18px;
+      }
+
+      .message-card {
+        padding: 40px 30px;
+        min-height: 300px;
+      }
+
+      .message-icon {
+        font-size: 80px;
+        margin-bottom: 30px;
+      }
+
+      .message-text {
+        font-size: 28px;
+      }
+
+      .message-description {
+        font-size: 18px;
+      }
+
+      .container {
+        padding: 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 28px;
+      }
+
+      .message-text {
+        font-size: 22px;
+      }
+
+      .message-description {
+        font-size: 16px;
+      }
+
+      .message-icon {
+        font-size: 60px;
+      }
+    }
+
+    /* Modo tela cheia otimizado */
+    @media (min-width: 1920px) {
+      .message-text {
+        font-size: 56px;
+      }
+
+      .message-description {
+        font-size: 32px;
+      }
+
+      .message-icon {
+        font-size: 150px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🛡️ Segurança no Trabalho</h1>
+      <div class="subtitle">Sua segurança é nossa prioridade</div>
+    </div>
+
+    <div class="message-card" id="messageCard">
+      <div class="message-icon" id="messageIcon">🦺</div>
+      <div class="message-text" id="messageText">Use sempre os EPIs adequados</div>
+      <div class="message-description" id="messageDescription">
+        Equipamentos de Proteção Individual são essenciais para sua segurança. Verifique sempre se estão em bom estado antes de usar.
+      </div>
+    </div>
+
+    <div class="indicators" id="indicators"></div>
+  </div>
+
+  <div class="footer">
+    <div id="currentTime"></div>
+  </div>
+
+  <script>
+    const mensagens = [
+      {
+        icon: '🦺',
+        titulo: 'Use sempre os EPIs adequados',
+        descricao: 'Equipamentos de Proteção Individual são essenciais para sua segurança. Verifique sempre se estão em bom estado antes de usar.'
+      },
+      {
+        icon: '👷',
+        titulo: 'Mantenha o ambiente de trabalho organizado',
+        descricao: 'Ordem e limpeza reduzem acidentes. Mantenha ferramentas organizadas e áreas de passagem sempre livres.'
+      },
+      {
+        icon: '⚠️',
+        titulo: 'Atenção aos riscos elétricos',
+        descricao: 'Nunca mexa em equipamentos elétricos sem desligar a energia. Use ferramentas isoladas e verifique aterramentos.'
+      },
+      {
+        icon: '🔥',
+        titulo: 'Cuidado com materiais inflamáveis',
+        descricao: 'Armazene produtos inflamáveis em locais adequados, longe de fontes de calor. Mantenha extintores sempre acessíveis.'
+      },
+      {
+        icon: '👁️',
+        titulo: 'Proteja seus olhos',
+        descricao: 'Use óculos de proteção ao trabalhar com ferramentas, solda ou produtos químicos. A visão é preciosa!'
+      },
+      {
+        icon: '👂',
+        titulo: 'Proteja sua audição',
+        descricao: 'Em ambientes ruidosos, use protetores auriculares. A exposição prolongada a ruídos pode causar danos permanentes.'
+      },
+      {
+        icon: '🤝',
+        titulo: 'Trabalhe em equipe',
+        descricao: 'Comunicação clara e trabalho em equipe são fundamentais para a segurança. Avise seus colegas sobre riscos e situações perigosas.'
+      },
+      {
+        icon: '📋',
+        titulo: 'Siga os procedimentos de segurança',
+        descricao: 'Procedimentos existem para proteger você. Sempre siga as normas e instruções de trabalho seguro.'
+      },
+      {
+        icon: '🚨',
+        titulo: 'Conheça os pontos de emergência',
+        descricao: 'Saiba onde estão os extintores, saídas de emergência e telefones de emergência. Em caso de acidente, mantenha a calma e acione o socorro.'
+      },
+      {
+        icon: '💪',
+        titulo: 'Cuide da sua postura',
+        descricao: 'Mantenha uma postura correta ao levantar pesos. Use técnicas adequadas e peça ajuda quando necessário.'
+      },
+      {
+        icon: '🧹',
+        titulo: 'Mantenha o local limpo',
+        descricao: 'Limpeza é sinônimo de segurança. Remova óleos, graxas e outros resíduos que possam causar escorregões.'
+      },
+      {
+        icon: '🔧',
+        titulo: 'Use ferramentas adequadas',
+        descricao: 'Cada trabalho exige a ferramenta correta. Nunca improvise ou use ferramentas danificadas. Inspecione antes de usar.'
+      },
+      {
+        icon: '⚡',
+        titulo: 'Desligue antes de consertar',
+        descricao: 'Sempre desligue equipamentos e máquinas antes de fazer manutenção. Use bloqueios de segurança quando necessário.'
+      },
+      {
+        icon: '🌡️',
+        titulo: 'Hidrate-se regularmente',
+        descricao: 'Beba água frequentemente, especialmente em ambientes quentes. A desidratação pode causar acidentes.'
+      },
+      {
+        icon: '🚶',
+        titulo: 'Caminhe com atenção',
+        descricao: 'Observe o chão ao caminhar. Fique atento a obstáculos, fios, ferramentas e superfícies escorregadias.'
+      },
+      {
+        icon: '📞',
+        titulo: 'Reporte situações de risco',
+        descricao: 'Se identificar algum risco ou situação perigosa, reporte imediatamente ao supervisor. Prevenção é a melhor solução.'
+      },
+      {
+        icon: '🧠',
+        titulo: 'Mantenha-se alerta',
+        descricao: 'Fadiga e distração são grandes causas de acidentes. Descanse adequadamente e mantenha o foco no trabalho.'
+      },
+      {
+        icon: '👟',
+        titulo: 'Use calçados de segurança',
+        descricao: 'Calçados adequados protegem seus pés de quedas de objetos, perfurações e escorregões. Não trabalhe descalço ou com calçados inadequados.'
+      },
+      {
+        icon: '🛡️',
+        titulo: 'Segurança é responsabilidade de todos',
+        descricao: 'A segurança no trabalho depende de cada um de nós. Seja um exemplo e ajude a criar uma cultura de segurança.'
+      },
+      {
+        icon: '✅',
+        titulo: 'Faça inspeções regulares',
+        descricao: 'Verifique regularmente equipamentos, ferramentas e áreas de trabalho. Pequenos problemas podem se tornar grandes acidentes.'
+      }
+    ];
+
+    let currentIndex = 0;
+    const messageCard = document.getElementById('messageCard');
+    const messageIcon = document.getElementById('messageIcon');
+    const messageText = document.getElementById('messageText');
+    const messageDescription = document.getElementById('messageDescription');
+    const indicatorsContainer = document.getElementById('indicators');
+    const currentTimeElement = document.getElementById('currentTime');
+
+    // Criar indicadores
+    mensagens.forEach((_, index) => {
+      const indicator = document.createElement('div');
+      indicator.className = 'indicator' + (index === 0 ? ' active' : '');
+      indicator.addEventListener('click', () => {
+        currentIndex = index;
+        showMessage();
+      });
+      indicatorsContainer.appendChild(indicator);
+    });
+
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      const dateString = now.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      currentTimeElement.textContent = `${dateString.charAt(0).toUpperCase() + dateString.slice(1)} - ${timeString}`;
+    }
+
+    function showMessage() {
+      const mensagem = mensagens[currentIndex];
+      
+      // Animação de saída
+      messageCard.style.opacity = '0';
+      messageCard.style.transform = 'translateY(30px)';
+      
+      setTimeout(() => {
+        messageIcon.textContent = mensagem.icon;
+        messageText.textContent = mensagem.titulo;
+        messageDescription.textContent = mensagem.descricao;
+        
+        // Atualizar indicadores
+        document.querySelectorAll('.indicator').forEach((ind, idx) => {
+          ind.classList.toggle('active', idx === currentIndex);
+        });
+        
+        // Animação de entrada
+        messageCard.style.opacity = '1';
+        messageCard.style.transform = 'translateY(0)';
+      }, 300);
+    }
+
+    function nextMessage() {
+      currentIndex = (currentIndex + 1) % mensagens.length;
+      showMessage();
+    }
+
+    // Atualizar tempo a cada segundo
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Trocar mensagem a cada 8 segundos
+    setInterval(nextMessage, 8000);
+
+    // Inicializar
+    showMessage();
+
+    // Suporte para teclado (setas para navegar)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') {
+        currentIndex = (currentIndex + 1) % mensagens.length;
+        showMessage();
+      } else if (e.key === 'ArrowLeft') {
+        currentIndex = (currentIndex - 1 + mensagens.length) % mensagens.length;
+        showMessage();
+      }
+    });
+  </script>
+</body>
+
+</html>
+

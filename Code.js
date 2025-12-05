@@ -26,10 +26,10 @@ function getProdutosCadastrados() {
       Logger.log("Aba 'Relação de produtos' não encontrada");
       return [];
     }
-    
+
     const dados = SHEET_PRODUTOS.getDataRange().getValues();
     if (dados.length < 2) return [];
-    
+
     // Estrutura da planilha:
     // A=Código do Produto, B=Descrição do Produto, H=Preço Unitário de Venda, I=Unidade
     const produtos = [];
@@ -63,12 +63,12 @@ function getProximoCodigoPRD() {
     if (!SHEET_PRODUTOS) {
       return "PRD00001"; // Primeiro código se a aba não existe
     }
-    
+
     const dados = SHEET_PRODUTOS.getDataRange().getValues();
     if (dados.length < 2) {
       return "PRD00001"; // Primeiro código se não há produtos
     }
-    
+
     // Encontra o maior número PRD
     let maxNumero = 0;
     for (let i = 1; i < dados.length; i++) {
@@ -80,7 +80,7 @@ function getProximoCodigoPRD() {
         }
       }
     }
-    
+
     // Retorna o próximo número formatado
     const proximoNumero = maxNumero + 1;
     return "PRD" + String(proximoNumero).padStart(5, "0");
@@ -97,26 +97,26 @@ function getProximoCodigoPRD() {
 function inserirProdutoNaRelacao(produto) {
   try {
     Logger.log("Tentando inserir produto: " + JSON.stringify(produto));
-    
+
     const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
     if (!SHEET_PRODUTOS) {
       Logger.log("ERRO: Aba 'Relação de produtos' não encontrada");
       return false;
     }
-    
+
     Logger.log("Aba 'Relação de produtos' encontrada. Verificando duplicatas...");
-    
+
     // Verifica se o produto já existe
     const dados = SHEET_PRODUTOS.getDataRange().getValues();
     Logger.log("Total de linhas na planilha: " + dados.length);
-    
+
     for (let i = 1; i < dados.length; i++) {
       if (dados[i][0] === produto.codigo) {
-        Logger.log("Produto " + produto.codigo + " já existe na relação (linha " + (i+1) + ")");
+        Logger.log("Produto " + produto.codigo + " já existe na relação (linha " + (i + 1) + ")");
         return false; // Produto já existe
       }
     }
-    
+
     // Estrutura da planilha:
     // A=Código do Produto, B=Descrição, C=Código da Família, D=Família de Produto, 
     // E=Tipo do Produto, F=Código EAN, G=Código NCM, H=Preço Unitário de Venda, 
@@ -133,7 +133,7 @@ function inserirProdutoNaRelacao(produto) {
       produto.unidade || "UN",        // I - Unidade
       produto.caracteristicas || ""   // J - Características
     ];
-    
+
     Logger.log("Inserindo nova linha: " + JSON.stringify(novaLinha));
     SHEET_PRODUTOS.appendRow(novaLinha);
     Logger.log("✓ Produto " + produto.codigo + " inserido com sucesso na relação");
@@ -155,12 +155,12 @@ function inserirProdutosDasChapas(chapas) {
       Logger.log("inserirProdutosDasChapas: chapas não é um array");
       return;
     }
-    
+
     Logger.log("inserirProdutosDasChapas: Processando " + chapas.length + " chapas");
-    
+
     let produtosInseridos = 0;
     let produtosPulados = 0;
-    
+
     chapas.forEach((chapa, chapaIdx) => {
       if (chapa.pecas && Array.isArray(chapa.pecas)) {
         Logger.log("Chapa " + chapaIdx + ": " + chapa.pecas.length + " peças encontradas");
@@ -192,7 +192,7 @@ function inserirProdutosDasChapas(chapas) {
         Logger.log("Chapa " + chapaIdx + ": sem peças ou peças não é array");
       }
     });
-    
+
     Logger.log("Total: " + produtosInseridos + " produtos inseridos, " + produtosPulados + " pulados");
   } catch (err) {
     Logger.log("Erro ao inserir produtos das chapas: " + err);
@@ -446,7 +446,7 @@ function gerarPdfOrcamento(
     incrementarContador("totalPropostas");
 
     const resultados = calcularOrcamento(chapas);
-    
+
     // Adiciona produtos cadastrados aos resultados
     if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
       produtosCadastrados.forEach(prod => {
@@ -726,7 +726,7 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
   // Adiciona seção de produtos cadastrados se houver
   if (produtosCadastrados && Array.isArray(produtosCadastrados) && produtosCadastrados.length > 0) {
     htmlMemoria += `<div class="titulo-produtos-cadastrados">PRODUTOS CADASTRADOS</div>`;
-    
+
     htmlMemoria += `<table>
       <tr>
         <th>Código</th>
@@ -738,7 +738,7 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
         <th>Preço Unitário (R$)</th>
         <th>Preço Total (R$)</th>
       </tr>`;
-    
+
     produtosCadastrados.forEach(produto => {
       htmlMemoria += `<tr>
         <td>${produto.codigo || "-"}</td>
@@ -751,14 +751,14 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
         <td>${formatarNumero(produto.precoTotal || 0)}</td>
       </tr>`;
     });
-    
+
     htmlMemoria += `</table><br>`;
-    
+
     // Calcula total dos produtos cadastrados
     const totalProdutosCadastrados = produtosCadastrados.reduce((sum, p) => {
       return sum + (parseFloat(p.precoTotal) || 0);
     }, 0);
-    
+
     htmlMemoria += `<div class="produto-cadastrado-item">
       <strong>Total de Produtos Cadastrados: R$ ${formatarNumero(totalProdutosCadastrados)}</strong>
     </div><br>`;
@@ -852,7 +852,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         produtosCadastrados: produtosCadastrados || []
       }
     });
-    
+
     // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
     // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
     const rowValues = [
@@ -879,10 +879,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     } else {
       SHEET_ORC.appendRow(rowValues);
     }
-    
+
     // Insere produtos com código PRD na "Relação de produtos" ao criar o orçamento
     inserirProdutosDasChapas(chapas);
-    
+
   } catch (err) {
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
@@ -912,10 +912,10 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         prazo,  // Nova coluna PRAZO
         dadosJson
       ]);
-      
+
       // Insere produtos mesmo no fallback
       inserirProdutosDasChapas(chapas);
-      
+
     } catch (e2) {
       Logger.log("Erro fallback appendRow em registrarOrcamento: " + e2);
       throw e2;
@@ -1050,7 +1050,7 @@ function getKanbanData() {
             let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
             // Normaliza prazo para string segura
             prazo = normalizePrazo(prazo);
-            
+
             data["Processo de Orçamento"].push({
               cliente: idxCliente >= 0 ? row[idxCliente] : "",
               projeto: idxProjeto >= 0 ? row[idxProjeto] : "",
@@ -1597,7 +1597,7 @@ function doGet(e) {
 
         const values = SHEET_ORC.getDataRange().getValues();
         const headers = values[0];
-        
+
         // Função para normalizar nomes de cabeçalho (remove acentos, espaços extras, converte para maiúsculas)
         function normalizeHeader(h) {
           if (!h) return '';
@@ -1605,13 +1605,13 @@ function doGet(e) {
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/\s+/g, ' ');
         }
-        
+
         // Mapeia índices de cabeçalhos normalizados para facilitar busca
         const headerNormalizedMap = {};
         headers.forEach((h, i) => {
           headerNormalizedMap[normalizeHeader(h)] = i;
         });
-        
+
         const data = values.slice(1).map((row, index) => {
           let obj = {};
           headers.forEach((h, i) => {
@@ -1624,7 +1624,7 @@ function doGet(e) {
             }
             obj[h] = valor;
           });
-          
+
           // Adiciona chaves padronizadas para campos que podem ter variações de nome
           // Isso garante que o template sempre encontre os dados esperados
           const standardKeys = {
@@ -1632,7 +1632,7 @@ function doGet(e) {
             'RESPONSAVEL': 'RESPONSÁVEL',
             'RESPONSAVEL CLIENTE': 'RESPONSÁVEL CLIENTE'
           };
-          
+
           Object.entries(standardKeys).forEach(([normalizedKey, standardKey]) => {
             if (obj[standardKey] === undefined) {
               // Procura por variação do cabeçalho
@@ -1642,7 +1642,7 @@ function doGet(e) {
               }
             }
           });
-          
+
           obj["_linhaPlanilha"] = index + 2;
           return obj;
         });
@@ -1659,6 +1659,19 @@ function doGet(e) {
           tel: "(11) 91285-4204"
         };
         return templateOrcamentos.evaluate()
+          .setFaviconUrl(FAVICON)
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      case 'seguranca':
+        const templateSeguranca = HtmlService.createTemplateFromFile('seguranca');
+        return templateSeguranca.evaluate()
+          .setFaviconUrl(FAVICON)
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      case 'apresentacao':
+        const templateApresentacao = HtmlService.createTemplateFromFile('apresentacao');
+        templateApresentacao.token = token;
+        return templateApresentacao.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
@@ -1690,7 +1703,7 @@ function adicionarOrcamentoNaPlanilha(dados) {
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^A-Z0-9]/g, '');
     }
-    
+
     // Cria um mapa de headers normalizados para índices
     const normalizedHeaderMap = {};
     headers.forEach((h, i) => {
@@ -1820,7 +1833,7 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
       const headerName = String(h).trim().toUpperCase();
       switch (headerName) {
         case "CLIENTE": novaLinha.push(cliente); break;
-        case "NÚMERO DO PROJETO": 
+        case "NÚMERO DO PROJETO":
         case "NUMERO DO PROJETO": novaLinha.push(projeto); break;
         case "STATUS": novaLinha.push(statusInicial); break;
         case "OBSERVAÇÕES":
@@ -1836,13 +1849,13 @@ function atualizarStatusNaPlanilha(linha, novoStatus) {
 
     // Registrar log
     registrarLog(cliente, projeto, null, statusInicial, processos);
-     
+
     // --- Inserir produtos na "Relação de produtos" (se ainda não foram inseridos) ---
     try {
       // Tenta recuperar os dados das chapas da última coluna (JSON)
       const idxChapas = linhaDados.length - 1; // Última coluna onde armazenamos o JSON
       const chapasJson = linhaDados[idxChapas];
-      
+
       if (chapasJson && typeof chapasJson === 'string') {
         const chapas = JSON.parse(chapasJson);
         // Usa a função helper para inserir produtos
@@ -2056,7 +2069,7 @@ function gerarNovaEtiqueta(dadosLinha, token) {
     fornecedor: linhaValores[9],// Coluna J
     nf: linhaValores[10],       // Coluna K
     etiqueta: linhaValores[11]  // Coluna L
-    
+
   };
 
   // Cria PDF a partir do template
@@ -2400,7 +2413,7 @@ const ORCAMENTOS_NUM_COLUNAS = 12;
 function salvarRascunho(nomeRascunho, dados) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-    
+
     // Extrai dados relevantes do formulário
     // Dados do cliente vêm de dados.cliente
     // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
@@ -2409,18 +2422,18 @@ function salvarRascunho(nomeRascunho, dados) {
     const prazo = (dados.observacoes && dados.observacoes.prazo) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
-    
+
     // Data formatada para exibição
     const agora = new Date();
     const dataBrasil = formatarDataBrasil(agora);
-    
+
     // Serializa todos os dados do formulário para JSON
     const dadosJson = JSON.stringify({
       nome: nomeRascunho,
       dataSalvo: agora.toISOString(),
       dados: dados
     });
-    
+
     // Estrutura da linha para a planilha Orçamentos
     // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
     const rowValues = [
@@ -2437,26 +2450,19 @@ function salvarRascunho(nomeRascunho, dados) {
       prazo,  // Nova coluna PRAZO
       dadosJson
     ];
-    
+
     // Verifica se já existe um registro com o mesmo código de projeto
     const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
-    
+
     if (linhaExistente) {
-      // Verifica se é um rascunho (só atualiza se for rascunho)
-      const statusAtual = SHEET_ORC.getRange(linhaExistente, 10).getValue(); // Coluna 10 = STATUS
-      if (statusAtual === "RASCUNHO") {
-        // Atualiza o rascunho existente
-        SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
-      } else {
-        // Se o projeto já foi finalizado (não é rascunho), cria um novo rascunho
-        // Isso permite criar novas versões de orçamentos já finalizados
-        SHEET_ORC.appendRow(rowValues);
-      }
+      // SEMPRE atualiza a linha existente para evitar duplicação
+      // Mantém o status como "RASCUNHO" mesmo se já estava como "Enviado"
+      SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      // Cria novo rascunho
+      // Cria novo rascunho apenas se não existir
       SHEET_ORC.appendRow(rowValues);
     }
-    
+
     return { success: true };
   } catch (e) {
     Logger.log("Erro ao salvar rascunho: " + e.message);
@@ -2468,26 +2474,26 @@ function salvarRascunho(nomeRascunho, dados) {
 function carregarRascunho(linhaOuKey) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-    
+
     // linhaOuKey é o número da linha na planilha
     const linha = parseInt(linhaOuKey, 10);
     if (isNaN(linha) || linha < 2) {
       throw new Error("Linha inválida: " + linhaOuKey);
     }
-    
+
     // Verifica se a linha existe
     const lastRow = SHEET_ORC.getLastRow();
     if (linha > lastRow) {
       throw new Error("Orçamento não encontrado");
     }
-    
+
     // Lê a linha da planilha usando a constante de número de colunas
     const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
     const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
-    
+
     // Coluna 12 (índice 11) contém o JSON com todos os dados do formulário
     const dadosJson = rowData[11];
-    
+
     // Se tiver JSON_DADOS, usa os dados completos do formulário
     if (dadosJson) {
       try {
@@ -2498,7 +2504,7 @@ function carregarRascunho(linhaOuKey) {
         // Se falhar o parse, continua para construir dados básicos
       }
     }
-    
+
     // Se não tiver JSON_DADOS, constrói dados básicos a partir das colunas da planilha
     // Estrutura da planilha: CLIENTE(0), DESCRIÇÃO(1), RESPONSÁVEL(2), PROJETO(3), 
     // VALOR TOTAL(4), DATA(5), Processos(6), LINK PDF(7), LINK MEMÓRIA(8), STATUS(9), PRAZO(10), JSON_DADOS(11)
@@ -2510,13 +2516,13 @@ function carregarRascunho(linhaOuKey) {
     const dataOrcamento = rowData[5] || "";
     const processos = rowData[6] || "";
     const prazo = rowData[10] || "";
-    
+
     // Extrai código do projeto (assumindo formato padrão YYMMDD + índice + iniciais)
     const codigoProjeto = projeto || "";
     let projetoData = "";
     let projetoIndice = "";
     let projetoIniciais = "";
-    
+
     if (codigoProjeto.length >= 6) {
       projetoData = codigoProjeto.substring(0, 6);
       // Tenta extrair índice (letra) e iniciais
@@ -2526,7 +2532,7 @@ function carregarRascunho(linhaOuKey) {
         projetoIniciais = resto.substring(1);
       }
     }
-    
+
     // Constrói estrutura básica compatível com o formulário
     const dadosBasicos = {
       projeto: {
@@ -2560,7 +2566,7 @@ function carregarRascunho(linhaOuKey) {
       },
       produtosCadastrados: []
     };
-    
+
     return dadosBasicos;
   } catch (e) {
     Logger.log("Erro ao carregar orçamento: " + e.message);
@@ -2573,29 +2579,29 @@ function carregarRascunho(linhaOuKey) {
 function getListaRascunhos(incluirEnviados) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-    
+
     const lastRow = SHEET_ORC.getLastRow();
     if (lastRow < 2) return []; // Sem dados
-    
+
     // Lê todas as linhas da planilha usando a constante de número de colunas
     const data = SHEET_ORC.getRange(2, 1, lastRow - 1, ORCAMENTOS_NUM_COLUNAS).getValues();
-    
+
     const orcamentos = [];
     data.forEach((row, index) => {
       const status = row[9]; // Coluna 10 = STATUS (índice 9)
       const dadosJson = row[11]; // JSON_DADOS (índice 11)
-      
+
       // Inclui rascunhos sempre, e enviados apenas se solicitado e se tiver JSON_DADOS
       const isRascunho = status === "RASCUNHO";
       const isEnviado = status === "Enviado";
-      
+
       if (isRascunho || (incluirEnviados && isEnviado && dadosJson)) {
         const clienteNome = row[0] || "Sem cliente";
         const descricao = row[1] || ""; // Coluna DESCRIÇÃO (índice 1)
         const projeto = row[3] || "Sem projeto"; // PROJETO (índice 3)
         const dataOrcamento = row[5] || ""; // DATA (índice 5)
         const prazo = row[10] || ""; // PRAZO (índice 10)
-        
+
         // Tenta extrair o nome do rascunho do JSON
         let nomeRascunho = "";
         try {
@@ -2606,9 +2612,9 @@ function getListaRascunhos(incluirEnviados) {
         } catch (e) {
           // Ignora erros de parse
         }
-        
+
         const linhaReal = index + 2; // +2 porque índice começa em 0 e há cabeçalho
-        
+
         // Formata o nome para exibição - agora inclui descrição e status
         let nomeExibicao;
         const statusLabel = isRascunho ? "[RASCUNHO]" : "[ENVIADO]";
@@ -2619,7 +2625,7 @@ function getListaRascunhos(incluirEnviados) {
         } else {
           nomeExibicao = `${statusLabel} ${clienteNome} - ${projeto} (${dataOrcamento})`;
         }
-        
+
         orcamentos.push({
           key: linhaReal.toString(),
           nome: nomeExibicao,
@@ -2627,7 +2633,7 @@ function getListaRascunhos(incluirEnviados) {
         });
       }
     });
-    
+
     // Ordena pelo mais recente (maior número de linha = mais recente)
     return orcamentos.sort((a, b) => parseInt(b.key) - parseInt(a.key));
   } catch (e) {
@@ -2640,26 +2646,26 @@ function getListaRascunhos(incluirEnviados) {
 function deletarRascunho(linhaOuKey) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-    
+
     const linha = parseInt(linhaOuKey, 10);
     if (isNaN(linha) || linha < 2) {
       throw new Error("Linha inválida: " + linhaOuKey);
     }
-    
+
     const lastRow = SHEET_ORC.getLastRow();
     if (linha > lastRow) {
       throw new Error("Rascunho não encontrado");
     }
-    
+
     // Verifica se é um rascunho antes de deletar
     const status = SHEET_ORC.getRange(linha, 10).getValue(); // Coluna 10 = STATUS
     if (status !== "RASCUNHO") {
       throw new Error("Este registro não é um rascunho e não pode ser deletado por esta função");
     }
-    
+
     // Remove a linha da planilha
     SHEET_ORC.deleteRow(linha);
-    
+
     return { success: true };
   } catch (e) {
     Logger.log("Erro ao deletar rascunho: " + e.message);
@@ -3022,5 +3028,157 @@ function atualizarOrcamentoNaPlanilha(linha, dataObj) {
     return { success: true, linha: linha };
   } catch (err) {
     throw new Error('Erro ao escrever na planilha: ' + (err && err.message ? err.message : err));
+  }
+}
+
+// ==================== MENSAGENS DE APRESENTAÇÃO ====================
+// Função para salvar mensagem de apresentação
+function salvarMensagemApresentacao(texto, cor, tamanho) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const mensagens = getMensagensApresentacao();
+    
+    // Cria nova mensagem com ID único
+    const novaMensagem = {
+      id: Utilities.getUuid(),
+      texto: texto || "",
+      cor: cor || "#ffffff",
+      tamanho: tamanho || "medium",
+      dataCriacao: new Date().toISOString(),
+      ativa: true
+    };
+    
+    mensagens.push(novaMensagem);
+    
+    // Salva no PropertiesService (limite de 9KB por propriedade)
+    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagens));
+    
+    return { success: true, mensagem: novaMensagem };
+  } catch (e) {
+    Logger.log("Erro ao salvar mensagem: " + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// Função para carregar todas as mensagens ativas
+function getMensagensApresentacao() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
+    if (!raw) return [];
+    
+    const mensagens = JSON.parse(raw);
+    // Retorna apenas mensagens ativas
+    return mensagens.filter(m => m.ativa !== false);
+  } catch (e) {
+    Logger.log("Erro ao carregar mensagens: " + e.message);
+    return [];
+  }
+}
+
+// Função para deletar mensagem
+function deletarMensagemApresentacao(id) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const mensagens = getMensagensApresentacao();
+    
+    // Remove a mensagem com o ID especificado
+    const mensagensAtualizadas = mensagens.filter(m => m.id !== id);
+    
+    // Salva atualizado
+    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagensAtualizadas));
+    
+    return { success: true };
+  } catch (e) {
+    Logger.log("Erro ao deletar mensagem: " + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// Função para atualizar mensagem (marcar como inativa ou atualizar conteúdo)
+function atualizarMensagemApresentacao(id, dados) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
+    if (!raw) return { success: false, error: "Nenhuma mensagem encontrada" };
+    
+    const mensagens = JSON.parse(raw);
+    const index = mensagens.findIndex(m => m.id === id);
+    
+    if (index === -1) {
+      return { success: false, error: "Mensagem não encontrada" };
+    }
+    
+    // Atualiza os dados fornecidos
+    if (dados.texto !== undefined) mensagens[index].texto = dados.texto;
+    if (dados.cor !== undefined) mensagens[index].cor = dados.cor;
+    if (dados.tamanho !== undefined) mensagens[index].tamanho = dados.tamanho;
+    if (dados.ativa !== undefined) mensagens[index].ativa = dados.ativa;
+    
+    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagens));
+    
+    return { success: true, mensagem: mensagens[index] };
+  } catch (e) {
+    Logger.log("Erro ao atualizar mensagem: " + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// ==================== CONFIGURAÇÕES DE APRESENTAÇÃO ====================
+// Função para salvar configurações de apresentação
+function salvarConfiguracaoApresentacao(config) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const configCompleta = {
+      timeKanban: config.timeKanban || 10,
+      timeSeguranca: config.timeSeguranca || 1,
+      transitionTime: config.transitionTime || 1.5,
+      mensagensVelocidade: config.mensagensVelocidade || 50,
+      mensagensDirecao: config.mensagensDirecao || 'left',
+      mensagensPosicao: config.mensagensPosicao || 'top',
+      mensagensEstilo: config.mensagensEstilo || 'normal',
+      mensagensEspacamento: config.mensagensEspacamento || 100,
+      dataAtualizacao: new Date().toISOString()
+    };
+    
+    props.setProperty('APRESENTACAO_CONFIG', JSON.stringify(configCompleta));
+    return { success: true, config: configCompleta };
+  } catch (e) {
+    Logger.log("Erro ao salvar configuração: " + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+// Função para carregar configurações de apresentação
+function getConfiguracaoApresentacao() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const raw = props.getProperty('APRESENTACAO_CONFIG');
+    if (!raw) {
+      // Retorna configuração padrão
+      return {
+        timeKanban: 10,
+        timeSeguranca: 1,
+        transitionTime: 1.5,
+        mensagensVelocidade: 50,
+        mensagensDirecao: 'left',
+        mensagensPosicao: 'top',
+        mensagensEstilo: 'normal',
+        mensagensEspacamento: 100
+      };
+    }
+    return JSON.parse(raw);
+  } catch (e) {
+    Logger.log("Erro ao carregar configuração: " + e.message);
+    return {
+      timeKanban: 10,
+      timeSeguranca: 1,
+      transitionTime: 1.5,
+      mensagensVelocidade: 50,
+      mensagensDirecao: 'left',
+      mensagensPosicao: 'top',
+      mensagensEstilo: 'normal',
+      mensagensEspacamento: 100
+    };
   }
 }

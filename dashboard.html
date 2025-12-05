@@ -249,6 +249,20 @@
       <p>Registrar e consultar retorno de veículos</p>
       <a id="linkVeiculoslist" href="#">Abrir</a>
     </div>
+
+    <div class="card">
+      <div class="icon">🛡️</div>
+      <h3>Mensagens de Segurança</h3>
+      <p>Exibir mensagens de segurança no trabalho</p>
+      <a id="linkSeguranca" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">📺</div>
+      <h3>Modo Apresentação TV</h3>
+      <p>Kanban e Segurança alternados para TV</p>
+      <a id="linkApresentacao" href="#">Abrir</a>
+    </div>
   </div>
 
   <script>
@@ -278,6 +292,8 @@
     document.getElementById('linkVeiculos').href = WEBAPP_URL + "?page=veiculos&token=" + token;
     document.getElementById('linkVeiculoslist').href = WEBAPP_URL + "?page=veiculos_list&token=" + token;
     document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
+    document.getElementById('linkSeguranca').href = WEBAPP_URL + "?page=seguranca";
+    document.getElementById('linkApresentacao').href = WEBAPP_URL + "?page=apresentacao&token=" + token;
 
     // Atualiza estatísticas em tempo real
     function atualizarEstatisticas() {

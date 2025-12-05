@@ -3,11 +3,12 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="format-detection" content="telephone=no">
   <title>Controle de Veículos — Visualização</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
@@ -385,7 +386,16 @@
         return Array.prototype.slice.call(arrayLike);
       };
     }
-    const token = '<?= token ?>';
+
+    // Extrair token da URL (compatível com Google Apps Script)
+    function getTokenFromURL() {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('token') || '';
+    }
+
+    const token = getTokenFromURL();
+    const isEmbedded = window.location.search.includes('embedded=1') || window.self !== window.top;
+    
     const mensagemEl = document.getElementById('mensagem');
     const corpo = document.getElementById('corpoTabela');
     const btnAtualizar = document.getElementById('btnAtualizar');
@@ -408,8 +418,30 @@
     function carregarDados() {
       // Validar se google.script.run existe
       if (typeof google === 'undefined' || !google.script || !google.script.run) {
-        mostrarMensagem('❌ Erro: Ambiente Google Apps Script não carregado', 'bg-red-100 text-red-700 border border-red-200');
-        corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-red-600">Erro ao inicializar</td></tr>';
+        // Aguarda um pouco mais para o Google Apps Script carregar (especialmente em iframes)
+        let retryCount = 0;
+        const maxRetries = 10;
+        
+        const checkGoogleScript = setInterval(() => {
+          retryCount++;
+          if (typeof google !== 'undefined' && google.script && google.script.run) {
+            clearInterval(checkGoogleScript);
+            carregarDados();
+            return;
+          }
+          
+          if (retryCount >= maxRetries) {
+            clearInterval(checkGoogleScript);
+            mostrarMensagem('❌ Erro: Ambiente Google Apps Script não carregado. Aguarde alguns segundos e atualize a página.', 'bg-red-100 text-red-700 border border-red-200');
+            corpo.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-red-600">
+              <div class="flex flex-col items-center gap-3">
+                <p>Erro ao inicializar</p>
+                <button onclick="location.reload()" class="btn">🔄 Tentar novamente</button>
+              </div>
+            </td></tr>`;
+          }
+        }, 500);
+        
         return;
       }
 
@@ -421,15 +453,30 @@
         </div>
       </td></tr>`;
 
+      // Timeout para detectar se a chamada demorou muito
+      const timeoutId = setTimeout(() => {
+        mostrarMensagem('⏳ Carregamento está demorando mais que o esperado. Aguarde...', 'bg-yellow-100 text-yellow-800 border border-yellow-200');
+      }, 10000);
+
       google.script.run
         .withSuccessHandler(rows => {
+          clearTimeout(timeoutId);
           allRows = Array.isArray(rows) ? rows : [];
           popularOpcoesVeiculo(allRows);
           aplicarFiltrosERender();
+          mostrarMensagem('✅ Dados carregados com sucesso!', 'bg-green-100 text-green-800 border border-green-200');
+          setTimeout(() => mostrarMensagem('', ''), 2000);
         })
         .withFailureHandler(err => {
-          mostrarMensagem('❌ Erro ao carregar dados: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700 border border-red-200');
-          corpo.innerHTML = '<tr><td colspan="10" class="p-4 text-center text-red-600">Erro ao carregar dados</td></tr>';
+          clearTimeout(timeoutId);
+          const errorMsg = err && err.message ? err.message : (typeof err === 'string' ? err : 'Erro desconhecido');
+          mostrarMensagem('❌ Erro ao carregar dados: ' + errorMsg, 'bg-red-100 text-red-700 border border-red-200');
+          corpo.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-red-600">
+            <div class="flex flex-col items-center gap-3">
+              <p>Erro ao carregar dados</p>
+              <button onclick="carregarDados()" class="btn">🔄 Tentar novamente</button>
+            </div>
+          </td></tr>`;
         })
         .getControleVeiculos();
     }
@@ -624,13 +671,23 @@
           btn.disabled = true;
           btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;"></div>';
 
+          // Timeout para detectar se a operação demorou muito
+          const timeoutId = setTimeout(() => {
+            mostrarMensagem('⏳ Registrando retorno... Aguarde...', 'bg-yellow-100 text-yellow-800 border border-yellow-200');
+          }, 5000);
+
           google.script.run
             .withSuccessHandler(() => {
+              clearTimeout(timeoutId);
               mostrarMensagem('✅ Volta registrada com sucesso!', 'bg-green-100 text-green-800 border border-green-200');
               carregarDados();
             })
             .withFailureHandler(err => {
-              mostrarMensagem('❌ Erro ao registrar volta: ' + (err && err.message ? err.message : err), 'bg-red-100 text-red-700 border border-red-200');
+              clearTimeout(timeoutId);
+              const errorMsg = err && err.message ? err.message : (typeof err === 'string' ? err : 'Erro desconhecido');
+              mostrarMensagem('❌ Erro ao registrar volta: ' + errorMsg, 'bg-red-100 text-red-700 border border-red-200');
+              btn.disabled = false;
+              btn.innerHTML = '✓ Registrar Volta';
               carregarDados();
             })
             .registrarRetornoVeiculo(row);
@@ -707,12 +764,58 @@
       }, 1000);
     });
 
-    // carregamento inicial
-    carregarDados();
+    // Detectar se está em iframe e ajustar comportamento
+    if (isEmbedded) {
+      // Remove o botão voltar se estiver em iframe (o app principal já tem)
+      const btnVoltar = document.querySelector('.btn-voltar');
+      if (btnVoltar) {
+        btnVoltar.style.display = 'none';
+      }
+      
+      // Ajusta o padding do header para mobile quando em iframe
+      document.body.style.paddingTop = '0';
+    }
+
+    // Aguarda um pouco antes de carregar para garantir que o Google Apps Script está pronto
+    // Isso é especialmente importante em iframes e dispositivos móveis
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(carregarDados, 300);
+      });
+    } else {
+      setTimeout(carregarDados, 300);
+    }
+
+    // Adiciona listener para mensagens do iframe pai (se necessário)
+    window.addEventListener('message', function(event) {
+      // Aceita mensagens de qualquer origem (você pode restringir se necessário)
+      if (event.data && event.data.type === 'RELOAD') {
+        carregarDados();
+      }
+    });
 
     function voltarPagina() {
+      // Se estiver em iframe, comunica com o pai para fechar
+      if (isEmbedded && window.parent && window.parent !== window.self) {
+        try {
+          // Tenta comunicar com o iframe pai
+          window.parent.postMessage({ type: 'CLOSE_IFRAME' }, '*');
+          return;
+        } catch (e) {
+          console.log('Não foi possível comunicar com iframe pai:', e);
+        }
+      }
+      
+      // Fallback: redireciona normalmente
       const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+      const url = token ? `${baseUrl}?page=dashboard&token=${encodeURIComponent(token)}` : `${baseUrl}?page=dashboard`;
+      
+      // Tenta usar replace para evitar problemas em alguns navegadores
+      try {
+        window.location.replace(url);
+      } catch (e) {
+        window.location.href = url;
+      }
     }
 
     function debounce(fn, wait) {

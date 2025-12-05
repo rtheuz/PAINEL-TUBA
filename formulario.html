@@ -230,10 +230,15 @@
 
             <div class="row">
                 <div class="col">
-                    <label>Selecionar Cliente:</label>
-                    <select id="clienteSelect">
-                        <option value="">-- Novo Cliente --</option>
-                    </select>
+                    <label>Buscar Cliente (digite o nome):</label>
+                    <input type="text" id="clienteBusca" placeholder="Digite o nome do cliente..." 
+                           list="clientesList" 
+                           autocomplete="off"
+                           style="font-weight:600;">
+                    <datalist id="clientesList">
+                        <!-- Será preenchido dinamicamente -->
+                    </datalist>
+                    <input type="hidden" id="clienteSelectIndex" value="">
                 </div>
                 <div class="col">
                     <label>Nome:</label>
@@ -429,20 +434,85 @@
         function carregarClientes() {
             google.script.run.withSuccessHandler(function (clientes) {
                 listaClientes = clientes;
-                const select = document.getElementById("clienteSelect");
-                clientes.forEach(c => {
-                    const opt = document.createElement("option");
-                    opt.value = c.nome;
-                    opt.text = c.nome;
-                    select.add(opt);
-                });
+                const datalist = document.getElementById("clientesList");
+                datalist.innerHTML = clientes.map(c => 
+                    `<option value="${c.nome}" data-nome="${c.nome}">${c.nome}</option>`
+                ).join('');
             }).getTodosClientes();
         }
         carregarClientes();
 
-        document.getElementById("clienteSelect").addEventListener("change", function () {
-            const nome = this.value;
-            const c = listaClientes.find(cli => cli.nome === nome);
+        // Campo de busca de clientes
+        const clienteBuscaInput = document.getElementById("clienteBusca");
+        const clientesDatalist = document.getElementById("clientesList");
+        const clienteSelectIndex = document.getElementById("clienteSelectIndex");
+
+        // Função para filtrar clientes e atualizar datalist
+        function filtrarClientes(termo) {
+            if (!termo || termo.length < 1) {
+                // Mostra todos os clientes
+                clientesDatalist.innerHTML = listaClientes.map(c => 
+                    `<option value="${c.nome}" data-nome="${c.nome}">${c.nome}</option>`
+                ).join('');
+                clienteBuscaInput.style.background = "";
+                return;
+            }
+            
+            const termoLower = termo.toLowerCase();
+            const clientesFiltrados = listaClientes.filter(c => {
+                const nome = String(c.nome || '').toLowerCase();
+                return nome.includes(termoLower);
+            });
+            
+            // Atualiza o datalist com clientes filtrados
+            clientesDatalist.innerHTML = clientesFiltrados.map(c => 
+                `<option value="${c.nome}" data-nome="${c.nome}">${c.nome}</option>`
+            ).join('');
+            
+            // Se encontrou exatamente um cliente e corresponde, seleciona automaticamente
+            if (clientesFiltrados.length === 1) {
+                const cliente = clientesFiltrados[0];
+                if (cliente.nome.toLowerCase() === termoLower) {
+                    preencherDadosCliente(cliente);
+                    clienteBuscaInput.style.background = "#e8f5e9";
+                } else {
+                    clienteBuscaInput.style.background = "";
+                }
+            } else if (clientesFiltrados.length > 0) {
+                clienteBuscaInput.style.background = "#fff9c4"; // Amarelo claro para indicar múltiplos resultados
+            } else {
+                clienteBuscaInput.style.background = "#ffebee"; // Vermelho claro para indicar nenhum resultado
+            }
+        }
+
+        // Listener para quando o usuário digita
+        clienteBuscaInput.addEventListener("input", function() {
+            filtrarClientes(this.value.trim());
+        });
+
+        // Listener para quando o usuário seleciona uma opção do datalist
+        clienteBuscaInput.addEventListener("change", function() {
+            const selectedOption = Array.from(clientesDatalist.options).find(opt => 
+                opt.value === this.value
+            );
+            if (selectedOption) {
+                const nomeCliente = selectedOption.getAttribute("data-nome");
+                const cliente = listaClientes.find(c => c.nome === nomeCliente);
+                if (cliente) {
+                    preencherDadosCliente(cliente);
+                    clienteBuscaInput.style.background = "#e8f5e9";
+                }
+            } else {
+                // Se não encontrou correspondência exata, limpa os campos
+                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => 
+                    document.getElementById(id).value = ""
+                );
+                clienteBuscaInput.style.background = "";
+            }
+        });
+
+        // Função auxiliar para preencher dados do cliente
+        function preencherDadosCliente(c) {
             if (c) {
                 document.getElementById("clienteNome").value = c.nome;
                 document.getElementById("clienteCpf").value = c.cpf || "";
@@ -450,9 +520,11 @@
                 document.getElementById("clienteTelefone").value = c.telefone || "";
                 document.getElementById("clienteEmail").value = c.email || "";
             } else {
-                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => document.getElementById(id).value = "");
+                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => 
+                    document.getElementById(id).value = ""
+                );
             }
-        });
+        }
 
         /* ---------- PRODUTOS CADASTRADOS ---------- */
         let produtosCatalogo = [];
@@ -508,21 +580,17 @@
             div.innerHTML = `
                 <div class="row">
                     <div class="col" style="flex: 2;">
-                        <label>Selecionar Produto:</label>
-                        <select class="produtoSelect" onchange="preencherDadosProduto(this)">
-                            <option value="">-- Selecione ou preencha manualmente --</option>
+                        <label>Buscar Produto (digite código ou descrição):</label>
+                        <input type="text" class="produtoBusca" placeholder="Digite código ou descrição do produto..." 
+                               list="produtosList-${Date.now()}" 
+                               autocomplete="off"
+                               style="font-weight:600;">
+                        <datalist id="produtosList-${Date.now()}" class="produtosDatalist">
                             ${produtosCatalogo.map((p, idx) => 
-                                `<option value="${idx}">${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})</option>`
+                                `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
                             ).join('')}
-                        </select>
-                    </div>
-                    <div class="col">
-                        <label>Buscar por Código:</label>
-                        <input type="text" class="produtoCodigoBusca" placeholder="PRD00001" style="font-weight:600;">
-                    </div>
-                    <div class="col">
-                        <label>Buscar por Descrição:</label>
-                        <input type="text" class="produtoDescricaoBusca" placeholder="Digite parte da descrição..." style="font-weight:600;">
+                        </datalist>
+                        <input type="hidden" class="produtoSelectIndex" value="">
                     </div>
                 </div>
                 
@@ -588,111 +656,155 @@
                 calcularTotalProduto(div);
             });
             
-            // Adiciona listener para busca por código PRD
-            const codigoBuscaInput = div.querySelector(".produtoCodigoBusca");
-            const selectElement = div.querySelector(".produtoSelect");
+            // Campo de busca integrado que filtra produtos por código ou descrição
+            const buscaInput = div.querySelector(".produtoBusca");
+            const datalist = div.querySelector(".produtosDatalist");
+            const hiddenIndex = div.querySelector(".produtoSelectIndex");
             
-            codigoBuscaInput.addEventListener("input", function() {
-                const codigoBusca = this.value.trim().toUpperCase();
-                if (!codigoBusca) {
-                    this.style.background = "";
+            // Função para filtrar produtos e atualizar datalist
+            function filtrarProdutos(termo) {
+                if (!termo || termo.length < 1) {
+                    // Mostra todos os produtos
+                    datalist.innerHTML = produtosCatalogo.map((p, idx) => 
+                        `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
+                    ).join('');
+                    buscaInput.style.background = "";
                     return;
                 }
                 
-                // Procura o produto pelo código
-                const idx = produtosCatalogo.findIndex(p => 
-                    String(p.codigo).toUpperCase() === codigoBusca
+                const termoLower = termo.toLowerCase();
+                const produtosFiltrados = produtosCatalogo.filter((p, idx) => {
+                    const codigo = String(p.codigo || '').toLowerCase();
+                    const descricao = String(p.descricao || '').toLowerCase();
+                    return codigo.includes(termoLower) || descricao.includes(termoLower);
+                });
+                
+                // Atualiza o datalist com produtos filtrados
+                datalist.innerHTML = produtosFiltrados.map((p, idx) => {
+                    const originalIdx = produtosCatalogo.indexOf(p);
+                    return `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${originalIdx}">${p.codigo} - ${p.descricao}</option>`;
+                }).join('');
+                
+                // Apenas indica visualmente quantos resultados foram encontrados, sem preencher automaticamente
+                if (produtosFiltrados.length === 1) {
+                    buscaInput.style.background = "#fff9c4"; // Amarelo para indicar que há um resultado disponível
+                } else if (produtosFiltrados.length > 0) {
+                    buscaInput.style.background = "#fff9c4"; // Amarelo claro para indicar múltiplos resultados
+                } else {
+                    buscaInput.style.background = "#ffebee"; // Vermelho claro para indicar nenhum resultado
+                }
+            }
+            
+            // Função para verificar se o valor atual corresponde a uma opção e preencher dados
+            // Esta função só deve ser chamada quando há certeza de seleção (change, blur, Enter)
+            function verificarEPreencherProduto(valor, forcarPreenchimento = false) {
+                if (!valor || valor.trim() === "") {
+                    return false;
+                }
+                
+                const valorTrimmed = valor.trim();
+                const valorLower = valorTrimmed.toLowerCase();
+                
+                // Primeiro, procura uma opção que corresponda EXATAMENTE ao valor digitado/selecionado
+                let selectedOption = Array.from(datalist.options).find(opt => 
+                    opt.value === valorTrimmed || opt.value.toLowerCase() === valorLower
                 );
                 
-                if (idx >= 0) {
-                    // Seleciona o produto no dropdown
-                    selectElement.value = idx;
-                    preencherDadosProduto(selectElement);
-                    // Destaca o campo para indicar que encontrou
-                    this.style.background = "#e8f5e9";
-                } else if (codigoBusca.length >= 3) {
-                    // Se digitou pelo menos 3 caracteres e não encontrou, indica
-                    this.style.background = "#ffebee";
-                } else {
-                    this.style.background = "";
-                }
-            });
-            
-            codigoBuscaInput.addEventListener("blur", function() {
-                // Remove a cor de fundo quando sair do campo
-                setTimeout(() => {
-                    if (this.value.trim()) {
-                        const idx = produtosCatalogo.findIndex(p => 
-                            String(p.codigo).toUpperCase() === this.value.trim().toUpperCase()
-                        );
-                        if (idx >= 0) {
-                            this.style.background = "#e8f5e9";
-                        }
+                // Se não encontrou correspondência exata, tenta encontrar por código completo (formato "CODIGO - descrição")
+                if (!selectedOption) {
+                    // Extrai o código do início do valor (formato: "CODIGO - descrição")
+                    const matchCodigo = valorTrimmed.match(/^([A-Z0-9]+)\s*-/i);
+                    if (matchCodigo) {
+                        const codigoBuscado = matchCodigo[1].toUpperCase();
+                        selectedOption = Array.from(datalist.options).find(opt => {
+                            const optCodigo = opt.value.match(/^([A-Z0-9]+)\s*-/i);
+                            return optCodigo && optCodigo[1].toUpperCase() === codigoBuscado;
+                        });
                     }
-                }, 200);
-            });
-            
-            // Adiciona listener para busca por descrição
-            const descricaoBuscaInput = div.querySelector(".produtoDescricaoBusca");
-            
-            descricaoBuscaInput.addEventListener("input", function() {
-                const descricaoBusca = this.value.trim().toLowerCase();
-                if (!descricaoBusca || descricaoBusca.length < 2) {
-                    this.style.background = "";
-                    return;
                 }
                 
-                // Procura produtos que contenham a descrição
-                const idx = produtosCatalogo.findIndex(p => 
-                    String(p.descricao || '').toLowerCase().includes(descricaoBusca)
-                );
+                // Se encontrou uma opção correspondente EXATA
+                if (selectedOption) {
+                    const idx = parseInt(selectedOption.getAttribute("data-index"));
+                    if (!isNaN(idx) && idx >= 0 && idx < produtosCatalogo.length) {
+                        hiddenIndex.value = idx;
+                        preencherDadosProdutoPorIndex(div, idx);
+                        buscaInput.style.background = "#e8f5e9";
+                        // Garante que o valor do campo está no formato completo
+                        const produto = produtosCatalogo[idx];
+                        buscaInput.value = `${produto.codigo} - ${produto.descricao} (${produto.familia || 'N/A'})`;
+                        return true;
+                    }
+                }
                 
-                if (idx >= 0) {
-                    // Seleciona o primeiro produto encontrado no dropdown
-                    selectElement.value = idx;
-                    preencherDadosProduto(selectElement);
-                    // Destaca o campo para indicar que encontrou
-                    this.style.background = "#e8f5e9";
-                } else if (descricaoBusca.length >= 3) {
-                    // Se digitou pelo menos 3 caracteres e não encontrou, indica
-                    this.style.background = "#ffebee";
-                } else {
-                    this.style.background = "";
+                // Só busca no catálogo completo se forçar preenchimento (blur, Enter) ou se houver correspondência exata
+                if (forcarPreenchimento) {
+                    const produtoEncontrado = produtosCatalogo.find((p) => {
+                        const codigo = String(p.codigo || '').toLowerCase();
+                        const valorCompleto = `${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})`.toLowerCase();
+                        
+                        // Apenas correspondência exata ou código completo
+                        return valorCompleto === valorLower || codigo === valorLower;
+                    });
+                    
+                    if (produtoEncontrado) {
+                        const idx = produtosCatalogo.indexOf(produtoEncontrado);
+                        hiddenIndex.value = idx;
+                        preencherDadosProdutoPorIndex(div, idx);
+                        buscaInput.style.background = "#e8f5e9";
+                        buscaInput.value = `${produtoEncontrado.codigo} - ${produtoEncontrado.descricao} (${produtoEncontrado.familia || 'N/A'})`;
+                        return true;
+                    }
+                }
+                
+                return false;
+            }
+            
+            // Listener para quando o usuário digita - APENAS FILTRA, não preenche
+            buscaInput.addEventListener("input", function() {
+                const valor = this.value.trim();
+                // Apenas filtra a lista, não preenche automaticamente
+                filtrarProdutos(valor);
+            });
+            
+            // Listener para quando o usuário seleciona uma opção do datalist (evento change)
+            buscaInput.addEventListener("change", function() {
+                const valor = this.value.trim();
+                // Quando seleciona do datalist, preenche os dados
+                verificarEPreencherProduto(valor, true);
+            });
+            
+            // Listener adicional para quando o campo perde o foco (blur)
+            buscaInput.addEventListener("blur", function() {
+                const valor = this.value.trim();
+                if (valor) {
+                    // Tenta preencher apenas se houver correspondência exata
+                    setTimeout(() => {
+                        verificarEPreencherProduto(valor, true);
+                    }, 150);
                 }
             });
             
-            descricaoBuscaInput.addEventListener("blur", function() {
-                // Mantém cor verde se encontrou produto
-                setTimeout(() => {
-                    if (this.value.trim()) {
-                        const idx = produtosCatalogo.findIndex(p => 
-                            String(p.descricao || '').toLowerCase().includes(this.value.trim().toLowerCase())
-                        );
-                        if (idx >= 0) {
-                            this.style.background = "#e8f5e9";
-                        }
+            // Listener para capturar quando pressiona Enter (seleciona opção do datalist)
+            buscaInput.addEventListener("keydown", function(e) {
+                if (e.key === "Enter") {
+                    e.preventDefault(); // Previne submit se houver formulário
+                    const valor = this.value.trim();
+                    if (valor) {
+                        // Preenche quando pressiona Enter
+                        setTimeout(() => {
+                            verificarEPreencherProduto(valor, true);
+                        }, 50);
                     }
-                }, 200);
+                }
             });
+            
+            // Inicializa com todos os produtos visíveis
+            filtrarProdutos("");
         }
 
-        function preencherDadosProduto(selectElement) {
-            const div = selectElement.closest(".produto-cadastrado");
-            const idx = selectElement.value;
-            
-            // Limpa os campos de busca se selecionou do dropdown
-            const buscaInput = div.querySelector(".produtoCodigoBusca");
-            if (buscaInput) {
-                buscaInput.value = "";
-                buscaInput.style.background = "";
-            }
-            const descricaoBuscaInput = div.querySelector(".produtoDescricaoBusca");
-            if (descricaoBuscaInput) {
-                descricaoBuscaInput.value = "";
-                descricaoBuscaInput.style.background = "";
-            }
-            
-            if (idx === "") {
+        function preencherDadosProdutoPorIndex(div, idx) {
+            if (idx === "" || idx === null || idx === undefined || idx < 0 || idx >= produtosCatalogo.length) {
                 // Não limpa o código PRD gerado automaticamente, apenas os outros campos
                 div.querySelector(".produtoDescricao").value = "";
                 div.querySelector(".produtoFamilia").value = "";
@@ -713,6 +825,13 @@
             div.querySelector(".produtoUnidade").value = produto.unidade;
             div.querySelector(".produtoQuantidade").value = "1";
             calcularTotalProduto(div);
+        }
+
+        function preencherDadosProduto(selectElement) {
+            // Compatibilidade com código antigo - agora usa o novo sistema
+            const div = selectElement.closest(".produto-cadastrado");
+            const idx = selectElement.value;
+            preencherDadosProdutoPorIndex(div, idx);
         }
 
         function calcularTotalProduto(div) {
@@ -1047,7 +1166,7 @@
 
             // 2. Cliente
             formData.cliente = {
-                select: document.getElementById("clienteSelect").value,
+                select: document.getElementById("clienteBusca").value || "",
                 nome: document.getElementById("clienteNome").value,
                 cpf: document.getElementById("clienteCpf").value,
                 endereco: document.getElementById("clienteEndereco").value,
@@ -1156,7 +1275,18 @@
             atualizarCamposProjeto();
 
             // 2. Cliente
-            document.getElementById("clienteSelect").value = data.cliente.select || "";
+            const clienteBusca = document.getElementById("clienteBusca");
+            if (data.cliente.select) {
+                clienteBusca.value = data.cliente.select;
+            } else if (data.cliente.nome) {
+                clienteBusca.value = data.cliente.nome;
+                // Tenta encontrar e preencher dados do cliente se existir na lista
+                const cliente = listaClientes.find(c => c.nome === data.cliente.nome);
+                if (cliente) {
+                    preencherDadosCliente(cliente);
+                    clienteBusca.style.background = "#e8f5e9";
+                }
+            }
             document.getElementById("clienteNome").value = data.cliente.nome || "";
             document.getElementById("clienteCpf").value = data.cliente.cpf || "";
             document.getElementById("clienteEndereco").value = data.cliente.endereco || "";
@@ -1267,7 +1397,13 @@
                     // Tenta encontrar o índice do produto no catálogo
                     const idx = produtosCatalogo.findIndex(p => p.codigo === prodData.codigo);
                     if (idx >= 0) {
-                        prodDiv.querySelector(".produtoSelect").value = idx;
+                        // Preenche o campo de busca e o índice oculto
+                        const buscaInput = prodDiv.querySelector(".produtoBusca");
+                        const hiddenIndex = prodDiv.querySelector(".produtoSelectIndex");
+                        const produto = produtosCatalogo[idx];
+                        buscaInput.value = `${produto.codigo} - ${produto.descricao} (${produto.familia || 'N/A'})`;
+                        hiddenIndex.value = idx;
+                        buscaInput.style.background = "#e8f5e9";
                     }
                     
                     // Preenche os campos diretamente (suporta produtos manuais e customizados)

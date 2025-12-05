@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apresentação - Kanban e Segurança</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    body {
+      position: relative;
+      background: #000;
+    }
+
+    .slide-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    .slide-container.active {
+      opacity: 1;
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .slide-container.fade-out {
+      opacity: 0;
+      z-index: 1;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 250px;
+    }
+
+    .controls.visible {
+      display: flex;
+    }
+
+    .controls h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: 8px;
+    }
+
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .control-item label {
+      font-size: 13px;
+    }
+
+    .control-item input,
+    .control-item select {
+      width: 100%;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 13px;
+    }
+
+    .control-item input[type="number"] {
+      width: 80px;
+    }
+
+    .control-item select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 30px;
+    }
+
+    .control-item select option {
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+    }
+
+    .control-item input:focus {
+      outline: none;
+      border-color: #4ecdc4;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .toggle-controls {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1001;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .toggle-controls:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.1);
+    }
+
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4ecdc4;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+      }
+    }
+
+    .status-dot.kanban {
+      background: #1a73e8;
+    }
+
+    .status-dot.seguranca {
+      background: #ff6b6b;
+    }
+
+    .countdown {
+      font-weight: 600;
+      color: #4ecdc4;
+    }
+
+    /* Ocultar controles em modo apresentação (após 3 segundos) */
+    body.presentation-mode .controls,
+    body.presentation-mode .toggle-controls,
+    body.presentation-mode .status-indicator {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    body.presentation-mode:hover .controls,
+    body.presentation-mode:hover .toggle-controls,
+    body.presentation-mode:hover .status-indicator {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Estilos para mensagens */
+    .mensagem-item {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 8px;
+      margin-bottom: 6px;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .mensagem-item-texto {
+      flex: 1;
+      color: rgba(255, 255, 255, 0.9);
+      word-break: break-word;
+    }
+
+    .mensagem-item-acoes {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mensagem-item-acoes button {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .mensagem-item-acoes button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .mensagem-item-acoes button.deletar {
+      background: rgba(255, 107, 107, 0.5);
+    }
+
+    .mensagem-item-acoes button.deletar:hover {
+      background: rgba(255, 107, 107, 0.7);
+    }
+
+    /* Mensagens na tela - Rolagem tipo manchete */
+    #mensagensDisplay {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      z-index: 999;
+      pointer-events: none;
+      overflow: hidden;
+      white-space: nowrap;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      padding: 12px 0;
+      border-top: 2px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+      width: 100%;
+    }
+
+    #mensagensDisplay.bottom {
+      top: auto;
+      bottom: 0;
+      border-top: 2px solid rgba(255, 255, 255, 0.2);
+      border-bottom: none;
+    }
+
+    .mensagem-ticker {
+      display: inline-block;
+      padding: 0 50px;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    .mensagem-ticker.small { font-size: 18px; }
+    .mensagem-ticker.medium { font-size: 24px; }
+    .mensagem-ticker.large { font-size: 32px; }
+    .mensagem-ticker.xlarge { font-size: 42px; font-weight: 700; }
+
+    .mensagem-ticker.bold { font-weight: 700; }
+    .mensagem-ticker.italic { font-style: italic; }
+    .mensagem-ticker.outline {
+      -webkit-text-stroke: 2px currentColor;
+      -webkit-text-fill-color: transparent;
+      font-weight: 700;
+    }
+
+    @keyframes scrollLeft {
+      0% {
+        transform: translateX(100%);
+      }
+      100% {
+        transform: translateX(calc(-100%));
+      }
+    }
+
+    @keyframes scrollRight {
+      0% {
+        transform: translateX(calc(-100%));
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+
+    /* Garante que o wrapper tenha largura suficiente */
+    #tickerWrapper {
+      min-width: max-content;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="slide-container active" id="kanbanSlide">
+    <iframe id="kanbanFrame" src=""></iframe>
+  </div>
+
+  <div class="slide-container" id="segurancaSlide">
+    <iframe id="segurancaFrame" src=""></iframe>
+  </div>
+
+  <div class="status-indicator" id="statusIndicator">
+    <div class="status-dot kanban" id="statusDot"></div>
+    <span id="statusText">Carregando...</span>
+    <span class="countdown" id="countdown"></span>
+  </div>
+
+  <button class="toggle-controls" id="toggleControls" title="Mostrar/Ocultar Controles">⚙️</button>
+
+  <div class="controls" id="controls">
+    <h3>⚙️ Configurações</h3>
+    <div class="control-item">
+      <label>Tempo Kanban (minutos):</label>
+      <input type="number" id="timeKanban" min="1" max="60" value="5">
+    </div>
+    <div class="control-item">
+      <label>Tempo Segurança (minutos):</label>
+      <input type="number" id="timeSeguranca" min="1" max="60" value="1">
+    </div>
+    <div style="margin-top: 5px; padding: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; font-size: 12px; color: rgba(255, 255, 255, 0.8);">
+      💡 O Kanban é exibido predominantemente. A Segurança aparece brevemente entre os ciclos.
+    </div>
+    <div class="control-item">
+      <label>Transição (segundos):</label>
+      <input type="number" id="transitionTime" min="0.5" max="5" step="0.5" value="1.5">
+    </div>
+    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
+      <button onclick="applySettings()" style="width: 100%; padding: 8px; background: #4ecdc4; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+        Aplicar Configurações
+      </button>
+    </div>
+    
+    <!-- Configurações de Mensagens -->
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
+      <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">⚙️ Configurações de Mensagens</h3>
+      <div class="control-item">
+        <label>Velocidade:</label>
+        <input type="number" id="mensagensVelocidade" min="10" max="200" value="50">
+      </div>
+      <div class="control-item">
+        <label>Direção:</label>
+        <select id="mensagensDirecao" style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
+          <option value="left">← Esquerda</option>
+          <option value="right">→ Direita</option>
+        </select>
+      </div>
+      <div class="control-item">
+        <label>Posição:</label>
+        <select id="mensagensPosicao" style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
+          <option value="top">Topo</option>
+          <option value="bottom">Inferior</option>
+        </select>
+      </div>
+      <div class="control-item">
+        <label>Estilo:</label>
+        <select id="mensagensEstilo" style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
+          <option value="normal">Normal</option>
+          <option value="bold">Negrito</option>
+          <option value="italic">Itálico</option>
+          <option value="outline">Contorno</option>
+        </select>
+      </div>
+      <div class="control-item">
+        <label>Espaçamento:</label>
+        <input type="number" id="mensagensEspacamento" min="50" max="500" value="100">
+      </div>
+    </div>
+    
+    <!-- Seção de Mensagens -->
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
+      <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">💬 Mensagens</h3>
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="novaMensagemTexto" placeholder="Digite a mensagem..." 
+               style="width: 100%; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 13px; margin-bottom: 8px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <select id="novaMensagemCor" style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 12px;">
+            <option value="#ffffff">Branco</option>
+            <option value="#ff6b6b">Vermelho</option>
+            <option value="#4ecdc4">Ciano</option>
+            <option value="#1a73e8">Azul</option>
+            <option value="#ffd93d">Amarelo</option>
+            <option value="#6bcf7f">Verde</option>
+          </select>
+          <select id="novaMensagemTamanho" style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 12px;">
+            <option value="small">Pequeno</option>
+            <option value="medium" selected>Médio</option>
+            <option value="large">Grande</option>
+            <option value="xlarge">Muito Grande</option>
+          </select>
+        </div>
+        <button onclick="adicionarMensagem()" style="width: 100%; padding: 8px; background: #6bcf7f; color: rgb(0, 0, 0); border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+          ➕ Adicionar Mensagem
+        </button>
+      </div>
+      <div id="listaMensagens" style="max-height: 200px; overflow-y: auto;">
+        <!-- Mensagens serão inseridas aqui -->
+      </div>
+    </div>
+  </div>
+  
+  <!-- Container para exibir mensagens na tela -->
+  <div id="mensagensDisplay" style="position: fixed; top: 60px; left: 20px; right: 20px; z-index: 999; pointer-events: none;"></div>
+
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    
+    // Configurações padrão
+    let config = {
+      timeKanban: 10,
+      timeSeguranca: 1,
+      transitionTime: 1.5,
+      mensagensVelocidade: 50,
+      mensagensDirecao: 'left',
+      mensagensPosicao: 'top',
+      mensagensEstilo: 'normal',
+      mensagensEspacamento: 100
+    };
+
+    // Carregar configurações do servidor
+    function loadSettings() {
+      google.script.run
+        .withSuccessHandler(function(serverConfig) {
+          if (serverConfig) {
+            config = Object.assign(config, serverConfig);
+            aplicarConfiguracoesNaInterface();
+            aplicarConfiguracoesMensagens();
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Erro ao carregar configurações:', error);
+          // Usa localStorage como fallback
+          const saved = localStorage.getItem('apresentacaoConfig');
+          if (saved) {
+            config = Object.assign(config, JSON.parse(saved));
+            aplicarConfiguracoesNaInterface();
+          }
+        })
+        .getConfiguracaoApresentacao();
+    }
+
+    // Aplicar configurações na interface
+    function aplicarConfiguracoesNaInterface() {
+      document.getElementById('timeKanban').value = config.timeKanban || 10;
+      document.getElementById('timeSeguranca').value = config.timeSeguranca || 1;
+      document.getElementById('transitionTime').value = config.transitionTime || 1.5;
+      document.getElementById('mensagensVelocidade').value = config.mensagensVelocidade || 50;
+      document.getElementById('mensagensDirecao').value = config.mensagensDirecao || 'left';
+      document.getElementById('mensagensPosicao').value = config.mensagensPosicao || 'top';
+      document.getElementById('mensagensEstilo').value = config.mensagensEstilo || 'normal';
+      document.getElementById('mensagensEspacamento').value = config.mensagensEspacamento || 100;
+    }
+
+    // Salvar configurações no servidor
+    function saveSettings() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            console.log('Configurações salvas no servidor');
+          }
+        })
+        .withFailureHandler(function(error) {
+          console.error('Erro ao salvar configurações:', error);
+          // Fallback para localStorage
+          localStorage.setItem('apresentacaoConfig', JSON.stringify(config));
+        })
+        .salvarConfiguracaoApresentacao(config);
+    }
+
+    // Aplicar configurações
+    function applySettings() {
+      const tempoKanbanAnterior = config.timeKanban;
+      const tempoSegurancaAnterior = config.timeSeguranca;
+      const transitionTimeAnterior = config.transitionTime;
+      
+      config.timeKanban = parseInt(document.getElementById('timeKanban').value) || 10;
+      config.timeSeguranca = parseInt(document.getElementById('timeSeguranca').value) || 1;
+      config.transitionTime = parseFloat(document.getElementById('transitionTime').value) || 1.5;
+      config.mensagensVelocidade = parseInt(document.getElementById('mensagensVelocidade').value) || 50;
+      config.mensagensDirecao = document.getElementById('mensagensDirecao').value || 'left';
+      config.mensagensPosicao = document.getElementById('mensagensPosicao').value || 'top';
+      config.mensagensEstilo = document.getElementById('mensagensEstilo').value || 'normal';
+      config.mensagensEspacamento = parseInt(document.getElementById('mensagensEspacamento').value) || 100;
+      
+      saveSettings();
+      aplicarConfiguracoesMensagens();
+      
+      // Só reinicia o ciclo se os tempos mudaram
+      if (tempoKanbanAnterior !== config.timeKanban || 
+          tempoSegurancaAnterior !== config.timeSeguranca || 
+          transitionTimeAnterior !== config.transitionTime) {
+        resetCycle();
+      }
+      
+      alert('Configurações aplicadas!');
+    }
+
+    let currentSlide = 'kanban';
+    let timer = null;
+    let countdownTimer = null;
+    let timeRemaining = 0;
+
+    const kanbanSlide = document.getElementById('kanbanSlide');
+    const segurancaSlide = document.getElementById('segurancaSlide');
+    const kanbanFrame = document.getElementById('kanbanFrame');
+    const segurancaFrame = document.getElementById('segurancaFrame');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+    const countdown = document.getElementById('countdown');
+    const toggleControls = document.getElementById('toggleControls');
+    const controls = document.getElementById('controls');
+
+    // Obter token do localStorage ou URL
+    function getToken() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        return urlToken;
+      }
+      return localStorage.getItem('token');
+    }
+
+    const token = getToken();
+
+    // URLs das páginas
+    const kanbanUrl = token 
+      ? `${WEBAPP_URL}?page=kanban&token=${token}`
+      : `${WEBAPP_URL}?page=kanban`;
+    const segurancaUrl = `${WEBAPP_URL}?page=seguranca`;
+
+    // Carregar iframes
+    kanbanFrame.src = kanbanUrl;
+    segurancaFrame.src = segurancaUrl;
+
+    // Atualizar CSS de transição
+    function updateTransitionTime() {
+      document.documentElement.style.setProperty('--transition-time', `${config.transitionTime}s`);
+      const style = document.createElement('style');
+      style.textContent = `
+        .slide-container {
+          transition: opacity ${config.transitionTime}s ease-in-out;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Atualizar indicador de status
+    function updateStatus(slide, timeLeft) {
+      const minutes = Math.floor(timeLeft / 60);
+      const seconds = Math.floor(timeLeft % 60);
+      countdown.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      
+      if (slide === 'kanban') {
+        statusText.textContent = 'Exibindo: Kanban';
+        statusDot.className = 'status-dot kanban';
+      } else {
+        statusText.textContent = 'Exibindo: Segurança';
+        statusDot.className = 'status-dot seguranca';
+      }
+    }
+
+    // Trocar slide
+    function switchSlide() {
+      // Trocar visualmente
+      if (currentSlide === 'kanban') {
+        kanbanSlide.classList.remove('active');
+        kanbanSlide.classList.add('fade-out');
+        
+        setTimeout(() => {
+          segurancaSlide.classList.remove('fade-out');
+          segurancaSlide.classList.add('active');
+          currentSlide = 'seguranca';
+          timeRemaining = config.timeSeguranca * 60;
+          updateStatus('seguranca', timeRemaining);
+          scheduleNextSwitch();
+        }, config.transitionTime * 1000);
+      } else {
+        segurancaSlide.classList.remove('active');
+        segurancaSlide.classList.add('fade-out');
+        
+        setTimeout(() => {
+          kanbanSlide.classList.remove('fade-out');
+          kanbanSlide.classList.add('active');
+          currentSlide = 'kanban';
+          timeRemaining = config.timeKanban * 60;
+          updateStatus('kanban', timeRemaining);
+          scheduleNextSwitch();
+        }, config.transitionTime * 1000);
+      }
+    }
+
+    // Agendar próxima troca
+    function scheduleNextSwitch() {
+      if (timer) clearTimeout(timer);
+      if (countdownTimer) clearInterval(countdownTimer);
+      
+      const currentTime = currentSlide === 'kanban' ? config.timeKanban : config.timeSeguranca;
+      timeRemaining = currentTime * 60;
+      
+      // Atualizar contagem regressiva
+      countdownTimer = setInterval(() => {
+        timeRemaining--;
+        if (timeRemaining > 0) {
+          updateStatus(currentSlide, timeRemaining);
+        } else {
+          clearInterval(countdownTimer);
+        }
+      }, 1000);
+      
+      // Agendar próxima troca
+      timer = setTimeout(() => {
+        switchSlide();
+      }, currentTime * 60 * 1000);
+    }
+
+    // Iniciar ciclo
+    function startCycle() {
+      timeRemaining = config.timeKanban * 60;
+      updateStatus('kanban', timeRemaining);
+      scheduleNextSwitch();
+    }
+
+    // Reiniciar ciclo
+    function resetCycle() {
+      if (timer) clearTimeout(timer);
+      if (countdownTimer) clearInterval(countdownTimer);
+      
+      // Resetar para kanban
+      currentSlide = 'kanban';
+      segurancaSlide.classList.remove('active');
+      segurancaSlide.classList.add('fade-out');
+      kanbanSlide.classList.remove('fade-out');
+      kanbanSlide.classList.add('active');
+      
+      updateTransitionTime();
+      startCycle();
+    }
+
+    // Toggle controles
+    toggleControls.addEventListener('click', () => {
+      controls.classList.toggle('visible');
+    });
+
+    // Modo apresentação (ocultar controles após 3 segundos)
+    let presentationModeTimer = setTimeout(() => {
+      document.body.classList.add('presentation-mode');
+    }, 3000);
+
+    // Mostrar controles ao mover mouse
+    document.addEventListener('mousemove', () => {
+      clearTimeout(presentationModeTimer);
+      document.body.classList.remove('presentation-mode');
+      presentationModeTimer = setTimeout(() => {
+        document.body.classList.add('presentation-mode');
+      }, 3000);
+    });
+
+    // Inicializar
+    loadSettings();
+    updateTransitionTime();
+    startCycle();
+
+    // Recarregar iframes periodicamente para manter atualizado
+    setInterval(() => {
+      if (currentSlide === 'kanban') {
+        kanbanFrame.src = kanbanFrame.src; // Força reload
+      } else {
+        segurancaFrame.src = segurancaFrame.src;
+      }
+    }, 5 * 60 * 1000); // A cada 5 minutos
+
+    // Aguarda carregar configurações antes de iniciar sincronização
+    setTimeout(() => {
+      iniciarSincronizacao();
+    }, 500);
+
+    // Atalhos de teclado
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        controls.classList.toggle('visible');
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        if (timer) clearTimeout(timer);
+        switchSlide();
+      } else if (e.key === 'F11') {
+        // Permitir F11 para fullscreen
+        return;
+      }
+    });
+
+    // ==================== SISTEMA DE MENSAGENS ====================
+    let mensagens = [];
+    let syncInterval = null;
+
+    // Função para adicionar mensagem
+    function adicionarMensagem() {
+      const texto = document.getElementById('novaMensagemTexto').value.trim();
+      const cor = document.getElementById('novaMensagemCor').value;
+      const tamanho = document.getElementById('novaMensagemTamanho').value;
+
+      if (!texto) {
+        alert('Digite uma mensagem!');
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            document.getElementById('novaMensagemTexto').value = '';
+            // Aguarda um pouco antes de recarregar para evitar múltiplas atualizações
+            setTimeout(() => {
+              carregarMensagens();
+            }, 100);
+            alert('Mensagem adicionada com sucesso!');
+          } else {
+            alert('Erro ao adicionar mensagem: ' + (result.error || 'Erro desconhecido'));
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao adicionar mensagem: ' + error.message);
+        })
+        .salvarMensagemApresentacao(texto, cor, tamanho);
+    }
+
+    // Função para deletar mensagem
+    function deletarMensagem(id) {
+      if (!confirm('Tem certeza que deseja deletar esta mensagem?')) return;
+
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            carregarMensagens();
+            atualizarMensagensDisplay();
+          } else {
+            alert('Erro ao deletar mensagem: ' + (result.error || 'Erro desconhecido'));
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao deletar mensagem: ' + error.message);
+        })
+        .deletarMensagemApresentacao(id);
+    }
+
+    // Variável para evitar múltiplas atualizações simultâneas
+    let atualizandoMensagens = false;
+
+    // Função para carregar mensagens do servidor
+    function carregarMensagens() {
+      if (atualizandoMensagens) return;
+      atualizandoMensagens = true;
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          mensagens = result || [];
+          atualizarListaMensagens();
+          atualizarMensagensDisplay();
+          atualizandoMensagens = false;
+        })
+        .withFailureHandler(function(error) {
+          console.error('Erro ao carregar mensagens:', error);
+          atualizandoMensagens = false;
+        })
+        .getMensagensApresentacao();
+    }
+
+    // Função para atualizar a lista de mensagens no menu
+    function atualizarListaMensagens() {
+      const container = document.getElementById('listaMensagens');
+      container.innerHTML = '';
+
+      if (mensagens.length === 0) {
+        container.innerHTML = '<div style="color: rgba(255,255,255,0.5); font-size: 11px; text-align: center; padding: 10px;">Nenhuma mensagem cadastrada</div>';
+        return;
+      }
+
+      mensagens.forEach(mensagem => {
+        const div = document.createElement('div');
+        div.className = 'mensagem-item';
+        div.innerHTML = `
+          <div class="mensagem-item-texto" style="color: ${mensagem.cor};">${mensagem.texto}</div>
+          <div class="mensagem-item-acoes">
+            <button class="deletar" onclick="deletarMensagem('${mensagem.id}')" title="Deletar">🗑️</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Função para atualizar a exibição de mensagens na tela
+    // Função para aplicar configurações de mensagens
+    function aplicarConfiguracoesMensagens() {
+      const container = document.getElementById('mensagensDisplay');
+      
+      // Aplica posição
+      container.className = config.mensagensPosicao === 'bottom' ? 'bottom' : '';
+      
+      // Atualiza exibição se já houver mensagens
+      if (mensagens.length > 0) {
+        atualizarMensagensDisplay();
+      }
+    }
+
+    // Função para atualizar a exibição de mensagens na tela (rolagem tipo manchete)
+    function atualizarMensagensDisplay() {
+      const container = document.getElementById('mensagensDisplay');
+      container.innerHTML = '';
+
+      if (mensagens.length === 0) {
+        container.style.display = 'none';
+        return;
+      }
+
+      container.style.display = 'block';
+
+      // Cria wrapper para a animação
+      const wrapper = document.createElement('div');
+      wrapper.id = 'tickerWrapper';
+      wrapper.style.display = 'flex';
+      wrapper.style.width = 'max-content';
+      wrapper.style.willChange = 'transform';
+      wrapper.style.position = 'relative';
+
+      // Cria uma linha contínua de mensagens
+      const tickerContainer = document.createElement('div');
+      tickerContainer.id = 'tickerContent';
+      tickerContainer.style.display = 'flex';
+      tickerContainer.style.width = 'fit-content';
+      tickerContainer.style.alignItems = 'center';
+      tickerContainer.style.whiteSpace = 'nowrap';
+
+      mensagens.forEach((mensagem, index) => {
+        const span = document.createElement('span');
+        span.className = `mensagem-ticker ${mensagem.tamanho} ${config.mensagensEstilo}`;
+        span.style.color = mensagem.cor;
+        span.style.whiteSpace = 'nowrap';
+        span.style.display = 'inline-block';
+        span.textContent = mensagem.texto;
+        
+        tickerContainer.appendChild(span);
+        
+        // Adiciona separador entre mensagens
+        if (index < mensagens.length - 1) {
+          const separador = document.createElement('span');
+          separador.textContent = ' • ';
+          separador.style.color = 'rgba(255, 255, 255, 0.5)';
+          separador.style.padding = `0 ${config.mensagensEspacamento}px`;
+          separador.style.whiteSpace = 'nowrap';
+          separador.style.display = 'inline-block';
+          separador.className = `mensagem-ticker ${mensagem.tamanho}`;
+          tickerContainer.appendChild(separador);
+        }
+      });
+
+      // Duplica o conteúdo para criar loop contínuo sem gaps
+      const duplicado = tickerContainer.cloneNode(true);
+      duplicado.id = 'tickerContentDuplicado';
+      tickerContainer.appendChild(duplicado);
+
+      wrapper.appendChild(tickerContainer);
+      container.appendChild(wrapper);
+
+      // Aguarda o layout ser calculado e então aplica a animação
+      setTimeout(() => {
+        const larguraTela = container.offsetWidth || window.innerWidth;
+        
+        // Calcula largura do conteúdo (apenas uma cópia, não a duplicada)
+        // Remove temporariamente a duplicação para medir
+        const larguraOriginal = tickerContainer.offsetWidth / 2; // Divide por 2 porque está duplicado
+        
+        // Velocidade configurada (10-200) convertida para pixels por segundo
+          // 10 = muito lento (30px/s), 200 = muito rápido (150px/s)
+        const velocidadeConfig = config.mensagensVelocidade || 50;
+        const velocidadePxPorSegundo = 30 + ((velocidadeConfig - 10) / 190) * 120;
+        
+        // Distância total que precisa percorrer:
+        // - Começa em 100% da tela (fora à direita)
+        // - Precisa sair completamente (-100% do conteúdo)
+        // - Total = largura da tela + largura do conteúdo
+        const distanciaTotal = larguraTela + larguraOriginal;
+        
+        // Tempo necessário para percorrer toda a distância
+        const tempoAnimacao = distanciaTotal / velocidadePxPorSegundo;
+        
+        // Aplica animação ao wrapper
+        const direcao = config.mensagensDirecao === 'left' ? 'Left' : 'Right';
+        wrapper.style.animation = `scroll${direcao} ${tempoAnimacao}s linear infinite`;
+      }, 100);
+    }
+
+    // Função para sincronizar mensagens e configurações periodicamente
+    function iniciarSincronizacao() {
+      // Carrega imediatamente
+      carregarMensagens();
+      loadSettings();
+
+      // Sincroniza a cada 3 segundos
+      if (syncInterval) clearInterval(syncInterval);
+      syncInterval = setInterval(() => {
+        carregarMensagens();
+        // Sincroniza configurações também
+        google.script.run
+          .withSuccessHandler(function(serverConfig) {
+            if (serverConfig) {
+              const configAnterior = JSON.stringify(config);
+              config = Object.assign(config, serverConfig);
+              const configAtual = JSON.stringify(config);
+              
+              // Se as configurações mudaram, atualiza
+              if (configAnterior !== configAtual) {
+                const configAntiga = JSON.parse(configAnterior);
+                const tempoKanbanMudou = configAntiga.timeKanban !== config.timeKanban;
+                const tempoSegurancaMudou = configAntiga.timeSeguranca !== config.timeSeguranca;
+                const transitionTimeMudou = configAntiga.transitionTime !== config.transitionTime;
+                
+                aplicarConfiguracoesNaInterface();
+                aplicarConfiguracoesMensagens();
+                
+                // Se mudou tempo de slides, reinicia o ciclo
+                if (tempoKanbanMudou || tempoSegurancaMudou || transitionTimeMudou) {
+                  resetCycle();
+                }
+              }
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error('Erro ao sincronizar configurações:', error);
+          })
+          .getConfiguracaoApresentacao();
+      }, 3000);
+    }
+
+    // Permitir adicionar mensagem com Enter
+    document.getElementById('novaMensagemTexto').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        adicionarMensagem();
+      }
+    });
+  </script>
+</body>
+
+</html>
+
+
