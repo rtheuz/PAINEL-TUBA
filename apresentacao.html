@@ -268,7 +268,7 @@
       background: rgba(255, 107, 107, 0.7);
     }
 
-    /* Mensagens na tela - Rolagem tipo manchete */
+    /* Mensagens na tela - Sistema de flash/piscar */
     #mensagensDisplay {
       position: fixed;
       left: 0;
@@ -277,10 +277,12 @@
       z-index: 999;
       pointer-events: none;
       overflow: hidden;
-      white-space: nowrap;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       background: rgba(0, 0, 0, 0.7);
       backdrop-filter: blur(10px);
-      padding: 12px 0;
+      padding: 12px 20px;
       border-top: 2px solid rgba(255, 255, 255, 0.2);
       border-bottom: 2px solid rgba(255, 255, 255, 0.2);
       width: 100%;
@@ -293,72 +295,75 @@
       border-bottom: none;
     }
 
-    .mensagem-ticker {
-      display: inline-block;
-      padding: 0 50px;
-      white-space: nowrap;
+    .mensagem-flash {
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+      text-align: center;
       font-weight: 500;
+      position: absolute;
+      width: calc(100% - 40px);
     }
 
-    .mensagem-ticker.small {
+    .mensagem-flash.visible {
+      opacity: 1;
+    }
+
+    /* Efeito fade */
+    .mensagem-flash.fade {
+      transform: scale(1);
+    }
+
+    .mensagem-flash.fade.visible {
+      transform: scale(1);
+    }
+
+    /* Efeito slide */
+    .mensagem-flash.slide {
+      transform: translateY(-20px);
+    }
+
+    .mensagem-flash.slide.visible {
+      transform: translateY(0);
+    }
+
+    /* Efeito zoom */
+    .mensagem-flash.zoom {
+      transform: scale(0.8);
+    }
+
+    .mensagem-flash.zoom.visible {
+      transform: scale(1);
+    }
+
+    .mensagem-flash.small {
       font-size: 18px;
     }
 
-    .mensagem-ticker.medium {
+    .mensagem-flash.medium {
       font-size: 24px;
     }
 
-    .mensagem-ticker.large {
+    .mensagem-flash.large {
       font-size: 32px;
     }
 
-    .mensagem-ticker.xlarge {
+    .mensagem-flash.xlarge {
       font-size: 42px;
       font-weight: 700;
     }
 
-    .mensagem-ticker.bold {
+    .mensagem-flash.bold {
       font-weight: 700;
     }
 
-    .mensagem-ticker.italic {
+    .mensagem-flash.italic {
       font-style: italic;
     }
 
-    .mensagem-ticker.outline {
+    .mensagem-flash.outline {
       -webkit-text-stroke: 2px currentColor;
       -webkit-text-fill-color: transparent;
       font-weight: 700;
-    }
-
-    @keyframes scrollLeft {
-      0% {
-        transform: translateX(0);
-      }
-
-      100% {
-        transform: translateX(-50%);
-      }
-    }
-
-    @keyframes scrollRight {
-      0% {
-        transform: translateX(-50%);
-      }
-
-      100% {
-        transform: translateX(0);
-      }
-    }
-
-    #tickerWrapper {
-      display: flex;
-      width: max-content;
-    }
-
-    /* Garante que o wrapper tenha largura suficiente */
-    #tickerWrapper {
-      min-width: max-content;
     }
   </style>
 </head>
@@ -411,15 +416,16 @@
         style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">
         ⚙️ Configurações de Mensagens</h3>
       <div class="control-item">
-        <label>Velocidade:</label>
-        <input type="number" id="mensagensVelocidade" min="10" max="200" value="50">
+        <label>Tempo de exibição (s):</label>
+        <input type="number" id="mensagensTempo" min="1" max="30" value="3">
       </div>
       <div class="control-item">
-        <label>Direção:</label>
-        <select id="mensagensDirecao"
+        <label>Efeito de transição:</label>
+        <select id="mensagensEfeito"
           style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
-          <option value="left">← Esquerda</option>
-          <option value="right">→ Direita</option>
+          <option value="fade">Fade</option>
+          <option value="slide">Slide</option>
+          <option value="zoom">Zoom</option>
         </select>
       </div>
       <div class="control-item">
@@ -439,10 +445,6 @@
           <option value="italic">Itálico</option>
           <option value="outline">Contorno</option>
         </select>
-      </div>
-      <div class="control-item">
-        <label>Espaçamento:</label>
-        <input type="number" id="mensagensEspacamento" min="50" max="500" value="100">
       </div>
     </div>
 
@@ -495,11 +497,10 @@
       timeKanban: 10,
       timeSeguranca: 1,
       transitionTime: 1.5,
-      mensagensVelocidade: 50,
-      mensagensDirecao: 'left',
+      mensagensTempo: 3,
+      mensagensEfeito: 'fade',
       mensagensPosicao: 'top',
-      mensagensEstilo: 'normal',
-      mensagensEspacamento: 100
+      mensagensEstilo: 'normal'
     };
 
     // Carregar configurações do servidor
@@ -529,11 +530,10 @@
       document.getElementById('timeKanban').value = config.timeKanban || 10;
       document.getElementById('timeSeguranca').value = config.timeSeguranca || 1;
       document.getElementById('transitionTime').value = config.transitionTime || 1.5;
-      document.getElementById('mensagensVelocidade').value = config.mensagensVelocidade || 50;
-      document.getElementById('mensagensDirecao').value = config.mensagensDirecao || 'left';
+      document.getElementById('mensagensTempo').value = config.mensagensTempo || 3;
+      document.getElementById('mensagensEfeito').value = config.mensagensEfeito || 'fade';
       document.getElementById('mensagensPosicao').value = config.mensagensPosicao || 'top';
       document.getElementById('mensagensEstilo').value = config.mensagensEstilo || 'normal';
-      document.getElementById('mensagensEspacamento').value = config.mensagensEspacamento || 100;
     }
 
     // Salvar configurações no servidor
@@ -561,11 +561,10 @@
       config.timeKanban = parseInt(document.getElementById('timeKanban').value) || 10;
       config.timeSeguranca = parseInt(document.getElementById('timeSeguranca').value) || 1;
       config.transitionTime = parseFloat(document.getElementById('transitionTime').value) || 1.5;
-      config.mensagensVelocidade = parseInt(document.getElementById('mensagensVelocidade').value) || 50;
-      config.mensagensDirecao = document.getElementById('mensagensDirecao').value || 'left';
+      config.mensagensTempo = parseInt(document.getElementById('mensagensTempo').value) || 3;
+      config.mensagensEfeito = document.getElementById('mensagensEfeito').value || 'fade';
       config.mensagensPosicao = document.getElementById('mensagensPosicao').value || 'top';
       config.mensagensEstilo = document.getElementById('mensagensEstilo').value || 'normal';
-      config.mensagensEspacamento = parseInt(document.getElementById('mensagensEspacamento').value) || 100;
 
       saveSettings();
       aplicarConfiguracoesMensagens();
@@ -873,12 +872,22 @@
     }
 
     // Função para atualizar a exibição de mensagens na tela
+    // Variáveis para o sistema de mensagens flash
+    let mensagemAtualIndex = 0;
+    let mensagemInterval = null;
+
     // Função para aplicar configurações de mensagens
     function aplicarConfiguracoesMensagens() {
       const container = document.getElementById('mensagensDisplay');
 
       // Aplica posição
       container.className = config.mensagensPosicao === 'bottom' ? 'bottom' : '';
+
+      // Reinicia o intervalo de alternância quando configurações mudarem
+      if (mensagemInterval) {
+        clearInterval(mensagemInterval);
+        mensagemInterval = null;
+      }
 
       // Atualiza exibição se já houver mensagens
       if (mensagens.length > 0) {
@@ -890,64 +899,72 @@
       var container = document.getElementById('mensagensDisplay');
       container.innerHTML = '';
 
+      // Limpa intervalo anterior
+      if (mensagemInterval) {
+        clearInterval(mensagemInterval);
+        mensagemInterval = null;
+      }
+
       if (mensagens.length === 0) {
         container.style.display = 'none';
         return;
       }
 
-      container.style.display = 'block';
+      container.style.display = 'flex';
 
-      var wrapper = document.createElement('div');
-      wrapper.id = 'tickerWrapper';
-      wrapper.style.display = 'flex';
-      wrapper.style.width = 'max-content';
-      wrapper.style.willChange = 'transform';
+      // Cria elementos para cada mensagem
+      mensagens.forEach(function(mensagem, index) {
+        var span = document.createElement('span');
+        span.className = 'mensagem-flash ' + mensagem.tamanho + ' ' + config.mensagensEstilo + ' ' + config.mensagensEfeito;
+        span.style.color = mensagem.cor;
+        span.textContent = mensagem.texto;
+        span.dataset.index = index;
+        container.appendChild(span);
+      });
 
-      function criarConteudoTicker() {
-        var tickerContent = document.createElement('div');
-        tickerContent.style.display = 'flex';
-        tickerContent.style.alignItems = 'center';
-        tickerContent.style.whiteSpace = 'nowrap';
-
-        for (var i = 0; i < mensagens.length; i++) {
-          var mensagem = mensagens[i];
-
-          var span = document.createElement('span');
-          span.className = 'mensagem-ticker ' + mensagem.tamanho + ' ' + config.mensagensEstilo;
-          span.style.color = mensagem.cor;
-          span.style.whiteSpace = 'nowrap';
-          span.style.display = 'inline-block';
-          span.textContent = mensagem.texto;
-          tickerContent.appendChild(span);
-
-          var separador = document.createElement('span');
-          separador.innerHTML = ' &bull; ';
-          separador.style.color = 'rgba(255, 255, 255, 0.5)';
-          separador.style.padding = '0 ' + config.mensagensEspacamento + 'px';
-          separador.style.whiteSpace = 'nowrap';
-          separador.style.display = 'inline-block';
-          separador.className = 'mensagem-ticker ' + mensagem.tamanho;
-          tickerContent.appendChild(separador);
+      // Se houver apenas uma mensagem, exibe fixa
+      if (mensagens.length === 1) {
+        var unicaMensagem = container.querySelector('.mensagem-flash');
+        if (unicaMensagem) {
+          unicaMensagem.classList.add('visible');
         }
-
-        return tickerContent;
+        return;
       }
 
-      var conteudo1 = criarConteudoTicker();
-      var conteudo2 = criarConteudoTicker();
+      // Exibe a primeira mensagem
+      mensagemAtualIndex = 0;
+      exibirMensagemAtual();
 
-      wrapper.appendChild(conteudo1);
-      wrapper.appendChild(conteudo2);
-      container.appendChild(wrapper);
+      // Configura intervalo para alternar entre mensagens
+      var tempoExibicao = (config.mensagensTempo || 3) * 1000;
+      mensagemInterval = setInterval(function() {
+        // Fade out mensagem atual
+        var mensagemAtual = container.querySelector('.mensagem-flash[data-index="' + mensagemAtualIndex + '"]');
+        if (mensagemAtual) {
+          mensagemAtual.classList.remove('visible');
+        }
 
-      requestAnimationFrame(function () {
-        var larguraConteudo = conteudo1.offsetWidth;
-        var velocidadeConfig = config.mensagensVelocidade || 50;
-        var velocidadePxPorSegundo = 20 + ((velocidadeConfig - 10) / 190) * 280;
-        var tempoAnimacao = larguraConteudo / velocidadePxPorSegundo;
-        var direcao = config.mensagensDirecao === 'left' ? 'Left' : 'Right';
-        wrapper.style.animation = 'scroll' + direcao + ' ' + tempoAnimacao + 's linear infinite';
+        // Após a transição de fade out, mostra a próxima
+        setTimeout(function() {
+          // Incrementa índice (circular)
+          mensagemAtualIndex = (mensagemAtualIndex + 1) % mensagens.length;
+          exibirMensagemAtual();
+        }, 500); // tempo da transição CSS
+      }, tempoExibicao);
+    }
+
+    function exibirMensagemAtual() {
+      var container = document.getElementById('mensagensDisplay');
+      var todasMensagens = container.querySelectorAll('.mensagem-flash');
+      
+      todasMensagens.forEach(function(el) {
+        el.classList.remove('visible');
       });
+
+      var mensagemParaExibir = container.querySelector('.mensagem-flash[data-index="' + mensagemAtualIndex + '"]');
+      if (mensagemParaExibir) {
+        mensagemParaExibir.classList.add('visible');
+      }
     }
 
     // Função para sincronizar mensagens e configurações periodicamente
@@ -1001,4 +1018,4 @@
   </script>
 </body>
 
-</html
+</html>
