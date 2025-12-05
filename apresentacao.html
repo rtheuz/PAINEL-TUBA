@@ -15,7 +15,8 @@
       padding: 0;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -180,10 +181,13 @@
     }
 
     @keyframes pulse {
-      0%, 100% {
+
+      0%,
+      100% {
         opacity: 1;
         transform: scale(1);
       }
+
       50% {
         opacity: 0.5;
         transform: scale(1.2);
@@ -296,13 +300,31 @@
       font-weight: 500;
     }
 
-    .mensagem-ticker.small { font-size: 18px; }
-    .mensagem-ticker.medium { font-size: 24px; }
-    .mensagem-ticker.large { font-size: 32px; }
-    .mensagem-ticker.xlarge { font-size: 42px; font-weight: 700; }
+    .mensagem-ticker.small {
+      font-size: 18px;
+    }
 
-    .mensagem-ticker.bold { font-weight: 700; }
-    .mensagem-ticker.italic { font-style: italic; }
+    .mensagem-ticker.medium {
+      font-size: 24px;
+    }
+
+    .mensagem-ticker.large {
+      font-size: 32px;
+    }
+
+    .mensagem-ticker.xlarge {
+      font-size: 42px;
+      font-weight: 700;
+    }
+
+    .mensagem-ticker.bold {
+      font-weight: 700;
+    }
+
+    .mensagem-ticker.italic {
+      font-style: italic;
+    }
+
     .mensagem-ticker.outline {
       -webkit-text-stroke: 2px currentColor;
       -webkit-text-fill-color: transparent;
@@ -311,20 +333,27 @@
 
     @keyframes scrollLeft {
       0% {
-        transform: translateX(100%);
+        transform: translateX(0);
       }
+
       100% {
-        transform: translateX(calc(-100%));
+        transform: translateX(-50%);
       }
     }
 
     @keyframes scrollRight {
       0% {
-        transform: translateX(calc(-100%));
+        transform: translateX(-50%);
       }
+
       100% {
-        transform: translateX(100%);
+        transform: translateX(0);
       }
+    }
+
+    #tickerWrapper {
+      display: flex;
+      width: max-content;
     }
 
     /* Garante que o wrapper tenha largura suficiente */
@@ -361,7 +390,8 @@
       <label>Tempo Segurança (minutos):</label>
       <input type="number" id="timeSeguranca" min="1" max="60" value="1">
     </div>
-    <div style="margin-top: 5px; padding: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; font-size: 12px; color: rgba(255, 255, 255, 0.8);">
+    <div
+      style="margin-top: 5px; padding: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; font-size: 12px; color: rgba(255, 255, 255, 0.8);">
       💡 O Kanban é exibido predominantemente. A Segurança aparece brevemente entre os ciclos.
     </div>
     <div class="control-item">
@@ -369,35 +399,41 @@
       <input type="number" id="transitionTime" min="0.5" max="5" step="0.5" value="1.5">
     </div>
     <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
-      <button onclick="applySettings()" style="width: 100%; padding: 8px; background: #4ecdc4; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+      <button onclick="applySettings()"
+        style="width: 100%; padding: 8px; background: #4ecdc4; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
         Aplicar Configurações
       </button>
     </div>
-    
+
     <!-- Configurações de Mensagens -->
     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
-      <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">⚙️ Configurações de Mensagens</h3>
+      <h3
+        style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">
+        ⚙️ Configurações de Mensagens</h3>
       <div class="control-item">
         <label>Velocidade:</label>
         <input type="number" id="mensagensVelocidade" min="10" max="200" value="50">
       </div>
       <div class="control-item">
         <label>Direção:</label>
-        <select id="mensagensDirecao" style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
+        <select id="mensagensDirecao"
+          style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
           <option value="left">← Esquerda</option>
           <option value="right">→ Direita</option>
         </select>
       </div>
       <div class="control-item">
         <label>Posição:</label>
-        <select id="mensagensPosicao" style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
+        <select id="mensagensPosicao"
+          style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
           <option value="top">Topo</option>
           <option value="bottom">Inferior</option>
         </select>
       </div>
       <div class="control-item">
         <label>Estilo:</label>
-        <select id="mensagensEstilo" style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
+        <select id="mensagensEstilo"
+          style="width: 100%; padding: 5px 10px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px;">
           <option value="normal">Normal</option>
           <option value="bold">Negrito</option>
           <option value="italic">Itálico</option>
@@ -409,15 +445,18 @@
         <input type="number" id="mensagensEspacamento" min="50" max="500" value="100">
       </div>
     </div>
-    
+
     <!-- Seção de Mensagens -->
     <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
-      <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">💬 Mensagens</h3>
+      <h3
+        style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">
+        💬 Mensagens</h3>
       <div style="margin-bottom: 10px;">
-        <input type="text" id="novaMensagemTexto" placeholder="Digite a mensagem..." 
-               style="width: 100%; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 13px; margin-bottom: 8px;">
+        <input type="text" id="novaMensagemTexto" placeholder="Digite a mensagem..."
+          style="width: 100%; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 13px; margin-bottom: 8px;">
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <select id="novaMensagemCor" style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 12px;">
+          <select id="novaMensagemCor"
+            style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 12px;">
             <option value="#ffffff">Branco</option>
             <option value="#ff6b6b">Vermelho</option>
             <option value="#4ecdc4">Ciano</option>
@@ -425,14 +464,16 @@
             <option value="#ffd93d">Amarelo</option>
             <option value="#6bcf7f">Verde</option>
           </select>
-          <select id="novaMensagemTamanho" style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 12px;">
+          <select id="novaMensagemTamanho"
+            style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(0, 0, 0); font-size: 12px;">
             <option value="small">Pequeno</option>
             <option value="medium" selected>Médio</option>
             <option value="large">Grande</option>
             <option value="xlarge">Muito Grande</option>
           </select>
         </div>
-        <button onclick="adicionarMensagem()" style="width: 100%; padding: 8px; background: #6bcf7f; color: rgb(0, 0, 0); border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+        <button onclick="adicionarMensagem()"
+          style="width: 100%; padding: 8px; background: #6bcf7f; color: rgb(0, 0, 0); border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
           ➕ Adicionar Mensagem
         </button>
       </div>
@@ -441,13 +482,14 @@
       </div>
     </div>
   </div>
-  
+
   <!-- Container para exibir mensagens na tela -->
-  <div id="mensagensDisplay" style="position: fixed; top: 60px; left: 20px; right: 20px; z-index: 999; pointer-events: none;"></div>
+  <div id="mensagensDisplay"
+    style="position: fixed; top: 60px; left: 20px; right: 20px; z-index: 999; pointer-events: none;"></div>
 
   <script>
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-    
+
     // Configurações padrão
     let config = {
       timeKanban: 10,
@@ -463,14 +505,14 @@
     // Carregar configurações do servidor
     function loadSettings() {
       google.script.run
-        .withSuccessHandler(function(serverConfig) {
+        .withSuccessHandler(function (serverConfig) {
           if (serverConfig) {
             config = Object.assign(config, serverConfig);
             aplicarConfiguracoesNaInterface();
             aplicarConfiguracoesMensagens();
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function (error) {
           console.error('Erro ao carregar configurações:', error);
           // Usa localStorage como fallback
           const saved = localStorage.getItem('apresentacaoConfig');
@@ -497,12 +539,12 @@
     // Salvar configurações no servidor
     function saveSettings() {
       google.script.run
-        .withSuccessHandler(function(result) {
+        .withSuccessHandler(function (result) {
           if (result.success) {
             console.log('Configurações salvas no servidor');
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function (error) {
           console.error('Erro ao salvar configurações:', error);
           // Fallback para localStorage
           localStorage.setItem('apresentacaoConfig', JSON.stringify(config));
@@ -515,7 +557,7 @@
       const tempoKanbanAnterior = config.timeKanban;
       const tempoSegurancaAnterior = config.timeSeguranca;
       const transitionTimeAnterior = config.transitionTime;
-      
+
       config.timeKanban = parseInt(document.getElementById('timeKanban').value) || 10;
       config.timeSeguranca = parseInt(document.getElementById('timeSeguranca').value) || 1;
       config.transitionTime = parseFloat(document.getElementById('transitionTime').value) || 1.5;
@@ -524,17 +566,17 @@
       config.mensagensPosicao = document.getElementById('mensagensPosicao').value || 'top';
       config.mensagensEstilo = document.getElementById('mensagensEstilo').value || 'normal';
       config.mensagensEspacamento = parseInt(document.getElementById('mensagensEspacamento').value) || 100;
-      
+
       saveSettings();
       aplicarConfiguracoesMensagens();
-      
+
       // Só reinicia o ciclo se os tempos mudaram
-      if (tempoKanbanAnterior !== config.timeKanban || 
-          tempoSegurancaAnterior !== config.timeSeguranca || 
-          transitionTimeAnterior !== config.transitionTime) {
+      if (tempoKanbanAnterior !== config.timeKanban ||
+        tempoSegurancaAnterior !== config.timeSeguranca ||
+        transitionTimeAnterior !== config.transitionTime) {
         resetCycle();
       }
-      
+
       alert('Configurações aplicadas!');
     }
 
@@ -568,7 +610,7 @@
     const token = getToken();
 
     // URLs das páginas
-    const kanbanUrl = token 
+    const kanbanUrl = token
       ? `${WEBAPP_URL}?page=kanban&token=${token}`
       : `${WEBAPP_URL}?page=kanban`;
     const segurancaUrl = `${WEBAPP_URL}?page=seguranca`;
@@ -594,7 +636,7 @@
       const minutes = Math.floor(timeLeft / 60);
       const seconds = Math.floor(timeLeft % 60);
       countdown.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      
+
       if (slide === 'kanban') {
         statusText.textContent = 'Exibindo: Kanban';
         statusDot.className = 'status-dot kanban';
@@ -610,7 +652,7 @@
       if (currentSlide === 'kanban') {
         kanbanSlide.classList.remove('active');
         kanbanSlide.classList.add('fade-out');
-        
+
         setTimeout(() => {
           segurancaSlide.classList.remove('fade-out');
           segurancaSlide.classList.add('active');
@@ -622,7 +664,7 @@
       } else {
         segurancaSlide.classList.remove('active');
         segurancaSlide.classList.add('fade-out');
-        
+
         setTimeout(() => {
           kanbanSlide.classList.remove('fade-out');
           kanbanSlide.classList.add('active');
@@ -638,10 +680,10 @@
     function scheduleNextSwitch() {
       if (timer) clearTimeout(timer);
       if (countdownTimer) clearInterval(countdownTimer);
-      
+
       const currentTime = currentSlide === 'kanban' ? config.timeKanban : config.timeSeguranca;
       timeRemaining = currentTime * 60;
-      
+
       // Atualizar contagem regressiva
       countdownTimer = setInterval(() => {
         timeRemaining--;
@@ -651,7 +693,7 @@
           clearInterval(countdownTimer);
         }
       }, 1000);
-      
+
       // Agendar próxima troca
       timer = setTimeout(() => {
         switchSlide();
@@ -669,14 +711,14 @@
     function resetCycle() {
       if (timer) clearTimeout(timer);
       if (countdownTimer) clearInterval(countdownTimer);
-      
+
       // Resetar para kanban
       currentSlide = 'kanban';
       segurancaSlide.classList.remove('active');
       segurancaSlide.classList.add('fade-out');
       kanbanSlide.classList.remove('fade-out');
       kanbanSlide.classList.add('active');
-      
+
       updateTransitionTime();
       startCycle();
     }
@@ -748,7 +790,7 @@
       }
 
       google.script.run
-        .withSuccessHandler(function(result) {
+        .withSuccessHandler(function (result) {
           if (result.success) {
             document.getElementById('novaMensagemTexto').value = '';
             // Aguarda um pouco antes de recarregar para evitar múltiplas atualizações
@@ -760,7 +802,7 @@
             alert('Erro ao adicionar mensagem: ' + (result.error || 'Erro desconhecido'));
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function (error) {
           alert('Erro ao adicionar mensagem: ' + error.message);
         })
         .salvarMensagemApresentacao(texto, cor, tamanho);
@@ -771,7 +813,7 @@
       if (!confirm('Tem certeza que deseja deletar esta mensagem?')) return;
 
       google.script.run
-        .withSuccessHandler(function(result) {
+        .withSuccessHandler(function (result) {
           if (result.success) {
             carregarMensagens();
             atualizarMensagensDisplay();
@@ -779,7 +821,7 @@
             alert('Erro ao deletar mensagem: ' + (result.error || 'Erro desconhecido'));
           }
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function (error) {
           alert('Erro ao deletar mensagem: ' + error.message);
         })
         .deletarMensagemApresentacao(id);
@@ -792,15 +834,15 @@
     function carregarMensagens() {
       if (atualizandoMensagens) return;
       atualizandoMensagens = true;
-      
+
       google.script.run
-        .withSuccessHandler(function(result) {
+        .withSuccessHandler(function (result) {
           mensagens = result || [];
           atualizarListaMensagens();
           atualizarMensagensDisplay();
           atualizandoMensagens = false;
         })
-        .withFailureHandler(function(error) {
+        .withFailureHandler(function (error) {
           console.error('Erro ao carregar mensagens:', error);
           atualizandoMensagens = false;
         })
@@ -834,19 +876,18 @@
     // Função para aplicar configurações de mensagens
     function aplicarConfiguracoesMensagens() {
       const container = document.getElementById('mensagensDisplay');
-      
+
       // Aplica posição
       container.className = config.mensagensPosicao === 'bottom' ? 'bottom' : '';
-      
+
       // Atualiza exibição se já houver mensagens
       if (mensagens.length > 0) {
         atualizarMensagensDisplay();
       }
     }
 
-    // Função para atualizar a exibição de mensagens na tela (rolagem tipo manchete)
     function atualizarMensagensDisplay() {
-      const container = document.getElementById('mensagensDisplay');
+      var container = document.getElementById('mensagensDisplay');
       container.innerHTML = '';
 
       if (mensagens.length === 0) {
@@ -856,79 +897,57 @@
 
       container.style.display = 'block';
 
-      // Cria wrapper para a animação
-      const wrapper = document.createElement('div');
+      var wrapper = document.createElement('div');
       wrapper.id = 'tickerWrapper';
       wrapper.style.display = 'flex';
       wrapper.style.width = 'max-content';
       wrapper.style.willChange = 'transform';
-      wrapper.style.position = 'relative';
 
-      // Cria uma linha contínua de mensagens
-      const tickerContainer = document.createElement('div');
-      tickerContainer.id = 'tickerContent';
-      tickerContainer.style.display = 'flex';
-      tickerContainer.style.width = 'fit-content';
-      tickerContainer.style.alignItems = 'center';
-      tickerContainer.style.whiteSpace = 'nowrap';
+      function criarConteudoTicker() {
+        var tickerContent = document.createElement('div');
+        tickerContent.style.display = 'flex';
+        tickerContent.style.alignItems = 'center';
+        tickerContent.style.whiteSpace = 'nowrap';
 
-      mensagens.forEach((mensagem, index) => {
-        const span = document.createElement('span');
-        span.className = `mensagem-ticker ${mensagem.tamanho} ${config.mensagensEstilo}`;
-        span.style.color = mensagem.cor;
-        span.style.whiteSpace = 'nowrap';
-        span.style.display = 'inline-block';
-        span.textContent = mensagem.texto;
-        
-        tickerContainer.appendChild(span);
-        
-        // Adiciona separador entre mensagens
-        if (index < mensagens.length - 1) {
-          const separador = document.createElement('span');
-          separador.textContent = ' • ';
+        for (var i = 0; i < mensagens.length; i++) {
+          var mensagem = mensagens[i];
+
+          var span = document.createElement('span');
+          span.className = 'mensagem-ticker ' + mensagem.tamanho + ' ' + config.mensagensEstilo;
+          span.style.color = mensagem.cor;
+          span.style.whiteSpace = 'nowrap';
+          span.style.display = 'inline-block';
+          span.textContent = mensagem.texto;
+          tickerContent.appendChild(span);
+
+          var separador = document.createElement('span');
+          separador.innerHTML = ' &bull; ';
           separador.style.color = 'rgba(255, 255, 255, 0.5)';
-          separador.style.padding = `0 ${config.mensagensEspacamento}px`;
+          separador.style.padding = '0 ' + config.mensagensEspacamento + 'px';
           separador.style.whiteSpace = 'nowrap';
           separador.style.display = 'inline-block';
-          separador.className = `mensagem-ticker ${mensagem.tamanho}`;
-          tickerContainer.appendChild(separador);
+          separador.className = 'mensagem-ticker ' + mensagem.tamanho;
+          tickerContent.appendChild(separador);
         }
-      });
 
-      // Duplica o conteúdo para criar loop contínuo sem gaps
-      const duplicado = tickerContainer.cloneNode(true);
-      duplicado.id = 'tickerContentDuplicado';
-      tickerContainer.appendChild(duplicado);
+        return tickerContent;
+      }
 
-      wrapper.appendChild(tickerContainer);
+      var conteudo1 = criarConteudoTicker();
+      var conteudo2 = criarConteudoTicker();
+
+      wrapper.appendChild(conteudo1);
+      wrapper.appendChild(conteudo2);
       container.appendChild(wrapper);
 
-      // Aguarda o layout ser calculado e então aplica a animação
-      setTimeout(() => {
-        const larguraTela = container.offsetWidth || window.innerWidth;
-        
-        // Calcula largura do conteúdo (apenas uma cópia, não a duplicada)
-        // Remove temporariamente a duplicação para medir
-        const larguraOriginal = tickerContainer.offsetWidth / 2; // Divide por 2 porque está duplicado
-        
-        // Velocidade configurada (10-200) convertida para pixels por segundo
-          // 10 = muito lento (30px/s), 200 = muito rápido (150px/s)
-        const velocidadeConfig = config.mensagensVelocidade || 50;
-        const velocidadePxPorSegundo = 30 + ((velocidadeConfig - 10) / 190) * 120;
-        
-        // Distância total que precisa percorrer:
-        // - Começa em 100% da tela (fora à direita)
-        // - Precisa sair completamente (-100% do conteúdo)
-        // - Total = largura da tela + largura do conteúdo
-        const distanciaTotal = larguraTela + larguraOriginal;
-        
-        // Tempo necessário para percorrer toda a distância
-        const tempoAnimacao = distanciaTotal / velocidadePxPorSegundo;
-        
-        // Aplica animação ao wrapper
-        const direcao = config.mensagensDirecao === 'left' ? 'Left' : 'Right';
-        wrapper.style.animation = `scroll${direcao} ${tempoAnimacao}s linear infinite`;
-      }, 100);
+      requestAnimationFrame(function () {
+        var larguraConteudo = conteudo1.offsetWidth;
+        var velocidadeConfig = config.mensagensVelocidade || 50;
+        var velocidadePxPorSegundo = 20 + ((velocidadeConfig - 10) / 190) * 280;
+        var tempoAnimacao = larguraConteudo / velocidadePxPorSegundo;
+        var direcao = config.mensagensDirecao === 'left' ? 'Left' : 'Right';
+        wrapper.style.animation = 'scroll' + direcao + ' ' + tempoAnimacao + 's linear infinite';
+      });
     }
 
     // Função para sincronizar mensagens e configurações periodicamente
@@ -943,22 +962,22 @@
         carregarMensagens();
         // Sincroniza configurações também
         google.script.run
-          .withSuccessHandler(function(serverConfig) {
+          .withSuccessHandler(function (serverConfig) {
             if (serverConfig) {
               const configAnterior = JSON.stringify(config);
               config = Object.assign(config, serverConfig);
               const configAtual = JSON.stringify(config);
-              
+
               // Se as configurações mudaram, atualiza
               if (configAnterior !== configAtual) {
                 const configAntiga = JSON.parse(configAnterior);
                 const tempoKanbanMudou = configAntiga.timeKanban !== config.timeKanban;
                 const tempoSegurancaMudou = configAntiga.timeSeguranca !== config.timeSeguranca;
                 const transitionTimeMudou = configAntiga.transitionTime !== config.transitionTime;
-                
+
                 aplicarConfiguracoesNaInterface();
                 aplicarConfiguracoesMensagens();
-                
+
                 // Se mudou tempo de slides, reinicia o ciclo
                 if (tempoKanbanMudou || tempoSegurancaMudou || transitionTimeMudou) {
                   resetCycle();
@@ -966,7 +985,7 @@
               }
             }
           })
-          .withFailureHandler(function(error) {
+          .withFailureHandler(function (error) {
             console.error('Erro ao sincronizar configurações:', error);
           })
           .getConfiguracaoApresentacao();
@@ -974,7 +993,7 @@
     }
 
     // Permitir adicionar mensagem com Enter
-    document.getElementById('novaMensagemTexto').addEventListener('keypress', function(e) {
+    document.getElementById('novaMensagemTexto').addEventListener('keypress', function (e) {
       if (e.key === 'Enter') {
         adicionarMensagem();
       }
@@ -982,6 +1001,4 @@
   </script>
 </body>
 
-</html>
-
-
+</html
