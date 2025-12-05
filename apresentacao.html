@@ -308,15 +308,6 @@
       opacity: 1;
     }
 
-    /* Efeito fade */
-    .mensagem-flash.fade {
-      transform: scale(1);
-    }
-
-    .mensagem-flash.fade.visible {
-      transform: scale(1);
-    }
-
     /* Efeito slide */
     .mensagem-flash.slide {
       transform: translateY(-20px);
@@ -875,6 +866,21 @@
     // Variáveis para o sistema de mensagens flash
     let mensagemAtualIndex = 0;
     let mensagemInterval = null;
+    let mensagemTransitionTimeout = null;
+    let mensagemAtualElement = null;
+    const TRANSITION_DURATION_MS = 500; // Deve corresponder ao tempo de transição no CSS
+
+    // Função para limpar timers de mensagens
+    function limparTimersMensagens() {
+      if (mensagemInterval) {
+        clearInterval(mensagemInterval);
+        mensagemInterval = null;
+      }
+      if (mensagemTransitionTimeout) {
+        clearTimeout(mensagemTransitionTimeout);
+        mensagemTransitionTimeout = null;
+      }
+    }
 
     // Função para aplicar configurações de mensagens
     function aplicarConfiguracoesMensagens() {
@@ -883,11 +889,8 @@
       // Aplica posição
       container.className = config.mensagensPosicao === 'bottom' ? 'bottom' : '';
 
-      // Reinicia o intervalo de alternância quando configurações mudarem
-      if (mensagemInterval) {
-        clearInterval(mensagemInterval);
-        mensagemInterval = null;
-      }
+      // Reinicia os timers quando configurações mudarem
+      limparTimersMensagens();
 
       // Atualiza exibição se já houver mensagens
       if (mensagens.length > 0) {
@@ -898,12 +901,10 @@
     function atualizarMensagensDisplay() {
       var container = document.getElementById('mensagensDisplay');
       container.innerHTML = '';
+      mensagemAtualElement = null;
 
-      // Limpa intervalo anterior
-      if (mensagemInterval) {
-        clearInterval(mensagemInterval);
-        mensagemInterval = null;
-      }
+      // Limpa timers anteriores
+      limparTimersMensagens();
 
       if (mensagens.length === 0) {
         container.style.display = 'none';
@@ -927,6 +928,7 @@
         var unicaMensagem = container.querySelector('.mensagem-flash');
         if (unicaMensagem) {
           unicaMensagem.classList.add('visible');
+          mensagemAtualElement = unicaMensagem;
         }
         return;
       }
@@ -939,31 +941,26 @@
       var tempoExibicao = (config.mensagensTempo || 3) * 1000;
       mensagemInterval = setInterval(function() {
         // Fade out mensagem atual
-        var mensagemAtual = container.querySelector('.mensagem-flash[data-index="' + mensagemAtualIndex + '"]');
-        if (mensagemAtual) {
-          mensagemAtual.classList.remove('visible');
+        if (mensagemAtualElement) {
+          mensagemAtualElement.classList.remove('visible');
         }
 
         // Após a transição de fade out, mostra a próxima
-        setTimeout(function() {
+        mensagemTransitionTimeout = setTimeout(function() {
           // Incrementa índice (circular)
           mensagemAtualIndex = (mensagemAtualIndex + 1) % mensagens.length;
           exibirMensagemAtual();
-        }, 500); // tempo da transição CSS
+        }, TRANSITION_DURATION_MS);
       }, tempoExibicao);
     }
 
     function exibirMensagemAtual() {
       var container = document.getElementById('mensagensDisplay');
-      var todasMensagens = container.querySelectorAll('.mensagem-flash');
-      
-      todasMensagens.forEach(function(el) {
-        el.classList.remove('visible');
-      });
 
       var mensagemParaExibir = container.querySelector('.mensagem-flash[data-index="' + mensagemAtualIndex + '"]');
       if (mensagemParaExibir) {
         mensagemParaExibir.classList.add('visible');
+        mensagemAtualElement = mensagemParaExibir;
       }
     }
 
