@@ -1364,6 +1364,7 @@ function doGet(e) {
     'veiculos': ['admin', 'mod', 'usuario', 'visitante'],
     'veiculos_list': ['admin', 'mod'],
     'produtos': ['admin', 'mod', 'usuario']
+    
   };
 
   // Helper que constrói a query de redirecionamento,
@@ -3120,6 +3121,184 @@ function atualizarMensagemApresentacao(id, dados) {
     return { success: true, mensagem: mensagens[index] };
   } catch (e) {
     Logger.log("Erro ao atualizar mensagem: " + e.message);
+    return { success: false, error: e.message };
+  }
+}
+// ==================== CONFIGURAÇÕES DA APRESENTAÇÃO ====================
+
+function getConfiguracoesApresentacao() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Configuracoes');
+    
+    if (!sheet) {
+      // Criar aba se não existir
+      sheet = ss.insertSheet('Configuracoes');
+      sheet.getRange('A1:B1').setValues([['chave', 'valor']]);
+      sheet.getRange('A2:B5').setValues([
+        ['timeKanban', '10'],
+        ['timeSeguranca', '1'],
+        ['transitionTime', '1.5'],
+        ['messagePosition', 'bottom']
+      ]);
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const config = {};
+    
+    for (let i = 1; i < data.length; i++) {
+      const chave = data[i][0];
+      const valor = data[i][1];
+      
+      if (chave === 'timeKanban' || chave === 'timeSeguranca') {
+        config[chave] = parseInt(valor) || 5;
+      } else if (chave === 'transitionTime') {
+        config[chave] = parseFloat(valor) || 1.5;
+      } else {
+        config[chave] = valor;
+      }
+    }
+    
+    return { success: true, config: config };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+function salvarConfiguracoesApresentacao(config) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Configuracoes');
+    
+    if (!sheet) {
+      sheet = ss. insertSheet('Configuracoes');
+      sheet.getRange('A1:B1').setValues([['chave', 'valor']]);
+    }
+    
+    // Limpar dados antigos (exceto cabeçalho)
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, 1, lastRow - 1, 2).clear();
+    }
+    
+    // Salvar novas configurações
+    const configArray = Object.entries(config).map(([chave, valor]) => [chave, valor. toString()]);
+    if (configArray.length > 0) {
+      sheet.getRange(2, 1, configArray. length, 2).setValues(configArray);
+    }
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error. message };
+  }
+}
+
+// Atualizar função de mensagem para incluir destaque
+function salvarMensagemApresentacao(texto, cor, tamanho, destaque) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('MensagensApresentacao');
+    
+    if (!sheet) {
+      sheet = ss. insertSheet('MensagensApresentacao');
+      sheet. getRange('A1:E1').setValues([['id', 'texto', 'cor', 'tamanho', 'destaque']]);
+    }
+    
+    const id = Utilities.getUuid();
+    const lastRow = sheet.getLastRow() + 1;
+    
+    sheet.getRange(lastRow, 1, 1, 5).setValues([[id, texto, cor, tamanho, destaque || false]]);
+    
+    return { success: true, id: id };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+function getMensagensApresentacao() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('MensagensApresentacao');
+    
+    if (!sheet || sheet.getLastRow() <= 1) {
+      return [];
+    }
+    
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+    
+    return data. map(row => ({
+      id: row[0],
+      texto: row[1],
+      cor: row[2],
+      tamanho: row[3],
+      destaque: row[4] === true || row[4] === 'true'
+    })). filter(msg => msg.texto);
+  } catch (error) {
+    console.error('Erro ao buscar mensagens:', error);
+    return [];
+  }
+}
+// Função para deletar mensagem - CORRIGIDA
+function deletarMensagemApresentacao(id) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
+    
+    // Se não há mensagens, retorna erro
+    if (!raw) {
+      return { success: false, error: "Nenhuma mensagem encontrada" };
+    }
+    
+    // Parse TODAS as mensagens (não apenas as ativas)
+    let mensagens = [];
+    try {
+      mensagens = JSON.parse(raw);
+    } catch (parseErr) {
+      Logger.log("Erro ao parsear mensagens: " + parseErr.message);
+      return { success: false, error: "Erro ao ler mensagens" };
+    }
+    
+    // Verifica se a mensagem existe
+    const mensagemExiste = mensagens.some(m => m. id === id);
+    if (!mensagemExiste) {
+      Logger.log("Mensagem não encontrada com ID: " + id);
+      return { success: false, error: "Mensagem não encontrada com ID: " + id };
+    }
+    
+    // Remove a mensagem com o ID especificado
+    const mensagensAtualizadas = mensagens.filter(m => m.id !== id);
+    
+    // Salva atualizado
+    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagensAtualizadas));
+    
+    Logger.log("Mensagem deletada com sucesso.  ID: " + id);
+    return { success: true };
+  } catch (e) {
+    Logger. log("Erro ao deletar mensagem: " + e.message);
+    return { success: false, error: e.message };
+  }
+}
+// Função para listar TODAS as mensagens (incluindo inativas) - útil para debug
+function getTodasMensagensApresentacao() {
+  try {
+    const props = PropertiesService. getScriptProperties();
+    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
+    if (!raw) return [];
+    
+    return JSON.parse(raw);
+  } catch (e) {
+    Logger.log("Erro ao carregar todas as mensagens: " + e.message);
+    return [];
+  }
+}
+
+// Função para limpar TODAS as mensagens (use com cuidado!)
+function limparTodasMensagensApresentacao() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    props.deleteProperty('APRESENTACAO_MENSAGENS');
+    return { success: true };
+  } catch (e) {
     return { success: false, error: e.message };
   }
 }
