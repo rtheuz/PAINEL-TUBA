@@ -753,6 +753,7 @@
               <th>Projeto</th>
               <th>Valor</th>
               <th>Data</th>
+              <th>Prazo</th>
               <th>Processos</th>
               <th>PDF</th>
               <th>Memória</th>
@@ -780,6 +781,9 @@
               </td>
               <td data-label="Data" class="col-data">
                 <?!= dados[i]["DATA"] ?>
+              </td>
+              <td data-label="Prazo" class="col-prazo">
+                <?!= dados[i]["PRAZO"] || "" ?>
               </td>
               <td data-label="Processos" class="col-processos">
                 <?!= dados[i]["Processos"] ?>
@@ -885,6 +889,11 @@
           <div class="field">
             <label for="inputData">Data</label>
             <input id="inputData" name="data" placeholder="DD/MM/AAAA">
+          </div>
+
+          <div class="field">
+            <label for="inputPrazo">Prazo de Entrega</label>
+            <input id="inputPrazo" name="prazo" type="date">
           </div>
 
           <div class="field">
@@ -1010,6 +1019,24 @@
       form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
       form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
       form.data.value = tr.querySelector('.col-data')?.textContent.trim() || '';
+      
+      // Parse PRAZO from DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD for date input
+      const prazoText = tr.querySelector('.col-prazo')?.textContent.trim() || '';
+      if (prazoText) {
+        const parts = prazoText.split('/');
+        if (parts.length === 3) {
+          let year = parts[2];
+          if (year.length === 2) {
+            // Use threshold: years < 50 are 20XX, >= 50 are 19XX
+            const yearNum = parseInt(year, 10);
+            year = (yearNum < 50 ? '20' : '19') + year;
+          }
+          form.prazo.value = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      } else {
+        form.prazo.value = '';
+      }
+      
       form.processos.value = tr.querySelector('.col-processos')?.textContent.trim() || '';
 
       const links = tr.querySelectorAll('a.link');
@@ -1195,10 +1222,20 @@
       const projeto = (form.projeto.value || '').trim();
       const valor = (form.valor.value || '').trim();
       const data = (form.data.value || '').trim();
+      const prazoInput = (form.prazo.value || '').trim();
       const processos = (form.processos.value || '').trim();
       const linkPdf = (form.linkPdf.value || '').trim();
       const linkMem = (form.linkMemoria.value || '').trim();
       const status = (form.status.value || '').trim();
+      
+      // Convert prazo from YYYY-MM-DD to DD/MM/YYYY for storage
+      let prazo = '';
+      if (prazoInput) {
+        const parts = prazoInput.split('-');
+        if (parts.length === 3) {
+          prazo = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+      }
 
       if (!clienteNome || !projeto) {
         alert('Preencha ao menos Cliente e Projeto.');
@@ -1212,6 +1249,7 @@
         PROJETO: projeto,
         "VALOR TOTAL": valor,
         DATA: data,
+        PRAZO: prazo,
         Processos: processos,
         "LINK DO PDF": linkPdf,
         "LINK DA MEMÓRIA DE CÁLCULO": linkMem,
@@ -1314,6 +1352,7 @@
         <td data-label="Projeto" class="col-projeto">${dados.PROJETO || ''}</td>
         <td data-label="Valor" class="col-valor">${dados["VALOR TOTAL"] || ''}</td>
         <td data-label="Data" class="col-data">${dados.DATA || ''}</td>
+        <td data-label="Prazo" class="col-prazo">${dados.PRAZO || ''}</td>
         <td data-label="Processos" class="col-processos">${dados.Processos || ''}</td>
         <td data-label="PDF">
           <a class="link" href="${dados["LINK DO PDF"] || '#'}" target="_blank">
@@ -1362,6 +1401,7 @@
       tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
       tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
       tr.querySelector('.col-data').textContent = dados.DATA || '';
+      tr.querySelector('.col-prazo').textContent = dados.PRAZO || '';
       tr.querySelector('.col-processos').textContent = dados.Processos || '';
 
       const links = tr.querySelectorAll('a.link');
