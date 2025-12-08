@@ -267,7 +267,7 @@
 
             <div class="row" style="margin-top:8px;">
                 <div class="col">
-                    <label>Responsável:</label>
+                    <label>Cliente Responsável:</label>
                     <input type="text" id="clienteResponsavel">
                 </div>
                 <div class="col">
@@ -356,7 +356,7 @@
                 </div>
             </div>
 
-            <div class="row" style="margin-top:8px;">
+            <div class="row" style="margin-top: 8px;">
                 <div class="col">
                     <label>Condições do material:</label>
                     <select id="obsMaterialCond">
@@ -365,9 +365,15 @@
                         <option value="Não incluso">Não incluso</option>
                     </select>
                 </div>
-                <div class="col">
+                    <div class="col">
                     <label>Pagamento:</label>
-                    <input type="text" id="obsPagamento" placeholder="Ex: À vista / Parcelado 3x">
+                        <select id="obsPagamento">
+                            <option value="">Selecione</option>
+                            <option value="À vista">À vista</option>
+                            <option value="30 dias">30 dias</option>
+                            <option value="60 dias">60 dias</option>
+                            <option value="90 dias">90 dias</option>
+                        </select>
                 </div>
             </div>
 
