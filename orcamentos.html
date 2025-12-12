@@ -975,9 +975,24 @@
         .getTodosClientes();
     }
 
+    // Formata todos os prazos na tabela após carregamento
+    function formatarTodosPrazos() {
+      const prazoCells = document.querySelectorAll('.col-prazo');
+      prazoCells.forEach(cell => {
+        const prazoOriginal = cell.textContent.trim();
+        if (prazoOriginal) {
+          const prazoFormatado = formatarPrazoExibicao(prazoOriginal);
+          if (prazoFormatado !== prazoOriginal) {
+            cell.textContent = prazoFormatado;
+          }
+        }
+      });
+    }
+
     window.addEventListener('load', () => {
       carregarClientes();
       verificarEstadoVazio();
+      formatarTodosPrazos();
     });
 
     // Voltar página
@@ -1020,18 +1035,35 @@
       form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
       form.data.value = tr.querySelector('.col-data')?.textContent.trim() || '';
       
-      // Parse PRAZO from DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD for date input
+      // Parse PRAZO to YYYY-MM-DD format for date input
       const prazoText = tr.querySelector('.col-prazo')?.textContent.trim() || '';
       if (prazoText) {
-        const parts = prazoText.split('/');
-        if (parts.length === 3) {
-          let year = parts[2];
-          if (year.length === 2) {
-            // Use threshold: years < 50 are 20XX, >= 50 are 19XX
-            const yearNum = parseInt(year, 10);
-            year = (yearNum < 50 ? '20' : '19') + year;
+        // Trata formato DD/MM/YYYY ou DD/MM/YY
+        if (prazoText.includes('/')) {
+          const parts = prazoText.split('/');
+          if (parts.length === 3) {
+            let year = parts[2];
+            if (year.length === 2) {
+              // Use threshold: years < 50 are 20XX, >= 50 are 19XX
+              const yearNum = parseInt(year, 10);
+              year = (yearNum < 50 ? '20' : '19') + year;
+            }
+            form.prazo.value = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
           }
-          form.prazo.value = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        // Trata objetos Date (que aparecem como string GMT)
+        else if (prazoText.includes('GMT')) {
+          const date = new Date(prazoText);
+          if (!isNaN(date.getTime())) {
+            const ano = date.getFullYear();
+            const mes = String(date.getMonth() + 1).padStart(2, '0');
+            const dia = String(date.getDate()).padStart(2, '0');
+            form.prazo.value = `${ano}-${mes}-${dia}`;
+          }
+        }
+        // Se já estiver no formato YYYY-MM-DD, usa direto
+        else if (prazoText.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          form.prazo.value = prazoText;
         }
       } else {
         form.prazo.value = '';
@@ -1106,6 +1138,35 @@
       return String(s).trim().toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9\s\/]/g, '');
+    }
+
+    // Formata prazo para exibição (YYYY-MM-DD ou Date → DD/MM/YYYY)
+    function formatarPrazoExibicao(prazo) {
+      if (!prazo) return "";
+      
+      // Se for string no formato YYYY-MM-DD
+      if (typeof prazo === 'string' && prazo.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [ano, mes, dia] = prazo.split('-');
+        return `${dia}/${mes}/${ano}`;
+      }
+      
+      // Se for objeto Date (vem como string do toString())
+      if (typeof prazo === 'string' && prazo.includes('GMT')) {
+        const date = new Date(prazo);
+        if (!isNaN(date.getTime())) {
+          const dia = String(date.getDate()).padStart(2, '0');
+          const mes = String(date.getMonth() + 1).padStart(2, '0');
+          const ano = date.getFullYear();
+          return `${dia}/${mes}/${ano}`;
+        }
+      }
+      
+      // Se já estiver no formato DD/MM/YYYY, retorna como está
+      if (typeof prazo === 'string' && prazo.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        return prazo;
+      }
+      
+      return String(prazo);
     }
 
     // Filtro global
@@ -1228,14 +1289,8 @@
       const linkMem = (form.linkMemoria.value || '').trim();
       const status = (form.status.value || '').trim();
       
-      // Convert prazo from YYYY-MM-DD to DD/MM/YYYY for storage
-      let prazo = '';
-      if (prazoInput) {
-        const parts = prazoInput.split('-');
-        if (parts.length === 3) {
-          prazo = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-      }
+      // Mantém formato YYYY-MM-DD para salvar na planilha
+      let prazo = prazoInput;
 
       if (!clienteNome || !projeto) {
         alert('Preencha ao menos Cliente e Projeto.');
@@ -1352,7 +1407,7 @@
         <td data-label="Projeto" class="col-projeto">${dados.PROJETO || ''}</td>
         <td data-label="Valor" class="col-valor">${dados["VALOR TOTAL"] || ''}</td>
         <td data-label="Data" class="col-data">${dados.DATA || ''}</td>
-        <td data-label="Prazo" class="col-prazo">${dados.PRAZO || ''}</td>
+        <td data-label="Prazo" class="col-prazo">${formatarPrazoExibicao(dados.PRAZO) || ''}</td>
         <td data-label="Processos" class="col-processos">${dados.Processos || ''}</td>
         <td data-label="PDF">
           <a class="link" href="${dados["LINK DO PDF"] || '#'}" target="_blank">
@@ -1401,7 +1456,7 @@
       tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
       tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
       tr.querySelector('.col-data').textContent = dados.DATA || '';
-      tr.querySelector('.col-prazo').textContent = dados.PRAZO || '';
+      tr.querySelector('.col-prazo').textContent = formatarPrazoExibicao(dados.PRAZO) || '';
       tr.querySelector('.col-processos').textContent = dados.Processos || '';
 
       const links = tr.querySelectorAll('a.link');
