@@ -1354,15 +1354,15 @@ function doGet(e) {
     'geradoretiquetas': ['admin', 'mod', 'usuario'],
     'kanban': ['admin', 'mod', 'usuario'],
     'avaliacoes': ['admin'],
-    'orcamentos': ['admin', 'mod'],
+    'orcamentos': ['admin', 'mod', 'usuario'],
     'avaliacoespage': ['admin'],
-    'pedidos': ['admin', 'mod'],
+    'pedidos': ['admin', 'mod', 'usuario'],
     'logs': ['admin', 'mod'],
     'manutencao': ['admin', 'mod', 'usuario'],
     'manu_registros': ['admin', 'mod', 'usuario'],
     'paginasprotegidas': ['admin'],
     'veiculos': ['admin', 'mod', 'usuario', 'visitante'],
-    'veiculos_list': ['admin', 'mod'],
+    'veiculos_list': ['admin', 'mod', 'usuario', 'visitante'],
     'produtos': ['admin', 'mod', 'usuario']
     
   };
@@ -2102,7 +2102,7 @@ function gerarNovaEtiqueta(dadosLinha, token) {
   const urlPdf = arquivo.getUrl();
 
   // Atualiza a coluna ETIQUETA da linha existente
-  materiais.getRange(rowIndex, 13).setValue(urlPdf); // Coluna M = ETIQUETA
+  materiais.getRange(rowIndex, 12).setValue(urlPdf); // Coluna L = ETIQUETA
 
   return urlPdf;
 }
@@ -3032,98 +3032,6 @@ function atualizarOrcamentoNaPlanilha(linha, dataObj) {
   }
 }
 
-// ==================== MENSAGENS DE APRESENTAÇÃO ====================
-// Função para salvar mensagem de apresentação
-function salvarMensagemApresentacao(texto, cor, tamanho) {
-  try {
-    const props = PropertiesService.getScriptProperties();
-    const mensagens = getMensagensApresentacao();
-    
-    // Cria nova mensagem com ID único
-    const novaMensagem = {
-      id: Utilities.getUuid(),
-      texto: texto || "",
-      cor: cor || "#ffffff",
-      tamanho: tamanho || "medium",
-      dataCriacao: new Date().toISOString(),
-      ativa: true
-    };
-    
-    mensagens.push(novaMensagem);
-    
-    // Salva no PropertiesService (limite de 9KB por propriedade)
-    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagens));
-    
-    return { success: true, mensagem: novaMensagem };
-  } catch (e) {
-    Logger.log("Erro ao salvar mensagem: " + e.message);
-    return { success: false, error: e.message };
-  }
-}
-
-// Função para carregar todas as mensagens ativas
-function getMensagensApresentacao() {
-  try {
-    const props = PropertiesService.getScriptProperties();
-    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
-    if (!raw) return [];
-    
-    const mensagens = JSON.parse(raw);
-    // Retorna apenas mensagens ativas
-    return mensagens.filter(m => m.ativa !== false);
-  } catch (e) {
-    Logger.log("Erro ao carregar mensagens: " + e.message);
-    return [];
-  }
-}
-
-// Função para deletar mensagem
-function deletarMensagemApresentacao(id) {
-  try {
-    const props = PropertiesService.getScriptProperties();
-    const mensagens = getMensagensApresentacao();
-    
-    // Remove a mensagem com o ID especificado
-    const mensagensAtualizadas = mensagens.filter(m => m.id !== id);
-    
-    // Salva atualizado
-    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagensAtualizadas));
-    
-    return { success: true };
-  } catch (e) {
-    Logger.log("Erro ao deletar mensagem: " + e.message);
-    return { success: false, error: e.message };
-  }
-}
-
-// Função para atualizar mensagem (marcar como inativa ou atualizar conteúdo)
-function atualizarMensagemApresentacao(id, dados) {
-  try {
-    const props = PropertiesService.getScriptProperties();
-    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
-    if (!raw) return { success: false, error: "Nenhuma mensagem encontrada" };
-    
-    const mensagens = JSON.parse(raw);
-    const index = mensagens.findIndex(m => m.id === id);
-    
-    if (index === -1) {
-      return { success: false, error: "Mensagem não encontrada" };
-    }
-    
-    // Atualiza os dados fornecidos
-    if (dados.texto !== undefined) mensagens[index].texto = dados.texto;
-    if (dados.cor !== undefined) mensagens[index].cor = dados.cor;
-    if (dados.tamanho !== undefined) mensagens[index].tamanho = dados.tamanho;
-    if (dados.ativa !== undefined) mensagens[index].ativa = dados.ativa;
-    
-    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagens));
-    
-    return { success: true, mensagem: mensagens[index] };
-  } catch (e) {
-    Logger.log("Erro ao atualizar mensagem: " + e.message);
-    return { success: false, error: e.message };
-  }
-}
 // ==================== CONFIGURAÇÕES DA APRESENTAÇÃO ====================
 
 function getConfiguracoesApresentacao() {
@@ -3241,40 +3149,38 @@ function getMensagensApresentacao() {
 // Função para deletar mensagem - CORRIGIDA
 function deletarMensagemApresentacao(id) {
   try {
-    const props = PropertiesService.getScriptProperties();
-    const raw = props.getProperty('APRESENTACAO_MENSAGENS');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('MensagensApresentacao');
     
-    // Se não há mensagens, retorna erro
-    if (!raw) {
+    // Se a planilha não existe, retorna erro
+    if (!sheet || sheet.getLastRow() <= 1) {
       return { success: false, error: "Nenhuma mensagem encontrada" };
     }
     
-    // Parse TODAS as mensagens (não apenas as ativas)
-    let mensagens = [];
-    try {
-      mensagens = JSON.parse(raw);
-    } catch (parseErr) {
-      Logger.log("Erro ao parsear mensagens: " + parseErr.message);
-      return { success: false, error: "Erro ao ler mensagens" };
+    // Busca a mensagem pelo ID na coluna A (coluna 1)
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 5).getValues();
+    let linhaEncontrada = -1;
+    
+    for (let i = 0; i < data.length; i++) {
+      if (data[i][0] === id) {
+        linhaEncontrada = i + 2; // +2 porque começa na linha 2 (linha 1 é cabeçalho)
+        break;
+      }
     }
     
-    // Verifica se a mensagem existe
-    const mensagemExiste = mensagens.some(m => m. id === id);
-    if (!mensagemExiste) {
+    // Se não encontrou a mensagem, retorna erro
+    if (linhaEncontrada === -1) {
       Logger.log("Mensagem não encontrada com ID: " + id);
       return { success: false, error: "Mensagem não encontrada com ID: " + id };
     }
     
-    // Remove a mensagem com o ID especificado
-    const mensagensAtualizadas = mensagens.filter(m => m.id !== id);
+    // Deleta a linha encontrada
+    sheet.deleteRow(linhaEncontrada);
     
-    // Salva atualizado
-    props.setProperty('APRESENTACAO_MENSAGENS', JSON.stringify(mensagensAtualizadas));
-    
-    Logger.log("Mensagem deletada com sucesso.  ID: " + id);
+    Logger.log("Mensagem deletada com sucesso. ID: " + id);
     return { success: true };
   } catch (e) {
-    Logger. log("Erro ao deletar mensagem: " + e.message);
+    Logger.log("Erro ao deletar mensagem: " + e.message);
     return { success: false, error: e.message };
   }
 }
