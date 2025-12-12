@@ -1723,6 +1723,7 @@ function adicionarOrcamentoNaPlanilha(dados) {
       'PROJETO': ['PROJETO'],
       'VALORTOTAL': ['VALOR TOTAL'],
       'DATA': ['DATA'],
+      'PRAZO': ['PRAZO'],
       'PROCESSOS': ['Processos', 'PROCESSOS'],
       'LINKDOPDF': ['LINK DO PDF'],
       'LINKDAMEMORIADECALCULO': ['LINK DA MEMÓRIA DE CÁLCULO'],
