@@ -1007,13 +1007,16 @@ function getDashboardStats() {
   if (sheetProj) {
     // === NOVA LÓGICA: Conta da aba Projetos ===
     const totalProjetos = Math.max(sheetProj.getLastRow() - 1, 0);
+    Logger.log("getDashboardStats: Aba Projetos encontrada, totalProjetos=%s", totalProjetos);
     
     if (totalProjetos > 0) {
       try {
         const dados = sheetProj.getDataRange().getValues();
         const headers = dados[0];
+        Logger.log("getDashboardStats: Headers da aba Projetos: %s", JSON.stringify(headers));
         const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
         const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+        Logger.log("getDashboardStats: idxStatusOrc=%s, idxStatusPed=%s", idxStatusOrc, idxStatusPed);
 
         for (let i = 1; i < dados.length; i++) {
           const row = dados[i];
@@ -1034,11 +1037,13 @@ function getDashboardStats() {
             }
           }
         }
+        Logger.log("getDashboardStats: Contagem final - orcamentos=%s, pedidos=%s, kanban=%s", orcamentos, pedidos, kanban);
       } catch (e) {
         Logger.log("Erro ao contar stats da aba Projetos: " + e.message);
       }
     }
   } else {
+    Logger.log("getDashboardStats: Aba Projetos não encontrada, usando abas antigas");
     // === LÓGICA ANTIGA: Conta das abas separadas ===
     // Pedidos
     pedidos = SHEET_PED ? Math.max(SHEET_PED.getLastRow() - 1, 0) : 0;
