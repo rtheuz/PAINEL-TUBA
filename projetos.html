@@ -1047,44 +1047,19 @@
                 'STATUS_PEDIDO': document.getElementById('editStatusPedido').value
             };
 
-            // Salva cliente se for novo
-            const clienteObj = {
-                nome: clienteNome,
-                cpf: '',
-                endereco: '',
-                telefone: '',
-                email: ''
-            };
-
-            google.script.run
-                .withSuccessHandler(function () {
-                    // Atualiza o projeto
-                    google.script.run
-                        .withSuccessHandler(function () {
-                            closeEditProjectModal();
-                            loadProjetos();
-                            alert('Projeto atualizado com sucesso!');
-                        })
-                        .withFailureHandler(function (error) {
-                            alert('Erro ao atualizar projeto: ' + (error.message || error));
-                        })
-                        .atualizarProjetoNaPlanilha(linha, updates);
-                })
-                .withFailureHandler(function (error) {
-                    console.error('Erro ao salvar cliente:', error);
-                    // Continua mesmo se falhar ao salvar o cliente
-                    google.script.run
-                        .withSuccessHandler(function () {
-                            closeEditProjectModal();
-                            loadProjetos();
-                            alert('Projeto atualizado com sucesso!');
-                        })
-                        .withFailureHandler(function (error) {
-                            alert('Erro ao atualizar projeto: ' + (error.message || error));
-                        })
-                        .atualizarProjetoNaPlanilha(linha, updates);
-                })
-                .salvarClienteSeNovo(clienteObj);
+            // Salva cliente se for novo, depois atualiza o projeto
+            salvarClienteEExecutar(clienteNome, function () {
+                google.script.run
+                    .withSuccessHandler(function () {
+                        closeEditProjectModal();
+                        loadProjetos();
+                        alert('Projeto atualizado com sucesso!');
+                    })
+                    .withFailureHandler(function (error) {
+                        alert('Erro ao atualizar projeto: ' + (error.message || error));
+                    })
+                    .atualizarProjetoNaPlanilha(linha, updates);
+            });
         }
 
         // Modal de novo projeto
@@ -1115,6 +1090,26 @@
             }
         }
 
+        // Helper para salvar cliente e executar callback
+        function salvarClienteEExecutar(clienteNome, callback) {
+            const clienteObj = {
+                nome: clienteNome,
+                cpf: '',
+                endereco: '',
+                telefone: '',
+                email: ''
+            };
+
+            google.script.run
+                .withSuccessHandler(callback)
+                .withFailureHandler(function (error) {
+                    console.error('Erro ao salvar cliente:', error);
+                    // Continua mesmo se falhar ao salvar o cliente
+                    callback();
+                })
+                .salvarClienteSeNovo(clienteObj);
+        }
+
         function saveNewProject(event) {
             event.preventDefault();
 
@@ -1122,13 +1117,20 @@
             const clienteNome = document.getElementById('newCliente').value.trim();
             const dataValue = document.getElementById('newData').value;
             
+            // Se não houver data, usa a data atual no formato brasileiro
+            let dataFinal = dataValue;
+            if (!dataFinal) {
+                const hoje = new Date();
+                dataFinal = hoje.toLocaleDateString('pt-BR');
+            }
+            
             const projeto = {
                 CLIENTE: clienteNome,
                 PROJETO: document.getElementById('newProjeto').value,
                 'DESCRIÇÃO': document.getElementById('newDescricao').value,
                 'RESPONSÁVEL CLIENTE': document.getElementById('newResponsavel').value,
                 'VALOR TOTAL': document.getElementById('newValor').value,
-                DATA: dataValue || new Date().toLocaleDateString('pt-BR'),
+                DATA: dataFinal,
                 PROCESSOS: document.getElementById('newProcessos').value,
                 'LINK DO PDF': document.getElementById('newLinkPdf').value,
                 'LINK DA MEMÓRIA DE CÁLCULO': document.getElementById('newLinkMemoria').value,
@@ -1139,44 +1141,19 @@
                 JSON_DADOS: ''
             };
 
-            // Salva cliente se for novo
-            const clienteObj = {
-                nome: clienteNome,
-                cpf: '',
-                endereco: '',
-                telefone: '',
-                email: ''
-            };
-
-            google.script.run
-                .withSuccessHandler(function () {
-                    // Adiciona o projeto
-                    google.script.run
-                        .withSuccessHandler(function () {
-                            closeNewProjectModal();
-                            loadProjetos();
-                            alert('Projeto adicionado com sucesso!');
-                        })
-                        .withFailureHandler(function (error) {
-                            alert('Erro ao adicionar projeto: ' + (error.message || error));
-                        })
-                        .adicionarNovoProjetoNaPlanilha(projeto);
-                })
-                .withFailureHandler(function (error) {
-                    console.error('Erro ao salvar cliente:', error);
-                    // Continua mesmo se falhar ao salvar o cliente
-                    google.script.run
-                        .withSuccessHandler(function () {
-                            closeNewProjectModal();
-                            loadProjetos();
-                            alert('Projeto adicionado com sucesso!');
-                        })
-                        .withFailureHandler(function (error) {
-                            alert('Erro ao adicionar projeto: ' + (error.message || error));
-                        })
-                        .adicionarNovoProjetoNaPlanilha(projeto);
-                })
-                .salvarClienteSeNovo(clienteObj);
+            // Salva cliente se for novo, depois adiciona o projeto
+            salvarClienteEExecutar(clienteNome, function () {
+                google.script.run
+                    .withSuccessHandler(function () {
+                        closeNewProjectModal();
+                        loadProjetos();
+                        alert('Projeto adicionado com sucesso!');
+                    })
+                    .withFailureHandler(function (error) {
+                        alert('Erro ao adicionar projeto: ' + (error.message || error));
+                    })
+                    .adicionarNovoProjetoNaPlanilha(projeto);
+            });
         }
 
         // Fechar modais ao clicar fora
