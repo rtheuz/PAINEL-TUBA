@@ -1596,8 +1596,8 @@ function doGet(e) {
       case 'orcamentos':
         if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
 
-        const values = SHEET_ORC.getDataRange().getValues();
-        const headers = values[0];
+        const valuesOrc = SHEET_ORC.getDataRange().getValues();
+        const headersOrc = valuesOrc[0];
 
         // Função para normalizar nomes de cabeçalho (remove acentos, espaços extras, converte para maiúsculas)
         function normalizeHeader(h) {
@@ -1608,14 +1608,15 @@ function doGet(e) {
         }
 
         // Mapeia índices de cabeçalhos normalizados para facilitar busca
-        const headerNormalizedMap = {};
-        headers.forEach((h, i) => {
-          headerNormalizedMap[normalizeHeader(h)] = i;
+        const headerNormalizedMapOrc = {};
+        headersOrc.forEach((h, i) => {
+          headerNormalizedMapOrc[normalizeHeader(h)] = i;
         });
 
-        const data = values.slice(1).map((row, index) => {
+        // Processa orçamentos
+        const dataOrcamentos = valuesOrc.slice(1).map((row, index) => {
           let obj = {};
-          headers.forEach((h, i) => {
+          headersOrc.forEach((h, i) => {
             let valor = row[i];
             if (h === "VALOR TOTAL" && typeof valor === "number") {
               valor = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1627,7 +1628,6 @@ function doGet(e) {
           });
 
           // Adiciona chaves padronizadas para campos que podem ter variações de nome
-          // Isso garante que o template sempre encontre os dados esperados
           const standardKeys = {
             'DESCRICAO': 'DESCRIÇÃO',
             'RESPONSAVEL': 'RESPONSÁVEL',
@@ -1636,8 +1636,7 @@ function doGet(e) {
 
           Object.entries(standardKeys).forEach(([normalizedKey, standardKey]) => {
             if (obj[standardKey] === undefined) {
-              // Procura por variação do cabeçalho
-              const idx = headerNormalizedMap[normalizedKey];
+              const idx = headerNormalizedMapOrc[normalizedKey];
               if (idx !== undefined && row[idx] !== undefined) {
                 obj[standardKey] = row[idx];
               }
@@ -1645,8 +1644,78 @@ function doGet(e) {
           });
 
           obj["_linhaPlanilha"] = index + 2;
+          obj["_linhaOrcamentos"] = index + 2;  // Para referência específica
+          
+          // Determina o tipo baseado no status
+          const status = obj["STATUS"] || "";
+          if (status === "Convertido em Pedido") {
+            obj["_tipo"] = "Pedido";
+          } else {
+            obj["_tipo"] = "Orçamento";
+          }
+          
           return obj;
         });
+
+        // Processa pedidos (se a aba existir)
+        let dataPedidos = [];
+        if (SHEET_PED) {
+          try {
+            const valuesPed = SHEET_PED.getDataRange().getValues();
+            if (valuesPed && valuesPed.length > 1) {
+              const headersPed = valuesPed[0];
+              
+              const headerNormalizedMapPed = {};
+              headersPed.forEach((h, i) => {
+                headerNormalizedMapPed[normalizeHeader(h)] = i;
+              });
+
+              dataPedidos = valuesPed.slice(1).map((row, index) => {
+                let obj = {};
+                headersPed.forEach((h, i) => {
+                  let valor = row[i];
+                  if (h === "VALOR TOTAL" && typeof valor === "number") {
+                    valor = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                  }
+                  if ((h === "DATA" || h === "PRAZO") && valor instanceof Date) {
+                    valor = Utilities.formatDate(valor, Session.getScriptTimeZone(), "dd/MM/yyyy");
+                  }
+                  obj[h] = valor;
+                });
+
+                // Mapeia campos de pedidos para estrutura de orçamentos para compatibilidade
+                const fieldMappings = {
+                  'Cliente': 'CLIENTE',
+                  'Número do Projeto': 'PROJETO',
+                  'Descrição': 'DESCRIÇÃO'
+                };
+
+                Object.entries(fieldMappings).forEach(([pedidoField, orcField]) => {
+                  if (obj[pedidoField] !== undefined && !obj[orcField]) {
+                    obj[orcField] = obj[pedidoField];
+                  }
+                });
+
+                obj["_linhaPlanilha"] = index + 2;
+                obj["_linhaPedidos"] = index + 2;  // Para referência específica
+                obj["_tipo"] = "Pedido";
+                
+                // Se não tiver status, define como pedido ativo
+                if (!obj["STATUS"]) {
+                  obj["STATUS"] = "Em andamento";
+                }
+                
+                return obj;
+              });
+            }
+          } catch (errPed) {
+            Logger.log('Erro ao carregar pedidos: ' + errPed.message);
+            // Continua sem pedidos em caso de erro
+          }
+        }
+
+        // Combina os dados
+        const data = dataOrcamentos.concat(dataPedidos);
 
         const templateOrcamentos = HtmlService.createTemplateFromFile('orcamentos');
         templateOrcamentos.token = token;
@@ -1685,11 +1754,78 @@ function doGet(e) {
   }
 }
 
+/**
+ * Verifica se já existe um projeto com o mesmo número (case-insensitive, ignora espaços)
+ * @param {string} numeroProjeto - Número do projeto a verificar
+ * @param {number} linhaExcluir - Linha a excluir da verificação (usado para edições)
+ * @returns {boolean} true se existe duplicado, false caso contrário
+ */
+function verificarProjetoDuplicado(numeroProjeto, linhaExcluir) {
+  try {
+    if (!SHEET_ORC || !numeroProjeto) return false;
+    
+    const lastRow = SHEET_ORC.getLastRow();
+    if (lastRow < 2) return false; // Sem dados além do cabeçalho
+    
+    // Normaliza o número do projeto para comparação
+    const projetoNormalizado = String(numeroProjeto || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/\s+/g, ''); // Remove todos os espaços
+    
+    // Encontra a coluna PROJETO
+    const headers = SHEET_ORC.getRange(1, 1, 1, SHEET_ORC.getLastColumn()).getValues()[0];
+    const colunaProjeto = headers.findIndex(h => 
+      String(h || '').trim().toUpperCase().replace(/[^A-Z]/g, '') === 'PROJETO'
+    );
+    
+    if (colunaProjeto === -1) {
+      Logger.log('verificarProjetoDuplicado: Coluna PROJETO não encontrada');
+      return false;
+    }
+    
+    // Lê todos os valores da coluna PROJETO
+    const valores = SHEET_ORC.getRange(2, colunaProjeto + 1, lastRow - 1, 1).getValues();
+    
+    // Verifica duplicatas
+    for (let i = 0; i < valores.length; i++) {
+      const linha = i + 2; // +2 porque o índice começa em 0 e a linha 1 é o cabeçalho
+      
+      // Pula a linha que estamos editando (se aplicável)
+      if (linhaExcluir && linha === linhaExcluir) continue;
+      
+      const valorExistente = String(valores[i][0] || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '');
+      
+      if (valorExistente === projetoNormalizado && valorExistente !== '') {
+        Logger.log('Projeto duplicado encontrado: ' + numeroProjeto + ' na linha ' + linha);
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (err) {
+    Logger.log('Erro verificarProjetoDuplicado: ' + err.message);
+    return false; // Em caso de erro, não bloqueia a operação
+  }
+}
+
 function adicionarOrcamentoNaPlanilha(dados) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
     if (!dados || !dados.CLIENTE || !dados.PROJETO) {
       throw new Error('CLIENTE e PROJETO são obrigatórios.');
+    }
+    
+    // Verifica duplicata de projeto (apenas para novos registros)
+    if (verificarProjetoDuplicado(dados.PROJETO, null)) {
+      throw new Error('DUPLICADO:Já existe um projeto com este número!');
     }
 
     // Lê cabeçalhos atuais
@@ -3010,6 +3146,30 @@ function atualizarOrcamentoNaPlanilha(linha, dataObj) {
 
   // Lê a linha atual para preservar valores não enviados
   var currentRow = sh.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
+
+  // Verifica se o número do projeto está mudando
+  var projetoKey = normalizeKey('PROJETO');
+  if (normalizedData.hasOwnProperty(projetoKey)) {
+    var novoProjeto = normalizedData[projetoKey];
+    // Encontra o índice da coluna PROJETO
+    var idxProjeto = -1;
+    for (var i = 0; i < headers.length; i++) {
+      if (normalizeKey(headers[i]) === projetoKey) {
+        idxProjeto = i;
+        break;
+      }
+    }
+    
+    if (idxProjeto >= 0) {
+      var projetoAtual = currentRow[idxProjeto];
+      // Se o projeto está mudando, verifica duplicata (excluindo a linha atual)
+      if (String(novoProjeto || '').trim() !== String(projetoAtual || '').trim()) {
+        if (verificarProjetoDuplicado(novoProjeto, linha)) {
+          throw new Error('DUPLICADO:Já existe um projeto com este número!');
+        }
+      }
+    }
+  }
 
   // Monta nova linha: se header correspondente existe em normalizedData (mesmo que valor seja ''), usa-o; senão mantém currentRow
   var newRow = headers.map(function (h, idx) {
