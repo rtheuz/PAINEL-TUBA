@@ -637,9 +637,9 @@
       // Filtra projetos
       let filtered = projetos.filter(p => {
         const matchSearch = !searchTerm || 
-          (p.CLIENTE || '').toLowerCase().includes(searchTerm) ||
-          (p.PROJETO || '').toLowerCase().includes(searchTerm) ||
-          (p['DESCRIÇÃO'] || p.DESCRIÇÃO || '').toLowerCase().includes(searchTerm);
+          (p.CLIENTE || '').toString().toLowerCase().includes(searchTerm) ||
+          (p.PROJETO || '').toString().toLowerCase().includes(searchTerm) ||
+          (p['DESCRIÇÃO'] || p.DESCRIÇÃO || '').toString().toLowerCase().includes(searchTerm);
         
         const matchStatusOrc = !statusOrc || p.STATUS_ORCAMENTO === statusOrc;
         const matchStatusPed = !statusPed || p.STATUS_PEDIDO === statusPed;
