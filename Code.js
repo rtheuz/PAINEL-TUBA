@@ -3004,7 +3004,7 @@ function salvarRascunho(nomeRascunho, dados) {
         // Se a linha existe, verifica o status
         if (linhaExistente) {
           const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
-          const statusIdx = sheetProj ? 9 : 9; // STATUS_ORCAMENTO ou STATUS (ambos índice 9)
+          const statusIdx = 9; // STATUS_ORCAMENTO ou STATUS (ambos índice 9)
           const rowData = targetSheet.getRange(linhaExistente, 1, 1, numCols).getValues()[0];
           const status = rowData[statusIdx];
           
@@ -3122,9 +3122,6 @@ function carregarRascunho(linhaOuKey) {
     // JSON_DADOS está no último índice em ambas estruturas
     const jsonIdx = numCols - 1;
     const dadosJson = rowData[jsonIdx];
-
-    // Coluna 12 (índice 11) contém o JSON com todos os dados do formulário
-    const dadosJson = rowData[11];
 
     // Se tiver JSON_DADOS, usa os dados completos do formulário
     if (dadosJson) {
