@@ -2541,6 +2541,35 @@ function testeGetProjetos() {
 }
 
 /**
+ * Retorna informações sobre a versão do código e estado das abas
+ * @returns {Object}
+ */
+function getProjetosInfo() {
+  const sheetProj = ss.getSheetByName("Projetos");
+  const info = {
+    versaoCodigo: "2024-12-15-v2",
+    abaProjetosExiste: !!sheetProj,
+    abaProjetosLinhas: sheetProj ? sheetProj.getLastRow() : 0,
+    abaProjetosColunas: sheetProj ? sheetProj.getLastColumn() : 0,
+    abaOrcamentosExiste: !!SHEET_ORC,
+    abaOrcamentosLinhas: SHEET_ORC ? SHEET_ORC.getLastRow() : 0,
+    funcaoGetProjetosExiste: typeof getProjetos === 'function'
+  };
+  
+  if (sheetProj && sheetProj.getLastRow() > 0) {
+    try {
+      const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+      info.cabecalhosProjetos = headers;
+    } catch (e) {
+      info.erroAoLerCabecalhos = e.message;
+    }
+  }
+  
+  Logger.log("getProjetosInfo: %s", JSON.stringify(info));
+  return info;
+}
+
+/**
  * Retorna todos os projetos da aba Projetos (ou Orçamentos como fallback)
  * @returns {Array} Array de objetos com os dados dos projetos
  */

@@ -414,6 +414,25 @@
     async function loadProjetos() {
       try {
         console.log('Iniciando loadProjetos...');
+        
+        // Primeiro, obtém informações sobre o estado do sistema
+        google.script.run
+          .withSuccessHandler(function(info) {
+            console.log('=== INFORMAÇÕES DO SISTEMA ===');
+            console.log('Versão do código:', info.versaoCodigo);
+            console.log('Aba Projetos existe?', info.abaProjetosExiste);
+            console.log('Linhas na aba Projetos:', info.abaProjetosLinhas);
+            console.log('Colunas na aba Projetos:', info.abaProjetosColunas);
+            console.log('Cabeçalhos:', info.cabecalhosProjetos);
+            console.log('Função getProjetos existe?', info.funcaoGetProjetosExiste);
+            console.log('===============================');
+          })
+          .withFailureHandler(function(error) {
+            console.error('Erro ao obter informações:', error);
+          })
+          .getProjetosInfo();
+        
+        // Depois, carrega os dados
         google.script.run
           .withSuccessHandler(function(data) {
             console.log('getProjetos success, recebido:', data);
