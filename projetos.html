@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <base target="_top">
+    <title>Projetos — Sistema TUBA</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-1: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+            --card-bg: rgba(255, 255, 255, 0.96);
+            --muted: #64748b;
+            --accent: #0ea5ff;
+            --radius: 12px;
+            --max-width: 1400px;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            color: #0f172a;
+            background: var(--bg-1);
+            overflow-x: hidden;
+        }
+
+        .page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px 60px;
+            gap: 16px;
+        }
+
+        .topbar {
+            width: 100%;
+            max-width: var(--max-width);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding-top: 8px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+        }
+
+        .brand img {
+            height: 40px;
+            width: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(2, 6, 23, 0.3);
+        }
+
+        .brand h1 {
+            font-size: 20px;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.85);
+            margin-top: 2px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            appearance: none;
+            border: 0;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--accent), #3b82f6);
+            color: white;
+            box-shadow: 0 4px 12px rgba(14, 165, 255, 0.3);
+        }
+
+        .btn-ghost {
+            background: rgba(255, 255, 255, 0.15);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .card {
+            width: 100%;
+            max-width: var(--max-width);
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+        }
+
+        .filters {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .filter-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .filter-input,
+        .filter-select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .filter-input:focus,
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 0 -20px;
+            padding: 0 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: white;
+        }
+
+        th {
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid #e5e7eb;
+            white-space: nowrap;
+            background: white;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #f3f4f6;
+            vertical-align: middle;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .status-rascunho {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .status-enviado {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-convertido {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-expirado {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-preparacao {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-corte {
+            background: #fce7f3;
+            color: #831843;
+        }
+
+        .status-dobra {
+            background: #ddd6fe;
+            color: #5b21b6;
+        }
+
+        .status-adicionais {
+            background: #fed7aa;
+            color: #9a3412;
+        }
+
+        .status-envio {
+            background: #bfdbfe;
+            color: #1e3a8a;
+        }
+
+        .status-finalizado {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        /* Removed editable cell styles - editing now only via modal */
+
+        .edit-input,
+        .edit-select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 2px solid var(--accent);
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .edit-input:focus,
+        .edit-select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+        }
+
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .link-icon {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 16px;
+            display: inline-block;
+            padding: 4px;
+        }
+
+        .link-icon:hover {
+            opacity: 0.7;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+            .page {
+                padding: 12px 8px 40px;
+            }
+
+            .card {
+                padding: 12px;
+            }
+
+            .filters {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                min-width: 100%;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th,
+            td {
+                padding: 8px 6px;
+            }
+
+            .brand h1 {
+                font-size: 16px;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--muted);
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: #0f172a;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+
+        .modal-close:hover {
+            background: #f3f4f6;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #0f172a;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 2px solid #f3f4f6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="topbar">
+            <div class="brand">
+                <img src="https://i.imgur.com/F8X7ZMs.png" alt="TUBA">
+                <div class="brand-text">
+                    <h1>Projetos</h1>
+                    <div class="brand-subtitle">Gestão Unificada de Orçamentos e Pedidos</div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-ghost" onclick="voltarPagina()" title="Voltar para o Dashboard">← Voltar</button>
+                <button class="btn btn-primary" onclick="openNewProjectModal()">+ Novo Projeto</button>
+                <button class="btn btn-success" onclick="abrirFormulario()" title="Nova proposta comercial">+
+                    Orçamento Completo</button>
+            </div>
+        </div>
+
+        <!-- Modal para Novo Projeto -->
+        <div id="newProjectModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Novo Projeto</h2>
+                    <button class="modal-close" onclick="closeNewProjectModal()">×</button>
+                </div>
+                <form id="newProjectForm" onsubmit="saveNewProject(event)">
+                    <div class="form-group">
+                        <label>Tipo *</label>
+                        <select id="newTipo" required onchange="toggleStatusFields()">
+                            <option value="rascunho">Orçamento</option>
+                            <option value="pedido">Pedido</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <input type="text" id="newCliente" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Número do Projeto *</label>
+                        <input type="text" id="newProjeto" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="newDescricao"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Responsável Cliente</label>
+                        <input type="text" id="newResponsavel">
+                    </div>
+                    <div class="form-group">
+                        <label>Valor Total</label>
+                        <input type="text" id="newValor" placeholder="R$ 0,00">
+                    </div>
+                    <div class="form-group">
+                        <label>Processos</label>
+                        <input type="text" id="newProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
+                    </div>
+                    <div class="form-group">
+                        <label>Prazo</label>
+                        <input type="date" id="newPrazo">
+                    </div>
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea id="newObservacoes"></textarea>
+                    </div>
+                    <div class="form-group" id="statusPedidoGroup">
+                        <label>Status do Pedido *</label>
+                        <select id="newStatusPedido">
+                            <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
+                            <option value="Processo de Corte">Processo de Corte</option>
+                            <option value="Processo de Dobra">Processo de Dobra</option>
+                            <option value="Processos Adicionais">Processos Adicionais</option>
+                            <option value="Envio / Coleta">Envio / Coleta</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-ghost" onclick="closeNewProjectModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Projeto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal para Editar Projeto -->
+        <div id="editProjectModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Editar Projeto</h2>
+                    <button class="modal-close" onclick="closeEditProjectModal()">×</button>
+                </div>
+                <form id="editProjectForm" onsubmit="saveEditProject(event)">
+                    <input type="hidden" id="editLinha">
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <input type="text" id="editCliente" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Número do Projeto *</label>
+                        <input type="text" id="editProjeto" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <textarea id="editDescricao"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Responsável Cliente</label>
+                        <input type="text" id="editResponsavel">
+                    </div>
+                    <div class="form-group">
+                        <label>Valor Total</label>
+                        <input type="text" id="editValor" placeholder="R$ 0,00">
+                    </div>
+                    <div class="form-group">
+                        <label>Processos</label>
+                        <input type="text" id="editProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
+                    </div>
+                    <div class="form-group">
+                        <label>Prazo</label>
+                        <input type="date" id="editPrazo">
+                    </div>
+                    <div class="form-group">
+                        <label>Observações</label>
+                        <textarea id="editObservacoes"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Status Orçamento</label>
+                        <select id="editStatusOrcamento">
+                            <option value="RASCUNHO">Rascunho</option>
+                            <option value="Enviado">Enviado</option>
+                            <option value="Convertido em Pedido">Convertido em Pedido</option>
+                            <option value="Expirado/Perdido">Expirado/Perdido</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="editStatusPedidoGroup">
+                        <label>Status do Pedido</label>
+                        <select id="editStatusPedido">
+                            <option value="">-</option>
+                            <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
+                            <option value="Processo de Corte">Processo de Corte</option>
+                            <option value="Processo de Dobra">Processo de Dobra</option>
+                            <option value="Processos Adicionais">Processos Adicionais</option>
+                            <option value="Envio / Coleta">Envio / Coleta</option>
+                            <option value="Finalizado">Finalizado</option>
+                        </select>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-ghost" onclick="closeEditProjectModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Buscar</label>
+                    <input type="text" class="filter-input" id="searchInput"
+                        placeholder="Cliente, Projeto, Descrição...">
+                </div>
+                <div class="filter-group">
+                    <label>Status Orçamento</label>
+                    <select class="filter-select" id="statusOrcFilter">
+                        <option value="">Todos</option>
+                        <option value="RASCUNHO">Rascunho</option>
+                        <option value="Enviado">Enviado</option>
+                        <option value="Convertido em Pedido">Convertido em Pedido</option>
+                        <option value="Expirado/Perdido">Expirado/Perdido</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Status Pedido</label>
+                    <select class="filter-select" id="statusPedFilter">
+                        <option value="">Todos</option>
+                        <option value="Processo de Preparação MP / CAD / CAM">Preparação MP/CAD/CAM</option>
+                        <option value="Processo de Corte">Corte</option>
+                        <option value="Processo de Dobra">Dobra</option>
+                        <option value="Processos Adicionais">Processos Adicionais</option>
+                        <option value="Envio / Coleta">Envio/Coleta</option>
+                        <option value="Finalizado">Finalizado</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="tableContainer">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Carregando projetos...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const token = '<?= token ?>';
+        let projetos = [];
+        const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        function voltarPagina() {
+            if (!token) {
+                alert("Token não encontrado. Por favor, recarregue a página.");
+                return;
+            }
+            window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+        }
+
+        function abrirFormulario() {
+            if (!token) {
+                alert("Token não encontrado. Por favor, recarregue a página.");
+                return;
+            }
+            window.open(`${baseUrl}?page=formulario&token=${token}`, '_blank');
+        }
+
+        // Carrega os projetos
+        async function loadProjetos() {
+            try {
+                console.log('Iniciando loadProjetos...');
+
+                // Depois, carrega os dados
+                google.script.run
+                    .withSuccessHandler(function (data) {
+                        console.log('getProjetos success, recebido:', data);
+                        console.log('Tipo de data:', typeof data, 'Length:', Array.isArray(data) ? data.length : 'N/A');
+                        if (data && data.length > 0) {
+                            console.log('Primeira entrada:', JSON.stringify(data[0]));
+                        }
+                        projetos = data || [];
+                        renderTable();
+                    })
+                    .withFailureHandler(function (error) {
+                        console.error('getProjetos failure:', error);
+                        document.getElementById('tableContainer').innerHTML = `
+              <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <div>Erro ao carregar projetos: ${error.message || error}</div>
+              </div>
+            `;
+                    })
+                    .getProjetos();
+            } catch (error) {
+                console.error('Erro ao carregar projetos:', error);
+            }
+        }
+
+        // Renderiza a tabela
+        function renderTable() {
+            console.log('renderTable: projetos.length=', projetos.length);
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusOrc = document.getElementById('statusOrcFilter').value;
+            const statusPed = document.getElementById('statusPedFilter').value;
+
+            // Filtra projetos
+            let filtered = projetos.filter(p => {
+                const matchSearch = !searchTerm ||
+                    (p.CLIENTE || '').toString().toLowerCase().includes(searchTerm) ||
+                    (p.PROJETO || '').toString().toLowerCase().includes(searchTerm) ||
+                    (p['DESCRIÇÃO'] || p.DESCRIÇÃO || '').toString().toLowerCase().includes(searchTerm);
+
+                const matchStatusOrc = !statusOrc || p.STATUS_ORCAMENTO === statusOrc;
+                const matchStatusPed = !statusPed || p.STATUS_PEDIDO === statusPed;
+
+                return matchSearch && matchStatusOrc && matchStatusPed;
+            });
+
+            console.log('renderTable: filtered.length=', filtered.length);
+
+            // Se não há projetos
+            if (filtered.length === 0) {
+                document.getElementById('tableContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div>${projetos.length === 0 ? 'Nenhum projeto encontrado. Certifique-se de que a migração foi executada.' : 'Nenhum projeto corresponde aos filtros'}</div>
+          </div>
+        `;
+                return;
+            }
+
+            // Cria tabela
+            let html = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Projeto</th>
+                <th>Descrição</th>
+                <th>Valor</th>
+                <th>Processos</th>
+                <th>Status Orçamento</th>
+                <th>Status Pedido</th>
+                <th>Prazo</th>
+                <th>Observações</th>
+                <th>PDF</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+            filtered.forEach((projeto, index) => {
+                const statusOrcClass = getStatusClass(projeto.STATUS_ORCAMENTO);
+                const statusPedClass = getStatusClass(projeto.STATUS_PEDIDO);
+                const linha = projeto._linhaPlanilha || (index + 2);
+
+                html += `
+          <tr data-linha="${linha}">
+            <td>${projeto.CLIENTE || ''}</td>
+            <td><strong>${projeto.PROJETO || ''}</strong></td>
+            <td>${projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || ''}</td>
+            <td>${formatCurrency(projeto['VALOR TOTAL'])}</td>
+            <td>${projeto.PROCESSOS || ''}</td>
+            <td>
+              <select class="status-select" data-field="STATUS_ORCAMENTO" data-linha="${linha}" onchange="updateStatus(this)">
+                <option value="RASCUNHO" ${projeto.STATUS_ORCAMENTO === 'RASCUNHO' ? 'selected' : ''}>Rascunho</option>
+                <option value="Enviado" ${projeto.STATUS_ORCAMENTO === 'Enviado' ? 'selected' : ''}>Enviado</option>
+                <option value="Convertido em Pedido" ${projeto.STATUS_ORCAMENTO === 'Convertido em Pedido' ? 'selected' : ''}>Convertido</option>
+                <option value="Expirado/Perdido" ${projeto.STATUS_ORCAMENTO === 'Expirado/Perdido' ? 'selected' : ''}>Expirado/Perdido</option>
+              </select>
+            </td>
+            <td>
+              <select class="status-select" data-field="STATUS_PEDIDO" data-linha="${linha}" onchange="updateStatus(this)" ${projeto.STATUS_ORCAMENTO !== 'Convertido em Pedido' ? 'disabled' : ''}>
+                <option value="">-</option>
+                <option value="Processo de Preparação MP / CAD / CAM" ${projeto.STATUS_PEDIDO === 'Processo de Preparação MP / CAD / CAM' ? 'selected' : ''}>Prep. MP/CAD/CAM</option>
+                <option value="Processo de Corte" ${projeto.STATUS_PEDIDO === 'Processo de Corte' ? 'selected' : ''}>Corte</option>
+                <option value="Processo de Dobra" ${projeto.STATUS_PEDIDO === 'Processo de Dobra' ? 'selected' : ''}>Dobra</option>
+                <option value="Processos Adicionais" ${projeto.STATUS_PEDIDO === 'Processos Adicionais' ? 'selected' : ''}>Processos Adicionais</option>
+                <option value="Envio / Coleta" ${projeto.STATUS_PEDIDO === 'Envio / Coleta' ? 'selected' : ''}>Envio/Coleta</option>
+                <option value="Finalizado" ${projeto.STATUS_PEDIDO === 'Finalizado' ? 'selected' : ''}>Finalizado</option>
+              </select>
+            </td>
+            <td>${formatDate(projeto.PRAZO)}</td>
+            <td>${projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || ''}</td>
+            <td>
+              ${projeto['LINK DO PDF'] ? `<a href="${projeto['LINK DO PDF']}" target="_blank" class="link-icon" title="Abrir PDF">📄</a>` : '-'}
+            </td>
+            <td>
+              <button class="btn btn-small btn-success" onclick="editProjeto(${linha})" style="margin-right: 4px;">✏️</button>
+              <button class="btn btn-small btn-danger" onclick="deleteProjeto(${linha})">🗑️</button>
+            </td>
+          </tr>
+        `;
+            });
+
+            html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+
+            document.getElementById('tableContainer').innerHTML = html;
+        }
+
+        // Atualizar status
+        function updateStatus(select) {
+            const linha = select.dataset.linha;
+            const field = select.dataset.field;
+            const value = select.value;
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    // Se converteu em pedido, habilita o select de status_pedido
+                    if (field === 'STATUS_ORCAMENTO' && value === 'Convertido em Pedido') {
+                        const row = select.closest('tr');
+                        const statusPedSelect = row.querySelector('[data-field="STATUS_PEDIDO"]');
+                        if (statusPedSelect) {
+                            statusPedSelect.disabled = false;
+                            if (!statusPedSelect.value) {
+                                statusPedSelect.value = 'Processo de Preparação MP / CAD / CAM';
+                                updateStatus(statusPedSelect);
+                            }
+                        }
+                    }
+                    loadProjetos();
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao atualizar status: ' + (error.message || error));
+                    loadProjetos();
+                })
+                .atualizarProjetoNaPlanilha(linha, { [field]: value });
+        }
+
+        // Deletar projeto
+        function deleteProjeto(linha) {
+            if (!confirm('Tem certeza que deseja excluir este projeto?')) return;
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    loadProjetos();
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao excluir: ' + (error.message || error));
+                })
+                .excluirProjeto(linha);
+        }
+
+        // Editar projeto (abre modal de edição)
+        function editProjeto(linha) {
+            // Busca o projeto correspondente
+            const projeto = projetos.find(p => p._linhaPlanilha == linha);
+            if (!projeto) {
+                alert('Projeto não encontrado');
+                return;
+            }
+
+            // Preenche o formulário
+            document.getElementById('editLinha').value = linha;
+            document.getElementById('editCliente').value = projeto.CLIENTE || '';
+            document.getElementById('editProjeto').value = projeto.PROJETO || '';
+            document.getElementById('editDescricao').value = projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || '';
+            document.getElementById('editResponsavel').value = projeto['RESPONSÁVEL CLIENTE'] || '';
+            document.getElementById('editValor').value = projeto['VALOR TOTAL'] || '';
+            document.getElementById('editProcessos').value = projeto.PROCESSOS || '';
+            document.getElementById('editObservacoes').value = projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || '';
+            document.getElementById('editStatusOrcamento').value = projeto.STATUS_ORCAMENTO || 'RASCUNHO';
+            document.getElementById('editStatusPedido').value = projeto.STATUS_PEDIDO || '';
+
+            // Trata o prazo (pode ser Date ou string)
+            let prazoValue = '';
+            if (projeto.PRAZO && projeto.PRAZO !== '-') {
+                // Tenta converter dd/mm/yyyy para yyyy-mm-dd
+                const prazoStr = String(projeto.PRAZO);
+                const match = prazoStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                    prazoValue = `${match[3]}-${match[2]}-${match[1]}`;
+                }
+            }
+            document.getElementById('editPrazo').value = prazoValue;
+
+            // Habilita/desabilita status do pedido
+            toggleEditStatusPedido();
+
+            // Abre o modal
+            document.getElementById('editProjectModal').classList.add('active');
+        }
+
+        function closeEditProjectModal() {
+            document.getElementById('editProjectModal').classList.remove('active');
+        }
+
+        function toggleEditStatusPedido() {
+            const statusOrc = document.getElementById('editStatusOrcamento').value;
+            const statusPedGroup = document.getElementById('editStatusPedidoGroup');
+            const statusPedSelect = document.getElementById('editStatusPedido');
+
+            if (statusOrc === 'Convertido em Pedido') {
+                statusPedGroup.style.display = 'block';
+            } else {
+                statusPedGroup.style.display = 'none';
+                statusPedSelect.value = '';
+            }
+        }
+
+        function saveEditProject(event) {
+            event.preventDefault();
+
+            const linha = document.getElementById('editLinha').value;
+            const updates = {
+                'CLIENTE': document.getElementById('editCliente').value,
+                'PROJETO': document.getElementById('editProjeto').value,
+                'DESCRIÇÃO': document.getElementById('editDescricao').value,
+                'RESPONSÁVEL CLIENTE': document.getElementById('editResponsavel').value,
+                'VALOR TOTAL': document.getElementById('editValor').value,
+                'PROCESSOS': document.getElementById('editProcessos').value,
+                'PRAZO': document.getElementById('editPrazo').value,
+                'OBSERVAÇÕES': document.getElementById('editObservacoes').value,
+                'STATUS_ORCAMENTO': document.getElementById('editStatusOrcamento').value,
+                'STATUS_PEDIDO': document.getElementById('editStatusPedido').value
+            };
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    closeEditProjectModal();
+                    loadProjetos();
+                    alert('Projeto atualizado com sucesso!');
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao atualizar projeto: ' + (error.message || error));
+                })
+                .atualizarProjetoNaPlanilha(linha, updates);
+        }
+
+        // Modal de novo projeto
+        function openNewProjectModal() {
+            document.getElementById('newProjectModal').classList.add('active');
+            document.getElementById('newProjectForm').reset();
+            toggleStatusFields(); // Inicializa a visibilidade dos campos
+        }
+
+        function closeNewProjectModal() {
+            document.getElementById('newProjectModal').classList.remove('active');
+        }
+
+        function toggleStatusFields() {
+            const tipo = document.getElementById('newTipo').value;
+            const statusPedidoGroup = document.getElementById('statusPedidoGroup');
+            const statusPedidoSelect = document.getElementById('newStatusPedido');
+
+            if (tipo === 'rascunho') {
+                // Se for rascunho, esconde o campo de status do pedido
+                statusPedidoGroup.style.display = 'none';
+                statusPedidoSelect.removeAttribute('required');
+            } else {
+                // Se for pedido, mostra o campo de status do pedido
+                statusPedidoGroup.style.display = 'block';
+                statusPedidoSelect.setAttribute('required', 'required');
+            }
+        }
+
+        function saveNewProject(event) {
+            event.preventDefault();
+
+            const tipo = document.getElementById('newTipo').value;
+            const projeto = {
+                CLIENTE: document.getElementById('newCliente').value,
+                PROJETO: document.getElementById('newProjeto').value,
+                'DESCRIÇÃO': document.getElementById('newDescricao').value,
+                'RESPONSÁVEL CLIENTE': document.getElementById('newResponsavel').value,
+                'VALOR TOTAL': document.getElementById('newValor').value,
+                PROCESSOS: document.getElementById('newProcessos').value,
+                PRAZO: document.getElementById('newPrazo').value,
+                'OBSERVAÇÕES': document.getElementById('newObservacoes').value,
+                STATUS_ORCAMENTO: tipo === 'rascunho' ? 'RASCUNHO' : 'Convertido em Pedido',
+                STATUS_PEDIDO: tipo === 'rascunho' ? '' : document.getElementById('newStatusPedido').value,
+                DATA: new Date().toLocaleDateString('pt-BR'),
+                'LINK DO PDF': '',
+                'LINK DA MEMÓRIA DE CÁLCULO': '',
+                JSON_DADOS: ''
+            };
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    closeNewProjectModal();
+                    loadProjetos();
+                    alert('Projeto adicionado com sucesso!');
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao adicionar projeto: ' + (error.message || error));
+                })
+                .adicionarNovoProjetoNaPlanilha(projeto);
+        }
+
+        // Fechar modais ao clicar fora
+        document.getElementById('newProjectModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeNewProjectModal();
+            }
+        });
+
+        document.getElementById('editProjectModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                closeEditProjectModal();
+            }
+        });
+
+        // Event listener para mudança de status no modal de edição
+        document.getElementById('editStatusOrcamento').addEventListener('change', toggleEditStatusPedido);
+
+        // Helpers
+        function getStatusClass(status) {
+            if (!status) return '';
+            const s = status.toLowerCase();
+            if (s.includes('rascunho')) return 'status-rascunho';
+            if (s.includes('enviado')) return 'status-enviado';
+            if (s.includes('convertido')) return 'status-convertido';
+            if (s.includes('expirado') || s.includes('perdido')) return 'status-expirado';
+            if (s.includes('preparação') || s.includes('preparacao')) return 'status-preparacao';
+            if (s.includes('corte')) return 'status-corte';
+            if (s.includes('dobra')) return 'status-dobra';
+            if (s.includes('adicionais')) return 'status-adicionais';
+            if (s.includes('envio') || s.includes('coleta')) return 'status-envio';
+            if (s.includes('finalizado')) return 'status-finalizado';
+            return '';
+        }
+
+        function formatCurrency(value) {
+            if (!value) return '-';
+            // Se já está formatado, retorna como está
+            if (typeof value === 'string' && value.includes('R$')) return value;
+            // Senão, formata
+            const num = parseFloat(value);
+            if (isNaN(num)) return value;
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+        }
+
+        function formatDate(value) {
+            if (!value) return '-';
+            // Se já está formatado dd/mm/yyyy, retorna
+            if (typeof value === 'string' && /\d{2}\/\d{2}\/\d{4}/.test(value)) return value;
+            // Tenta converter
+            try {
+                const date = new Date(value);
+                if (isNaN(date.getTime())) return value;
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            } catch (e) {
+                return value;
+            }
+        }
+
+        // Event listeners para filtros
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+        document.getElementById('statusOrcFilter').addEventListener('change', renderTable);
+        document.getElementById('statusPedFilter').addEventListener('change', renderTable);
+
+        // Carrega projetos ao inicializar
+        loadProjetos();
+    </script>
+</body>
+
+</html>

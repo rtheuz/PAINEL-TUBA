@@ -10,6 +10,7 @@ const SHEET_AVAL = ss.getSheetByName("Avaliações");
 const SHEET_LOGS = ss.getSheetByName("Logs");
 const SHEET_CLIENTES = ss.getSheetByName("Cadastro de Clientes");
 const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+const SHEET_PROJ = ss.getSheetByName("Projetos"); // Nova aba unificada
 const ID_PASTA_PRINCIPAL = "1jqIVHbThV3SPBM8MOHek4r5tr2DoHbqz";
 const ID_LOGO = "1pnRLV6YZYMD6Yhv1cUb4FXVr0ol_Zzzf";
 const FAVICON = "https://i.imgur.com/C0dSTyE.png"
@@ -853,31 +854,58 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       }
     });
 
-    // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
-    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
-    const rowValues = [
-      cliente.nome || "",
-      descricao,  // Coluna DESCRIÇÃO
-      cliente.responsavel || "",
-      codigoProjeto || "",
-      valorTotal || "",
-      dataOrcamento || "",
-      processosStr || "",
-      urlPdf || "",
-      urlMemoria || "",
-      "Enviado",
-      prazo,  // Nova coluna PRAZO
-      dadosJson  // Agora salvamos os dados completos do formulário, não só chapas
-    ];
+    // Decide qual aba usar: Projetos (se existir) ou Orçamentos (legado)
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    let rowValues, linhaExistente;
 
-    // tenta encontrar linha existente com o mesmo PROJETO (coluna "PROJETO")
-    const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    if (sheetProj) {
+      // Nova estrutura: 14 colunas com STATUS_ORCAMENTO e STATUS_PEDIDO separados
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL CLIENTE, PROJETO, VALOR TOTAL, DATA, PROCESSOS,
+      // LINK DO PDF, LINK DA MEMÓRIA DE CÁLCULO, STATUS_ORCAMENTO, STATUS_PEDIDO, PRAZO, OBSERVAÇÕES, JSON_DADOS
+      rowValues = [
+        cliente.nome || "",
+        descricao,
+        cliente.responsavel || "",
+        codigoProjeto || "",
+        valorTotal || "",
+        dataOrcamento || "",
+        processosStr || "",
+        urlPdf || "",
+        urlMemoria || "",
+        "Enviado",  // STATUS_ORCAMENTO
+        "",         // STATUS_PEDIDO (vazio inicialmente)
+        prazo,
+        "",         // OBSERVAÇÕES (vazio inicialmente)
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto);
+    } else {
+      // Estrutura antiga (Orçamentos): 12 colunas
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
+      rowValues = [
+        cliente.nome || "",
+        descricao,
+        cliente.responsavel || "",
+        codigoProjeto || "",
+        valorTotal || "",
+        dataOrcamento || "",
+        processosStr || "",
+        urlPdf || "",
+        urlMemoria || "",
+        "Enviado",
+        prazo,
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    }
 
     if (linhaExistente) {
       // Atualiza a linha existente (independente do status - assim rascunho vira enviado)
-      SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
+      targetSheet.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      SHEET_ORC.appendRow(rowValues);
+      targetSheet.appendRow(rowValues);
     }
 
     // Insere produtos com código PRD na "Relação de produtos" ao criar o orçamento
@@ -898,20 +926,43 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
           produtosCadastrados: produtosCadastrados || []
         }
       });
-      SHEET_ORC.appendRow([
-        cliente.nome || "",
-        descricao,  // Coluna DESCRIÇÃO
-        cliente.responsavel || "",
-        codigoProjeto || "",
-        valorTotal || "",
-        dataOrcamento || "",
-        processosStr || "",
-        urlPdf || "",
-        urlMemoria || "",
-        "Enviado",
-        prazo,  // Nova coluna PRAZO
-        dadosJson
-      ]);
+      
+      const sheetProj = ss.getSheetByName("Projetos");
+      if (sheetProj) {
+        // Nova estrutura com 14 colunas
+        sheetProj.appendRow([
+          cliente.nome || "",
+          descricao,
+          cliente.responsavel || "",
+          codigoProjeto || "",
+          valorTotal || "",
+          dataOrcamento || "",
+          processosStr || "",
+          urlPdf || "",
+          urlMemoria || "",
+          "Enviado",  // STATUS_ORCAMENTO
+          "",         // STATUS_PEDIDO
+          prazo,
+          "",         // OBSERVAÇÕES
+          dadosJson
+        ]);
+      } else {
+        // Estrutura antiga com 12 colunas
+        SHEET_ORC.appendRow([
+          cliente.nome || "",
+          descricao,
+          cliente.responsavel || "",
+          codigoProjeto || "",
+          valorTotal || "",
+          dataOrcamento || "",
+          processosStr || "",
+          urlPdf || "",
+          urlMemoria || "",
+          "Enviado",
+          prazo,
+          dadosJson
+        ]);
+      }
 
       // Insere produtos mesmo no fallback
       inserirProdutosDasChapas(chapas);
@@ -940,27 +991,53 @@ function getDashboardStats() {
   // Materiais cadastrados
   const materiais = SHEET_MAT ? Math.max(SHEET_MAT.getLastRow() - 1, 0) : 0;
 
-  // Pedidos
-  const pedidos = SHEET_PED ? Math.max(SHEET_PED.getLastRow() - 1, 0) : 0;
-
   // Produtos cadastrados
   const produtos = SHEET_PRODUTOS ? Math.max(SHEET_PRODUTOS.getLastRow() - 1, 0) : 0;
 
   // Logs
   const logs = SHEET_LOGS ? Math.max(SHEET_LOGS.getLastRow() - 1, 0) : 0;
 
-  // Kanban = pedidos que não estão finalizados
+  // Verifica se existe aba Projetos unificada
+  const sheetProj = ss.getSheetByName("Projetos");
+  let projetos = 0;
   let kanban = 0;
-  if (SHEET_PED && pedidos > 0) {
-    const data = SHEET_PED.getRange(2, 3, pedidos).getValues();
-    kanban = data.filter(r => r[0] && r[0] !== "Finalizado").length;
+
+  if (sheetProj) {
+    // === NOVA LÓGICA: Conta da aba Projetos ===
+    const totalProjetos = Math.max(sheetProj.getLastRow() - 1, 0);
+    Logger.log("getDashboardStats: Aba Projetos encontrada, totalProjetos=%s", totalProjetos);
+    
+    if (totalProjetos > 0) {
+      try {
+        const dados = sheetProj.getDataRange().getValues();
+        const headers = dados[0];
+        Logger.log("getDashboardStats: Headers da aba Projetos: %s", JSON.stringify(headers));
+        const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+        const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+        Logger.log("getDashboardStats: idxStatusOrc=%s, idxStatusPed=%s", idxStatusOrc, idxStatusPed);
+
+        for (let i = 1; i < dados.length; i++) {
+          const row = dados[i];
+          const statusOrc = idxStatusOrc >= 0 ? row[idxStatusOrc] : "";
+          const statusPed = idxStatusPed >= 0 ? row[idxStatusPed] : "";
+
+          // Conta orçamentos: projetos que não foram convertidos nem perdidos
+          if (statusOrc  !== "Expirado/Perdido") {
+            projetos++;
+          }
+          // Kanban: pedidos que não estão finalizados
+          if (statusPed !== "Finalizado" && statusOrc !== "Rascunho" && statusOrc !== "Expirado/Perdido" && statusOrc !== "Enviado") {
+            kanban++;
+          }
+        }
+        Logger.log("getDashboardStats: Contagem final - projetos=%s, kanban=%s", projetos, kanban);
+      } catch (e) {
+        Logger.log("Erro ao contar stats da aba Projetos: " + e.message);
+      }
+    }
   }
 
-  // Orçamentos ativos
-  const orcamentos = SHEET_ORC ? Math.max(SHEET_ORC.getLastRow() - 1, 0) : 0;
-
-
-  return { propostas, orcamentos, pedidos, kanban, etiquetas, materiais, logs, produtos };
+  return { propostas, kanban, etiquetas, materiais, logs, produtos, projetos };
 }
 
 // --- helper para achar índice de cabeçalho de forma robusta ---
@@ -1029,41 +1106,118 @@ function getKanbanData() {
       "Envio / Coleta": []
     };
 
-    // --- Orçamentos ---
-    if (typeof SHEET_ORC !== 'undefined' && SHEET_ORC) {
-      const valsOrc = SHEET_ORC.getDataRange().getValues();
-      if (valsOrc && valsOrc.length > 0) {
-        const headersOrc = valsOrc[0];
-        const idxCliente = _findHeaderIndex(headersOrc, "CLIENTE");
-        const idxProjeto = _findHeaderIndex(headersOrc, "PROJETO");
-        const idxStatus = _findHeaderIndex(headersOrc, "STATUS");
-        const idxDescricaoResult = _findHeaderIndex(headersOrc, "DESCRIÇÃO");
-        const idxDescricao = idxDescricaoResult >= 0 ? idxDescricaoResult : _findHeaderIndex(headersOrc, "Descrição");
-        const idxPrazoResult = _findHeaderIndex(headersOrc, "PRAZO");
-        const idxPrazo = idxPrazoResult >= 0 ? idxPrazoResult : _findHeaderIndex(headersOrc, "Prazo");
+    // Verifica se existe a aba Projetos unificada
+    const sheetProj = ss.getSheetByName("Projetos");
+    
+    if (sheetProj) {
+      // === NOVA LÓGICA: Aba Projetos Unificada ===
+      const valsProj = sheetProj.getDataRange().getValues();
+      if (valsProj && valsProj.length > 1) {
+        const headersProj = valsProj[0];
+        const idxCliente = _findHeaderIndex(headersProj, "CLIENTE");
+        const idxProjeto = _findHeaderIndex(headersProj, "PROJETO");
+        const idxDescricao = _findHeaderIndex(headersProj, "DESCRIÇÃO");
+        const idxStatusOrc = _findHeaderIndex(headersProj, "STATUS_ORCAMENTO");
+        const idxStatusPed = _findHeaderIndex(headersProj, "STATUS_PEDIDO");
+        const idxPrazo = _findHeaderIndex(headersProj, "PRAZO");
+        const idxProcessos = _findHeaderIndex(headersProj, "PROCESSOS");
+        const idxObs = _findHeaderIndex(headersProj, "OBSERVAÇÕES");
 
-        for (let i = 1; i < valsOrc.length; i++) {
-          const row = valsOrc[i];
-          const status = idxStatus >= 0 ? row[idxStatus] : row[2];
-          if (status && !["Expirado/Perdido", "Convertido em Pedido", "Enviado"].includes(status)) {
-            const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
-            let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
-            // Normaliza prazo para string segura
-            prazo = normalizePrazo(prazo);
+        for (let i = 1; i < valsProj.length; i++) {
+          const row = valsProj[i];
+          const cliente = idxCliente >= 0 ? row[idxCliente] : "";
+          const projeto = idxProjeto >= 0 ? row[idxProjeto] : "";
+          const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
+          const statusOrc = idxStatusOrc >= 0 ? row[idxStatusOrc] : "";
+          const statusPed = idxStatusPed >= 0 ? row[idxStatusPed] : "";
+          let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
+          prazo = normalizePrazo(prazo);
 
+          // Cards de orçamento: Somente STATUS_ORCAMENTO = 'RASCUNHO' ou 'Rascunho'
+          // e STATUS_PEDIDO vazio
+          if (statusOrc && (statusOrc === "RASCUNHO" || statusOrc === "Rascunho") && !statusPed) {
             data["Processo de Orçamento"].push({
-              cliente: idxCliente >= 0 ? row[idxCliente] : "",
-              projeto: idxProjeto >= 0 ? row[idxProjeto] : "",
-              descricao: descricao || "",
-              status: status || "",
+              cliente: cliente,
+              projeto: projeto,
+              descricao: descricao,
+              status: statusOrc,
               prazo: prazo
             });
+          }
+
+          // Cards de pedido: WHERE STATUS_PEDIDO IS NOT NULL AND STATUS_PEDIDO != '' AND STATUS_PEDIDO != 'Finalizado'
+          if (statusPed && statusPed !== "" && statusPed !== "Finalizado") {
+            const obs = idxObs >= 0 ? row[idxObs] : "";
+            const processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || "") : "";
+            
+            // Extrai tempo estimado do campo PROCESSOS
+            let tempoEstimado = "";
+            if (/Preparação/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/preparação\s*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            } else if (/Corte/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/corte\s*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            } else if (/Dobra/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/dobra\s*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            } else if (/Adicion/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/adici.*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            }
+
+            // Busca tempo real dos logs (se disponível)
+            let tempoReal = "";
+            const chave = cliente + "|" + projeto;
+            // mapaLogs será preenchido abaixo
+
+            if (Array.isArray(data[statusPed])) {
+              data[statusPed].push({
+                cliente: cliente,
+                projeto: projeto,
+                descricao: descricao,
+                observacoes: obs,
+                tempoEstimado: tempoEstimado,
+                tempoReal: tempoReal,  // Será preenchido pelos logs abaixo
+                prazo: prazo
+              });
+            }
+          }
+        }
+      }
+    } else {
+      // === LÓGICA ANTIGA: Abas separadas (Orçamentos e Pedidos) ===
+      // --- Orçamentos ---
+      if (typeof SHEET_ORC !== 'undefined' && SHEET_ORC) {
+        const valsOrc = SHEET_ORC.getDataRange().getValues();
+        if (valsOrc && valsOrc.length > 0) {
+          const headersOrc = valsOrc[0];
+          const idxCliente = _findHeaderIndex(headersOrc, "CLIENTE");
+          const idxProjeto = _findHeaderIndex(headersOrc, "PROJETO");
+          const idxStatus = _findHeaderIndex(headersOrc, "STATUS");
+          const idxDescricaoResult = _findHeaderIndex(headersOrc, "DESCRIÇÃO");
+          const idxDescricao = idxDescricaoResult >= 0 ? idxDescricaoResult : _findHeaderIndex(headersOrc, "Descrição");
+          const idxPrazoResult = _findHeaderIndex(headersOrc, "PRAZO");
+          const idxPrazo = idxPrazoResult >= 0 ? idxPrazoResult : _findHeaderIndex(headersOrc, "Prazo");
+
+          for (let i = 1; i < valsOrc.length; i++) {
+            const row = valsOrc[i];
+            const status = idxStatus >= 0 ? row[idxStatus] : row[2];
+            if (status && !["Expirado/Perdido", "Convertido em Pedido", "Enviado"].includes(status)) {
+              const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
+              let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
+              prazo = normalizePrazo(prazo);
+
+              data["Processo de Orçamento"].push({
+                cliente: idxCliente >= 0 ? row[idxCliente] : "",
+                projeto: idxProjeto >= 0 ? row[idxProjeto] : "",
+                descricao: descricao || "",
+                status: status || "",
+                prazo: prazo
+              });
+            }
           }
         }
       }
     }
 
-    // --- Logs (mapa) ---
+    // --- Logs (mapa) - Processa logs para ambas estruturas ---
     const mapaLogs = {};
     if (typeof SHEET_LOGS !== 'undefined' && SHEET_LOGS) {
       const valsLogs = SHEET_LOGS.getDataRange().getValues();
@@ -1168,6 +1322,28 @@ function getKanbanData() {
           }
         }
       }
+    }
+
+    // Aplica tempos reais dos logs aos cards de pedido (para nova estrutura)
+    if (sheetProj && Object.keys(mapaLogs).length > 0) {
+      Object.keys(data).forEach(coluna => {
+        if (coluna !== "Processo de Orçamento" && Array.isArray(data[coluna])) {
+          data[coluna].forEach(card => {
+            const chave = card.cliente + "|" + card.projeto;
+            if (mapaLogs[chave]) {
+              if (/Preparação/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].preparacao_mp_cad_com || "";
+              } else if (/Corte/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].corte || "";
+              } else if (/Dobra/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].dobra || "";
+              } else if (/Adicion/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].adicionais || "";
+              }
+            }
+          });
+        }
+      });
     }
 
     return data;
@@ -1349,12 +1525,12 @@ function doGet(e) {
 
   const paginasProtegidas = {
     'dashboard': ['admin', 'mod', 'usuario'],
-    'orcamento': ['admin', 'mod'],
+    'formulario': ['admin', 'mod', 'usuario'],
     'materiais': ['admin', 'mod', 'usuario'],
     'geradoretiquetas': ['admin', 'mod', 'usuario'],
     'kanban': ['admin', 'mod', 'usuario'],
     'avaliacoes': ['admin'],
-    'orcamentos': ['admin', 'mod', 'usuario'],
+    'projetos': ['admin', 'mod', 'usuario'],
     'avaliacoespage': ['admin'],
     'pedidos': ['admin', 'mod', 'usuario'],
     'logs': ['admin', 'mod'],
@@ -1363,7 +1539,7 @@ function doGet(e) {
     'paginasprotegidas': ['admin'],
     'veiculos': ['admin', 'mod', 'usuario', 'visitante'],
     'veiculos_list': ['admin', 'mod', 'usuario', 'visitante'],
-    'produtos': ['admin', 'mod', 'usuario']
+    'produtos': ['admin', 'mod', 'usuario'],
     
   };
 
@@ -1439,6 +1615,13 @@ function doGet(e) {
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
+      case 'projetos':
+        const templateProjetos = HtmlService.createTemplateFromFile('projetos');
+        templateProjetos.token = token;
+        return templateProjetos.evaluate()
+          .setFaviconUrl(FAVICON)
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
       case 'paginasprotegidas':
         const templatePaginasProtegidas = HtmlService.createTemplateFromFile('paginasprotegidas');
         templatePaginasProtegidas.token = token;
@@ -1446,7 +1629,7 @@ function doGet(e) {
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-      case 'orcamento':
+      case 'formulario':
         const template = HtmlService.createTemplateFromFile('formulario');
         template.token = token;
         return template.evaluate()
@@ -1504,13 +1687,6 @@ function doGet(e) {
       case 'kanban':
         return HtmlService.createTemplateFromFile('kanban')
           .evaluate()
-          .setFaviconUrl(FAVICON)
-          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
-      case 'pedidos':
-        const templatePedidos = HtmlService.createTemplateFromFile('pedidos');
-        templatePedidos.token = token;
-        return templatePedidos.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
@@ -1593,76 +1769,6 @@ function doGet(e) {
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-      case 'orcamentos':
-        if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-
-        const values = SHEET_ORC.getDataRange().getValues();
-        const headers = values[0];
-
-        // Função para normalizar nomes de cabeçalho (remove acentos, espaços extras, converte para maiúsculas)
-        function normalizeHeader(h) {
-          if (!h) return '';
-          return String(h).trim().toUpperCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, ' ');
-        }
-
-        // Mapeia índices de cabeçalhos normalizados para facilitar busca
-        const headerNormalizedMap = {};
-        headers.forEach((h, i) => {
-          headerNormalizedMap[normalizeHeader(h)] = i;
-        });
-
-        const data = values.slice(1).map((row, index) => {
-          let obj = {};
-          headers.forEach((h, i) => {
-            let valor = row[i];
-            if (h === "VALOR TOTAL" && typeof valor === "number") {
-              valor = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            }
-            if (h === "DATA" && valor instanceof Date) {
-              valor = Utilities.formatDate(valor, Session.getScriptTimeZone(), "dd/MM/yyyy");
-            }
-            obj[h] = valor;
-          });
-
-          // Adiciona chaves padronizadas para campos que podem ter variações de nome
-          // Isso garante que o template sempre encontre os dados esperados
-          const standardKeys = {
-            'DESCRICAO': 'DESCRIÇÃO',
-            'RESPONSAVEL': 'RESPONSÁVEL',
-            'RESPONSAVEL CLIENTE': 'RESPONSÁVEL CLIENTE'
-          };
-
-          Object.entries(standardKeys).forEach(([normalizedKey, standardKey]) => {
-            if (obj[standardKey] === undefined) {
-              // Procura por variação do cabeçalho
-              const idx = headerNormalizedMap[normalizedKey];
-              if (idx !== undefined && row[idx] !== undefined) {
-                obj[standardKey] = row[idx];
-              }
-            }
-          });
-
-          obj["_linhaPlanilha"] = index + 2;
-          return obj;
-        });
-
-        const templateOrcamentos = HtmlService.createTemplateFromFile('orcamentos');
-        templateOrcamentos.token = token;
-        templateOrcamentos.dados = data;
-        templateOrcamentos.logo = "https://i.imgur.com/F8X7ZMs.png";
-        templateOrcamentos.empresa = {
-          nome: "TUBA FERRAMENTARIA LTDA",
-          endereco: "Estrada dos Alvarengas, 4101 - Assunção, São Bernardo do Campo - SP",
-          cnpj: "10.684.825/0001-26",
-          email: "tubaferram@gmail.com",
-          tel: "(11) 91285-4204"
-        };
-        return templateOrcamentos.evaluate()
-          .setFaviconUrl(FAVICON)
-          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
       case 'seguranca':
         const templateSeguranca = HtmlService.createTemplateFromFile('seguranca');
         return templateSeguranca.evaluate()
@@ -1682,190 +1788,6 @@ function doGet(e) {
 
   } catch (err) {
     return HtmlService.createHtmlOutput("Erro ao carregar a página: " + err.message);
-  }
-}
-
-function adicionarOrcamentoNaPlanilha(dados) {
-  try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-    if (!dados || !dados.CLIENTE || !dados.PROJETO) {
-      throw new Error('CLIENTE e PROJETO são obrigatórios.');
-    }
-
-    // Lê cabeçalhos atuais
-    const lastCol = SHEET_ORC.getLastColumn();
-    if (lastCol < 1) throw new Error('Cabeçalho da planilha "Orçamentos" não encontrado.');
-    const headers = SHEET_ORC.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
-
-    // Função para normalizar strings (para comparação de headers)
-    function normalizeKey(s) {
-      if (!s) return '';
-      return String(s).trim().toUpperCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^A-Z0-9]/g, '');
-    }
-
-    // Cria um mapa de headers normalizados para índices
-    const normalizedHeaderMap = {};
-    headers.forEach((h, i) => {
-      normalizedHeaderMap[normalizeKey(h)] = i;
-    });
-
-    // Prepara array com valores na ordem dos headers
-    const rowValues = new Array(headers.length).fill('');
-
-    // Campos que esperamos receber (mapear conforme sua planilha)
-    // Cada entrada: headerNormalizado -> [possíveis chaves do objeto dados]
-    const campoMap = {
-      'CLIENTE': ['CLIENTE'],
-      'DESCRICAO': ['DESCRIÇÃO', 'DESCRICAO'],  // Normalizado sem acento
-      'RESPONSAVEL': ['RESPONSÁVEL', 'RESPONSÁVEL CLIENTE', 'RESPONSAVEL', 'RESPONSAVEL CLIENTE'],
-      'PROJETO': ['PROJETO'],
-      'VALORTOTAL': ['VALOR TOTAL'],
-      'DATA': ['DATA'],
-      'PROCESSOS': ['Processos', 'PROCESSOS'],
-      'LINKDOPDF': ['LINK DO PDF'],
-      'LINKDAMEMORIADECALCULO': ['LINK DA MEMÓRIA DE CÁLCULO'],
-      'STATUS': ['STATUS']
-    };
-
-    Object.entries(campoMap).forEach(([normalizedHeader, possibleKeys]) => {
-      const colIdx = normalizedHeaderMap[normalizedHeader];
-      if (colIdx !== undefined) {
-        // Tenta encontrar o valor usando qualquer uma das chaves possíveis
-        let valor = '';
-        for (const key of possibleKeys) {
-          if (dados[key] !== undefined) {
-            valor = dados[key];
-            break;
-          }
-        }
-        // Se for DATA e estiver no formato dd/mm/yyyy, converte para Date para manter formatação na planilha
-        if (normalizedHeader === 'DATA' && typeof valor === 'string' && /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.test(valor)) {
-          const parts = valor.split('/');
-          const d = parseInt(parts[0], 10);
-          const m = parseInt(parts[1], 10) - 1;
-          const y = parseInt(parts[2], 10);
-          valor = new Date(y, m, d);
-        }
-        // Mantém VALOR TOTAL como texto recebido (front-end envia string formatada). Se quiser gravar número, converta aqui.
-        rowValues[colIdx] = valor;
-      }
-    });
-
-    // Escreve a linha na próxima linha disponível
-    const targetRow = SHEET_ORC.getLastRow() + 1;
-    SHEET_ORC.getRange(targetRow, 1, 1, rowValues.length).setValues([rowValues]);
-
-    // Incrementa contador de propostas (se aplicável)
-    // try { incrementarContador("totalPropostas"); } catch (e) { /* não crítico */ }
-
-    return { linha: targetRow };
-  } catch (err) {
-    // Propaga erro para o front-end
-    throw new Error('Erro adicionarOrcamentoNaPlanilha: ' + (err.message || err));
-  }
-}
-
-function excluirOrcamento(linha) {
-  try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-    if (!linha || typeof linha !== 'number') throw new Error("Parâmetro 'linha' inválido.");
-
-    const lastRow = SHEET_ORC.getLastRow();
-    if (linha < 2 || linha > lastRow) {
-      throw new Error("Número da linha inválido ou fora do intervalo de dados: " + linha);
-    }
-
-    // Opcional: ler dados antes de excluir para registrar
-    // const dadosLinha = SHEET_ORC.getRange(linha, 1, 1, SHEET_ORC.getLastColumn()).getValues()[0];
-
-    SHEET_ORC.deleteRow(linha);
-
-    // Opcional: ajustar registros dependentes (ex.: logs ou contadores) — aqui apenas retorna sucesso
-    return { ok: true };
-  } catch (err) {
-    throw new Error("Erro ao excluir orçamento: " + (err.message || err));
-  }
-}
-
-function atualizarStatusNaPlanilha(linha, novoStatus) {
-  if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-
-  const headers = SHEET_ORC.getRange(1, 1, 1, SHEET_ORC.getLastColumn()).getValues()[0];
-  const colunaStatus = headers.indexOf("STATUS") + 1;
-  if (colunaStatus === 0) throw new Error("Coluna STATUS não encontrada");
-
-  // Atualiza o status
-  SHEET_ORC.getRange(linha, colunaStatus).setValue(novoStatus);
-
-  // Se for "Convertido em Pedido", faz a conversão imediatamente
-  if (novoStatus === "Convertido em Pedido") {
-    const linhaDados = SHEET_ORC.getRange(linha, 1, 1, SHEET_ORC.getLastColumn()).getValues()[0];
-
-    // --- Aba Pedidos ---
-    const headersPedidos = SHEET_PED.getRange(1, 1, 1, SHEET_PED.getLastColumn()).getValues()[0];
-    const idxCliente = headers.indexOf("CLIENTE");
-    const idxProjeto = headers.indexOf("PROJETO");
-    const idxProcessos = headers.indexOf("Processos");
-    const idxObs = headers.indexOf("OBSERVAÇÕES") >= 0 ? headers.indexOf("OBSERVAÇÕES") : headers.indexOf("Observações");
-    const idxDescricao = headers.indexOf("DESCRIÇÃO") >= 0 ? headers.indexOf("DESCRIÇÃO") : headers.indexOf("Descrição");
-    const idxPrazo = headers.indexOf("PRAZO") >= 0 ? headers.indexOf("PRAZO") : headers.indexOf("Prazo");
-
-    const cliente = linhaDados[idxCliente] || "";
-    const projeto = linhaDados[idxProjeto] || "";
-    const processos = String(linhaDados[idxProcessos] || "");
-    const observacoes = idxObs >= 0 ? (linhaDados[idxObs] || "") : "";
-    const descricao = idxDescricao >= 0 ? (linhaDados[idxDescricao] || "") : "";
-    const prazo = idxPrazo >= 0 ? (linhaDados[idxPrazo] || "") : "";
-
-
-    // Determina o primeiro processo
-    let statusInicial = "Processo de Preparação MP / CAD / CAM";
-    if (/preparação|preparacao|mp|cad|cam/i.test(processos)) statusInicial = "Processo de Preparação MP / CAD / CAM";
-    else if (/corte/i.test(processos)) statusInicial = "Processo de Corte";
-    else if (/dobra/i.test(processos)) statusInicial = "Processo de Dobra";
-    else if (/adicio/i.test(processos)) statusInicial = "Processos Adicionais";
-    else if (/envio|coleta/i.test(processos)) statusInicial = "Envio / Coleta";
-
-    // Insere na aba Pedidos (agora incluindo DESCRIÇÃO e PRAZO)
-    const novaLinha = [];
-    headersPedidos.forEach(h => {
-      const headerName = String(h).trim().toUpperCase();
-      switch (headerName) {
-        case "CLIENTE": novaLinha.push(cliente); break;
-        case "NÚMERO DO PROJETO":
-        case "NUMERO DO PROJETO": novaLinha.push(projeto); break;
-        case "STATUS": novaLinha.push(statusInicial); break;
-        case "OBSERVAÇÕES":
-        case "OBSERVACOES": novaLinha.push(observacoes); break;
-        case "TEMPO ESTIMADO POR PROCESSO": novaLinha.push(processos); break;
-        case "DESCRIÇÃO":
-        case "DESCRICAO": novaLinha.push(descricao); break;
-        case "PRAZO": novaLinha.push(prazo); break;
-        default: novaLinha.push("");
-      }
-    });
-    SHEET_PED.appendRow(novaLinha);
-
-    // Registrar log
-    registrarLog(cliente, projeto, null, statusInicial, processos);
-
-    // --- Inserir produtos na "Relação de produtos" (se ainda não foram inseridos) ---
-    try {
-      // Tenta recuperar os dados das chapas da última coluna (JSON)
-      const idxChapas = linhaDados.length - 1; // Última coluna onde armazenamos o JSON
-      const chapasJson = linhaDados[idxChapas];
-
-      if (chapasJson && typeof chapasJson === 'string') {
-        const chapas = JSON.parse(chapasJson);
-        // Usa a função helper para inserir produtos
-        inserirProdutosDasChapas(chapas);
-      }
-    } catch (err) {
-      Logger.log("Erro ao inserir produtos na relação: " + err);
-      // Não interrompe a conversão se houver erro ao inserir produtos
-    }
   }
 }
 
@@ -2201,122 +2123,249 @@ function getLogs() {
   return data;
 }
 
-function getPedidos() {
+// ==================== FUNÇÕES DA ABA PROJETOS UNIFICADA ====================
+
+/**
+ * Retorna todos os projetos da aba Projetos (ou Orçamentos como fallback)
+ * @returns {Array} Array de objetos com os dados dos projetos
+ */
+function getProjetos() {
   try {
-    const valuesRaw = SHEET_PED.getDataRange().getValues();
-    if (!valuesRaw || valuesRaw.length === 0) {
-      return { dados: [], opcoesStatus: [] };
+    // Tenta usar aba Projetos primeiro
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) {
+      Logger.log('getProjetos: Nenhuma aba encontrada');
+      throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
     }
 
-    // Normaliza valores: null/undefined -> '', Date -> string formatada
+    const lastRow = targetSheet.getLastRow();
+    const lastCol = targetSheet.getLastColumn();
+    Logger.log('getProjetos: Sheet name=%s, lastRow=%s, lastCol=%s', targetSheet.getName(), lastRow, lastCol);
+    
+    if (lastRow < 2) {
+      Logger.log('getProjetos: Nenhum dado encontrado (lastRow < 2)');
+      return [];
+    }
+
+    const values = targetSheet.getRange(1, 1, lastRow, lastCol).getValues();
+    if (!values || values.length === 0) {
+      Logger.log('getProjetos: getValues retornou vazio ou null');
+      return [];
+    }
+
+    const headers = values[0];
+    Logger.log('getProjetos: Headers count=%s, first few=%s', headers.length, headers.slice(0, 5).join(','));
+    
+    // Formata timezone para datas
     const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'UTC';
-    const values = valuesRaw.map(row => row.map(cell => {
-      if (cell === null || cell === undefined) return '';
-      if (Object.prototype.toString.call(cell) === '[object Date]') {
-        // Formato de data: ajuste se necessário
-        return Utilities.formatDate(cell, tz, 'dd/MM/yy');
-      }
-      // Tenta converter outros tipos para string de forma segura
-      try {
-        return String(cell);
-      } catch (e) {
-        return '';
-      }
-    }));
-
-    // Determina índice da coluna de "Status" (caso-insensitivo)
-    const header = values[0] || [];
-    const statusIndex = header.findIndex(h => /status/i.test(String(h)));
-
-    // Tenta obter validação (opções) de maneira segura:
-    //  - se houver validação VALUE_IN_LIST -> usa a lista
-    //  - se houver validação VALUE_IN_RANGE -> lê os valores do intervalo referenciado
-    //  - senão, fallback para lista estática
-    let opcoesStatus = [];
-    try {
-      if (statusIndex >= 0) {
-        // procura validação na 2ª linha da coluna de status (se existir)
-        const rowParaValidacao = Math.min(2, values.length); // evita request inválida se a sheet pequena
-        const range = SHEET_PED.getRange(rowParaValidacao, statusIndex + 1);
-        const rule = range.getDataValidation();
-        if (rule) {
-          const criteria = rule.getCriteriaType();
-          if (criteria === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
-            const critValues = rule.getCriteriaValues() && rule.getCriteriaValues()[0];
-            if (Array.isArray(critValues) && critValues.length) {
-              opcoesStatus = critValues.map(String);
-            }
-          } else if (criteria === SpreadsheetApp.DataValidationCriteria.VALUE_IN_RANGE) {
-            // se for validação por intervalo, pega os valores desse intervalo
-            const critRange = rule.getCriteriaValues() && rule.getCriteriaValues()[0];
-            if (critRange && critRange.getA1Notation) {
-              const vals = critRange.getValues().flat().map(v => v === null || v === undefined ? '' : String(v).trim()).filter(v => v !== '');
-              // remove duplicatas
-              opcoesStatus = Array.from(new Set(vals));
-            }
+    
+    const data = values.slice(1).map((row, index) => {
+      let obj = {};
+      headers.forEach((h, i) => {
+        let value = row[i];
+        // Converte Date para string para evitar problemas de serialização
+        if (Object.prototype.toString.call(value) === '[object Date]') {
+          try {
+            value = Utilities.formatDate(value, tz, 'dd/MM/yyyy');
+          } catch (e) {
+            value = value.toString();
           }
         }
+        // Converte null/undefined para string vazia
+        if (value === null || value === undefined) {
+          value = '';
+        }
+        obj[h] = value;
+      });
+      obj["_linhaPlanilha"] = index + 2;
+      return obj;
+    });
+
+    Logger.log('getProjetos: Retornando %s projetos', data.length);
+    if (data.length > 0) {
+      Logger.log('getProjetos: Exemplo primeiro projeto: %s', JSON.stringify(data[0]));
+    }
+    
+    // Garante que sempre retorna um array
+    if (!Array.isArray(data)) {
+      Logger.log('getProjetos: AVISO - data não é array, retornando array vazio');
+      return [];
+    }
+    
+    return data;
+  } catch (e) {
+    Logger.log('getProjetos error: %s\n%s', e.message, e.stack);
+    // Em caso de erro, retorna array vazio em vez de lançar exceção
+    // para evitar quebrar a interface
+    Logger.log('getProjetos: Retornando array vazio devido a erro');
+    return [];
+  }
+}
+
+/**
+ * Atualiza um projeto na planilha
+ * @param {number} linha - Número da linha na planilha
+ * @param {Object} dataObj - Objeto com os campos a atualizar
+ */
+function atualizarProjetoNaPlanilha(linha, dataObj) {
+  linha = Number(linha);
+  if (!linha || linha < 2) {
+    throw new Error('Parâmetro "linha" inválido. Deve ser número de linha da planilha (>= 2).');
+  }
+
+  // Tenta usar aba Projetos primeiro
+  const sheetProj = ss.getSheetByName("Projetos");
+  const targetSheet = sheetProj || SHEET_ORC;
+  
+  if (!targetSheet) {
+    throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+  }
+
+  // Cabeçalhos
+  var lastCol = targetSheet.getLastColumn();
+  var headers = targetSheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
+
+  // Função utilitária para normalizar strings
+  function normalizeKey(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  // Normaliza as chaves do dataObj
+  var normalizedData = {};
+  var originalKeys = Object.keys(dataObj || {});
+  originalKeys.forEach(function (k) {
+    var nk = normalizeKey(k);
+    normalizedData[nk] = dataObj[k];
+  });
+
+  // Lê a linha atual para preservar valores não enviados
+  var currentRow = targetSheet.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
+
+  // Monta nova linha: se header correspondente existe em normalizedData, usa-o; senão mantém currentRow
+  var newRow = headers.map(function (h, idx) {
+    var hk = normalizeKey(h);
+    if (normalizedData.hasOwnProperty(hk)) {
+      return normalizedData[hk];
+    }
+    return currentRow[idx];
+  });
+
+  // Gravar nova linha
+  try {
+    targetSheet.getRange(linha, 1, 1, newRow.length).setValues([newRow]);
+    return { success: true, linha: linha };
+  } catch (err) {
+    throw new Error('Erro ao escrever na planilha: ' + (err && err.message ? err.message : err));
+  }
+}
+
+/**
+ * Exclui um projeto da planilha
+ * @param {number} linha - Número da linha na planilha
+ */
+function excluirProjeto(linha) {
+  try {
+    linha = Number(linha);
+    if (!linha || linha < 2) {
+      throw new Error('Índice de linha inválido para exclusão: ' + linha);
+    }
+
+    // Tenta usar aba Projetos primeiro
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) {
+      throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+    }
+
+    targetSheet.deleteRow(linha);
+    return { success: true };
+  } catch (e) {
+    Logger.log('excluirProjeto error (linha=%s): %s', linha, e.message);
+    throw new Error('excluirProjeto failed: ' + (e.message || 'erro desconhecido'));
+  }
+}
+
+/**
+ * Adiciona um novo projeto na planilha (usado quando projeto já virou pedido externamente)
+ * @param {Object} projeto - Objeto com os dados do projeto
+ */
+function adicionarNovoProjetoNaPlanilha(projeto) {
+  try {
+    Logger.log('adicionarNovoProjetoNaPlanilha: Iniciando para projeto %s', projeto.PROJETO);
+    
+    // Tenta usar aba Projetos primeiro
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) {
+      throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+    }
+
+    // Verifica se o projeto já existe
+    const dados = targetSheet.getDataRange().getValues();
+    const headers = dados[0];
+    const idxProjeto = headers.indexOf('PROJETO');
+    
+    if (idxProjeto >= 0) {
+      for (let i = 1; i < dados.length; i++) {
+        if (String(dados[i][idxProjeto]).trim() === String(projeto.PROJETO).trim()) {
+          throw new Error('Já existe um projeto com este número: ' + projeto.PROJETO);
+        }
       }
-    } catch (e) {
-      // não falhar: apenas loga e segue para fallback
-      Logger.log('getPedidos: falha ao obter validação de dados: %s', e.message);
     }
 
-    // Fallback se não obteve opções válidas
-    if (!opcoesStatus || opcoesStatus.length === 0) {
-      opcoesStatus = [
-        "Processo de Preparação MP / CAD / CAM",
-        "Processo de Corte",
-        "Processo de Dobra",
-        "Processos Adicionais",
-        "Envio / Coleta",
-        "Finalizado"
+    // Se é aba Projetos (14 colunas), usa estrutura nova
+    if (sheetProj) {
+      const novaLinha = [
+        projeto.CLIENTE || '',
+        projeto['DESCRIÇÃO'] || '',
+        projeto['RESPONSÁVEL CLIENTE'] || '',
+        projeto.PROJETO || '',
+        projeto['VALOR TOTAL'] || '',
+        projeto.DATA || new Date().toLocaleDateString('pt-BR'),
+        projeto.PROCESSOS || '',
+        projeto['LINK DO PDF'] || '',
+        projeto['LINK DA MEMÓRIA DE CÁLCULO'] || '',
+        projeto.STATUS_ORCAMENTO || 'Convertido em Pedido',
+        projeto.STATUS_PEDIDO || 'Processo de Preparação MP / CAD / CAM',
+        projeto.PRAZO || '',
+        projeto['OBSERVAÇÕES'] || '',
+        projeto.JSON_DADOS || ''
       ];
-    }
-
-    return { dados: values, opcoesStatus: opcoesStatus };
-  } catch (e) {
-    Logger.log('getPedidos error: %s\n%s', e.message, e.stack);
-    // lança erro para que o client receba via withFailureHandler e possamos debugar
-    throw new Error('getPedidos failed: ' + (e.message || 'erro desconhecido'));
-  }
-}
-
-function updatePedido(row, col, value) {
-  try {
-    row = Number(row);
-    col = Number(col);
-    if (!row || !col || row < 1 || col < 1) {
-      throw new Error('Índice de linha/coluna inválido: ' + row + ',' + col);
-    }
-
-    // Converte datas de string ISO para Date se necessário (opcional)
-    // Se value for string no formato yyyy-MM-dd, tenta converter para Date
-    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const parts = value.split('-').map(Number);
-      // month é 0-based
-      const dt = new Date(parts[0], parts[1] - 1, parts[2]);
-      SHEET_PED.getRange(row, col).setValue(dt);
+      
+      targetSheet.appendRow(novaLinha);
+      Logger.log('adicionarNovoProjetoNaPlanilha: Projeto adicionado com sucesso na aba Projetos');
     } else {
-      SHEET_PED.getRange(row, col).setValue(value);
+      // Estrutura antiga (12 colunas)
+      const novaLinha = [
+        projeto.CLIENTE || '',
+        projeto['DESCRIÇÃO'] || '',
+        projeto['RESPONSÁVEL CLIENTE'] || '',
+        projeto.PROJETO || '',
+        projeto['VALOR TOTAL'] || '',
+        projeto.DATA || new Date().toLocaleDateString('pt-BR'),
+        projeto.PROCESSOS || '',
+        projeto['LINK DO PDF'] || '',
+        projeto['LINK DA MEMÓRIA DE CÁLCULO'] || '',
+        projeto.STATUS_ORCAMENTO || 'Convertido em Pedido',
+        projeto.PRAZO || '',
+        projeto.JSON_DADOS || ''
+      ];
+      
+      targetSheet.appendRow(novaLinha);
+      Logger.log('adicionarNovoProjetoNaPlanilha: Projeto adicionado com sucesso na aba Orçamentos');
     }
-  } catch (e) {
-    Logger.log('updatePedido error (row=%s col=%s): %s', row, col, e.message);
-    throw new Error('updatePedido failed: ' + (e.message || 'erro desconhecido'));
-  }
-}
 
-function deletePedido(row) {
-  try {
-    row = Number(row);
-    if (!row || row < 2) {
-      // evita deletar cabeçalho (linha 1) por engano, e valida índice
-      throw new Error('Índice de linha inválido para exclusão: ' + row);
-    }
-    SHEET_PED.deleteRow(row);
+    return { success: true };
   } catch (e) {
-    Logger.log('deletePedido error (row=%s): %s', row, e.message);
-    throw new Error('deletePedido failed: ' + (e.message || 'erro desconhecido'));
+    Logger.log('adicionarNovoProjetoNaPlanilha error: %s\n%s', e.message, e.stack);
+    throw new Error('Erro ao adicionar projeto: ' + (e.message || 'erro desconhecido'));
   }
 }
 
@@ -2356,46 +2405,85 @@ function getProdutos() {
 
 function atualizarStatusKanban(cliente, projeto, novoStatus) {
   try {
-    if (!SHEET_PED) return;
-
     let statusAntigo = '';
     let processosStr = '';
 
-    // --- Aba Pedidos ---
-    const dadosRaw = SHEET_PED.getDataRange().getValues();
-    if (!dadosRaw || dadosRaw.length < 1) return;
+    // Verifica se existe a aba Projetos unificada
+    const sheetProj = ss.getSheetByName("Projetos");
+    
+    if (sheetProj) {
+      // === NOVA LÓGICA: Atualiza STATUS_PEDIDO na aba Projetos ===
+      const dadosProj = sheetProj.getDataRange().getValues();
+      if (!dadosProj || dadosProj.length < 2) return;
 
-    const headers = dadosRaw[0].map(h => String(h || '').trim());
-    // busca índices de forma case-insensitive (tolerante a espaçamento)
-    const idxCliente = headers.findIndex(h => /^cliente$/i.test(h) || /cliente/i.test(h));
-    const idxProjeto = headers.findIndex(h => /n[uú]mero do projeto/i.test(h) || /n[oº]mero do projeto/i.test(h) || /projeto/i.test(h));
-    const idxStatus = headers.findIndex(h => /status/i.test(h));
-    const idxTempo = headers.findIndex(h => /tempo estimado/i.test(h) || /tempo/i.test(h));
-    const idxPrazoP = headers.findIndex(h => /prazo/i.test(h));
+      const headers = dadosProj[0];
+      const idxCliente = _findHeaderIndex(headers, "CLIENTE");
+      const idxProjeto = _findHeaderIndex(headers, "PROJETO");
+      const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+      const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+      const idxProcessos = _findHeaderIndex(headers, "PROCESSOS");
 
-    // valida índices
-    if (idxCliente < 0 || idxProjeto < 0 || idxStatus < 0) {
-      Logger.log('atualizarStatusKanban: cabeçalhos não encontrados. cliente:%s projeto:%s status:%s', idxCliente, idxProjeto, idxStatus);
-      return;
-    }
+      // Valida índices
+      if (idxCliente < 0 || idxProjeto < 0 || idxStatusPed < 0) {
+        Logger.log('atualizarStatusKanban (Projetos): cabeçalhos não encontrados');
+        return;
+      }
 
-    for (let i = 1; i < dadosRaw.length; i++) {
-      const row = dadosRaw[i];
-      const valCliente = String(row[idxCliente] || '').trim();
-      const valProjeto = String(row[idxProjeto] || '').trim();
-      if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
-        statusAntigo = String(row[idxStatus] || '').trim();
-        // normaliza processosStr (se for Date converte para string)
-        const tempoCell = row[idxTempo];
-        if (Object.prototype.toString.call(tempoCell) === '[object Date]') {
-          const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'GMT';
-          processosStr = Utilities.formatDate(tempoCell, tz, 'yyyy-MM-dd');
-        } else {
-          processosStr = String(tempoCell || '').trim();
+      for (let i = 1; i < dadosProj.length; i++) {
+        const row = dadosProj[i];
+        const valCliente = String(row[idxCliente] || '').trim();
+        const valProjeto = String(row[idxProjeto] || '').trim();
+        
+        if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
+          statusAntigo = String(row[idxStatusPed] || '').trim();
+          processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || '').trim() : '';
+          
+          // Se estava em orçamento e está mudando para um status de pedido, atualiza STATUS_ORCAMENTO também
+          if (!statusAntigo && idxStatusOrc >= 0) {
+            const statusOrc = String(row[idxStatusOrc] || '').trim();
+            if (statusOrc !== "Convertido em Pedido") {
+              sheetProj.getRange(i + 1, idxStatusOrc + 1).setValue("Convertido em Pedido");
+            }
+          }
+          
+          // Atualiza STATUS_PEDIDO
+          sheetProj.getRange(i + 1, idxStatusPed + 1).setValue(novoStatus);
+          break;
         }
-        // atualiza célula de status (linha no sheet = i+1)
-        SHEET_PED.getRange(i + 1, idxStatus + 1).setValue(novoStatus);
-        break;
+      }
+    } else if (SHEET_PED) {
+      // === LÓGICA ANTIGA: Atualiza Status na aba Pedidos ===
+      const dadosRaw = SHEET_PED.getDataRange().getValues();
+      if (!dadosRaw || dadosRaw.length < 1) return;
+
+      const headers = dadosRaw[0].map(h => String(h || '').trim());
+      const idxCliente = headers.findIndex(h => /^cliente$/i.test(h) || /cliente/i.test(h));
+      const idxProjeto = headers.findIndex(h => /n[uú]mero do projeto/i.test(h) || /n[oº]mero do projeto/i.test(h) || /projeto/i.test(h));
+      const idxStatus = headers.findIndex(h => /status/i.test(h));
+      const idxTempo = headers.findIndex(h => /tempo estimado/i.test(h) || /tempo/i.test(h));
+
+      // valida índices
+      if (idxCliente < 0 || idxProjeto < 0 || idxStatus < 0) {
+        Logger.log('atualizarStatusKanban: cabeçalhos não encontrados. cliente:%s projeto:%s status:%s', idxCliente, idxProjeto, idxStatus);
+        return;
+      }
+
+      for (let i = 1; i < dadosRaw.length; i++) {
+        const row = dadosRaw[i];
+        const valCliente = String(row[idxCliente] || '').trim();
+        const valProjeto = String(row[idxProjeto] || '').trim();
+        if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
+          statusAntigo = String(row[idxStatus] || '').trim();
+          const tempoCell = row[idxTempo];
+          if (Object.prototype.toString.call(tempoCell) === '[object Date]') {
+            const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'GMT';
+            processosStr = Utilities.formatDate(tempoCell, tz, 'yyyy-MM-dd');
+          } else {
+            processosStr = String(tempoCell || '').trim();
+          }
+          SHEET_PED.getRange(i + 1, idxStatus + 1).setValue(novoStatus);
+          break;
+        }
       }
     }
 
@@ -2407,22 +2495,93 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
   }
 }
 
-// Número de colunas esperadas na planilha Orçamentos
+// Número de colunas esperadas na planilha Orçamentos (mantido para compatibilidade)
 // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
 const ORCAMENTOS_NUM_COLUNAS = 12;
 
+// Número de colunas na nova planilha Projetos unificada
+// CLIENTE, DESCRIÇÃO, RESPONSÁVEL CLIENTE, PROJETO, VALOR TOTAL, DATA, PROCESSOS, 
+// LINK DO PDF, LINK DA MEMÓRIA DE CÁLCULO, STATUS_ORCAMENTO, STATUS_PEDIDO, PRAZO, OBSERVAÇÕES, JSON_DADOS
+const PROJETOS_NUM_COLUNAS = 14;
+
+// ==================== FUNÇÕES DE VALIDAÇÃO E MIGRAÇÃO ====================
+
+/**
+ * Verifica se um projeto já existe na aba Projetos
+ * @param {string} numeroProjeto - Número do projeto a verificar
+ * @returns {Object} { duplicado: boolean, linha: number|null, onde: string }
+ */
+function verificarProjetoDuplicado(numeroProjeto) {
+  try {
+    if (!numeroProjeto) {
+      return { duplicado: false, linha: null, onde: "" };
+    }
+
+    // Busca na aba Projetos (se existir)
+    const sheetProj = ss.getSheetByName("Projetos");
+    if (sheetProj) {
+      const linha = findRowByColumnValue(sheetProj, "PROJETO", numeroProjeto);
+      if (linha) {
+        return { duplicado: true, linha: linha, onde: "Projetos" };
+      }
+    }
+
+    // Se não encontrou na aba Projetos, busca na aba Orçamentos (para transição)
+    if (SHEET_ORC) {
+      const linhaOrc = findRowByColumnValue(SHEET_ORC, "PROJETO", numeroProjeto);
+      if (linhaOrc) {
+        return { duplicado: true, linha: linhaOrc, onde: "Orçamentos" };
+      }
+    }
+
+    // Também verifica na aba Pedidos (para transição)
+    if (SHEET_PED) {
+      const linhaPed = findRowByColumnValue(SHEET_PED, "Número do Projeto", numeroProjeto);
+      if (linhaPed) {
+        return { duplicado: true, linha: linhaPed, onde: "Pedidos" };
+      }
+    }
+
+    return { duplicado: false, linha: null, onde: "" };
+  } catch (err) {
+    Logger.log("Erro ao verificar projeto duplicado: " + err.message);
+    return { duplicado: false, linha: null, onde: "", erro: err.message };
+  }
+}
+
 function salvarRascunho(nomeRascunho, dados) {
   try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-
     // Extrai dados relevantes do formulário
-    // Dados do cliente vêm de dados.cliente
-    // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
     const clienteNome = (dados.cliente && dados.cliente.nome) || "";
     const descricao = (dados.observacoes && dados.observacoes.descricao) || "";
     const prazo = (dados.observacoes && dados.observacoes.prazo) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
+
+    // Validação de duplicidade antes de salvar
+    if (codigoProjeto) {
+      const validacao = verificarProjetoDuplicado(codigoProjeto);
+      // Se existe e não é um rascunho sendo editado, retorna erro
+      if (validacao.duplicado) {
+        // Verifica se é edição do mesmo projeto (mesma linha)
+        const sheetProj = ss.getSheetByName("Projetos");
+        const targetSheet = sheetProj || SHEET_ORC;
+        const linhaExistente = findRowByColumnValue(targetSheet, "PROJETO", codigoProjeto);
+        
+        // Se a linha existe, verifica o status
+        if (linhaExistente) {
+          const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
+          const statusIdx = 9; // STATUS_ORCAMENTO ou STATUS (ambos índice 9)
+          const rowData = targetSheet.getRange(linhaExistente, 1, 1, numCols).getValues()[0];
+          const status = rowData[statusIdx];
+          
+          // Se não é um rascunho, não permite sobrescrever
+          if (status !== "RASCUNHO") {
+            throw new Error(`Projeto ${codigoProjeto} já existe com status "${status}". Use outra numeração ou edite o projeto existente.`);
+          }
+        }
+      }
+    }
 
     // Data formatada para exibição
     const agora = new Date();
@@ -2435,33 +2594,61 @@ function salvarRascunho(nomeRascunho, dados) {
       dados: dados
     });
 
-    // Estrutura da linha para a planilha Orçamentos
-    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
-    const rowValues = [
-      clienteNome,
-      descricao,  // Coluna DESCRIÇÃO
-      clienteResponsavel,
-      codigoProjeto,
-      "",  // VALOR TOTAL - vazio para rascunho
-      dataBrasil,
-      "",  // Processos - vazio para rascunho
-      "",  // LINK PDF - vazio para rascunho
-      "",  // LINK MEMÓRIA - vazio para rascunho
-      "RASCUNHO",
-      prazo,  // Nova coluna PRAZO
-      dadosJson
-    ];
+    // Decide qual aba usar
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
 
-    // Verifica se já existe um registro com o mesmo código de projeto
-    const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    let rowValues, linhaExistente;
+
+    if (sheetProj) {
+      // Nova estrutura: 14 colunas
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL CLIENTE, PROJETO, VALOR TOTAL, DATA, PROCESSOS,
+      // LINK DO PDF, LINK DA MEMÓRIA DE CÁLCULO, STATUS_ORCAMENTO, STATUS_PEDIDO, PRAZO, OBSERVAÇÕES, JSON_DADOS
+      rowValues = [
+        clienteNome,
+        descricao,
+        clienteResponsavel,
+        codigoProjeto,
+        "",  // VALOR TOTAL
+        dataBrasil,
+        "",  // PROCESSOS
+        "",  // LINK DO PDF
+        "",  // LINK DA MEMÓRIA DE CÁLCULO
+        "RASCUNHO",  // STATUS_ORCAMENTO
+        "",          // STATUS_PEDIDO
+        prazo,
+        "",          // OBSERVAÇÕES
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto);
+    } else {
+      // Estrutura antiga: 12 colunas
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
+      rowValues = [
+        clienteNome,
+        descricao,
+        clienteResponsavel,
+        codigoProjeto,
+        "",  // VALOR TOTAL
+        dataBrasil,
+        "",  // Processos
+        "",  // LINK PDF
+        "",  // LINK MEMÓRIA
+        "RASCUNHO",
+        prazo,
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    }
 
     if (linhaExistente) {
-      // SEMPRE atualiza a linha existente para evitar duplicação
-      // Mantém o status como "RASCUNHO" mesmo se já estava como "Enviado"
-      SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
+      // Atualiza a linha existente
+      targetSheet.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      // Cria novo rascunho apenas se não existir
-      SHEET_ORC.appendRow(rowValues);
+      // Cria novo rascunho
+      targetSheet.appendRow(rowValues);
     }
 
     return { success: true };
@@ -2474,7 +2661,11 @@ function salvarRascunho(nomeRascunho, dados) {
 // Carrega qualquer orçamento (rascunho ou enviado) pelo número da linha
 function carregarRascunho(linhaOuKey) {
   try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    // Decide qual aba usar
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
 
     // linhaOuKey é o número da linha na planilha
     const linha = parseInt(linhaOuKey, 10);
@@ -2483,17 +2674,21 @@ function carregarRascunho(linhaOuKey) {
     }
 
     // Verifica se a linha existe
-    const lastRow = SHEET_ORC.getLastRow();
+    const lastRow = targetSheet.getLastRow();
     if (linha > lastRow) {
       throw new Error("Orçamento não encontrado");
     }
 
-    // Lê a linha da planilha usando a constante de número de colunas
-    const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
-    const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
-
-    // Coluna 12 (índice 11) contém o JSON com todos os dados do formulário
-    const dadosJson = rowData[11];
+    // Lê a linha da planilha usando a constante apropriada
+    const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
+    const rowData = targetSheet.getRange(linha, 1, 1, numCols).getValues()[0];
+    
+    // STATUS está no índice 9 em ambas estruturas (STATUS ou STATUS_ORCAMENTO)
+    const status = rowData[9];
+    
+    // JSON_DADOS está no último índice em ambas estruturas
+    const jsonIdx = numCols - 1;
+    const dadosJson = rowData[jsonIdx];
 
     // Se tiver JSON_DADOS, usa os dados completos do formulário
     if (dadosJson) {
@@ -2507,8 +2702,8 @@ function carregarRascunho(linhaOuKey) {
     }
 
     // Se não tiver JSON_DADOS, constrói dados básicos a partir das colunas da planilha
-    // Estrutura da planilha: CLIENTE(0), DESCRIÇÃO(1), RESPONSÁVEL(2), PROJETO(3), 
-    // VALOR TOTAL(4), DATA(5), Processos(6), LINK PDF(7), LINK MEMÓRIA(8), STATUS(9), PRAZO(10), JSON_DADOS(11)
+    // Ambas estruturas têm os mesmos índices para campos básicos:
+    // CLIENTE(0), DESCRIÇÃO(1), RESPONSÁVEL(2), PROJETO(3), VALOR TOTAL(4), DATA(5), etc.
     const clienteNome = rowData[0] || "";
     const descricao = rowData[1] || "";
     const responsavel = rowData[2] || "";
@@ -2516,7 +2711,8 @@ function carregarRascunho(linhaOuKey) {
     const valorTotal = rowData[4] || "";
     const dataOrcamento = rowData[5] || "";
     const processos = rowData[6] || "";
-    const prazo = rowData[10] || "";
+    // PRAZO está no índice 11 (nova estrutura) ou 10 (antiga)
+    const prazo = sheetProj ? (rowData[11] || "") : (rowData[10] || "");
 
     // Extrai código do projeto (assumindo formato padrão YYMMDD + índice + iniciais)
     const codigoProjeto = projeto || "";
@@ -2579,18 +2775,25 @@ function carregarRascunho(linhaOuKey) {
 // incluirEnviados: se true, inclui também os orçamentos já enviados
 function getListaRascunhos(incluirEnviados) {
   try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    // Decide qual aba usar
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
 
-    const lastRow = SHEET_ORC.getLastRow();
+    const lastRow = targetSheet.getLastRow();
     if (lastRow < 2) return []; // Sem dados
 
-    // Lê todas as linhas da planilha usando a constante de número de colunas
-    const data = SHEET_ORC.getRange(2, 1, lastRow - 1, ORCAMENTOS_NUM_COLUNAS).getValues();
+    // Lê todas as linhas da planilha usando a constante apropriada
+    const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
+    const data = targetSheet.getRange(2, 1, lastRow - 1, numCols).getValues();
 
     const orcamentos = [];
     data.forEach((row, index) => {
-      const status = row[9]; // Coluna 10 = STATUS (índice 9)
-      const dadosJson = row[11]; // JSON_DADOS (índice 11)
+      // STATUS_ORCAMENTO ou STATUS está sempre no índice 9
+      const status = row[9];
+      // JSON_DADOS está sempre no último índice
+      const dadosJson = row[numCols - 1];
 
       // Inclui rascunhos sempre, e enviados apenas se solicitado e se tiver JSON_DADOS
       const isRascunho = status === "RASCUNHO";
@@ -2601,7 +2804,8 @@ function getListaRascunhos(incluirEnviados) {
         const descricao = row[1] || ""; // Coluna DESCRIÇÃO (índice 1)
         const projeto = row[3] || "Sem projeto"; // PROJETO (índice 3)
         const dataOrcamento = row[5] || ""; // DATA (índice 5)
-        const prazo = row[10] || ""; // PRAZO (índice 10)
+        // PRAZO está no índice 11 (Projetos) ou 10 (Orçamentos)
+        const prazo = sheetProj ? (row[11] || "") : (row[10] || "");
 
         // Tenta extrair o nome do rascunho do JSON
         let nomeRascunho = "";
@@ -2972,66 +3176,6 @@ function registrarRetornoVeiculo(rowNumber) {
   return { success: true, row: rowNumber, retorno: retornoTexto };
 }
 
-function atualizarOrcamentoNaPlanilha(linha, dataObj) {
-  linha = Number(linha);
-  if (!linha || linha < 2) {
-    throw new Error('Parâmetro "linha" inválido. Deve ser número de linha da planilha (>= 2).');
-  }
-
-  // Ajuste o nome da aba se necessário
-  var SHEET_NAME = 'Orçamentos';
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(SHEET_NAME);
-  if (!sh) {
-    throw new Error("Aba '" + SHEET_NAME + "' não encontrada.");
-  }
-
-  // Cabeçalhos
-  var lastCol = sh.getLastColumn();
-  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0] || [];
-
-  // Função utilitária para normalizar strings (lowercase, sem acentos, sem espaços/pontuação)
-  function normalizeKey(s) {
-    if (s === null || s === undefined) return '';
-    // transformar em string, lower, decompor acentos e remover diacríticos, remover não-alnum
-    return String(s).trim().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '');
-  }
-
-  // Normaliza as chaves do dataObj para lookup rápido
-  var normalizedData = {};
-  // Também guarda mapa de chave original -> valor para detectar propriedade mesmo vazia
-  var originalKeys = Object.keys(dataObj || {});
-  originalKeys.forEach(function (k) {
-    var nk = normalizeKey(k);
-    normalizedData[nk] = dataObj[k];
-  });
-
-  // Lê a linha atual para preservar valores não enviados
-  var currentRow = sh.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
-
-  // Monta nova linha: se header correspondente existe em normalizedData (mesmo que valor seja ''), usa-o; senão mantém currentRow
-  var newRow = headers.map(function (h, idx) {
-    var hk = normalizeKey(h);
-    if (normalizedData.hasOwnProperty(hk)) {
-      // usar valor enviado (pode ser vazio)
-      return normalizedData[hk];
-    }
-    // tentar também correspondência por header sem acentos/sem espaços: já feito por hk
-    // se não há correspondência, manter o valor atual da célula
-    return currentRow[idx];
-  });
-
-  // Gravar nova linha
-  try {
-    sh.getRange(linha, 1, 1, newRow.length).setValues([newRow]);
-    return { success: true, linha: linha };
-  } catch (err) {
-    throw new Error('Erro ao escrever na planilha: ' + (err && err.message ? err.message : err));
-  }
-}
-
 // ==================== CONFIGURAÇÕES DA APRESENTAÇÃO ====================
 
 function getConfiguracoesApresentacao() {
@@ -3207,4 +3351,4 @@ function limparTodasMensagensApresentacao() {
   } catch (e) {
     return { success: false, error: e.message };
   }
-}
+ }
