@@ -2735,6 +2735,84 @@ function excluirProjeto(linha) {
   }
 }
 
+/**
+ * Adiciona um novo projeto na planilha (usado quando projeto já virou pedido externamente)
+ * @param {Object} projeto - Objeto com os dados do projeto
+ */
+function adicionarNovoProjetoNaPlanilha(projeto) {
+  try {
+    Logger.log('adicionarNovoProjetoNaPlanilha: Iniciando para projeto %s', projeto.PROJETO);
+    
+    // Tenta usar aba Projetos primeiro
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) {
+      throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+    }
+
+    // Verifica se o projeto já existe
+    const dados = targetSheet.getDataRange().getValues();
+    const headers = dados[0];
+    const idxProjeto = headers.indexOf('PROJETO');
+    
+    if (idxProjeto >= 0) {
+      for (let i = 1; i < dados.length; i++) {
+        if (String(dados[i][idxProjeto]).trim() === String(projeto.PROJETO).trim()) {
+          throw new Error('Já existe um projeto com este número: ' + projeto.PROJETO);
+        }
+      }
+    }
+
+    // Se é aba Projetos (14 colunas), usa estrutura nova
+    if (sheetProj) {
+      const novaLinha = [
+        projeto.CLIENTE || '',
+        projeto['DESCRIÇÃO'] || '',
+        projeto['RESPONSÁVEL CLIENTE'] || '',
+        projeto.PROJETO || '',
+        projeto['VALOR TOTAL'] || '',
+        projeto.DATA || new Date().toLocaleDateString('pt-BR'),
+        projeto.PROCESSOS || '',
+        projeto['LINK DO PDF'] || '',
+        projeto['LINK DA MEMÓRIA DE CÁLCULO'] || '',
+        projeto.STATUS_ORCAMENTO || 'Convertido em Pedido',
+        projeto.STATUS_PEDIDO || 'Processo de Preparação MP / CAD / CAM',
+        projeto.PRAZO || '',
+        projeto['OBSERVAÇÕES'] || '',
+        projeto.JSON_DADOS || ''
+      ];
+      
+      targetSheet.appendRow(novaLinha);
+      Logger.log('adicionarNovoProjetoNaPlanilha: Projeto adicionado com sucesso na aba Projetos');
+    } else {
+      // Estrutura antiga (12 colunas)
+      const novaLinha = [
+        projeto.CLIENTE || '',
+        projeto['DESCRIÇÃO'] || '',
+        projeto['RESPONSÁVEL CLIENTE'] || '',
+        projeto.PROJETO || '',
+        projeto['VALOR TOTAL'] || '',
+        projeto.DATA || new Date().toLocaleDateString('pt-BR'),
+        projeto.PROCESSOS || '',
+        projeto['LINK DO PDF'] || '',
+        projeto['LINK DA MEMÓRIA DE CÁLCULO'] || '',
+        projeto.STATUS_ORCAMENTO || 'Convertido em Pedido',
+        projeto.PRAZO || '',
+        projeto.JSON_DADOS || ''
+      ];
+      
+      targetSheet.appendRow(novaLinha);
+      Logger.log('adicionarNovoProjetoNaPlanilha: Projeto adicionado com sucesso na aba Orçamentos');
+    }
+
+    return { success: true };
+  } catch (e) {
+    Logger.log('adicionarNovoProjetoNaPlanilha error: %s\n%s', e.message, e.stack);
+    throw new Error('Erro ao adicionar projeto: ' + (e.message || 'erro desconhecido'));
+  }
+}
+
 function getProdutos() {
   try {
     if (!SHEET_PRODUTOS) throw new Error("Aba 'Relação de produtos' não encontrada");
