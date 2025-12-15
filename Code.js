@@ -1687,8 +1687,7 @@ function doGet(e) {
                 const fieldMappings = {
                   'Cliente': 'CLIENTE',
                   'Número do Projeto': 'PROJETO',
-                  'Descrição': 'DESCRIÇÃO',
-                  'DESCRIÇÃO': 'DESCRIÇÃO'
+                  'Descrição': 'DESCRIÇÃO'
                 };
 
                 Object.entries(fieldMappings).forEach(([pedidoField, orcField]) => {
@@ -1792,7 +1791,7 @@ function verificarProjetoDuplicado(numeroProjeto, linhaExcluir) {
     
     // Verifica duplicatas
     for (let i = 0; i < valores.length; i++) {
-      const linha = i + 2; // +2 porque começamos na linha 2 (linha 1 é cabeçalho)
+      const linha = i + 2; // +2 porque o índice começa em 0 e a linha 1 é o cabeçalho
       
       // Pula a linha que estamos editando (se aplicável)
       if (linhaExcluir && linha === linhaExcluir) continue;

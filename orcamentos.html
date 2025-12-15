@@ -1135,13 +1135,24 @@
           // Atualiza o tipo se o status mudou para "Convertido em Pedido"
           const tr = selectElem.closest('tr');
           if (tr) {
-            const tipo = novoStatus === "Convertido em Pedido" ? 'Pedido' : 'Orçamento';
-            tr.setAttribute('data-tipo', tipo);
+            const tipoAtual = tr.getAttribute('data-tipo') || 'Orçamento';
+            let novoTipo = tipoAtual;
+            
+            // Só muda para Pedido se o status for "Convertido em Pedido"
+            // Se já é Pedido, mantém como Pedido
+            if (novoStatus === "Convertido em Pedido") {
+              novoTipo = 'Pedido';
+            } else if (tipoAtual !== 'Pedido') {
+              // Se não é pedido e o status não é convertido, é orçamento
+              novoTipo = 'Orçamento';
+            }
+            
+            tr.setAttribute('data-tipo', novoTipo);
             
             const tipoBadge = tr.querySelector('.col-tipo .tipo-badge');
             if (tipoBadge) {
-              tipoBadge.textContent = tipo;
-              tipoBadge.className = `tipo-badge ${tipo.toLowerCase()}`;
+              tipoBadge.textContent = novoTipo;
+              tipoBadge.className = `tipo-badge ${novoTipo.toLowerCase()}`;
             }
           }
 
@@ -1192,7 +1203,7 @@
         // Filtro por tipo
         let matchesTipo = true;
         if (tipoFiltro) {
-          const rowTipo = normalizeText(r.getAttribute('data-tipo') || 'orcamento');
+          const rowTipo = normalizeText(r.getAttribute('data-tipo') || 'Orçamento');
           matchesTipo = (rowTipo === tipoFiltro);
         }
 
