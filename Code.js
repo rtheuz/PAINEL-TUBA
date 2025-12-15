@@ -2540,10 +2540,23 @@ function getProjetos() {
       throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
     }
 
-    const values = targetSheet.getDataRange().getValues();
-    if (values.length === 0) return [];
+    const lastRow = targetSheet.getLastRow();
+    Logger.log('getProjetos: Sheet name=%s, lastRow=%s', targetSheet.getName(), lastRow);
+    
+    if (lastRow < 2) {
+      Logger.log('getProjetos: Nenhum dado encontrado (lastRow < 2)');
+      return [];
+    }
+
+    const values = targetSheet.getRange(1, 1, lastRow, targetSheet.getLastColumn()).getValues();
+    if (values.length === 0) {
+      Logger.log('getProjetos: getValues retornou vazio');
+      return [];
+    }
 
     const headers = values[0];
+    Logger.log('getProjetos: Headers=%s', JSON.stringify(headers));
+    
     const data = values.slice(1).map((row, index) => {
       let obj = {};
       headers.forEach((h, i) => {
@@ -2553,6 +2566,7 @@ function getProjetos() {
       return obj;
     });
 
+    Logger.log('getProjetos: Retornando %s projetos', data.length);
     return data;
   } catch (e) {
     Logger.log('getProjetos error: %s\n%s', e.message, e.stack);

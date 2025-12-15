@@ -413,12 +413,19 @@
     // Carrega os projetos
     async function loadProjetos() {
       try {
+        console.log('Iniciando loadProjetos...');
         google.script.run
           .withSuccessHandler(function(data) {
+            console.log('getProjetos success, recebido:', data);
+            console.log('Tipo de data:', typeof data, 'Length:', Array.isArray(data) ? data.length : 'N/A');
+            if (data && data.length > 0) {
+              console.log('Primeira entrada:', JSON.stringify(data[0]));
+            }
             projetos = data || [];
             renderTable();
           })
           .withFailureHandler(function(error) {
+            console.error('getProjetos failure:', error);
             document.getElementById('tableContainer').innerHTML = `
               <div class="empty-state">
                 <div class="empty-state-icon">⚠️</div>
@@ -434,6 +441,7 @@
 
     // Renderiza a tabela
     function renderTable() {
+      console.log('renderTable: projetos.length=', projetos.length);
       const searchTerm = document.getElementById('searchInput').value.toLowerCase();
       const statusOrc = document.getElementById('statusOrcFilter').value;
       const statusPed = document.getElementById('statusPedFilter').value;
@@ -451,12 +459,14 @@
         return matchSearch && matchStatusOrc && matchStatusPed;
       });
 
+      console.log('renderTable: filtered.length=', filtered.length);
+
       // Se não há projetos
       if (filtered.length === 0) {
         document.getElementById('tableContainer').innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">📋</div>
-            <div>${projetos.length === 0 ? 'Nenhum projeto encontrado' : 'Nenhum projeto corresponde aos filtros'}</div>
+            <div>${projetos.length === 0 ? 'Nenhum projeto encontrado. Certifique-se de que a migração foi executada.' : 'Nenhum projeto corresponde aos filtros'}</div>
           </div>
         `;
         return;
