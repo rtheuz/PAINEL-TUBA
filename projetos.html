@@ -486,6 +486,13 @@
         </div>
         <form id="newProjectForm" onsubmit="saveNewProject(event)">
           <div class="form-group">
+            <label>Tipo *</label>
+            <select id="newTipo" required onchange="toggleStatusFields()">
+              <option value="rascunho">Rascunho de Orçamento</option>
+              <option value="pedido">Pedido Externo</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>Cliente *</label>
             <input type="text" id="newCliente" required>
           </div>
@@ -517,9 +524,9 @@
             <label>Observações</label>
             <textarea id="newObservacoes"></textarea>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="statusPedidoGroup">
             <label>Status do Pedido *</label>
-            <select id="newStatusPedido" required>
+            <select id="newStatusPedido">
               <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
               <option value="Processo de Corte">Processo de Corte</option>
               <option value="Processo de Dobra">Processo de Dobra</option>
@@ -841,15 +848,33 @@
     function openNewProjectModal() {
       document.getElementById('newProjectModal').classList.add('active');
       document.getElementById('newProjectForm').reset();
+      toggleStatusFields(); // Inicializa a visibilidade dos campos
     }
 
     function closeNewProjectModal() {
       document.getElementById('newProjectModal').classList.remove('active');
     }
 
+    function toggleStatusFields() {
+      const tipo = document.getElementById('newTipo').value;
+      const statusPedidoGroup = document.getElementById('statusPedidoGroup');
+      const statusPedidoSelect = document.getElementById('newStatusPedido');
+      
+      if (tipo === 'rascunho') {
+        // Se for rascunho, esconde o campo de status do pedido
+        statusPedidoGroup.style.display = 'none';
+        statusPedidoSelect.removeAttribute('required');
+      } else {
+        // Se for pedido, mostra o campo de status do pedido
+        statusPedidoGroup.style.display = 'block';
+        statusPedidoSelect.setAttribute('required', 'required');
+      }
+    }
+
     function saveNewProject(event) {
       event.preventDefault();
       
+      const tipo = document.getElementById('newTipo').value;
       const projeto = {
         CLIENTE: document.getElementById('newCliente').value,
         PROJETO: document.getElementById('newProjeto').value,
@@ -859,8 +884,8 @@
         PROCESSOS: document.getElementById('newProcessos').value,
         PRAZO: document.getElementById('newPrazo').value,
         'OBSERVAÇÕES': document.getElementById('newObservacoes').value,
-        STATUS_ORCAMENTO: 'Convertido em Pedido',
-        STATUS_PEDIDO: document.getElementById('newStatusPedido').value,
+        STATUS_ORCAMENTO: tipo === 'rascunho' ? 'RASCUNHO' : 'Convertido em Pedido',
+        STATUS_PEDIDO: tipo === 'rascunho' ? '' : document.getElementById('newStatusPedido').value,
         DATA: new Date().toLocaleDateString('pt-BR'),
         'LINK DO PDF': '',
         'LINK DA MEMÓRIA DE CÁLCULO': '',

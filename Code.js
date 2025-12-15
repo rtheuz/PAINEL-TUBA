@@ -1158,9 +1158,9 @@ function getKanbanData() {
           let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
           prazo = normalizePrazo(prazo);
 
-          // Cards de orçamento: WHERE STATUS_ORCAMENTO NOT IN ('Convertido em Pedido', 'Expirado/Perdido')
+          // Cards de orçamento: Somente STATUS_ORCAMENTO = 'RASCUNHO' ou 'Rascunho'
           // e STATUS_PEDIDO vazio
-          if (statusOrc && !["Convertido em Pedido", "Expirado/Perdido"].includes(statusOrc) && !statusPed) {
+          if (statusOrc && (statusOrc === "RASCUNHO" || statusOrc === "Rascunho") && !statusPed) {
             data["Processo de Orçamento"].push({
               cliente: cliente,
               projeto: projeto,
