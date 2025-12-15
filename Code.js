@@ -1685,11 +1685,78 @@ function doGet(e) {
   }
 }
 
+/**
+ * Verifica se já existe um projeto com o mesmo número (case-insensitive, ignora espaços)
+ * @param {string} numeroProjeto - Número do projeto a verificar
+ * @param {number} linhaExcluir - Linha a excluir da verificação (usado para edições)
+ * @returns {boolean} true se existe duplicado, false caso contrário
+ */
+function verificarProjetoDuplicado(numeroProjeto, linhaExcluir) {
+  try {
+    if (!SHEET_ORC || !numeroProjeto) return false;
+    
+    const lastRow = SHEET_ORC.getLastRow();
+    if (lastRow < 2) return false; // Sem dados além do cabeçalho
+    
+    // Normaliza o número do projeto para comparação
+    const projetoNormalizado = String(numeroProjeto || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/\s+/g, ''); // Remove todos os espaços
+    
+    // Encontra a coluna PROJETO
+    const headers = SHEET_ORC.getRange(1, 1, 1, SHEET_ORC.getLastColumn()).getValues()[0];
+    const colunaProjeto = headers.findIndex(h => 
+      String(h || '').trim().toUpperCase().replace(/[^A-Z]/g, '') === 'PROJETO'
+    );
+    
+    if (colunaProjeto === -1) {
+      Logger.log('verificarProjetoDuplicado: Coluna PROJETO não encontrada');
+      return false;
+    }
+    
+    // Lê todos os valores da coluna PROJETO
+    const valores = SHEET_ORC.getRange(2, colunaProjeto + 1, lastRow - 1, 1).getValues();
+    
+    // Verifica duplicatas
+    for (let i = 0; i < valores.length; i++) {
+      const linha = i + 2; // +2 porque começamos na linha 2 (linha 1 é cabeçalho)
+      
+      // Pula a linha que estamos editando (se aplicável)
+      if (linhaExcluir && linha === linhaExcluir) continue;
+      
+      const valorExistente = String(valores[i][0] || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '');
+      
+      if (valorExistente === projetoNormalizado && valorExistente !== '') {
+        Logger.log('Projeto duplicado encontrado: ' + numeroProjeto + ' na linha ' + linha);
+        return true;
+      }
+    }
+    
+    return false;
+  } catch (err) {
+    Logger.log('Erro verificarProjetoDuplicado: ' + err.message);
+    return false; // Em caso de erro, não bloqueia a operação
+  }
+}
+
 function adicionarOrcamentoNaPlanilha(dados) {
   try {
     if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
     if (!dados || !dados.CLIENTE || !dados.PROJETO) {
       throw new Error('CLIENTE e PROJETO são obrigatórios.');
+    }
+    
+    // Verifica duplicata de projeto (apenas para novos registros)
+    if (verificarProjetoDuplicado(dados.PROJETO, null)) {
+      throw new Error('DUPLICADO:Já existe um projeto com este número!');
     }
 
     // Lê cabeçalhos atuais
@@ -3010,6 +3077,30 @@ function atualizarOrcamentoNaPlanilha(linha, dataObj) {
 
   // Lê a linha atual para preservar valores não enviados
   var currentRow = sh.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
+
+  // Verifica se o número do projeto está mudando
+  var projetoKey = normalizeKey('PROJETO');
+  if (normalizedData.hasOwnProperty(projetoKey)) {
+    var novoProjeto = normalizedData[projetoKey];
+    // Encontra o índice da coluna PROJETO
+    var idxProjeto = -1;
+    for (var i = 0; i < headers.length; i++) {
+      if (normalizeKey(headers[i]) === projetoKey) {
+        idxProjeto = i;
+        break;
+      }
+    }
+    
+    if (idxProjeto >= 0) {
+      var projetoAtual = currentRow[idxProjeto];
+      // Se o projeto está mudando, verifica duplicata (excluindo a linha atual)
+      if (String(novoProjeto || '').trim() !== String(projetoAtual || '').trim()) {
+        if (verificarProjetoDuplicado(novoProjeto, linha)) {
+          throw new Error('DUPLICADO:Já existe um projeto com este número!');
+        }
+      }
+    }
+  }
 
   // Monta nova linha: se header correspondente existe em normalizedData (mesmo que valor seja ''), usa-o; senão mantém currentRow
   var newRow = headers.map(function (h, idx) {

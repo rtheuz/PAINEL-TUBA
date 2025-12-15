@@ -1301,7 +1301,17 @@
               console.error('Erro atualizarOrcamentoNaPlanilha:', err);
               btn.disabled = false;
               btn.textContent = originalText;
-              alert('Erro ao atualizar: ' + (err?.message || JSON.stringify(err)));
+              
+              const errorMsg = err?.message || JSON.stringify(err);
+              // Verifica se é erro de duplicata
+              if (errorMsg.includes('DUPLICADO:')) {
+                const msg = errorMsg.replace('DUPLICADO:', '');
+                showToast('⚠️ ' + msg, 4000);
+                // Foca no campo de projeto
+                setTimeout(() => document.getElementById('inputProjeto').focus(), 100);
+              } else {
+                alert('Erro ao atualizar: ' + errorMsg);
+              }
             })
             .atualizarOrcamentoNaPlanilha(Number(editingLinha), dataObj);
         } else {
@@ -1333,7 +1343,17 @@
               console.error('Erro adicionarOrcamentoNaPlanilha:', err);
               btn.disabled = false;
               btn.textContent = originalText;
-              alert('Erro ao adicionar: ' + (err?.message || JSON.stringify(err)));
+              
+              const errorMsg = err?.message || JSON.stringify(err);
+              // Verifica se é erro de duplicata
+              if (errorMsg.includes('DUPLICADO:')) {
+                const msg = errorMsg.replace('DUPLICADO:', '');
+                showToast('⚠️ ' + msg, 4000);
+                // Foca no campo de projeto
+                setTimeout(() => document.getElementById('inputProjeto').focus(), 100);
+              } else {
+                alert('Erro ao adicionar: ' + errorMsg);
+              }
             })
             .adicionarOrcamentoNaPlanilha(dataObj);
         }
