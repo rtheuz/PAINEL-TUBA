@@ -10,6 +10,7 @@ const SHEET_AVAL = ss.getSheetByName("Avaliações");
 const SHEET_LOGS = ss.getSheetByName("Logs");
 const SHEET_CLIENTES = ss.getSheetByName("Cadastro de Clientes");
 const SHEET_PRODUTOS = ss.getSheetByName("Relação de produtos");
+const SHEET_PROJ = ss.getSheetByName("Projetos"); // Nova aba unificada
 const ID_PASTA_PRINCIPAL = "1jqIVHbThV3SPBM8MOHek4r5tr2DoHbqz";
 const ID_LOGO = "1pnRLV6YZYMD6Yhv1cUb4FXVr0ol_Zzzf";
 const FAVICON = "https://i.imgur.com/C0dSTyE.png"
@@ -853,31 +854,58 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       }
     });
 
-    // definir as colunas que vamos gravar (mesma ordem que estava no appendRow)
-    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
-    const rowValues = [
-      cliente.nome || "",
-      descricao,  // Coluna DESCRIÇÃO
-      cliente.responsavel || "",
-      codigoProjeto || "",
-      valorTotal || "",
-      dataOrcamento || "",
-      processosStr || "",
-      urlPdf || "",
-      urlMemoria || "",
-      "Enviado",
-      prazo,  // Nova coluna PRAZO
-      dadosJson  // Agora salvamos os dados completos do formulário, não só chapas
-    ];
+    // Decide qual aba usar: Projetos (se existir) ou Orçamentos (legado)
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    let rowValues, linhaExistente;
 
-    // tenta encontrar linha existente com o mesmo PROJETO (coluna "PROJETO")
-    const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    if (sheetProj) {
+      // Nova estrutura: 14 colunas com STATUS_ORCAMENTO e STATUS_PEDIDO separados
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL CLIENTE, PROJETO, VALOR TOTAL, DATA, PROCESSOS,
+      // LINK DO PDF, LINK DA MEMÓRIA DE CÁLCULO, STATUS_ORCAMENTO, STATUS_PEDIDO, PRAZO, OBSERVAÇÕES, JSON_DADOS
+      rowValues = [
+        cliente.nome || "",
+        descricao,
+        cliente.responsavel || "",
+        codigoProjeto || "",
+        valorTotal || "",
+        dataOrcamento || "",
+        processosStr || "",
+        urlPdf || "",
+        urlMemoria || "",
+        "Enviado",  // STATUS_ORCAMENTO
+        "",         // STATUS_PEDIDO (vazio inicialmente)
+        prazo,
+        "",         // OBSERVAÇÕES (vazio inicialmente)
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto);
+    } else {
+      // Estrutura antiga (Orçamentos): 12 colunas
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
+      rowValues = [
+        cliente.nome || "",
+        descricao,
+        cliente.responsavel || "",
+        codigoProjeto || "",
+        valorTotal || "",
+        dataOrcamento || "",
+        processosStr || "",
+        urlPdf || "",
+        urlMemoria || "",
+        "Enviado",
+        prazo,
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    }
 
     if (linhaExistente) {
       // Atualiza a linha existente (independente do status - assim rascunho vira enviado)
-      SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
+      targetSheet.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      SHEET_ORC.appendRow(rowValues);
+      targetSheet.appendRow(rowValues);
     }
 
     // Insere produtos com código PRD na "Relação de produtos" ao criar o orçamento
@@ -898,20 +926,43 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
           produtosCadastrados: produtosCadastrados || []
         }
       });
-      SHEET_ORC.appendRow([
-        cliente.nome || "",
-        descricao,  // Coluna DESCRIÇÃO
-        cliente.responsavel || "",
-        codigoProjeto || "",
-        valorTotal || "",
-        dataOrcamento || "",
-        processosStr || "",
-        urlPdf || "",
-        urlMemoria || "",
-        "Enviado",
-        prazo,  // Nova coluna PRAZO
-        dadosJson
-      ]);
+      
+      const sheetProj = ss.getSheetByName("Projetos");
+      if (sheetProj) {
+        // Nova estrutura com 14 colunas
+        sheetProj.appendRow([
+          cliente.nome || "",
+          descricao,
+          cliente.responsavel || "",
+          codigoProjeto || "",
+          valorTotal || "",
+          dataOrcamento || "",
+          processosStr || "",
+          urlPdf || "",
+          urlMemoria || "",
+          "Enviado",  // STATUS_ORCAMENTO
+          "",         // STATUS_PEDIDO
+          prazo,
+          "",         // OBSERVAÇÕES
+          dadosJson
+        ]);
+      } else {
+        // Estrutura antiga com 12 colunas
+        SHEET_ORC.appendRow([
+          cliente.nome || "",
+          descricao,
+          cliente.responsavel || "",
+          codigoProjeto || "",
+          valorTotal || "",
+          dataOrcamento || "",
+          processosStr || "",
+          urlPdf || "",
+          urlMemoria || "",
+          "Enviado",
+          prazo,
+          dadosJson
+        ]);
+      }
 
       // Insere produtos mesmo no fallback
       inserirProdutosDasChapas(chapas);
@@ -2407,22 +2458,248 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
   }
 }
 
-// Número de colunas esperadas na planilha Orçamentos
+// Número de colunas esperadas na planilha Orçamentos (mantido para compatibilidade)
 // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
 const ORCAMENTOS_NUM_COLUNAS = 12;
 
+// Número de colunas na nova planilha Projetos unificada
+// CLIENTE, DESCRIÇÃO, RESPONSÁVEL CLIENTE, PROJETO, VALOR TOTAL, DATA, PROCESSOS, 
+// LINK DO PDF, LINK DA MEMÓRIA DE CÁLCULO, STATUS_ORCAMENTO, STATUS_PEDIDO, PRAZO, OBSERVAÇÕES, JSON_DADOS
+const PROJETOS_NUM_COLUNAS = 14;
+
+// ==================== FUNÇÕES DE VALIDAÇÃO E MIGRAÇÃO ====================
+
+/**
+ * Verifica se um projeto já existe na aba Projetos
+ * @param {string} numeroProjeto - Número do projeto a verificar
+ * @returns {Object} { duplicado: boolean, linha: number|null, onde: string }
+ */
+function verificarProjetoDuplicado(numeroProjeto) {
+  try {
+    if (!numeroProjeto) {
+      return { duplicado: false, linha: null, onde: "" };
+    }
+
+    // Busca na aba Projetos (se existir)
+    const sheetProj = ss.getSheetByName("Projetos");
+    if (sheetProj) {
+      const linha = findRowByColumnValue(sheetProj, "PROJETO", numeroProjeto);
+      if (linha) {
+        return { duplicado: true, linha: linha, onde: "Projetos" };
+      }
+    }
+
+    // Se não encontrou na aba Projetos, busca na aba Orçamentos (para transição)
+    if (SHEET_ORC) {
+      const linhaOrc = findRowByColumnValue(SHEET_ORC, "PROJETO", numeroProjeto);
+      if (linhaOrc) {
+        return { duplicado: true, linha: linhaOrc, onde: "Orçamentos" };
+      }
+    }
+
+    // Também verifica na aba Pedidos (para transição)
+    if (SHEET_PED) {
+      const linhaPed = findRowByColumnValue(SHEET_PED, "Número do Projeto", numeroProjeto);
+      if (linhaPed) {
+        return { duplicado: true, linha: linhaPed, onde: "Pedidos" };
+      }
+    }
+
+    return { duplicado: false, linha: null, onde: "" };
+  } catch (err) {
+    Logger.log("Erro ao verificar projeto duplicado: " + err.message);
+    return { duplicado: false, linha: null, onde: "", erro: err.message };
+  }
+}
+
+/**
+ * Migra dados de Orçamentos e Pedidos para a nova aba Projetos unificada
+ * Esta função deve ser executada UMA VEZ para migrar os dados existentes
+ */
+function migrarDadosParaProjetosUnificados() {
+  try {
+    Logger.log("=== INÍCIO DA MIGRAÇÃO ===");
+    
+    // 1. Criar aba "Projetos" se não existir
+    let sheetProj = ss.getSheetByName("Projetos");
+    if (!sheetProj) {
+      Logger.log("Criando aba 'Projetos'...");
+      sheetProj = ss.insertSheet("Projetos");
+    } else {
+      Logger.log("Aba 'Projetos' já existe. Limpando dados...");
+      sheetProj.clear();
+    }
+
+    // 2. Adicionar cabeçalhos (14 colunas)
+    const headers = [
+      "CLIENTE",
+      "DESCRIÇÃO",
+      "RESPONSÁVEL CLIENTE",
+      "PROJETO",
+      "VALOR TOTAL",
+      "DATA",
+      "PROCESSOS",
+      "LINK DO PDF",
+      "LINK DA MEMÓRIA DE CÁLCULO",
+      "STATUS_ORCAMENTO",
+      "STATUS_PEDIDO",
+      "PRAZO",
+      "OBSERVAÇÕES",
+      "JSON_DADOS"
+    ];
+    sheetProj.getRange(1, 1, 1, headers.length).setValues([headers]);
+    Logger.log("Cabeçalhos criados");
+
+    // 3. Migrar dados de "Orçamentos"
+    let totalMigrados = 0;
+    let totalComPedido = 0;
+    
+    if (SHEET_ORC) {
+      Logger.log("Migrando dados de 'Orçamentos'...");
+      const dadosOrc = SHEET_ORC.getDataRange().getValues();
+      
+      if (dadosOrc.length > 1) {
+        const headersOrc = dadosOrc[0];
+        
+        // Mapeia índices dos cabeçalhos de Orçamentos
+        const idxCliente = headersOrc.indexOf("CLIENTE");
+        const idxDescricao = headersOrc.findIndex(h => /DESCRI[ÇC][ÃA]O/i.test(h));
+        const idxResponsavel = headersOrc.findIndex(h => /RESPONS[ÁA]VEL/i.test(h));
+        const idxProjeto = headersOrc.indexOf("PROJETO");
+        const idxValor = headersOrc.findIndex(h => /VALOR\s*TOTAL/i.test(h));
+        const idxData = headersOrc.indexOf("DATA");
+        const idxProcessos = headersOrc.indexOf("Processos");
+        const idxPdf = headersOrc.findIndex(h => /LINK.*PDF/i.test(h));
+        const idxMemoria = headersOrc.findIndex(h => /LINK.*MEM[ÓO]RIA/i.test(h));
+        const idxStatus = headersOrc.indexOf("STATUS");
+        const idxPrazo = headersOrc.indexOf("PRAZO");
+        const idxJson = headersOrc.findIndex(h => /JSON/i.test(h));
+
+        // Cria um mapa de pedidos para busca rápida
+        const mapaPedidos = {};
+        if (SHEET_PED) {
+          const dadosPed = SHEET_PED.getDataRange().getValues();
+          if (dadosPed.length > 1) {
+            const headersPed = dadosPed[0];
+            const idxClientePed = headersPed.findIndex(h => /Cliente/i.test(h));
+            const idxProjetoPed = headersPed.findIndex(h => /N[uú]mero\s*do\s*Projeto/i.test(h));
+            const idxStatusPed = headersPed.findIndex(h => /^Status$/i.test(h));
+            const idxObsPed = headersPed.findIndex(h => /Observa[çc][õo]es/i.test(h));
+
+            for (let i = 1; i < dadosPed.length; i++) {
+              const rowPed = dadosPed[i];
+              const numProjeto = idxProjetoPed >= 0 ? String(rowPed[idxProjetoPed] || "").trim() : "";
+              if (numProjeto) {
+                mapaPedidos[numProjeto] = {
+                  statusPedido: idxStatusPed >= 0 ? rowPed[idxStatusPed] : "",
+                  observacoes: idxObsPed >= 0 ? rowPed[idxObsPed] : ""
+                };
+              }
+            }
+          }
+        }
+
+        // Processa cada linha de orçamento
+        for (let i = 1; i < dadosOrc.length; i++) {
+          const row = dadosOrc[i];
+          const numeroProjeto = idxProjeto >= 0 ? String(row[idxProjeto] || "").trim() : "";
+          
+          if (!numeroProjeto) {
+            Logger.log(`Linha ${i + 1}: Projeto vazio, pulando...`);
+            continue;
+          }
+
+          const statusOrc = idxStatus >= 0 ? row[idxStatus] : "";
+          let statusPedido = "";
+          let observacoes = "";
+
+          // Se o status é "Convertido em Pedido", busca informações do pedido
+          if (statusOrc === "Convertido em Pedido" && mapaPedidos[numeroProjeto]) {
+            statusPedido = mapaPedidos[numeroProjeto].statusPedido || "Processo de Preparação MP / CAD / CAM";
+            observacoes = mapaPedidos[numeroProjeto].observacoes || "";
+            totalComPedido++;
+          }
+
+          // Monta a nova linha para Projetos
+          const novaLinha = [
+            idxCliente >= 0 ? row[idxCliente] : "",                    // CLIENTE
+            idxDescricao >= 0 ? row[idxDescricao] : "",                // DESCRIÇÃO
+            idxResponsavel >= 0 ? row[idxResponsavel] : "",            // RESPONSÁVEL CLIENTE
+            numeroProjeto,                                              // PROJETO
+            idxValor >= 0 ? row[idxValor] : "",                        // VALOR TOTAL
+            idxData >= 0 ? row[idxData] : "",                          // DATA
+            idxProcessos >= 0 ? row[idxProcessos] : "",                // PROCESSOS
+            idxPdf >= 0 ? row[idxPdf] : "",                            // LINK DO PDF
+            idxMemoria >= 0 ? row[idxMemoria] : "",                    // LINK DA MEMÓRIA DE CÁLCULO
+            statusOrc,                                                  // STATUS_ORCAMENTO
+            statusPedido,                                               // STATUS_PEDIDO
+            idxPrazo >= 0 ? row[idxPrazo] : "",                        // PRAZO
+            observacoes,                                                // OBSERVAÇÕES
+            idxJson >= 0 ? row[idxJson] : ""                           // JSON_DADOS
+          ];
+
+          sheetProj.appendRow(novaLinha);
+          totalMigrados++;
+        }
+      }
+    }
+
+    Logger.log(`=== MIGRAÇÃO CONCLUÍDA ===`);
+    Logger.log(`Total de projetos migrados: ${totalMigrados}`);
+    Logger.log(`Projetos com informações de pedido: ${totalComPedido}`);
+    Logger.log(`NOTA: As abas 'Orçamentos' e 'Pedidos' foram mantidas como backup.`);
+    Logger.log(`RECOMENDAÇÃO: Após validar a migração, você pode renomear estas abas para 'Orçamentos_backup' e 'Pedidos_backup'.`);
+    
+    return {
+      success: true,
+      totalMigrados: totalMigrados,
+      totalComPedido: totalComPedido,
+      mensagem: "Migração concluída com sucesso!"
+    };
+  } catch (err) {
+    Logger.log("ERRO na migração: " + err.message);
+    Logger.log(err.stack);
+    return {
+      success: false,
+      erro: err.message,
+      mensagem: "Erro na migração: " + err.message
+    };
+  }
+}
+
 function salvarRascunho(nomeRascunho, dados) {
   try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
-
     // Extrai dados relevantes do formulário
-    // Dados do cliente vêm de dados.cliente
-    // Código do projeto vem de dados.observacoes.projeto (gerado automaticamente pelo formulário)
     const clienteNome = (dados.cliente && dados.cliente.nome) || "";
     const descricao = (dados.observacoes && dados.observacoes.descricao) || "";
     const prazo = (dados.observacoes && dados.observacoes.prazo) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
+
+    // Validação de duplicidade antes de salvar
+    if (codigoProjeto) {
+      const validacao = verificarProjetoDuplicado(codigoProjeto);
+      // Se existe e não é um rascunho sendo editado, retorna erro
+      if (validacao.duplicado) {
+        // Verifica se é edição do mesmo projeto (mesma linha)
+        const sheetProj = ss.getSheetByName("Projetos");
+        const targetSheet = sheetProj || SHEET_ORC;
+        const linhaExistente = findRowByColumnValue(targetSheet, "PROJETO", codigoProjeto);
+        
+        // Se a linha existe, verifica o status
+        if (linhaExistente) {
+          const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
+          const statusIdx = sheetProj ? 9 : 9; // STATUS_ORCAMENTO ou STATUS (ambos índice 9)
+          const rowData = targetSheet.getRange(linhaExistente, 1, 1, numCols).getValues()[0];
+          const status = rowData[statusIdx];
+          
+          // Se não é um rascunho, não permite sobrescrever
+          if (status !== "RASCUNHO") {
+            throw new Error(`Projeto ${codigoProjeto} já existe com status "${status}". Use outra numeração ou edite o projeto existente.`);
+          }
+        }
+      }
+    }
 
     // Data formatada para exibição
     const agora = new Date();
@@ -2435,33 +2712,61 @@ function salvarRascunho(nomeRascunho, dados) {
       dados: dados
     });
 
-    // Estrutura da linha para a planilha Orçamentos
-    // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
-    const rowValues = [
-      clienteNome,
-      descricao,  // Coluna DESCRIÇÃO
-      clienteResponsavel,
-      codigoProjeto,
-      "",  // VALOR TOTAL - vazio para rascunho
-      dataBrasil,
-      "",  // Processos - vazio para rascunho
-      "",  // LINK PDF - vazio para rascunho
-      "",  // LINK MEMÓRIA - vazio para rascunho
-      "RASCUNHO",
-      prazo,  // Nova coluna PRAZO
-      dadosJson
-    ];
+    // Decide qual aba usar
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
 
-    // Verifica se já existe um registro com o mesmo código de projeto
-    const linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    let rowValues, linhaExistente;
+
+    if (sheetProj) {
+      // Nova estrutura: 14 colunas
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL CLIENTE, PROJETO, VALOR TOTAL, DATA, PROCESSOS,
+      // LINK DO PDF, LINK DA MEMÓRIA DE CÁLCULO, STATUS_ORCAMENTO, STATUS_PEDIDO, PRAZO, OBSERVAÇÕES, JSON_DADOS
+      rowValues = [
+        clienteNome,
+        descricao,
+        clienteResponsavel,
+        codigoProjeto,
+        "",  // VALOR TOTAL
+        dataBrasil,
+        "",  // PROCESSOS
+        "",  // LINK DO PDF
+        "",  // LINK DA MEMÓRIA DE CÁLCULO
+        "RASCUNHO",  // STATUS_ORCAMENTO
+        "",          // STATUS_PEDIDO
+        prazo,
+        "",          // OBSERVAÇÕES
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto);
+    } else {
+      // Estrutura antiga: 12 colunas
+      // CLIENTE, DESCRIÇÃO, RESPONSÁVEL, PROJETO, VALOR TOTAL, DATA, Processos, LINK PDF, LINK MEMÓRIA, STATUS, PRAZO, JSON_DADOS
+      rowValues = [
+        clienteNome,
+        descricao,
+        clienteResponsavel,
+        codigoProjeto,
+        "",  // VALOR TOTAL
+        dataBrasil,
+        "",  // Processos
+        "",  // LINK PDF
+        "",  // LINK MEMÓRIA
+        "RASCUNHO",
+        prazo,
+        dadosJson
+      ];
+      linhaExistente = findRowByColumnValue(SHEET_ORC, "PROJETO", codigoProjeto);
+    }
 
     if (linhaExistente) {
-      // SEMPRE atualiza a linha existente para evitar duplicação
-      // Mantém o status como "RASCUNHO" mesmo se já estava como "Enviado"
-      SHEET_ORC.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
+      // Atualiza a linha existente
+      targetSheet.getRange(linhaExistente, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      // Cria novo rascunho apenas se não existir
-      SHEET_ORC.appendRow(rowValues);
+      // Cria novo rascunho
+      targetSheet.appendRow(rowValues);
     }
 
     return { success: true };
@@ -2474,7 +2779,11 @@ function salvarRascunho(nomeRascunho, dados) {
 // Carrega qualquer orçamento (rascunho ou enviado) pelo número da linha
 function carregarRascunho(linhaOuKey) {
   try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    // Decide qual aba usar
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
 
     // linhaOuKey é o número da linha na planilha
     const linha = parseInt(linhaOuKey, 10);
@@ -2483,14 +2792,21 @@ function carregarRascunho(linhaOuKey) {
     }
 
     // Verifica se a linha existe
-    const lastRow = SHEET_ORC.getLastRow();
+    const lastRow = targetSheet.getLastRow();
     if (linha > lastRow) {
       throw new Error("Orçamento não encontrado");
     }
 
-    // Lê a linha da planilha usando a constante de número de colunas
-    const rowData = SHEET_ORC.getRange(linha, 1, 1, ORCAMENTOS_NUM_COLUNAS).getValues()[0];
-    const status = rowData[9]; // Coluna 10 = STATUS (índice 9)
+    // Lê a linha da planilha usando a constante apropriada
+    const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
+    const rowData = targetSheet.getRange(linha, 1, 1, numCols).getValues()[0];
+    
+    // STATUS está no índice 9 em ambas estruturas (STATUS ou STATUS_ORCAMENTO)
+    const status = rowData[9];
+    
+    // JSON_DADOS está no último índice em ambas estruturas
+    const jsonIdx = numCols - 1;
+    const dadosJson = rowData[jsonIdx];
 
     // Coluna 12 (índice 11) contém o JSON com todos os dados do formulário
     const dadosJson = rowData[11];
@@ -2507,8 +2823,8 @@ function carregarRascunho(linhaOuKey) {
     }
 
     // Se não tiver JSON_DADOS, constrói dados básicos a partir das colunas da planilha
-    // Estrutura da planilha: CLIENTE(0), DESCRIÇÃO(1), RESPONSÁVEL(2), PROJETO(3), 
-    // VALOR TOTAL(4), DATA(5), Processos(6), LINK PDF(7), LINK MEMÓRIA(8), STATUS(9), PRAZO(10), JSON_DADOS(11)
+    // Ambas estruturas têm os mesmos índices para campos básicos:
+    // CLIENTE(0), DESCRIÇÃO(1), RESPONSÁVEL(2), PROJETO(3), VALOR TOTAL(4), DATA(5), etc.
     const clienteNome = rowData[0] || "";
     const descricao = rowData[1] || "";
     const responsavel = rowData[2] || "";
@@ -2516,7 +2832,8 @@ function carregarRascunho(linhaOuKey) {
     const valorTotal = rowData[4] || "";
     const dataOrcamento = rowData[5] || "";
     const processos = rowData[6] || "";
-    const prazo = rowData[10] || "";
+    // PRAZO está no índice 11 (nova estrutura) ou 10 (antiga)
+    const prazo = sheetProj ? (rowData[11] || "") : (rowData[10] || "");
 
     // Extrai código do projeto (assumindo formato padrão YYMMDD + índice + iniciais)
     const codigoProjeto = projeto || "";
@@ -2579,18 +2896,25 @@ function carregarRascunho(linhaOuKey) {
 // incluirEnviados: se true, inclui também os orçamentos já enviados
 function getListaRascunhos(incluirEnviados) {
   try {
-    if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
+    // Decide qual aba usar
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
 
-    const lastRow = SHEET_ORC.getLastRow();
+    const lastRow = targetSheet.getLastRow();
     if (lastRow < 2) return []; // Sem dados
 
-    // Lê todas as linhas da planilha usando a constante de número de colunas
-    const data = SHEET_ORC.getRange(2, 1, lastRow - 1, ORCAMENTOS_NUM_COLUNAS).getValues();
+    // Lê todas as linhas da planilha usando a constante apropriada
+    const numCols = sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS;
+    const data = targetSheet.getRange(2, 1, lastRow - 1, numCols).getValues();
 
     const orcamentos = [];
     data.forEach((row, index) => {
-      const status = row[9]; // Coluna 10 = STATUS (índice 9)
-      const dadosJson = row[11]; // JSON_DADOS (índice 11)
+      // STATUS_ORCAMENTO ou STATUS está sempre no índice 9
+      const status = row[9];
+      // JSON_DADOS está sempre no último índice
+      const dadosJson = row[numCols - 1];
 
       // Inclui rascunhos sempre, e enviados apenas se solicitado e se tiver JSON_DADOS
       const isRascunho = status === "RASCUNHO";
@@ -2601,7 +2925,8 @@ function getListaRascunhos(incluirEnviados) {
         const descricao = row[1] || ""; // Coluna DESCRIÇÃO (índice 1)
         const projeto = row[3] || "Sem projeto"; // PROJETO (índice 3)
         const dataOrcamento = row[5] || ""; // DATA (índice 5)
-        const prazo = row[10] || ""; // PRAZO (índice 10)
+        // PRAZO está no índice 11 (Projetos) ou 10 (Orçamentos)
+        const prazo = sheetProj ? (row[11] || "") : (row[10] || "");
 
         // Tenta extrair o nome do rascunho do JSON
         let nomeRascunho = "";
