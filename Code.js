@@ -2850,6 +2850,83 @@ function verificarProjetoDuplicado(numeroProjeto) {
  * Migra dados de Orçamentos e Pedidos para a nova aba Projetos unificada
  * Esta função deve ser executada UMA VEZ para migrar os dados existentes
  */
+/**
+ * Função de diagnóstico - Execute esta função para verificar o estado das abas
+ * Verifique os logs para entender o problema
+ */
+function diagnosticarProblemasProjetos() {
+  Logger.log("=== DIAGNÓSTICO DE PROJETOS ===");
+  
+  // 1. Verifica aba Projetos
+  const sheetProj = ss.getSheetByName("Projetos");
+  if (sheetProj) {
+    const lastRow = sheetProj.getLastRow();
+    const lastCol = sheetProj.getLastColumn();
+    Logger.log("✓ Aba 'Projetos' EXISTE");
+    Logger.log("  - Linhas: %s (incluindo cabeçalho)", lastRow);
+    Logger.log("  - Colunas: %s", lastCol);
+    
+    if (lastRow > 0) {
+      const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
+      Logger.log("  - Cabeçalhos: %s", JSON.stringify(headers));
+    }
+    
+    if (lastRow > 1) {
+      Logger.log("  - Dados: %s projetos encontrados", lastRow - 1);
+      // Mostra primeira linha de dados
+      const primeiraLinha = sheetProj.getRange(2, 1, 1, Math.min(lastCol, 5)).getValues()[0];
+      Logger.log("  - Primeira linha (primeiras 5 cols): %s", JSON.stringify(primeiraLinha));
+    } else {
+      Logger.log("  ⚠️ PROBLEMA: Aba existe mas NÃO TEM DADOS!");
+    }
+  } else {
+    Logger.log("✗ Aba 'Projetos' NÃO EXISTE");
+  }
+  
+  // 2. Verifica aba Orçamentos
+  if (SHEET_ORC) {
+    const lastRow = SHEET_ORC.getLastRow();
+    Logger.log("✓ Aba 'Orçamentos' existe com %s linhas", lastRow);
+  } else {
+    Logger.log("✗ Aba 'Orçamentos' não existe");
+  }
+  
+  // 3. Verifica aba Pedidos
+  if (SHEET_PED) {
+    const lastRow = SHEET_PED.getLastRow();
+    Logger.log("✓ Aba 'Pedidos' existe com %s linhas", lastRow);
+  } else {
+    Logger.log("✗ Aba 'Pedidos' não existe");
+  }
+  
+  // 4. Testa getProjetos
+  Logger.log("\n=== TESTANDO getProjetos() ===");
+  try {
+    const projetos = getProjetos();
+    Logger.log("✓ getProjetos() executado com sucesso");
+    Logger.log("  - Retornou %s projetos", projetos.length);
+    if (projetos.length > 0) {
+      Logger.log("  - Campos do primeiro projeto: %s", JSON.stringify(Object.keys(projetos[0])));
+    }
+  } catch (e) {
+    Logger.log("✗ ERRO ao executar getProjetos(): %s", e.message);
+  }
+  
+  // 5. Testa getDashboardStats
+  Logger.log("\n=== TESTANDO getDashboardStats() ===");
+  try {
+    const stats = getDashboardStats();
+    Logger.log("✓ getDashboardStats() executado com sucesso");
+    Logger.log("  - Stats: %s", JSON.stringify(stats));
+  } catch (e) {
+    Logger.log("✗ ERRO ao executar getDashboardStats(): %s", e.message);
+  }
+  
+  Logger.log("\n=== FIM DO DIAGNÓSTICO ===");
+  Logger.log("Verifique os logs acima para identificar o problema.");
+  Logger.log("Consulte o arquivo DEBUG_PROJETOS.md para mais detalhes.");
+}
+
 function migrarDadosParaProjetosUnificados() {
   try {
     Logger.log("=== INÍCIO DA MIGRAÇÃO ===");
