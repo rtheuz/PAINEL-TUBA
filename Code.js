@@ -2532,6 +2532,15 @@ function deletePedido(row) {
 // ==================== FUNÇÕES DA ABA PROJETOS UNIFICADA ====================
 
 /**
+ * Função de teste simples que sempre retorna um array
+ * @returns {Array}
+ */
+function testeGetProjetos() {
+  Logger.log("testeGetProjetos: Iniciando");
+  return [{"teste": "dados", "numero": 123}];
+}
+
+/**
  * Retorna todos os projetos da aba Projetos (ou Orçamentos como fallback)
  * @returns {Array} Array de objetos com os dados dos projetos
  */
@@ -2542,40 +2551,71 @@ function getProjetos() {
     const targetSheet = sheetProj || SHEET_ORC;
     
     if (!targetSheet) {
+      Logger.log('getProjetos: Nenhuma aba encontrada');
       throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
     }
 
     const lastRow = targetSheet.getLastRow();
-    Logger.log('getProjetos: Sheet name=%s, lastRow=%s', targetSheet.getName(), lastRow);
+    const lastCol = targetSheet.getLastColumn();
+    Logger.log('getProjetos: Sheet name=%s, lastRow=%s, lastCol=%s', targetSheet.getName(), lastRow, lastCol);
     
     if (lastRow < 2) {
       Logger.log('getProjetos: Nenhum dado encontrado (lastRow < 2)');
       return [];
     }
 
-    const values = targetSheet.getRange(1, 1, lastRow, targetSheet.getLastColumn()).getValues();
-    if (values.length === 0) {
-      Logger.log('getProjetos: getValues retornou vazio');
+    const values = targetSheet.getRange(1, 1, lastRow, lastCol).getValues();
+    if (!values || values.length === 0) {
+      Logger.log('getProjetos: getValues retornou vazio ou null');
       return [];
     }
 
     const headers = values[0];
-    Logger.log('getProjetos: Headers=%s', JSON.stringify(headers));
+    Logger.log('getProjetos: Headers count=%s, first few=%s', headers.length, headers.slice(0, 5).join(','));
+    
+    // Formata timezone para datas
+    const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'UTC';
     
     const data = values.slice(1).map((row, index) => {
       let obj = {};
       headers.forEach((h, i) => {
-        obj[h] = row[i];
+        let value = row[i];
+        // Converte Date para string para evitar problemas de serialização
+        if (Object.prototype.toString.call(value) === '[object Date]') {
+          try {
+            value = Utilities.formatDate(value, tz, 'dd/MM/yyyy');
+          } catch (e) {
+            value = value.toString();
+          }
+        }
+        // Converte null/undefined para string vazia
+        if (value === null || value === undefined) {
+          value = '';
+        }
+        obj[h] = value;
       });
       obj["_linhaPlanilha"] = index + 2;
       return obj;
     });
 
     Logger.log('getProjetos: Retornando %s projetos', data.length);
+    if (data.length > 0) {
+      Logger.log('getProjetos: Exemplo primeiro projeto: %s', JSON.stringify(data[0]));
+    }
+    
+    // Garante que sempre retorna um array
+    if (!Array.isArray(data)) {
+      Logger.log('getProjetos: AVISO - data não é array, retornando array vazio');
+      return [];
+    }
+    
     return data;
   } catch (e) {
     Logger.log('getProjetos error: %s\n%s', e.message, e.stack);
-    throw new Error('getProjetos failed: ' + (e.message || 'erro desconhecido'));
+    // Em caso de erro, retorna array vazio em vez de lançar exceção
+    // para evitar quebrar a interface
+    Logger.log('getProjetos: Retornando array vazio devido a erro');
+    return [];
   }
 }
 
@@ -2902,14 +2942,21 @@ function diagnosticarProblemasProjetos() {
   // 4. Testa getProjetos
   Logger.log("\n=== TESTANDO getProjetos() ===");
   try {
-    const projetos = getProjetos();
+    const projetosResult = getProjetos();
     Logger.log("✓ getProjetos() executado com sucesso");
-    Logger.log("  - Retornou %s projetos", projetos.length);
-    if (projetos.length > 0) {
-      Logger.log("  - Campos do primeiro projeto: %s", JSON.stringify(Object.keys(projetos[0])));
+    Logger.log("  - Tipo do retorno: %s", typeof projetosResult);
+    Logger.log("  - É null?: %s", projetosResult === null);
+    Logger.log("  - É undefined?: %s", projetosResult === undefined);
+    Logger.log("  - É array?: %s", Array.isArray(projetosResult));
+    if (projetosResult) {
+      Logger.log("  - Length: %s", projetosResult.length);
+      if (projetosResult.length > 0) {
+        Logger.log("  - Campos do primeiro projeto: %s", JSON.stringify(Object.keys(projetosResult[0])));
+      }
     }
   } catch (e) {
     Logger.log("✗ ERRO ao executar getProjetos(): %s", e.message);
+    Logger.log("  - Stack: %s", e.stack);
   }
   
   // 5. Testa getDashboardStats
@@ -2925,6 +2972,8 @@ function diagnosticarProblemasProjetos() {
   Logger.log("\n=== FIM DO DIAGNÓSTICO ===");
   Logger.log("Verifique os logs acima para identificar o problema.");
   Logger.log("Consulte o arquivo DEBUG_PROJETOS.md para mais detalhes.");
+  
+  return "Diagnóstico completo. Verifique os logs.";
 }
 
 function migrarDadosParaProjetosUnificados() {
