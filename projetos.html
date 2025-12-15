@@ -536,7 +536,7 @@
                     </div>
                     <div class="form-group">
                         <label>Cliente *</label>
-                        <input type="text" id="newCliente" list="clientesList" required placeholder="Selecione ou digite um novo cliente">
+                        <input type="text" id="newCliente" list="clientesList" aria-describedby="clientesList" required placeholder="Selecione ou digite um novo cliente">
                         <datalist id="clientesList">
                             <!-- Opções serão populadas via JavaScript -->
                         </datalist>
@@ -610,7 +610,7 @@
                     <input type="hidden" id="editLinha">
                     <div class="form-group">
                         <label>Cliente *</label>
-                        <input type="text" id="editCliente" list="clientesList" required placeholder="Selecione ou digite um novo cliente">
+                        <input type="text" id="editCliente" list="clientesList" aria-describedby="clientesList" required placeholder="Selecione ou digite um novo cliente">
                     </div>
                     <div class="form-group">
                         <label>Número do Projeto *</label>
@@ -1092,8 +1092,15 @@
 
         // Helper para salvar cliente e executar callback
         function salvarClienteEExecutar(clienteNome, callback) {
+            // Valida o nome do cliente
+            if (!clienteNome || clienteNome.trim() === '') {
+                console.warn('Nome de cliente vazio, pulando salvamento');
+                callback();
+                return;
+            }
+
             const clienteObj = {
-                nome: clienteNome,
+                nome: clienteNome.trim(),
                 cpf: '',
                 endereco: '',
                 telefone: '',
@@ -1103,7 +1110,7 @@
             google.script.run
                 .withSuccessHandler(callback)
                 .withFailureHandler(function (error) {
-                    console.error('Erro ao salvar cliente:', error);
+                    console.warn('Não foi possível salvar o cliente automaticamente:', error);
                     // Continua mesmo se falhar ao salvar o cliente
                     callback();
                 })
@@ -1121,7 +1128,10 @@
             let dataFinal = dataValue;
             if (!dataFinal) {
                 const hoje = new Date();
-                dataFinal = hoje.toLocaleDateString('pt-BR');
+                const dia = hoje.getDate().toString().padStart(2, '0');
+                const mes = (hoje.getMonth() + 1).toString().padStart(2, '0');
+                const ano = hoje.getFullYear();
+                dataFinal = `${dia}/${mes}/${ano}`;
             }
             
             const projeto = {
