@@ -234,13 +234,25 @@
     .editable {
       cursor: pointer;
       position: relative;
-      padding: 6px 8px;
+      padding: 8px 10px;
       border-radius: 4px;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
     }
 
     .editable:hover {
-      background: #f3f4f6;
+      background: #e0f2fe;
+      box-shadow: inset 0 0 0 1px #0ea5ff;
+    }
+    
+    .editable:hover::after {
+      content: '✏️';
+      position: absolute;
+      right: 4px;
+      font-size: 10px;
+      opacity: 0.6;
     }
 
     .edit-input, .edit-select {
@@ -537,6 +549,76 @@
           <div class="modal-actions">
             <button type="button" class="btn btn-ghost" onclick="closeNewProjectModal()">Cancelar</button>
             <button type="submit" class="btn btn-primary">Salvar Projeto</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal para Editar Projeto -->
+    <div id="editProjectModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Editar Projeto</h2>
+          <button class="modal-close" onclick="closeEditProjectModal()">×</button>
+        </div>
+        <form id="editProjectForm" onsubmit="saveEditProject(event)">
+          <input type="hidden" id="editLinha">
+          <div class="form-group">
+            <label>Cliente *</label>
+            <input type="text" id="editCliente" required>
+          </div>
+          <div class="form-group">
+            <label>Número do Projeto</label>
+            <input type="text" id="editProjeto" readonly style="background: #f3f4f6; cursor: not-allowed;">
+          </div>
+          <div class="form-group">
+            <label>Descrição</label>
+            <textarea id="editDescricao"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Responsável Cliente</label>
+            <input type="text" id="editResponsavel">
+          </div>
+          <div class="form-group">
+            <label>Valor Total</label>
+            <input type="text" id="editValor" placeholder="R$ 0,00">
+          </div>
+          <div class="form-group">
+            <label>Processos</label>
+            <input type="text" id="editProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
+          </div>
+          <div class="form-group">
+            <label>Prazo</label>
+            <input type="date" id="editPrazo">
+          </div>
+          <div class="form-group">
+            <label>Observações</label>
+            <textarea id="editObservacoes"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Status Orçamento</label>
+            <select id="editStatusOrcamento">
+              <option value="RASCUNHO">Rascunho</option>
+              <option value="Enviado">Enviado</option>
+              <option value="Convertido em Pedido">Convertido em Pedido</option>
+              <option value="Expirado/Perdido">Expirado/Perdido</option>
+            </select>
+          </div>
+          <div class="form-group" id="editStatusPedidoGroup">
+            <label>Status do Pedido</label>
+            <select id="editStatusPedido">
+              <option value="">-</option>
+              <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
+              <option value="Processo de Corte">Processo de Corte</option>
+              <option value="Processo de Dobra">Processo de Dobra</option>
+              <option value="Processos Adicionais">Processos Adicionais</option>
+              <option value="Envio / Coleta">Envio / Coleta</option>
+              <option value="Finalizado">Finalizado</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" onclick="closeEditProjectModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
           </div>
         </form>
       </div>
@@ -839,9 +921,89 @@
         .excluirProjeto(linha);
     }
 
-    // Editar projeto (abre o formulário completo)
+    // Editar projeto (abre modal de edição)
     function editProjeto(linha) {
-      window.location.href = '?page=orcamento&token=<?= token ?>&editLinha=' + linha;
+      // Busca o projeto correspondente
+      const projeto = projetos.find(p => p._linhaPlanilha == linha);
+      if (!projeto) {
+        alert('Projeto não encontrado');
+        return;
+      }
+      
+      // Preenche o formulário
+      document.getElementById('editLinha').value = linha;
+      document.getElementById('editCliente').value = projeto.CLIENTE || '';
+      document.getElementById('editProjeto').value = projeto.PROJETO || '';
+      document.getElementById('editDescricao').value = projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || '';
+      document.getElementById('editResponsavel').value = projeto['RESPONSÁVEL CLIENTE'] || '';
+      document.getElementById('editValor').value = projeto['VALOR TOTAL'] || '';
+      document.getElementById('editProcessos').value = projeto.PROCESSOS || '';
+      document.getElementById('editObservacoes').value = projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || '';
+      document.getElementById('editStatusOrcamento').value = projeto.STATUS_ORCAMENTO || 'RASCUNHO';
+      document.getElementById('editStatusPedido').value = projeto.STATUS_PEDIDO || '';
+      
+      // Trata o prazo (pode ser Date ou string)
+      let prazoValue = '';
+      if (projeto.PRAZO && projeto.PRAZO !== '-') {
+        // Tenta converter dd/mm/yyyy para yyyy-mm-dd
+        const prazoStr = String(projeto.PRAZO);
+        const match = prazoStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (match) {
+          prazoValue = `${match[3]}-${match[2]}-${match[1]}`;
+        }
+      }
+      document.getElementById('editPrazo').value = prazoValue;
+      
+      // Habilita/desabilita status do pedido
+      toggleEditStatusPedido();
+      
+      // Abre o modal
+      document.getElementById('editProjectModal').classList.add('active');
+    }
+
+    function closeEditProjectModal() {
+      document.getElementById('editProjectModal').classList.remove('active');
+    }
+
+    function toggleEditStatusPedido() {
+      const statusOrc = document.getElementById('editStatusOrcamento').value;
+      const statusPedGroup = document.getElementById('editStatusPedidoGroup');
+      const statusPedSelect = document.getElementById('editStatusPedido');
+      
+      if (statusOrc === 'Convertido em Pedido') {
+        statusPedGroup.style.display = 'block';
+      } else {
+        statusPedGroup.style.display = 'none';
+        statusPedSelect.value = '';
+      }
+    }
+
+    function saveEditProject(event) {
+      event.preventDefault();
+      
+      const linha = document.getElementById('editLinha').value;
+      const updates = {
+        'CLIENTE': document.getElementById('editCliente').value,
+        'DESCRIÇÃO': document.getElementById('editDescricao').value,
+        'RESPONSÁVEL CLIENTE': document.getElementById('editResponsavel').value,
+        'VALOR TOTAL': document.getElementById('editValor').value,
+        'PROCESSOS': document.getElementById('editProcessos').value,
+        'PRAZO': document.getElementById('editPrazo').value,
+        'OBSERVAÇÕES': document.getElementById('editObservacoes').value,
+        'STATUS_ORCAMENTO': document.getElementById('editStatusOrcamento').value,
+        'STATUS_PEDIDO': document.getElementById('editStatusPedido').value
+      };
+
+      google.script.run
+        .withSuccessHandler(function() {
+          closeEditProjectModal();
+          loadProjetos();
+          alert('Projeto atualizado com sucesso!');
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao atualizar projeto: ' + (error.message || error));
+        })
+        .atualizarProjetoNaPlanilha(linha, updates);
     }
 
     // Modal de novo projeto
@@ -904,12 +1066,21 @@
         .adicionarNovoProjetoNaPlanilha(projeto);
     }
 
-    // Fechar modal ao clicar fora
+    // Fechar modais ao clicar fora
     document.getElementById('newProjectModal').addEventListener('click', function(e) {
       if (e.target === this) {
         closeNewProjectModal();
       }
     });
+
+    document.getElementById('editProjectModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeEditProjectModal();
+      }
+    });
+
+    // Event listener para mudança de status no modal de edição
+    document.getElementById('editStatusOrcamento').addEventListener('change', toggleEditStatusPedido);
 
     // Helpers
     function getStatusClass(status) {
