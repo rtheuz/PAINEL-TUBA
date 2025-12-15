@@ -991,25 +991,71 @@ function getDashboardStats() {
   // Materiais cadastrados
   const materiais = SHEET_MAT ? Math.max(SHEET_MAT.getLastRow() - 1, 0) : 0;
 
-  // Pedidos
-  const pedidos = SHEET_PED ? Math.max(SHEET_PED.getLastRow() - 1, 0) : 0;
-
   // Produtos cadastrados
   const produtos = SHEET_PRODUTOS ? Math.max(SHEET_PRODUTOS.getLastRow() - 1, 0) : 0;
 
   // Logs
   const logs = SHEET_LOGS ? Math.max(SHEET_LOGS.getLastRow() - 1, 0) : 0;
 
-  // Kanban = pedidos que não estão finalizados
+  // Verifica se existe aba Projetos unificada
+  const sheetProj = ss.getSheetByName("Projetos");
+  
+  let orcamentos = 0;
+  let pedidos = 0;
   let kanban = 0;
-  if (SHEET_PED && pedidos > 0) {
-    const data = SHEET_PED.getRange(2, 3, pedidos).getValues();
-    kanban = data.filter(r => r[0] && r[0] !== "Finalizado").length;
+
+  if (sheetProj) {
+    // === NOVA LÓGICA: Conta da aba Projetos ===
+    const totalProjetos = Math.max(sheetProj.getLastRow() - 1, 0);
+    
+    if (totalProjetos > 0) {
+      try {
+        const dados = sheetProj.getDataRange().getValues();
+        const headers = dados[0];
+        const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+        const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+
+        for (let i = 1; i < dados.length; i++) {
+          const row = dados[i];
+          const statusOrc = idxStatusOrc >= 0 ? row[idxStatusOrc] : "";
+          const statusPed = idxStatusPed >= 0 ? row[idxStatusPed] : "";
+
+          // Conta orçamentos: projetos que não foram convertidos nem perdidos
+          if (statusOrc && !["Convertido em Pedido", "Expirado/Perdido"].includes(statusOrc)) {
+            orcamentos++;
+          }
+
+          // Conta pedidos: projetos com STATUS_PEDIDO não vazio
+          if (statusPed && statusPed !== "") {
+            pedidos++;
+            // Kanban: pedidos que não estão finalizados
+            if (statusPed !== "Finalizado") {
+              kanban++;
+            }
+          }
+        }
+      } catch (e) {
+        Logger.log("Erro ao contar stats da aba Projetos: " + e.message);
+      }
+    }
+  } else {
+    // === LÓGICA ANTIGA: Conta das abas separadas ===
+    // Pedidos
+    pedidos = SHEET_PED ? Math.max(SHEET_PED.getLastRow() - 1, 0) : 0;
+
+    // Kanban = pedidos que não estão finalizados
+    if (SHEET_PED && pedidos > 0) {
+      try {
+        const data = SHEET_PED.getRange(2, 3, pedidos).getValues();
+        kanban = data.filter(r => r[0] && r[0] !== "Finalizado").length;
+      } catch (e) {
+        Logger.log("Erro ao contar kanban: " + e.message);
+      }
+    }
+
+    // Orçamentos ativos
+    orcamentos = SHEET_ORC ? Math.max(SHEET_ORC.getLastRow() - 1, 0) : 0;
   }
-
-  // Orçamentos ativos
-  const orcamentos = SHEET_ORC ? Math.max(SHEET_ORC.getLastRow() - 1, 0) : 0;
-
 
   return { propostas, orcamentos, pedidos, kanban, etiquetas, materiais, logs, produtos };
 }
@@ -1080,41 +1126,118 @@ function getKanbanData() {
       "Envio / Coleta": []
     };
 
-    // --- Orçamentos ---
-    if (typeof SHEET_ORC !== 'undefined' && SHEET_ORC) {
-      const valsOrc = SHEET_ORC.getDataRange().getValues();
-      if (valsOrc && valsOrc.length > 0) {
-        const headersOrc = valsOrc[0];
-        const idxCliente = _findHeaderIndex(headersOrc, "CLIENTE");
-        const idxProjeto = _findHeaderIndex(headersOrc, "PROJETO");
-        const idxStatus = _findHeaderIndex(headersOrc, "STATUS");
-        const idxDescricaoResult = _findHeaderIndex(headersOrc, "DESCRIÇÃO");
-        const idxDescricao = idxDescricaoResult >= 0 ? idxDescricaoResult : _findHeaderIndex(headersOrc, "Descrição");
-        const idxPrazoResult = _findHeaderIndex(headersOrc, "PRAZO");
-        const idxPrazo = idxPrazoResult >= 0 ? idxPrazoResult : _findHeaderIndex(headersOrc, "Prazo");
+    // Verifica se existe a aba Projetos unificada
+    const sheetProj = ss.getSheetByName("Projetos");
+    
+    if (sheetProj) {
+      // === NOVA LÓGICA: Aba Projetos Unificada ===
+      const valsProj = sheetProj.getDataRange().getValues();
+      if (valsProj && valsProj.length > 1) {
+        const headersProj = valsProj[0];
+        const idxCliente = _findHeaderIndex(headersProj, "CLIENTE");
+        const idxProjeto = _findHeaderIndex(headersProj, "PROJETO");
+        const idxDescricao = _findHeaderIndex(headersProj, "DESCRIÇÃO");
+        const idxStatusOrc = _findHeaderIndex(headersProj, "STATUS_ORCAMENTO");
+        const idxStatusPed = _findHeaderIndex(headersProj, "STATUS_PEDIDO");
+        const idxPrazo = _findHeaderIndex(headersProj, "PRAZO");
+        const idxProcessos = _findHeaderIndex(headersProj, "PROCESSOS");
+        const idxObs = _findHeaderIndex(headersProj, "OBSERVAÇÕES");
 
-        for (let i = 1; i < valsOrc.length; i++) {
-          const row = valsOrc[i];
-          const status = idxStatus >= 0 ? row[idxStatus] : row[2];
-          if (status && !["Expirado/Perdido", "Convertido em Pedido", "Enviado"].includes(status)) {
-            const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
-            let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
-            // Normaliza prazo para string segura
-            prazo = normalizePrazo(prazo);
+        for (let i = 1; i < valsProj.length; i++) {
+          const row = valsProj[i];
+          const cliente = idxCliente >= 0 ? row[idxCliente] : "";
+          const projeto = idxProjeto >= 0 ? row[idxProjeto] : "";
+          const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
+          const statusOrc = idxStatusOrc >= 0 ? row[idxStatusOrc] : "";
+          const statusPed = idxStatusPed >= 0 ? row[idxStatusPed] : "";
+          let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
+          prazo = normalizePrazo(prazo);
 
+          // Cards de orçamento: WHERE STATUS_ORCAMENTO NOT IN ('Convertido em Pedido', 'Expirado/Perdido')
+          // e STATUS_PEDIDO vazio
+          if (statusOrc && !["Convertido em Pedido", "Expirado/Perdido"].includes(statusOrc) && !statusPed) {
             data["Processo de Orçamento"].push({
-              cliente: idxCliente >= 0 ? row[idxCliente] : "",
-              projeto: idxProjeto >= 0 ? row[idxProjeto] : "",
-              descricao: descricao || "",
-              status: status || "",
+              cliente: cliente,
+              projeto: projeto,
+              descricao: descricao,
+              status: statusOrc,
               prazo: prazo
             });
+          }
+
+          // Cards de pedido: WHERE STATUS_PEDIDO IS NOT NULL AND STATUS_PEDIDO != '' AND STATUS_PEDIDO != 'Finalizado'
+          if (statusPed && statusPed !== "" && statusPed !== "Finalizado") {
+            const obs = idxObs >= 0 ? row[idxObs] : "";
+            const processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || "") : "";
+            
+            // Extrai tempo estimado do campo PROCESSOS
+            let tempoEstimado = "";
+            if (/Preparação/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/preparação\s*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            } else if (/Corte/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/corte\s*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            } else if (/Dobra/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/dobra\s*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            } else if (/Adicion/i.test(statusPed)) {
+              tempoEstimado = processosStr.match(/adici.*:?\s*([\d.,]+h?)/i)?.[1] || "";
+            }
+
+            // Busca tempo real dos logs (se disponível)
+            let tempoReal = "";
+            const chave = cliente + "|" + projeto;
+            // mapaLogs será preenchido abaixo
+
+            if (Array.isArray(data[statusPed])) {
+              data[statusPed].push({
+                cliente: cliente,
+                projeto: projeto,
+                descricao: descricao,
+                observacoes: obs,
+                tempoEstimado: tempoEstimado,
+                tempoReal: tempoReal,  // Será preenchido pelos logs abaixo
+                prazo: prazo
+              });
+            }
+          }
+        }
+      }
+    } else {
+      // === LÓGICA ANTIGA: Abas separadas (Orçamentos e Pedidos) ===
+      // --- Orçamentos ---
+      if (typeof SHEET_ORC !== 'undefined' && SHEET_ORC) {
+        const valsOrc = SHEET_ORC.getDataRange().getValues();
+        if (valsOrc && valsOrc.length > 0) {
+          const headersOrc = valsOrc[0];
+          const idxCliente = _findHeaderIndex(headersOrc, "CLIENTE");
+          const idxProjeto = _findHeaderIndex(headersOrc, "PROJETO");
+          const idxStatus = _findHeaderIndex(headersOrc, "STATUS");
+          const idxDescricaoResult = _findHeaderIndex(headersOrc, "DESCRIÇÃO");
+          const idxDescricao = idxDescricaoResult >= 0 ? idxDescricaoResult : _findHeaderIndex(headersOrc, "Descrição");
+          const idxPrazoResult = _findHeaderIndex(headersOrc, "PRAZO");
+          const idxPrazo = idxPrazoResult >= 0 ? idxPrazoResult : _findHeaderIndex(headersOrc, "Prazo");
+
+          for (let i = 1; i < valsOrc.length; i++) {
+            const row = valsOrc[i];
+            const status = idxStatus >= 0 ? row[idxStatus] : row[2];
+            if (status && !["Expirado/Perdido", "Convertido em Pedido", "Enviado"].includes(status)) {
+              const descricao = idxDescricao >= 0 ? row[idxDescricao] : "";
+              let prazo = idxPrazo >= 0 ? row[idxPrazo] : "";
+              prazo = normalizePrazo(prazo);
+
+              data["Processo de Orçamento"].push({
+                cliente: idxCliente >= 0 ? row[idxCliente] : "",
+                projeto: idxProjeto >= 0 ? row[idxProjeto] : "",
+                descricao: descricao || "",
+                status: status || "",
+                prazo: prazo
+              });
+            }
           }
         }
       }
     }
 
-    // --- Logs (mapa) ---
+    // --- Logs (mapa) - Processa logs para ambas estruturas ---
     const mapaLogs = {};
     if (typeof SHEET_LOGS !== 'undefined' && SHEET_LOGS) {
       const valsLogs = SHEET_LOGS.getDataRange().getValues();
@@ -1219,6 +1342,28 @@ function getKanbanData() {
           }
         }
       }
+    }
+
+    // Aplica tempos reais dos logs aos cards de pedido (para nova estrutura)
+    if (sheetProj && Object.keys(mapaLogs).length > 0) {
+      Object.keys(data).forEach(coluna => {
+        if (coluna !== "Processo de Orçamento" && Array.isArray(data[coluna])) {
+          data[coluna].forEach(card => {
+            const chave = card.cliente + "|" + card.projeto;
+            if (mapaLogs[chave]) {
+              if (/Preparação/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].preparacao_mp_cad_com || "";
+              } else if (/Corte/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].corte || "";
+              } else if (/Dobra/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].dobra || "";
+              } else if (/Adicion/i.test(coluna)) {
+                card.tempoReal = mapaLogs[chave].adicionais || "";
+              }
+            }
+          });
+        }
+      });
     }
 
     return data;
@@ -2407,46 +2552,85 @@ function getProdutos() {
 
 function atualizarStatusKanban(cliente, projeto, novoStatus) {
   try {
-    if (!SHEET_PED) return;
-
     let statusAntigo = '';
     let processosStr = '';
 
-    // --- Aba Pedidos ---
-    const dadosRaw = SHEET_PED.getDataRange().getValues();
-    if (!dadosRaw || dadosRaw.length < 1) return;
+    // Verifica se existe a aba Projetos unificada
+    const sheetProj = ss.getSheetByName("Projetos");
+    
+    if (sheetProj) {
+      // === NOVA LÓGICA: Atualiza STATUS_PEDIDO na aba Projetos ===
+      const dadosProj = sheetProj.getDataRange().getValues();
+      if (!dadosProj || dadosProj.length < 2) return;
 
-    const headers = dadosRaw[0].map(h => String(h || '').trim());
-    // busca índices de forma case-insensitive (tolerante a espaçamento)
-    const idxCliente = headers.findIndex(h => /^cliente$/i.test(h) || /cliente/i.test(h));
-    const idxProjeto = headers.findIndex(h => /n[uú]mero do projeto/i.test(h) || /n[oº]mero do projeto/i.test(h) || /projeto/i.test(h));
-    const idxStatus = headers.findIndex(h => /status/i.test(h));
-    const idxTempo = headers.findIndex(h => /tempo estimado/i.test(h) || /tempo/i.test(h));
-    const idxPrazoP = headers.findIndex(h => /prazo/i.test(h));
+      const headers = dadosProj[0];
+      const idxCliente = _findHeaderIndex(headers, "CLIENTE");
+      const idxProjeto = _findHeaderIndex(headers, "PROJETO");
+      const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+      const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+      const idxProcessos = _findHeaderIndex(headers, "PROCESSOS");
 
-    // valida índices
-    if (idxCliente < 0 || idxProjeto < 0 || idxStatus < 0) {
-      Logger.log('atualizarStatusKanban: cabeçalhos não encontrados. cliente:%s projeto:%s status:%s', idxCliente, idxProjeto, idxStatus);
-      return;
-    }
+      // Valida índices
+      if (idxCliente < 0 || idxProjeto < 0 || idxStatusPed < 0) {
+        Logger.log('atualizarStatusKanban (Projetos): cabeçalhos não encontrados');
+        return;
+      }
 
-    for (let i = 1; i < dadosRaw.length; i++) {
-      const row = dadosRaw[i];
-      const valCliente = String(row[idxCliente] || '').trim();
-      const valProjeto = String(row[idxProjeto] || '').trim();
-      if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
-        statusAntigo = String(row[idxStatus] || '').trim();
-        // normaliza processosStr (se for Date converte para string)
-        const tempoCell = row[idxTempo];
-        if (Object.prototype.toString.call(tempoCell) === '[object Date]') {
-          const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'GMT';
-          processosStr = Utilities.formatDate(tempoCell, tz, 'yyyy-MM-dd');
-        } else {
-          processosStr = String(tempoCell || '').trim();
+      for (let i = 1; i < dadosProj.length; i++) {
+        const row = dadosProj[i];
+        const valCliente = String(row[idxCliente] || '').trim();
+        const valProjeto = String(row[idxProjeto] || '').trim();
+        
+        if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
+          statusAntigo = String(row[idxStatusPed] || '').trim();
+          processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || '').trim() : '';
+          
+          // Se estava em orçamento e está mudando para um status de pedido, atualiza STATUS_ORCAMENTO também
+          if (!statusAntigo && idxStatusOrc >= 0) {
+            const statusOrc = String(row[idxStatusOrc] || '').trim();
+            if (statusOrc !== "Convertido em Pedido") {
+              sheetProj.getRange(i + 1, idxStatusOrc + 1).setValue("Convertido em Pedido");
+            }
+          }
+          
+          // Atualiza STATUS_PEDIDO
+          sheetProj.getRange(i + 1, idxStatusPed + 1).setValue(novoStatus);
+          break;
         }
-        // atualiza célula de status (linha no sheet = i+1)
-        SHEET_PED.getRange(i + 1, idxStatus + 1).setValue(novoStatus);
-        break;
+      }
+    } else if (SHEET_PED) {
+      // === LÓGICA ANTIGA: Atualiza Status na aba Pedidos ===
+      const dadosRaw = SHEET_PED.getDataRange().getValues();
+      if (!dadosRaw || dadosRaw.length < 1) return;
+
+      const headers = dadosRaw[0].map(h => String(h || '').trim());
+      const idxCliente = headers.findIndex(h => /^cliente$/i.test(h) || /cliente/i.test(h));
+      const idxProjeto = headers.findIndex(h => /n[uú]mero do projeto/i.test(h) || /n[oº]mero do projeto/i.test(h) || /projeto/i.test(h));
+      const idxStatus = headers.findIndex(h => /status/i.test(h));
+      const idxTempo = headers.findIndex(h => /tempo estimado/i.test(h) || /tempo/i.test(h));
+
+      // valida índices
+      if (idxCliente < 0 || idxProjeto < 0 || idxStatus < 0) {
+        Logger.log('atualizarStatusKanban: cabeçalhos não encontrados. cliente:%s projeto:%s status:%s', idxCliente, idxProjeto, idxStatus);
+        return;
+      }
+
+      for (let i = 1; i < dadosRaw.length; i++) {
+        const row = dadosRaw[i];
+        const valCliente = String(row[idxCliente] || '').trim();
+        const valProjeto = String(row[idxProjeto] || '').trim();
+        if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
+          statusAntigo = String(row[idxStatus] || '').trim();
+          const tempoCell = row[idxTempo];
+          if (Object.prototype.toString.call(tempoCell) === '[object Date]') {
+            const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'GMT';
+            processosStr = Utilities.formatDate(tempoCell, tz, 'yyyy-MM-dd');
+          } else {
+            processosStr = String(tempoCell || '').trim();
+          }
+          SHEET_PED.getRange(i + 1, idxStatus + 1).setValue(novoStatus);
+          break;
+        }
       }
     }
 
