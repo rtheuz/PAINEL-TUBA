@@ -231,29 +231,7 @@
     .status-envio { background: #bfdbfe; color: #1e3a8a; }
     .status-finalizado { background: #d1fae5; color: #065f46; }
 
-    .editable {
-      cursor: pointer;
-      position: relative;
-      padding: 8px 10px;
-      border-radius: 4px;
-      transition: all 0.2s;
-      min-height: 36px;
-      display: flex;
-      align-items: center;
-    }
-
-    .editable:hover {
-      background: #e0f2fe;
-      box-shadow: inset 0 0 0 1px #0ea5ff;
-    }
-    
-    .editable:hover::after {
-      content: '✏️';
-      position: absolute;
-      right: 4px;
-      font-size: 10px;
-      opacity: 0.6;
-    }
+    /* Removed editable cell styles - editing now only via modal */
 
     .edit-input, .edit-select {
       width: 100%;
@@ -568,8 +546,8 @@
             <input type="text" id="editCliente" required>
           </div>
           <div class="form-group">
-            <label>Número do Projeto</label>
-            <input type="text" id="editProjeto" readonly style="background: #f3f4f6; cursor: not-allowed;">
+            <label>Número do Projeto *</label>
+            <input type="text" id="editProjeto" required>
           </div>
           <div class="form-group">
             <label>Descrição</label>
@@ -666,7 +644,6 @@
   <script>
     const TOKEN = '<?= token ?>';
     let projetos = [];
-    let editingCell = null;
 
     // Carrega os projetos
     async function loadProjetos() {
@@ -778,11 +755,11 @@
 
         html += `
           <tr data-linha="${linha}">
-            <td class="editable" data-field="CLIENTE" data-linha="${linha}">${projeto.CLIENTE || ''}</td>
+            <td>${projeto.CLIENTE || ''}</td>
             <td><strong>${projeto.PROJETO || ''}</strong></td>
-            <td class="editable" data-field="DESCRIÇÃO" data-linha="${linha}">${projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || ''}</td>
-            <td class="editable" data-field="VALOR TOTAL" data-linha="${linha}">${formatCurrency(projeto['VALOR TOTAL'])}</td>
-            <td class="editable" data-field="PROCESSOS" data-linha="${linha}">${projeto.PROCESSOS || ''}</td>
+            <td>${projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || ''}</td>
+            <td>${formatCurrency(projeto['VALOR TOTAL'])}</td>
+            <td>${projeto.PROCESSOS || ''}</td>
             <td>
               <select class="status-select" data-field="STATUS_ORCAMENTO" data-linha="${linha}" onchange="updateStatus(this)">
                 <option value="RASCUNHO" ${projeto.STATUS_ORCAMENTO === 'RASCUNHO' ? 'selected' : ''}>Rascunho</option>
@@ -802,8 +779,8 @@
                 <option value="Finalizado" ${projeto.STATUS_PEDIDO === 'Finalizado' ? 'selected' : ''}>Finalizado</option>
               </select>
             </td>
-            <td class="editable" data-field="PRAZO" data-linha="${linha}">${formatDate(projeto.PRAZO)}</td>
-            <td class="editable" data-field="OBSERVAÇÕES" data-linha="${linha}">${projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || ''}</td>
+            <td>${formatDate(projeto.PRAZO)}</td>
+            <td>${projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || ''}</td>
             <td>
               ${projeto['LINK DO PDF'] ? `<a href="${projeto['LINK DO PDF']}" target="_blank" class="link-icon" title="Abrir PDF">📄</a>` : '-'}
             </td>
@@ -822,60 +799,6 @@
       `;
 
       document.getElementById('tableContainer').innerHTML = html;
-      setupEditableFields();
-    }
-
-    // Configurar campos editáveis
-    function setupEditableFields() {
-      document.querySelectorAll('.editable').forEach(cell => {
-        cell.addEventListener('click', function() {
-          if (editingCell) return; // Já está editando outra célula
-          
-          const linha = this.dataset.linha;
-          const field = this.dataset.field;
-          const currentValue = this.textContent.trim();
-          
-          editingCell = this;
-          
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.className = 'edit-input';
-          input.value = currentValue;
-          
-          this.innerHTML = '';
-          this.appendChild(input);
-          input.focus();
-          
-          input.addEventListener('blur', function() {
-            saveField(linha, field, input.value);
-          });
-          
-          input.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-              input.blur();
-            } else if (e.key === 'Escape') {
-              cell.textContent = currentValue;
-              editingCell = null;
-            }
-          });
-        });
-      });
-    }
-
-    // Salvar campo editado
-    function saveField(linha, field, value) {
-      google.script.run
-        .withSuccessHandler(function() {
-          editingCell.textContent = value;
-          editingCell = null;
-          loadProjetos(); // Recarrega para atualizar
-        })
-        .withFailureHandler(function(error) {
-          alert('Erro ao salvar: ' + (error.message || error));
-          editingCell = null;
-          loadProjetos();
-        })
-        .atualizarProjetoNaPlanilha(linha, {[field]: value});
     }
 
     // Atualizar status
@@ -984,6 +907,7 @@
       const linha = document.getElementById('editLinha').value;
       const updates = {
         'CLIENTE': document.getElementById('editCliente').value,
+        'PROJETO': document.getElementById('editProjeto').value,
         'DESCRIÇÃO': document.getElementById('editDescricao').value,
         'RESPONSÁVEL CLIENTE': document.getElementById('editResponsavel').value,
         'VALOR TOTAL': document.getElementById('editValor').value,
