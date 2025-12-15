@@ -671,6 +671,35 @@
       margin: 0;
       font-size: 14px;
     }
+
+    /* Badges de tipo */
+    .tipo-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .tipo-badge.orcamento {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+    }
+
+    .tipo-badge.pedido {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .tipo-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+    }
   </style>
 </head>
 
@@ -717,6 +746,15 @@
 
         <div class="controls-row">
           <div class="filter-group">
+            <label for="filterTipo">Tipo:</label>
+            <select id="filterTipo" onchange="filtroGlobal()" aria-label="Filtrar por tipo">
+              <option value="">Todos</option>
+              <option value="Orçamento">Apenas Orçamentos</option>
+              <option value="Pedido">Apenas Pedidos</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
             <label for="filterStatus">Status:</label>
             <select id="filterStatus" onchange="filtroGlobal()" aria-label="Filtrar por status">
               <option value="">Todos</option>
@@ -747,6 +785,7 @@
         <table id="tabelaOrcamentos" aria-label="Lista de projetos">
           <thead>
             <tr>
+              <th>Tipo</th>
               <th>Cliente</th>
               <th>Descrição</th>
               <th>Responsável Cliente</th>
@@ -763,7 +802,12 @@
           </thead>
           <tbody>
             <? for (var i = 0; i < dados.length; i++) { ?>
-            <tr data-row="<?!= dados[i]['_linhaPlanilha'] ?>">
+            <tr data-row="<?!= dados[i]['_linhaPlanilha'] ?>" data-tipo="<?!= dados[i]['_tipo'] || 'Orçamento' ?>">
+              <td data-label="Tipo" class="col-tipo">
+                <span class="tipo-badge <?!= (dados[i]['_tipo'] || 'Orçamento').toLowerCase() ?>">
+                  <?!= dados[i]['_tipo'] || 'Orçamento' ?>
+                </span>
+              </td>
               <td data-label="Cliente" class="col-cliente">
                 <?!= dados[i]["CLIENTE"] ?>
               </td>
@@ -1088,8 +1132,21 @@
           setTimeout(() => selectElem.classList.remove('updated'), 700);
           showToast('Status atualizado', 1400);
 
+          // Atualiza o tipo se o status mudou para "Convertido em Pedido"
+          const tr = selectElem.closest('tr');
+          if (tr) {
+            const tipo = novoStatus === "Convertido em Pedido" ? 'Pedido' : 'Orçamento';
+            tr.setAttribute('data-tipo', tipo);
+            
+            const tipoBadge = tr.querySelector('.col-tipo .tipo-badge');
+            if (tipoBadge) {
+              tipoBadge.textContent = tipo;
+              tipoBadge.className = `tipo-badge ${tipo.toLowerCase()}`;
+            }
+          }
+
           if (novoStatus === "Convertido em Pedido") {
-            showToast('Convertendo em pedido...', 2000);
+            showToast('✓ Orçamento convertido em pedido!', 2500);
           }
         })
         .withFailureHandler(err => {
@@ -1112,6 +1169,8 @@
     function filtroGlobal() {
       const qRaw = document.getElementById('globalSearch').value || '';
       const q = normalizeText(qRaw);
+      const tipoFiltroRaw = (document.getElementById('filterTipo').value || '').trim();
+      const tipoFiltro = normalizeText(tipoFiltroRaw);
       const statusFiltroRaw = (document.getElementById('filterStatus').value || '').trim();
       const statusFiltro = normalizeText(statusFiltroRaw);
       const rows = document.querySelectorAll('#tabelaOrcamentos tbody tr');
@@ -1130,6 +1189,13 @@
         let matchesText = true;
         if (q) matchesText = combined.indexOf(q) !== -1;
 
+        // Filtro por tipo
+        let matchesTipo = true;
+        if (tipoFiltro) {
+          const rowTipo = normalizeText(r.getAttribute('data-tipo') || 'orcamento');
+          matchesTipo = (rowTipo === tipoFiltro);
+        }
+
         let matchesStatus = true;
         if (statusFiltro) {
           const sel = r.querySelector('.status-select');
@@ -1137,7 +1203,7 @@
           matchesStatus = (rowStatus === statusFiltro);
         }
 
-        if (matchesText && matchesStatus) {
+        if (matchesText && matchesTipo && matchesStatus) {
           r.style.display = '';
           visibleCount++;
         } else {
@@ -1150,6 +1216,7 @@
 
     function limparFiltros() {
       document.getElementById('globalSearch').value = '';
+      document.getElementById('filterTipo').value = '';
       document.getElementById('filterStatus').value = '';
       document.getElementById('sortSelect').value = '';
       filtroGlobal();
@@ -1365,7 +1432,16 @@
       const tbody = document.querySelector('#tabelaOrcamentos tbody');
       const tr = document.createElement('tr');
       tr.setAttribute('data-row', String(linhaPlanilha));
+      
+      // Determina o tipo baseado no status
+      const status = dados.STATUS || 'Rascunho';
+      const tipo = status === 'Convertido em Pedido' ? 'Pedido' : 'Orçamento';
+      tr.setAttribute('data-tipo', tipo);
+      
       tr.innerHTML = `
+        <td data-label="Tipo" class="col-tipo">
+          <span class="tipo-badge ${tipo.toLowerCase()}">${tipo}</span>
+        </td>
         <td data-label="Cliente" class="col-cliente">${dados.CLIENTE || ''}</td>
         <td data-label="Descrição" class="col-descricao">${dados["DESCRIÇÃO"] || ''}</td>
         <td data-label="Responsável Cliente" class="col-resp">${dados["RESPONSÁVEL CLIENTE"] || ''}</td>
@@ -1413,6 +1489,17 @@
       if (!tr) {
         console.warn('Linha não encontrada:', linhaPlanilha);
         return;
+      }
+
+      // Atualiza o tipo baseado no status
+      const status = dados.STATUS || 'Rascunho';
+      const tipo = status === 'Convertido em Pedido' ? 'Pedido' : 'Orçamento';
+      tr.setAttribute('data-tipo', tipo);
+      
+      const tipoBadge = tr.querySelector('.col-tipo .tipo-badge');
+      if (tipoBadge) {
+        tipoBadge.textContent = tipo;
+        tipoBadge.className = `tipo-badge ${tipo.toLowerCase()}`;
       }
 
       tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';

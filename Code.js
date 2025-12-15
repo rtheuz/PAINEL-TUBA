@@ -1596,8 +1596,8 @@ function doGet(e) {
       case 'orcamentos':
         if (!SHEET_ORC) throw new Error("Aba 'Orçamentos' não encontrada");
 
-        const values = SHEET_ORC.getDataRange().getValues();
-        const headers = values[0];
+        const valuesOrc = SHEET_ORC.getDataRange().getValues();
+        const headersOrc = valuesOrc[0];
 
         // Função para normalizar nomes de cabeçalho (remove acentos, espaços extras, converte para maiúsculas)
         function normalizeHeader(h) {
@@ -1608,14 +1608,15 @@ function doGet(e) {
         }
 
         // Mapeia índices de cabeçalhos normalizados para facilitar busca
-        const headerNormalizedMap = {};
-        headers.forEach((h, i) => {
-          headerNormalizedMap[normalizeHeader(h)] = i;
+        const headerNormalizedMapOrc = {};
+        headersOrc.forEach((h, i) => {
+          headerNormalizedMapOrc[normalizeHeader(h)] = i;
         });
 
-        const data = values.slice(1).map((row, index) => {
+        // Processa orçamentos
+        const dataOrcamentos = valuesOrc.slice(1).map((row, index) => {
           let obj = {};
-          headers.forEach((h, i) => {
+          headersOrc.forEach((h, i) => {
             let valor = row[i];
             if (h === "VALOR TOTAL" && typeof valor === "number") {
               valor = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1627,7 +1628,6 @@ function doGet(e) {
           });
 
           // Adiciona chaves padronizadas para campos que podem ter variações de nome
-          // Isso garante que o template sempre encontre os dados esperados
           const standardKeys = {
             'DESCRICAO': 'DESCRIÇÃO',
             'RESPONSAVEL': 'RESPONSÁVEL',
@@ -1636,8 +1636,7 @@ function doGet(e) {
 
           Object.entries(standardKeys).forEach(([normalizedKey, standardKey]) => {
             if (obj[standardKey] === undefined) {
-              // Procura por variação do cabeçalho
-              const idx = headerNormalizedMap[normalizedKey];
+              const idx = headerNormalizedMapOrc[normalizedKey];
               if (idx !== undefined && row[idx] !== undefined) {
                 obj[standardKey] = row[idx];
               }
@@ -1645,8 +1644,79 @@ function doGet(e) {
           });
 
           obj["_linhaPlanilha"] = index + 2;
+          obj["_linhaOrcamentos"] = index + 2;  // Para referência específica
+          
+          // Determina o tipo baseado no status
+          const status = obj["STATUS"] || "";
+          if (status === "Convertido em Pedido") {
+            obj["_tipo"] = "Pedido";
+          } else {
+            obj["_tipo"] = "Orçamento";
+          }
+          
           return obj;
         });
+
+        // Processa pedidos (se a aba existir)
+        let dataPedidos = [];
+        if (SHEET_PED) {
+          try {
+            const valuesPed = SHEET_PED.getDataRange().getValues();
+            if (valuesPed && valuesPed.length > 1) {
+              const headersPed = valuesPed[0];
+              
+              const headerNormalizedMapPed = {};
+              headersPed.forEach((h, i) => {
+                headerNormalizedMapPed[normalizeHeader(h)] = i;
+              });
+
+              dataPedidos = valuesPed.slice(1).map((row, index) => {
+                let obj = {};
+                headersPed.forEach((h, i) => {
+                  let valor = row[i];
+                  if (h === "VALOR TOTAL" && typeof valor === "number") {
+                    valor = valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                  }
+                  if ((h === "DATA" || h === "PRAZO") && valor instanceof Date) {
+                    valor = Utilities.formatDate(valor, Session.getScriptTimeZone(), "dd/MM/yyyy");
+                  }
+                  obj[h] = valor;
+                });
+
+                // Mapeia campos de pedidos para estrutura de orçamentos para compatibilidade
+                const fieldMappings = {
+                  'Cliente': 'CLIENTE',
+                  'Número do Projeto': 'PROJETO',
+                  'Descrição': 'DESCRIÇÃO',
+                  'DESCRIÇÃO': 'DESCRIÇÃO'
+                };
+
+                Object.entries(fieldMappings).forEach(([pedidoField, orcField]) => {
+                  if (obj[pedidoField] !== undefined && !obj[orcField]) {
+                    obj[orcField] = obj[pedidoField];
+                  }
+                });
+
+                obj["_linhaPlanilha"] = index + 2;
+                obj["_linhaPedidos"] = index + 2;  // Para referência específica
+                obj["_tipo"] = "Pedido";
+                
+                // Se não tiver status, define como pedido ativo
+                if (!obj["STATUS"]) {
+                  obj["STATUS"] = "Em andamento";
+                }
+                
+                return obj;
+              });
+            }
+          } catch (errPed) {
+            Logger.log('Erro ao carregar pedidos: ' + errPed.message);
+            // Continua sem pedidos em caso de erro
+          }
+        }
+
+        // Combina os dados
+        const data = dataOrcamentos.concat(dataPedidos);
 
         const templateOrcamentos = HtmlService.createTemplateFromFile('orcamentos');
         templateOrcamentos.token = token;
