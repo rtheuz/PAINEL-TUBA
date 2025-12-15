@@ -1551,6 +1551,7 @@ function doGet(e) {
     'kanban': ['admin', 'mod', 'usuario'],
     'avaliacoes': ['admin'],
     'orcamentos': ['admin', 'mod', 'usuario'],
+    'projetos': ['admin', 'mod', 'usuario'],
     'avaliacoespage': ['admin'],
     'pedidos': ['admin', 'mod', 'usuario'],
     'logs': ['admin', 'mod'],
@@ -1632,6 +1633,13 @@ function doGet(e) {
         templateProdutos.dados = produtosResult.data;
         templateProdutos.token = token;
         return templateProdutos.evaluate()
+          .setFaviconUrl(FAVICON)
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      case 'projetos':
+        const templateProjetos = HtmlService.createTemplateFromFile('projetos');
+        templateProjetos.token = token;
+        return templateProjetos.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
@@ -2513,6 +2521,129 @@ function deletePedido(row) {
   } catch (e) {
     Logger.log('deletePedido error (row=%s): %s', row, e.message);
     throw new Error('deletePedido failed: ' + (e.message || 'erro desconhecido'));
+  }
+}
+
+// ==================== FUNÇÕES DA ABA PROJETOS UNIFICADA ====================
+
+/**
+ * Retorna todos os projetos da aba Projetos (ou Orçamentos como fallback)
+ * @returns {Array} Array de objetos com os dados dos projetos
+ */
+function getProjetos() {
+  try {
+    // Tenta usar aba Projetos primeiro
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) {
+      throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+    }
+
+    const values = targetSheet.getDataRange().getValues();
+    if (values.length === 0) return [];
+
+    const headers = values[0];
+    const data = values.slice(1).map((row, index) => {
+      let obj = {};
+      headers.forEach((h, i) => {
+        obj[h] = row[i];
+      });
+      obj["_linhaPlanilha"] = index + 2;
+      return obj;
+    });
+
+    return data;
+  } catch (e) {
+    Logger.log('getProjetos error: %s\n%s', e.message, e.stack);
+    throw new Error('getProjetos failed: ' + (e.message || 'erro desconhecido'));
+  }
+}
+
+/**
+ * Atualiza um projeto na planilha
+ * @param {number} linha - Número da linha na planilha
+ * @param {Object} dataObj - Objeto com os campos a atualizar
+ */
+function atualizarProjetoNaPlanilha(linha, dataObj) {
+  linha = Number(linha);
+  if (!linha || linha < 2) {
+    throw new Error('Parâmetro "linha" inválido. Deve ser número de linha da planilha (>= 2).');
+  }
+
+  // Tenta usar aba Projetos primeiro
+  const sheetProj = ss.getSheetByName("Projetos");
+  const targetSheet = sheetProj || SHEET_ORC;
+  
+  if (!targetSheet) {
+    throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+  }
+
+  // Cabeçalhos
+  var lastCol = targetSheet.getLastColumn();
+  var headers = targetSheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
+
+  // Função utilitária para normalizar strings
+  function normalizeKey(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  // Normaliza as chaves do dataObj
+  var normalizedData = {};
+  var originalKeys = Object.keys(dataObj || {});
+  originalKeys.forEach(function (k) {
+    var nk = normalizeKey(k);
+    normalizedData[nk] = dataObj[k];
+  });
+
+  // Lê a linha atual para preservar valores não enviados
+  var currentRow = targetSheet.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
+
+  // Monta nova linha: se header correspondente existe em normalizedData, usa-o; senão mantém currentRow
+  var newRow = headers.map(function (h, idx) {
+    var hk = normalizeKey(h);
+    if (normalizedData.hasOwnProperty(hk)) {
+      return normalizedData[hk];
+    }
+    return currentRow[idx];
+  });
+
+  // Gravar nova linha
+  try {
+    targetSheet.getRange(linha, 1, 1, newRow.length).setValues([newRow]);
+    return { success: true, linha: linha };
+  } catch (err) {
+    throw new Error('Erro ao escrever na planilha: ' + (err && err.message ? err.message : err));
+  }
+}
+
+/**
+ * Exclui um projeto da planilha
+ * @param {number} linha - Número da linha na planilha
+ */
+function excluirProjeto(linha) {
+  try {
+    linha = Number(linha);
+    if (!linha || linha < 2) {
+      throw new Error('Índice de linha inválido para exclusão: ' + linha);
+    }
+
+    // Tenta usar aba Projetos primeiro
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_ORC;
+    
+    if (!targetSheet) {
+      throw new Error("Nenhuma aba de projetos/orçamentos encontrada");
+    }
+
+    targetSheet.deleteRow(linha);
+    return { success: true };
+  } catch (e) {
+    Logger.log('excluirProjeto error (linha=%s): %s', linha, e.message);
+    throw new Error('excluirProjeto failed: ' + (e.message || 'erro desconhecido'));
   }
 }
 

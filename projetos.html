@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Projetos — Sistema TUBA</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-1: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --muted: #64748b;
+      --accent: #0ea5ff;
+      --radius: 12px;
+      --max-width: 1400px;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      color: #0f172a;
+      background: var(--bg-1);
+      overflow-x: hidden;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 60px;
+      gap: 16px;
+    }
+
+    .topbar {
+      width: 100%;
+      max-width: var(--max-width);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+    }
+
+    .brand img {
+      height: 40px;
+      width: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(2, 6, 23, 0.3);
+    }
+
+    .brand h1 {
+      font-size: 20px;
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.85);
+      margin-top: 2px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), #3b82f6);
+      color: white;
+      box-shadow: 0 4px 12px rgba(14, 165, 255, 0.3);
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .card {
+      width: 100%;
+      max-width: var(--max-width);
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+    }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .filter-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-input, .filter-select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .filter-input:focus, .filter-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      margin: 0 -20px;
+      padding: 0 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: white;
+    }
+
+    th {
+      padding: 12px 10px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #e5e7eb;
+      white-space: nowrap;
+      background: white;
+    }
+
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+
+    tr:hover {
+      background: #f9fafb;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .status-rascunho { background: #f3f4f6; color: #6b7280; }
+    .status-enviado { background: #dbeafe; color: #1e40af; }
+    .status-convertido { background: #d1fae5; color: #065f46; }
+    .status-expirado { background: #fee2e2; color: #991b1b; }
+    .status-preparacao { background: #fef3c7; color: #92400e; }
+    .status-corte { background: #fce7f3; color: #831843; }
+    .status-dobra { background: #ddd6fe; color: #5b21b6; }
+    .status-adicionais { background: #fed7aa; color: #9a3412; }
+    .status-envio { background: #bfdbfe; color: #1e3a8a; }
+    .status-finalizado { background: #d1fae5; color: #065f46; }
+
+    .editable {
+      cursor: pointer;
+      position: relative;
+      padding: 6px 8px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .editable:hover {
+      background: #f3f4f6;
+    }
+
+    .edit-input, .edit-select {
+      width: 100%;
+      padding: 6px 8px;
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .edit-input:focus, .edit-select:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+    }
+
+    .btn-small {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .link-icon {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 16px;
+      display: inline-block;
+      padding: 4px;
+    }
+
+    .link-icon:hover {
+      opacity: 0.7;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    @media (max-width: 768px) {
+      .page {
+        padding: 12px 8px 40px;
+      }
+
+      .card {
+        padding: 12px;
+      }
+
+      .filters {
+        flex-direction: column;
+      }
+
+      .filter-group {
+        min-width: 100%;
+      }
+
+      table {
+        font-size: 12px;
+      }
+
+      th, td {
+        padding: 8px 6px;
+      }
+
+      .brand h1 {
+        font-size: 16px;
+      }
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid var(--accent);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand">
+        <img src="https://i.imgur.com/F8X7ZMs.png" alt="TUBA">
+        <div class="brand-text">
+          <h1>Projetos</h1>
+          <div class="brand-subtitle">Gestão Unificada de Orçamentos e Pedidos</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="window.location.href='?page=dashboard&token=<?= token ?>'">← Voltar</button>
+        <button class="btn btn-primary" onclick="window.location.href='?page=orcamento&token=<?= token ?>'">+ Novo Projeto</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <div class="filter-group">
+          <label>Buscar</label>
+          <input type="text" class="filter-input" id="searchInput" placeholder="Cliente, Projeto, Descrição...">
+        </div>
+        <div class="filter-group">
+          <label>Status Orçamento</label>
+          <select class="filter-select" id="statusOrcFilter">
+            <option value="">Todos</option>
+            <option value="RASCUNHO">Rascunho</option>
+            <option value="Enviado">Enviado</option>
+            <option value="Convertido em Pedido">Convertido em Pedido</option>
+            <option value="Expirado/Perdido">Expirado/Perdido</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Status Pedido</label>
+          <select class="filter-select" id="statusPedFilter">
+            <option value="">Todos</option>
+            <option value="Processo de Preparação MP / CAD / CAM">Preparação MP/CAD/CAM</option>
+            <option value="Processo de Corte">Corte</option>
+            <option value="Processo de Dobra">Dobra</option>
+            <option value="Processos Adicionais">Processos Adicionais</option>
+            <option value="Envio / Coleta">Envio/Coleta</option>
+            <option value="Finalizado">Finalizado</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="tableContainer">
+        <div class="loading">
+          <div class="spinner"></div>
+          <div>Carregando projetos...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = '<?= token ?>';
+    let projetos = [];
+    let editingCell = null;
+
+    // Carrega os projetos
+    async function loadProjetos() {
+      try {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            projetos = data || [];
+            renderTable();
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('tableContainer').innerHTML = `
+              <div class="empty-state">
+                <div class="empty-state-icon">⚠️</div>
+                <div>Erro ao carregar projetos: ${error.message || error}</div>
+              </div>
+            `;
+          })
+          .getProjetos();
+      } catch (error) {
+        console.error('Erro ao carregar projetos:', error);
+      }
+    }
+
+    // Renderiza a tabela
+    function renderTable() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const statusOrc = document.getElementById('statusOrcFilter').value;
+      const statusPed = document.getElementById('statusPedFilter').value;
+
+      // Filtra projetos
+      let filtered = projetos.filter(p => {
+        const matchSearch = !searchTerm || 
+          (p.CLIENTE || '').toLowerCase().includes(searchTerm) ||
+          (p.PROJETO || '').toLowerCase().includes(searchTerm) ||
+          (p['DESCRIÇÃO'] || p.DESCRIÇÃO || '').toLowerCase().includes(searchTerm);
+        
+        const matchStatusOrc = !statusOrc || p.STATUS_ORCAMENTO === statusOrc;
+        const matchStatusPed = !statusPed || p.STATUS_PEDIDO === statusPed;
+
+        return matchSearch && matchStatusOrc && matchStatusPed;
+      });
+
+      // Se não há projetos
+      if (filtered.length === 0) {
+        document.getElementById('tableContainer').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div>${projetos.length === 0 ? 'Nenhum projeto encontrado' : 'Nenhum projeto corresponde aos filtros'}</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Cria tabela
+      let html = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Projeto</th>
+                <th>Descrição</th>
+                <th>Valor</th>
+                <th>Data</th>
+                <th>Status Orçamento</th>
+                <th>Status Pedido</th>
+                <th>Prazo</th>
+                <th>PDF</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      filtered.forEach((projeto, index) => {
+        const statusOrcClass = getStatusClass(projeto.STATUS_ORCAMENTO);
+        const statusPedClass = getStatusClass(projeto.STATUS_PEDIDO);
+        const linha = projeto._linhaPlanilha || (index + 2);
+
+        html += `
+          <tr data-linha="${linha}">
+            <td class="editable" data-field="CLIENTE" data-linha="${linha}">${projeto.CLIENTE || ''}</td>
+            <td><strong>${projeto.PROJETO || ''}</strong></td>
+            <td class="editable" data-field="DESCRIÇÃO" data-linha="${linha}">${projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || ''}</td>
+            <td class="editable" data-field="VALOR TOTAL" data-linha="${linha}">${formatCurrency(projeto['VALOR TOTAL'])}</td>
+            <td>${formatDate(projeto.DATA)}</td>
+            <td>
+              <select class="status-select" data-field="STATUS_ORCAMENTO" data-linha="${linha}" onchange="updateStatus(this)">
+                <option value="RASCUNHO" ${projeto.STATUS_ORCAMENTO === 'RASCUNHO' ? 'selected' : ''}>Rascunho</option>
+                <option value="Enviado" ${projeto.STATUS_ORCAMENTO === 'Enviado' ? 'selected' : ''}>Enviado</option>
+                <option value="Convertido em Pedido" ${projeto.STATUS_ORCAMENTO === 'Convertido em Pedido' ? 'selected' : ''}>Convertido</option>
+                <option value="Expirado/Perdido" ${projeto.STATUS_ORCAMENTO === 'Expirado/Perdido' ? 'selected' : ''}>Expirado/Perdido</option>
+              </select>
+            </td>
+            <td>
+              <select class="status-select" data-field="STATUS_PEDIDO" data-linha="${linha}" onchange="updateStatus(this)" ${projeto.STATUS_ORCAMENTO !== 'Convertido em Pedido' ? 'disabled' : ''}>
+                <option value="">-</option>
+                <option value="Processo de Preparação MP / CAD / CAM" ${projeto.STATUS_PEDIDO === 'Processo de Preparação MP / CAD / CAM' ? 'selected' : ''}>Prep. MP/CAD/CAM</option>
+                <option value="Processo de Corte" ${projeto.STATUS_PEDIDO === 'Processo de Corte' ? 'selected' : ''}>Corte</option>
+                <option value="Processo de Dobra" ${projeto.STATUS_PEDIDO === 'Processo de Dobra' ? 'selected' : ''}>Dobra</option>
+                <option value="Processos Adicionais" ${projeto.STATUS_PEDIDO === 'Processos Adicionais' ? 'selected' : ''}>Processos Adicionais</option>
+                <option value="Envio / Coleta" ${projeto.STATUS_PEDIDO === 'Envio / Coleta' ? 'selected' : ''}>Envio/Coleta</option>
+                <option value="Finalizado" ${projeto.STATUS_PEDIDO === 'Finalizado' ? 'selected' : ''}>Finalizado</option>
+              </select>
+            </td>
+            <td class="editable" data-field="PRAZO" data-linha="${linha}">${formatDate(projeto.PRAZO)}</td>
+            <td>
+              ${projeto['LINK DO PDF'] ? `<a href="${projeto['LINK DO PDF']}" target="_blank" class="link-icon" title="Abrir PDF">📄</a>` : '-'}
+            </td>
+            <td>
+              <button class="btn btn-small btn-danger" onclick="deleteProjeto(${linha})">🗑️</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      document.getElementById('tableContainer').innerHTML = html;
+      setupEditableFields();
+    }
+
+    // Configurar campos editáveis
+    function setupEditableFields() {
+      document.querySelectorAll('.editable').forEach(cell => {
+        cell.addEventListener('click', function() {
+          if (editingCell) return; // Já está editando outra célula
+          
+          const linha = this.dataset.linha;
+          const field = this.dataset.field;
+          const currentValue = this.textContent.trim();
+          
+          editingCell = this;
+          
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'edit-input';
+          input.value = currentValue;
+          
+          this.innerHTML = '';
+          this.appendChild(input);
+          input.focus();
+          
+          input.addEventListener('blur', function() {
+            saveField(linha, field, input.value);
+          });
+          
+          input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+              input.blur();
+            } else if (e.key === 'Escape') {
+              cell.textContent = currentValue;
+              editingCell = null;
+            }
+          });
+        });
+      });
+    }
+
+    // Salvar campo editado
+    function saveField(linha, field, value) {
+      google.script.run
+        .withSuccessHandler(function() {
+          editingCell.textContent = value;
+          editingCell = null;
+          loadProjetos(); // Recarrega para atualizar
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao salvar: ' + (error.message || error));
+          editingCell = null;
+          loadProjetos();
+        })
+        .atualizarProjetoNaPlanilha(linha, {[field]: value});
+    }
+
+    // Atualizar status
+    function updateStatus(select) {
+      const linha = select.dataset.linha;
+      const field = select.dataset.field;
+      const value = select.value;
+      
+      google.script.run
+        .withSuccessHandler(function() {
+          // Se converteu em pedido, habilita o select de status_pedido
+          if (field === 'STATUS_ORCAMENTO' && value === 'Convertido em Pedido') {
+            const row = select.closest('tr');
+            const statusPedSelect = row.querySelector('[data-field="STATUS_PEDIDO"]');
+            if (statusPedSelect) {
+              statusPedSelect.disabled = false;
+              if (!statusPedSelect.value) {
+                statusPedSelect.value = 'Processo de Preparação MP / CAD / CAM';
+                updateStatus(statusPedSelect);
+              }
+            }
+          }
+          loadProjetos();
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao atualizar status: ' + (error.message || error));
+          loadProjetos();
+        })
+        .atualizarProjetoNaPlanilha(linha, {[field]: value});
+    }
+
+    // Deletar projeto
+    function deleteProjeto(linha) {
+      if (!confirm('Tem certeza que deseja excluir este projeto?')) return;
+      
+      google.script.run
+        .withSuccessHandler(function() {
+          loadProjetos();
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao excluir: ' + (error.message || error));
+        })
+        .excluirProjeto(linha);
+    }
+
+    // Helpers
+    function getStatusClass(status) {
+      if (!status) return '';
+      const s = status.toLowerCase();
+      if (s.includes('rascunho')) return 'status-rascunho';
+      if (s.includes('enviado')) return 'status-enviado';
+      if (s.includes('convertido')) return 'status-convertido';
+      if (s.includes('expirado') || s.includes('perdido')) return 'status-expirado';
+      if (s.includes('preparação') || s.includes('preparacao')) return 'status-preparacao';
+      if (s.includes('corte')) return 'status-corte';
+      if (s.includes('dobra')) return 'status-dobra';
+      if (s.includes('adicionais')) return 'status-adicionais';
+      if (s.includes('envio') || s.includes('coleta')) return 'status-envio';
+      if (s.includes('finalizado')) return 'status-finalizado';
+      return '';
+    }
+
+    function formatCurrency(value) {
+      if (!value) return '-';
+      // Se já está formatado, retorna como está
+      if (typeof value === 'string' && value.includes('R$')) return value;
+      // Senão, formata
+      const num = parseFloat(value);
+      if (isNaN(num)) return value;
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      // Se já está formatado dd/mm/yyyy, retorna
+      if (typeof value === 'string' && /\d{2}\/\d{2}\/\d{4}/.test(value)) return value;
+      // Tenta converter
+      try {
+        const date = new Date(value);
+        if (isNaN(date.getTime())) return value;
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      } catch (e) {
+        return value;
+      }
+    }
+
+    // Event listeners para filtros
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.getElementById('statusOrcFilter').addEventListener('change', renderTable);
+    document.getElementById('statusPedFilter').addEventListener('change', renderTable);
+
+    // Carrega projetos ao inicializar
+    loadProjetos();
+  </script>
+</body>
+</html>
