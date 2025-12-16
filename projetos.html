@@ -841,6 +841,7 @@
                 <th>Projeto</th>
                 <th>Descrição</th>
                 <th>Valor</th>
+                <th>Data</th>
                 <th>Processos</th>
                 <th>Status Orçamento</th>
                 <th>Status Pedido</th>
@@ -865,6 +866,7 @@
             <td><strong>${projeto.PROJETO || ''}</strong></td>
             <td>${projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || ''}</td>
             <td>${formatCurrency(projeto['VALOR TOTAL'])}</td>
+            <td>${formatDate(projeto.DATA)}</td>
             <td>${projeto.PROCESSOS || ''}</td>
             <td>
               <select class="status-select" data-field="STATUS_ORCAMENTO" data-linha="${linha}" onchange="updateStatus(this)">

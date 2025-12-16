@@ -161,26 +161,19 @@
     <div class="card">
       <div class="icon">🗃️</div>
       <h3>Gerenciar Projetos</h3>
-      <div class="stats" id="statOrcamentos">0</div>
-      <p>Projetos</p>
-      <a id="linkOrcamentos" href="#">Abrir</a>
+      <div class="stats" id="statProjetos">0</div>
+      <p>Projetos ativos / finalizados</p>
+      <a id="linkProjetos" href="#">Abrir</a>
     </div>
 
     <div class="card">
       <div class="icon">📄</div>
       <h3>Nova Proposta Comercial</h3>
       <div class="stats" id="statPropostas">0</div>
-      <p>Total de propostas criadas</p>
-      <a id="linkOrcamento" href="#">Abrir</a>
+      <p>Propostas criadas</p>
+      <a id="linkFormulario" href="#">Abrir</a>
     </div>
 
-    <div class="card">
-      <div class="icon">🛒</div>
-      <h3>Pedidos</h3>
-      <div class="stats" id="statPedidos">0</div>
-      <p>Pedidos em andamento e realizados</p>
-      <a id="linkPedidos" href="#">Abrir</a>
-    </div>
     
     <div class="card">
       <div class="icon">🏭</div>
@@ -218,7 +211,7 @@
       <div class="icon">📜</div>
       <h3>Logs de Produção</h3>
       <div class="stats" id="statLogs">0</div>
-      <p>Tempos de processos de produção</p>
+      <p>Registros de produção</p>
       <a id="linkLogs" href="#">Abrir</a>
     </div>
 
@@ -232,7 +225,7 @@
     <div class="card">
       <div class="icon">⚙️</div>
       <h3>Formulário de Manutenção</h3>
-      <p>Registrar manutenção das máquinas</p>
+      <p>Realizar manutenção das máquinas</p>
       <a id="linkManutencao" href="#">Abrir</a>
     </div>
 
@@ -280,12 +273,11 @@
 
     if (!token) { window.location.href = WEBAPP_URL + "?page=login"; }
 
-    document.getElementById('linkOrcamento').href = WEBAPP_URL + "?page=orcamento&token=" + token;
+    document.getElementById('linkProjetos').href = WEBAPP_URL + "?page=projetos&token=" + token;
     document.getElementById('linkKanban').href = WEBAPP_URL + "?page=kanban&token=" + token;
-    document.getElementById('linkOrcamentos').href = WEBAPP_URL + "?page=orcamentos&token=" + token;
+    document.getElementById('linkFormulario').href = WEBAPP_URL + "?page=formulario&token=" + token;
     document.getElementById('linkGeradorEtiquetas').href = WEBAPP_URL + "?page=geradoretiquetas&token=" + token;
     document.getElementById('linkMateriais').href = WEBAPP_URL + "?page=materiais&token=" + token;
-    document.getElementById('linkPedidos').href = WEBAPP_URL + "?page=pedidos&token=" + token;
     document.getElementById('linkLogs').href = WEBAPP_URL + "?page=logs&token=" + token;
     document.getElementById('linkTESTE').href = WEBAPP_URL + "?page=paginasprotegidas&token=" + token;
     document.getElementById('linkManutencao').href = WEBAPP_URL + "?page=manutencao&token=" + token;
@@ -299,13 +291,13 @@
     function atualizarEstatisticas() {
       google.script.run.withSuccessHandler(res => {
         document.getElementById('statPropostas').textContent = res.propostas || 0;
-        document.getElementById('statOrcamentos').textContent = res.orcamentos || 0;
-        document.getElementById('statPedidos').textContent = res.pedidos || 0;
+        document.getElementById('statProjetos').textContent = res.projetos || 0;
         document.getElementById('statKanban').textContent = res.kanban || 0;
         document.getElementById('statEtiquetas').textContent = res.etiquetas || 0;
         document.getElementById('statMateriais').textContent = res.materiais || 0;
         document.getElementById('statLogs').textContent = res.logs || 0;
         document.getElementById('statProdutos').textContent = res.produtos || 0;
+        document.getElementById('statProjetos').textContent = res.projetos || 0;
       }).getDashboardStats();
     }
 

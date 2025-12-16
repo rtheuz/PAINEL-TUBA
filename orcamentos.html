@@ -1019,7 +1019,7 @@
       form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
       form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
       form.data.value = tr.querySelector('.col-data')?.textContent.trim() || '';
-      
+
       // Parse PRAZO from DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD for date input
       const prazoText = tr.querySelector('.col-prazo')?.textContent.trim() || '';
       if (prazoText) {
@@ -1036,7 +1036,7 @@
       } else {
         form.prazo.value = '';
       }
-      
+
       form.processos.value = tr.querySelector('.col-processos')?.textContent.trim() || '';
 
       const links = tr.querySelectorAll('a.link');
@@ -1227,117 +1227,116 @@
       const linkPdf = (form.linkPdf.value || '').trim();
       const linkMem = (form.linkMemoria.value || '').trim();
       const status = (form.status.value || '').trim();
-      
+
       // Convert prazo from YYYY-MM-DD to DD/MM/YYYY for storage
       let prazo = '';
       if (prazoInput) {
-        const parts = prazoInput.split('-');
-        if (parts.length === 3) {
-          prazo = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
+        // Mantém o formato YYYY-MM-DD que vem do input type="date"
+        prazo = prazoInput; // já está no formato 2025-12-12
       }
+    }
 
-      if (!clienteNome || !projeto) {
-        alert('Preencha ao menos Cliente e Projeto.');
-        return;
-      }
+    if (!clienteNome || !projeto) {
+      alert('Preencha ao menos Cliente e Projeto.');
+      return;
+    }
 
-      const dataObj = {
-        CLIENTE: clienteNome,
-        "DESCRIÇÃO": descricao,
-        "RESPONSÁVEL CLIENTE": responsavelcliente,
-        PROJETO: projeto,
-        "VALOR TOTAL": valor,
-        DATA: data,
-        PRAZO: prazo,
-        Processos: processos,
-        "LINK DO PDF": linkPdf,
-        "LINK DA MEMÓRIA DE CÁLCULO": linkMem,
-        STATUS: status
-      };
+    const dataObj = {
+      CLIENTE: clienteNome,
+      "DESCRIÇÃO": descricao,
+      "RESPONSÁVEL CLIENTE": responsavelcliente,
+      PROJETO: projeto,
+      "VALOR TOTAL": valor,
+      DATA: data,
+      PRAZO: prazo,
+      Processos: processos,
+      "LINK DO PDF": linkPdf,
+      "LINK DA MEMÓRIA DE CÁLCULO": linkMem,
+      STATUS: status
+    };
 
-      const btn = document.getElementById('btnSubmitModal');
-      btn.disabled = true;
-      const originalText = btn.textContent;
-      btn.textContent = editingLinha ? 'Salvando...' : 'Enviando...';
+    const btn = document.getElementById('btnSubmitModal');
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = editingLinha ? 'Salvando...' : 'Enviando...';
 
-      const clienteExiste = clientesNomes.includes(clienteNome);
-      const salvarClientePromise = new Promise((resolve) => {
-        if (clienteExiste) return resolve({ saved: false });
+    const clienteExiste = clientesNomes.includes(clienteNome);
+    const salvarClientePromise = new Promise((resolve) => {
+      if (clienteExiste) return resolve({ saved: false });
+      google.script.run
+        .withSuccessHandler(res => resolve({ saved: true, res }))
+        .withFailureHandler(err => {
+          console.warn('Erro salvarClienteSeNovo:', err);
+          resolve({ saved: false, err });
+        })
+        .salvarClienteSeNovo({ nome: clienteNome });
+    });
+
+    salvarClientePromise.then(() => {
+      if (editingLinha) {
         google.script.run
-          .withSuccessHandler(res => resolve({ saved: true, res }))
-          .withFailureHandler(err => {
-            console.warn('Erro salvarClienteSeNovo:', err);
-            resolve({ saved: false, err });
+          .withSuccessHandler(function (result) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            updateLinhaTabela(dataObj, editingLinha);
+            showToast('Projeto atualizado com sucesso', 2500);
+            fecharModal();
+
+            if (dataObj.STATUS === "Convertido em Pedido") {
+              google.script.run
+                .withSuccessHandler(() => showToast('Orçamento convertido em pedido', 2000))
+                .withFailureHandler(err => console.error('Erro ao converter:', err))
+                .atualizarStatusNaPlanilha(Number(editingLinha), dataObj.STATUS);
+            }
+
+            if (!clienteExiste) {
+              clientesNomes.push(clienteNome);
+              const opt = document.createElement('option');
+              opt.value = clienteNome;
+              document.getElementById('clientesList').appendChild(opt);
+            }
           })
-          .salvarClienteSeNovo({ nome: clienteNome });
-      });
+          .withFailureHandler(function (err) {
+            console.error('Erro atualizarOrcamentoNaPlanilha:', err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Erro ao atualizar: ' + (err?.message || JSON.stringify(err)));
+          })
+          .atualizarOrcamentoNaPlanilha(Number(editingLinha), dataObj);
+      } else {
+        google.script.run
+          .withSuccessHandler(function (result) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            const linhaPlanilha = result?.linha || result;
+            appendLinhaTabela(dataObj, linhaPlanilha);
+            form.reset();
+            document.getElementById('inputCliente').focus();
+            showToast('Projeto adicionado! Adicione outro ou feche.', 3000);
 
-      salvarClientePromise.then(() => {
-        if (editingLinha) {
-          google.script.run
-            .withSuccessHandler(function (result) {
-              btn.disabled = false;
-              btn.textContent = originalText;
-              updateLinhaTabela(dataObj, editingLinha);
-              showToast('Projeto atualizado com sucesso', 2500);
-              fecharModal();
+            if (dataObj.STATUS === "Convertido em Pedido") {
+              google.script.run
+                .withSuccessHandler(() => showToast('Orçamento convertido em pedido', 2000))
+                .withFailureHandler(err => console.error('Erro ao converter:', err))
+                .atualizarStatusNaPlanilha(Number(linhaPlanilha), dataObj.STATUS);
+            }
 
-              if (dataObj.STATUS === "Convertido em Pedido") {
-                google.script.run
-                  .withSuccessHandler(() => showToast('Orçamento convertido em pedido', 2000))
-                  .withFailureHandler(err => console.error('Erro ao converter:', err))
-                  .atualizarStatusNaPlanilha(Number(editingLinha), dataObj.STATUS);
-              }
-
-              if (!clienteExiste) {
-                clientesNomes.push(clienteNome);
-                const opt = document.createElement('option');
-                opt.value = clienteNome;
-                document.getElementById('clientesList').appendChild(opt);
-              }
-            })
-            .withFailureHandler(function (err) {
-              console.error('Erro atualizarOrcamentoNaPlanilha:', err);
-              btn.disabled = false;
-              btn.textContent = originalText;
-              alert('Erro ao atualizar: ' + (err?.message || JSON.stringify(err)));
-            })
-            .atualizarOrcamentoNaPlanilha(Number(editingLinha), dataObj);
-        } else {
-          google.script.run
-            .withSuccessHandler(function (result) {
-              btn.disabled = false;
-              btn.textContent = originalText;
-              const linhaPlanilha = result?.linha || result;
-              appendLinhaTabela(dataObj, linhaPlanilha);
-              form.reset();
-              document.getElementById('inputCliente').focus();
-              showToast('Projeto adicionado! Adicione outro ou feche.', 3000);
-
-              if (dataObj.STATUS === "Convertido em Pedido") {
-                google.script.run
-                  .withSuccessHandler(() => showToast('Orçamento convertido em pedido', 2000))
-                  .withFailureHandler(err => console.error('Erro ao converter:', err))
-                  .atualizarStatusNaPlanilha(Number(linhaPlanilha), dataObj.STATUS);
-              }
-
-              if (!clienteExiste) {
-                clientesNomes.push(clienteNome);
-                const opt = document.createElement('option');
-                opt.value = clienteNome;
-                document.getElementById('clientesList').appendChild(opt);
-              }
-            })
-            .withFailureHandler(function (err) {
-              console.error('Erro adicionarOrcamentoNaPlanilha:', err);
-              btn.disabled = false;
-              btn.textContent = originalText;
-              alert('Erro ao adicionar: ' + (err?.message || JSON.stringify(err)));
-            })
-            .adicionarOrcamentoNaPlanilha(dataObj);
-        }
-      });
+            if (!clienteExiste) {
+              clientesNomes.push(clienteNome);
+              const opt = document.createElement('option');
+              opt.value = clienteNome;
+              document.getElementById('clientesList').appendChild(opt);
+            }
+          })
+          .withFailureHandler(function (err) {
+            console.error('Erro adicionarOrcamentoNaPlanilha:', err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Erro ao adicionar: ' + (err?.message || JSON.stringify(err)));
+          })
+          .adicionarOrcamentoNaPlanilha(dataObj);
+      }
+    });
     }
 
     // Append nova linha
