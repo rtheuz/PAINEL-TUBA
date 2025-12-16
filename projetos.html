@@ -536,7 +536,10 @@
                     </div>
                     <div class="form-group">
                         <label>Cliente *</label>
-                        <input type="text" id="newCliente" required>
+                        <input type="text" id="newCliente" list="clientesList" aria-describedby="clientesList" required placeholder="Selecione ou digite um novo cliente">
+                        <datalist id="clientesList">
+                            <!-- Opções serão populadas via JavaScript -->
+                        </datalist>
                     </div>
                     <div class="form-group">
                         <label>Número do Projeto *</label>
@@ -555,8 +558,20 @@
                         <input type="text" id="newValor" placeholder="R$ 0,00">
                     </div>
                     <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="newData">
+                    </div>
+                    <div class="form-group">
                         <label>Processos</label>
                         <input type="text" id="newProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
+                    </div>
+                    <div class="form-group">
+                        <label>Link do PDF</label>
+                        <input type="url" id="newLinkPdf" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Link da Memória de Cálculo</label>
+                        <input type="url" id="newLinkMemoria" placeholder="https://...">
                     </div>
                     <div class="form-group">
                         <label>Prazo</label>
@@ -595,7 +610,7 @@
                     <input type="hidden" id="editLinha">
                     <div class="form-group">
                         <label>Cliente *</label>
-                        <input type="text" id="editCliente" required>
+                        <input type="text" id="editCliente" list="clientesList" aria-describedby="clientesList" required placeholder="Selecione ou digite um novo cliente">
                     </div>
                     <div class="form-group">
                         <label>Número do Projeto *</label>
@@ -614,8 +629,20 @@
                         <input type="text" id="editValor" placeholder="R$ 0,00">
                     </div>
                     <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="editData">
+                    </div>
+                    <div class="form-group">
                         <label>Processos</label>
                         <input type="text" id="editProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
+                    </div>
+                    <div class="form-group">
+                        <label>Link do PDF</label>
+                        <input type="url" id="editLinkPdf" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Link da Memória de Cálculo</label>
+                        <input type="url" id="editLinkMemoria" placeholder="https://...">
                     </div>
                     <div class="form-group">
                         <label>Prazo</label>
@@ -714,6 +741,32 @@
             window.open(`${baseUrl}?page=formulario&token=${token}`, '_blank');
         }
 
+        // Carrega a lista de clientes
+        function loadClientes() {
+            try {
+                console.log('Iniciando loadClientes...');
+                google.script.run
+                    .withSuccessHandler(function (clientes) {
+                        console.log('getTodosClientes success, recebido:', clientes);
+                        const datalist = document.getElementById('clientesList');
+                        datalist.innerHTML = '';
+                        if (clientes && clientes.length > 0) {
+                            clientes.forEach(function (cliente) {
+                                const option = document.createElement('option');
+                                option.value = cliente.nome;
+                                datalist.appendChild(option);
+                            });
+                        }
+                    })
+                    .withFailureHandler(function (error) {
+                        console.error('getTodosClientes failure:', error);
+                    })
+                    .getTodosClientes();
+            } catch (error) {
+                console.error('Erro ao carregar clientes:', error);
+            }
+        }
+
         // Carrega os projetos
         async function loadProjetos() {
             try {
@@ -794,6 +847,7 @@
                 <th>Prazo</th>
                 <th>Observações</th>
                 <th>PDF</th>
+                <th>Memória</th>
                 <th>Ações</th>
               </tr>
             </thead>
@@ -835,6 +889,9 @@
             <td>${projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || ''}</td>
             <td>
               ${projeto['LINK DO PDF'] ? `<a href="${projeto['LINK DO PDF']}" target="_blank" class="link-icon" title="Abrir PDF">📄</a>` : '-'}
+            </td>
+            <td>
+              ${projeto['LINK DA MEMÓRIA DE CÁLCULO'] ? `<a href="${projeto['LINK DA MEMÓRIA DE CÁLCULO']}" target="_blank" class="link-icon" title="Abrir Memória de Cálculo">📊</a>` : '-'}
             </td>
             <td>
               <button class="btn btn-small btn-success" onclick="editProjeto(${linha})" style="margin-right: 4px;">✏️</button>
@@ -913,9 +970,22 @@
             document.getElementById('editResponsavel').value = projeto['RESPONSÁVEL CLIENTE'] || '';
             document.getElementById('editValor').value = projeto['VALOR TOTAL'] || '';
             document.getElementById('editProcessos').value = projeto.PROCESSOS || '';
+            document.getElementById('editLinkPdf').value = projeto['LINK DO PDF'] || '';
+            document.getElementById('editLinkMemoria').value = projeto['LINK DA MEMÓRIA DE CÁLCULO'] || '';
             document.getElementById('editObservacoes').value = projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || '';
             document.getElementById('editStatusOrcamento').value = projeto.STATUS_ORCAMENTO || 'RASCUNHO';
             document.getElementById('editStatusPedido').value = projeto.STATUS_PEDIDO || '';
+
+            // Trata a data (pode ser Date ou string)
+            let dataValue = '';
+            if (projeto.DATA && projeto.DATA !== '-') {
+                const dataStr = String(projeto.DATA);
+                const match = dataStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                    dataValue = `${match[3]}-${match[2]}-${match[1]}`;
+                }
+            }
+            document.getElementById('editData').value = dataValue;
 
             // Trata o prazo (pode ser Date ou string)
             let prazoValue = '';
@@ -957,29 +1027,37 @@
             event.preventDefault();
 
             const linha = document.getElementById('editLinha').value;
+            const clienteNome = document.getElementById('editCliente').value.trim();
+            
             const updates = {
-                'CLIENTE': document.getElementById('editCliente').value,
+                'CLIENTE': clienteNome,
                 'PROJETO': document.getElementById('editProjeto').value,
                 'DESCRIÇÃO': document.getElementById('editDescricao').value,
                 'RESPONSÁVEL CLIENTE': document.getElementById('editResponsavel').value,
                 'VALOR TOTAL': document.getElementById('editValor').value,
+                'DATA': document.getElementById('editData').value,
                 'PROCESSOS': document.getElementById('editProcessos').value,
+                'LINK DO PDF': document.getElementById('editLinkPdf').value,
+                'LINK DA MEMÓRIA DE CÁLCULO': document.getElementById('editLinkMemoria').value,
                 'PRAZO': document.getElementById('editPrazo').value,
                 'OBSERVAÇÕES': document.getElementById('editObservacoes').value,
                 'STATUS_ORCAMENTO': document.getElementById('editStatusOrcamento').value,
                 'STATUS_PEDIDO': document.getElementById('editStatusPedido').value
             };
 
-            google.script.run
-                .withSuccessHandler(function () {
-                    closeEditProjectModal();
-                    loadProjetos();
-                    alert('Projeto atualizado com sucesso!');
-                })
-                .withFailureHandler(function (error) {
-                    alert('Erro ao atualizar projeto: ' + (error.message || error));
-                })
-                .atualizarProjetoNaPlanilha(linha, updates);
+            // Salva cliente se for novo, depois atualiza o projeto
+            salvarClienteEExecutar(clienteNome, function () {
+                google.script.run
+                    .withSuccessHandler(function () {
+                        closeEditProjectModal();
+                        loadProjetos();
+                        alert('Projeto atualizado com sucesso!');
+                    })
+                    .withFailureHandler(function (error) {
+                        alert('Erro ao atualizar projeto: ' + (error.message || error));
+                    })
+                    .atualizarProjetoNaPlanilha(linha, updates);
+            });
         }
 
         // Modal de novo projeto
@@ -987,6 +1065,7 @@
             document.getElementById('newProjectModal').classList.add('active');
             document.getElementById('newProjectForm').reset();
             toggleStatusFields(); // Inicializa a visibilidade dos campos
+            loadClientes(); // Carrega lista de clientes
         }
 
         function closeNewProjectModal() {
@@ -1009,37 +1088,80 @@
             }
         }
 
+        // Helper para salvar cliente e executar callback
+        function salvarClienteEExecutar(clienteNome, callback) {
+            // Valida o nome do cliente
+            if (!clienteNome || clienteNome.trim() === '') {
+                console.warn('Nome de cliente vazio, pulando salvamento');
+                callback();
+                return;
+            }
+
+            const clienteObj = {
+                nome: clienteNome.trim(),
+                cpf: '',
+                endereco: '',
+                telefone: '',
+                email: ''
+            };
+
+            google.script.run
+                .withSuccessHandler(callback)
+                .withFailureHandler(function (error) {
+                    console.warn('Não foi possível salvar o cliente automaticamente:', error);
+                    // Continua mesmo se falhar ao salvar o cliente
+                    callback();
+                })
+                .salvarClienteSeNovo(clienteObj);
+        }
+
         function saveNewProject(event) {
             event.preventDefault();
 
             const tipo = document.getElementById('newTipo').value;
+            const clienteNome = document.getElementById('newCliente').value.trim();
+            const dataValue = document.getElementById('newData').value;
+            
+            // Se não houver data, usa a data atual no formato brasileiro
+            let dataFinal = dataValue;
+            if (!dataFinal) {
+                const hoje = new Date();
+                const dia = hoje.getDate().toString().padStart(2, '0');
+                const mes = (hoje.getMonth() + 1).toString().padStart(2, '0');
+                const ano = hoje.getFullYear();
+                dataFinal = `${dia}/${mes}/${ano}`;
+            }
+            
             const projeto = {
-                CLIENTE: document.getElementById('newCliente').value,
+                CLIENTE: clienteNome,
                 PROJETO: document.getElementById('newProjeto').value,
                 'DESCRIÇÃO': document.getElementById('newDescricao').value,
                 'RESPONSÁVEL CLIENTE': document.getElementById('newResponsavel').value,
                 'VALOR TOTAL': document.getElementById('newValor').value,
+                DATA: dataFinal,
                 PROCESSOS: document.getElementById('newProcessos').value,
+                'LINK DO PDF': document.getElementById('newLinkPdf').value,
+                'LINK DA MEMÓRIA DE CÁLCULO': document.getElementById('newLinkMemoria').value,
                 PRAZO: document.getElementById('newPrazo').value,
                 'OBSERVAÇÕES': document.getElementById('newObservacoes').value,
                 STATUS_ORCAMENTO: tipo === 'rascunho' ? 'RASCUNHO' : 'Convertido em Pedido',
                 STATUS_PEDIDO: tipo === 'rascunho' ? '' : document.getElementById('newStatusPedido').value,
-                DATA: new Date().toLocaleDateString('pt-BR'),
-                'LINK DO PDF': '',
-                'LINK DA MEMÓRIA DE CÁLCULO': '',
                 JSON_DADOS: ''
             };
 
-            google.script.run
-                .withSuccessHandler(function () {
-                    closeNewProjectModal();
-                    loadProjetos();
-                    alert('Projeto adicionado com sucesso!');
-                })
-                .withFailureHandler(function (error) {
-                    alert('Erro ao adicionar projeto: ' + (error.message || error));
-                })
-                .adicionarNovoProjetoNaPlanilha(projeto);
+            // Salva cliente se for novo, depois adiciona o projeto
+            salvarClienteEExecutar(clienteNome, function () {
+                google.script.run
+                    .withSuccessHandler(function () {
+                        closeNewProjectModal();
+                        loadProjetos();
+                        alert('Projeto adicionado com sucesso!');
+                    })
+                    .withFailureHandler(function (error) {
+                        alert('Erro ao adicionar projeto: ' + (error.message || error));
+                    })
+                    .adicionarNovoProjetoNaPlanilha(projeto);
+            });
         }
 
         // Fechar modais ao clicar fora
@@ -1107,8 +1229,9 @@
         document.getElementById('statusOrcFilter').addEventListener('change', renderTable);
         document.getElementById('statusPedFilter').addEventListener('change', renderTable);
 
-        // Carrega projetos ao inicializar
+        // Carrega projetos e clientes ao inicializar
         loadProjetos();
+        loadClientes();
     </script>
 </body>
 
