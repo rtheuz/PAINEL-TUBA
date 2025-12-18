@@ -231,10 +231,8 @@
             <div class="row">
                 <div class="col">
                     <label>Buscar Cliente (digite o nome):</label>
-                    <input type="text" id="clienteBusca" placeholder="Digite o nome do cliente..." 
-                           list="clientesList" 
-                           autocomplete="off"
-                           style="font-weight:600;">
+                    <input type="text" id="clienteBusca" placeholder="Digite o nome do cliente..." list="clientesList"
+                        autocomplete="off" style="font-weight:600;">
                     <datalist id="clientesList">
                         <!-- Será preenchido dinamicamente -->
                     </datalist>
@@ -297,7 +295,8 @@
             <div class="section-header">
                 <div>
                     <h3>Produtos Cadastrados</h3>
-                    <small>Adicione produtos cadastrados ou crie novos com preço personalizado. O preço pode ser alterado apenas para este orçamento.</small>
+                    <small>Adicione produtos cadastrados ou crie novos com preço personalizado. O preço pode ser
+                        alterado apenas para este orçamento.</small>
                 </div>
                 <div>
                     <button type="button" onclick="addProdutoCadastrado()">+ Adicionar Produto</button>
@@ -365,15 +364,16 @@
                         <option value="Não incluso">Não incluso</option>
                     </select>
                 </div>
-                    <div class="col">
+                <div class="col">
                     <label>Pagamento:</label>
-                        <select id="obsPagamento">
-                            <option value="">Selecione</option>
-                            <option value="À vista">À vista</option>
-                            <option value="30 dias">30 dias</option>
-                            <option value="60 dias">60 dias</option>
-                            <option value="90 dias">90 dias</option>
-                        </select>
+                    <select id="obsPagamento">
+                        <option value="">Selecione</option>
+                        <option value="À vista">À vista</option>
+                        <option value="30 dias">30 dias</option>
+                        <option value="30 / 60">30 / 60</option>
+                        <option value="30 / 45">30 / 45</option>
+                        <option value="30 / 45 / 60">30 / 45 / 60</option>
+                    </select>
                 </div>
             </div>
 
@@ -441,7 +441,7 @@
             google.script.run.withSuccessHandler(function (clientes) {
                 listaClientes = clientes;
                 const datalist = document.getElementById("clientesList");
-                datalist.innerHTML = clientes.map(c => 
+                datalist.innerHTML = clientes.map(c =>
                     `<option value="${c.nome}" data-nome="${c.nome}">${c.nome}</option>`
                 ).join('');
             }).getTodosClientes();
@@ -457,24 +457,24 @@
         function filtrarClientes(termo) {
             if (!termo || termo.length < 1) {
                 // Mostra todos os clientes
-                clientesDatalist.innerHTML = listaClientes.map(c => 
+                clientesDatalist.innerHTML = listaClientes.map(c =>
                     `<option value="${c.nome}" data-nome="${c.nome}">${c.nome}</option>`
                 ).join('');
                 clienteBuscaInput.style.background = "";
                 return;
             }
-            
+
             const termoLower = termo.toLowerCase();
             const clientesFiltrados = listaClientes.filter(c => {
                 const nome = String(c.nome || '').toLowerCase();
                 return nome.includes(termoLower);
             });
-            
+
             // Atualiza o datalist com clientes filtrados
-            clientesDatalist.innerHTML = clientesFiltrados.map(c => 
+            clientesDatalist.innerHTML = clientesFiltrados.map(c =>
                 `<option value="${c.nome}" data-nome="${c.nome}">${c.nome}</option>`
             ).join('');
-            
+
             // Se encontrou exatamente um cliente e corresponde, seleciona automaticamente
             if (clientesFiltrados.length === 1) {
                 const cliente = clientesFiltrados[0];
@@ -492,13 +492,13 @@
         }
 
         // Listener para quando o usuário digita
-        clienteBuscaInput.addEventListener("input", function() {
+        clienteBuscaInput.addEventListener("input", function () {
             filtrarClientes(this.value.trim());
         });
 
         // Listener para quando o usuário seleciona uma opção do datalist
-        clienteBuscaInput.addEventListener("change", function() {
-            const selectedOption = Array.from(clientesDatalist.options).find(opt => 
+        clienteBuscaInput.addEventListener("change", function () {
+            const selectedOption = Array.from(clientesDatalist.options).find(opt =>
                 opt.value === this.value
             );
             if (selectedOption) {
@@ -510,7 +510,7 @@
                 }
             } else {
                 // Se não encontrou correspondência exata, limpa os campos
-                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => 
+                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id =>
                     document.getElementById(id).value = ""
                 );
                 clienteBuscaInput.style.background = "";
@@ -526,7 +526,7 @@
                 document.getElementById("clienteTelefone").value = c.telefone || "";
                 document.getElementById("clienteEmail").value = c.email || "";
             } else {
-                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id => 
+                ["clienteNome", "clienteCpf", "clienteEndereco", "clienteTelefone", "clienteEmail"].forEach(id =>
                     document.getElementById(id).value = ""
                 );
             }
@@ -537,7 +537,7 @@
 
         // Carrega produtos da planilha ao iniciar
         function carregarProdutosCadastrados() {
-            google.script.run.withSuccessHandler(function(produtos) {
+            google.script.run.withSuccessHandler(function (produtos) {
                 produtosCatalogo = produtos;
             }).getProdutosCadastrados();
         }
@@ -549,7 +549,7 @@
 
         // Carrega o próximo código PRD da planilha ao iniciar
         function carregarProximoCodigoPRD() {
-            google.script.run.withSuccessHandler(function(codigoPRD) {
+            google.script.run.withSuccessHandler(function (codigoPRD) {
                 proximoCodigoPRD = codigoPRD;
                 contadorPRDLocal = 0;
             }).getProximoCodigoPRD();
@@ -561,12 +561,12 @@
             if (!proximoCodigoPRD) {
                 return "PRD00001"; // Fallback se ainda não carregou
             }
-            
+
             // Extrai o número do código base
             const numeroBase = parseInt(proximoCodigoPRD.substring(3), 10);
             const novoNumero = numeroBase + contadorPRDLocal;
             contadorPRDLocal++;
-            
+
             return "PRD" + String(novoNumero).padStart(5, "0");
         }
 
@@ -579,10 +579,10 @@
             div.style.marginBottom = "12px";
             div.style.borderRadius = "8px";
             div.style.background = "#f9fbff";
-            
+
             // Gera código PRD padrão
             const codigoPRDPadrao = gerarCodigoPRDLocal();
-            
+
             div.innerHTML = `
                 <div class="row">
                     <div class="col" style="flex: 2;">
@@ -592,9 +592,9 @@
                                autocomplete="off"
                                style="font-weight:600;">
                         <datalist id="produtosList-${Date.now()}" class="produtosDatalist">
-                            ${produtosCatalogo.map((p, idx) => 
-                                `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
-                            ).join('')}
+                            ${produtosCatalogo.map((p, idx) =>
+                `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
+            ).join('')}
                         </datalist>
                         <input type="hidden" class="produtoSelectIndex" value="">
                     </div>
@@ -623,7 +623,7 @@
                     </div>
                     <div class="col">
                         <label>Unidade:</label>
-                        <select id="produtoUnidade">
+                        <select class="produtoUnidade">
                             <option value="UN">UN</option>
                             <option value="TN">TN</option>
                             <option value="T">T</option>
@@ -669,50 +669,50 @@
                     <button type="button" class="secondary" onclick="removeElement(this.parentElement.parentElement)">Remover Produto</button>
                 </div>
             `;
-            
+
             container.appendChild(div);
-            
+
             // Adiciona listener para atualizar total quando quantidade mudar
             const qtdInput = div.querySelector(".produtoQuantidade");
-            qtdInput.addEventListener("input", function() {
+            qtdInput.addEventListener("input", function () {
                 calcularTotalProduto(div);
             });
-            
+
             // Adiciona listener para atualizar total quando preço unitário mudar
             const precoUnitInput = div.querySelector(".produtoPrecoUnit");
-            precoUnitInput.addEventListener("input", function() {
+            precoUnitInput.addEventListener("input", function () {
                 calcularTotalProduto(div);
             });
-            
+
             // Campo de busca integrado que filtra produtos por código ou descrição
             const buscaInput = div.querySelector(".produtoBusca");
             const datalist = div.querySelector(".produtosDatalist");
             const hiddenIndex = div.querySelector(".produtoSelectIndex");
-            
+
             // Função para filtrar produtos e atualizar datalist
             function filtrarProdutos(termo) {
                 if (!termo || termo.length < 1) {
                     // Mostra todos os produtos
-                    datalist.innerHTML = produtosCatalogo.map((p, idx) => 
+                    datalist.innerHTML = produtosCatalogo.map((p, idx) =>
                         `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
                     ).join('');
                     buscaInput.style.background = "";
                     return;
                 }
-                
+
                 const termoLower = termo.toLowerCase();
                 const produtosFiltrados = produtosCatalogo.filter((p, idx) => {
                     const codigo = String(p.codigo || '').toLowerCase();
                     const descricao = String(p.descricao || '').toLowerCase();
                     return codigo.includes(termoLower) || descricao.includes(termoLower);
                 });
-                
+
                 // Atualiza o datalist com produtos filtrados
                 datalist.innerHTML = produtosFiltrados.map((p, idx) => {
                     const originalIdx = produtosCatalogo.indexOf(p);
                     return `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${originalIdx}">${p.codigo} - ${p.descricao}</option>`;
                 }).join('');
-                
+
                 // Apenas indica visualmente quantos resultados foram encontrados, sem preencher automaticamente
                 if (produtosFiltrados.length === 1) {
                     buscaInput.style.background = "#fff9c4"; // Amarelo para indicar que há um resultado disponível
@@ -722,22 +722,22 @@
                     buscaInput.style.background = "#ffebee"; // Vermelho claro para indicar nenhum resultado
                 }
             }
-            
+
             // Função para verificar se o valor atual corresponde a uma opção e preencher dados
             // Esta função só deve ser chamada quando há certeza de seleção (change, blur, Enter)
             function verificarEPreencherProduto(valor, forcarPreenchimento = false) {
                 if (!valor || valor.trim() === "") {
                     return false;
                 }
-                
+
                 const valorTrimmed = valor.trim();
                 const valorLower = valorTrimmed.toLowerCase();
-                
+
                 // Primeiro, procura uma opção que corresponda EXATAMENTE ao valor digitado/selecionado
-                let selectedOption = Array.from(datalist.options).find(opt => 
+                let selectedOption = Array.from(datalist.options).find(opt =>
                     opt.value === valorTrimmed || opt.value.toLowerCase() === valorLower
                 );
-                
+
                 // Se não encontrou correspondência exata, tenta encontrar por código completo (formato "CODIGO - descrição")
                 if (!selectedOption) {
                     // Extrai o código do início do valor (formato: "CODIGO - descrição")
@@ -750,7 +750,7 @@
                         });
                     }
                 }
-                
+
                 // Se encontrou uma opção correspondente EXATA
                 if (selectedOption) {
                     const idx = parseInt(selectedOption.getAttribute("data-index"));
@@ -764,17 +764,17 @@
                         return true;
                     }
                 }
-                
+
                 // Só busca no catálogo completo se forçar preenchimento (blur, Enter) ou se houver correspondência exata
                 if (forcarPreenchimento) {
                     const produtoEncontrado = produtosCatalogo.find((p) => {
                         const codigo = String(p.codigo || '').toLowerCase();
                         const valorCompleto = `${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})`.toLowerCase();
-                        
+
                         // Apenas correspondência exata ou código completo
                         return valorCompleto === valorLower || codigo === valorLower;
                     });
-                    
+
                     if (produtoEncontrado) {
                         const idx = produtosCatalogo.indexOf(produtoEncontrado);
                         hiddenIndex.value = idx;
@@ -784,26 +784,26 @@
                         return true;
                     }
                 }
-                
+
                 return false;
             }
-            
+
             // Listener para quando o usuário digita - APENAS FILTRA, não preenche
-            buscaInput.addEventListener("input", function() {
+            buscaInput.addEventListener("input", function () {
                 const valor = this.value.trim();
                 // Apenas filtra a lista, não preenche automaticamente
                 filtrarProdutos(valor);
             });
-            
+
             // Listener para quando o usuário seleciona uma opção do datalist (evento change)
-            buscaInput.addEventListener("change", function() {
+            buscaInput.addEventListener("change", function () {
                 const valor = this.value.trim();
                 // Quando seleciona do datalist, preenche os dados
                 verificarEPreencherProduto(valor, true);
             });
-            
+
             // Listener adicional para quando o campo perde o foco (blur)
-            buscaInput.addEventListener("blur", function() {
+            buscaInput.addEventListener("blur", function () {
                 const valor = this.value.trim();
                 if (valor) {
                     // Tenta preencher apenas se houver correspondência exata
@@ -812,9 +812,9 @@
                     }, 150);
                 }
             });
-            
+
             // Listener para capturar quando pressiona Enter (seleciona opção do datalist)
-            buscaInput.addEventListener("keydown", function(e) {
+            buscaInput.addEventListener("keydown", function (e) {
                 if (e.key === "Enter") {
                     e.preventDefault(); // Previne submit se houver formulário
                     const valor = this.value.trim();
@@ -826,14 +826,13 @@
                     }
                 }
             });
-            
+
             // Inicializa com todos os produtos visíveis
             filtrarProdutos("");
         }
 
         function preencherDadosProdutoPorIndex(div, idx) {
             if (idx === "" || idx === null || idx === undefined || idx < 0 || idx >= produtosCatalogo.length) {
-                // Não limpa o código PRD gerado automaticamente, apenas os outros campos
                 div.querySelector(".produtoDescricao").value = "";
                 div.querySelector(".produtoFamilia").value = "";
                 div.querySelector(".produtoTipo").value = "";
@@ -843,7 +842,7 @@
                 div.querySelector(".produtoPrecoTotal").value = "";
                 return;
             }
-            
+
             const produto = produtosCatalogo[idx];
             div.querySelector(".produtoCodigo").value = produto.codigo;
             div.querySelector(".produtoDescricao").value = produto.descricao;
@@ -874,7 +873,7 @@
             document.querySelectorAll(".produto-cadastrado").forEach(div => {
                 const codigo = div.querySelector(".produtoCodigo").value;
                 if (!codigo) return; // pula se não foi selecionado
-                
+
                 produtos.push({
                     codigo: codigo,
                     descricao: div.querySelector(".produtoDescricao").value,
@@ -1421,7 +1420,7 @@
                 data.produtosCadastrados.forEach(prodData => {
                     addProdutoCadastrado();
                     const prodDiv = document.querySelector("#produtosCadastradosContainer .produto-cadastrado:last-child");
-                    
+
                     // Tenta encontrar o índice do produto no catálogo
                     const idx = produtosCatalogo.findIndex(p => p.codigo === prodData.codigo);
                     if (idx >= 0) {
@@ -1433,7 +1432,7 @@
                         hiddenIndex.value = idx;
                         buscaInput.style.background = "#e8f5e9";
                     }
-                    
+
                     // Preenche os campos diretamente (suporta produtos manuais e customizados)
                     prodDiv.querySelector(".produtoCodigo").value = prodData.codigo || "";
                     prodDiv.querySelector(".produtoDescricao").value = prodData.descricao || "";
@@ -1514,7 +1513,7 @@
                 alert("Selecione um orçamento para deletar.");
                 return;
             }
-            
+
             // Não permite deletar orçamentos já enviados
             if (nome && nome.includes("[ENVIADO]")) {
                 alert("Não é possível deletar orçamentos já enviados. Apenas rascunhos podem ser deletados.");
@@ -1685,7 +1684,7 @@
 
             // --- coletar produtos cadastrados ---
             const produtosCadastrados = coletarProdutosCadastrados();
-            
+
             // --- coletar TODOS os dados do formulário para salvar junto com o orçamento ---
             const dadosFormularioCompleto = coletarDadosFormulario();
 
@@ -1697,7 +1696,7 @@
 
                     // abre o PDF em nova aba automaticamente
                     window.open(pdf.url, "_blank");
-                    
+
                     // Atualiza lista de rascunhos para refletir a mudança de status
                     carregarListaRascunhos();
 
