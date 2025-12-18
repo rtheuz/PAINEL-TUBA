@@ -561,27 +561,27 @@ function gerarPdfOrcamento(
       
       if (parcelas && parcelas.length > 1) {
         tabelaParcelasHtml = `
-    <table width="50%" cellpadding="2" cellspacing="0" style="border-collapse:collapse; margin-top:8px; float:right;">
+    <table width="35%" cellpadding="1" cellspacing="0" style="border-collapse:collapse; margin-top:5px; float:right; font-size:6pt;">
       <tr>
-        <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:3px; text-align:left; font-size:8pt; font-weight:bold;">
-          📋 Condições de Pagamento
+        <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:center; font-size:7pt; font-weight:bold;">
+          📋 Pagamento
         </th>
       </tr>
       <tr>
-        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; font-weight:bold; text-align:center;">Parcela</th>
-        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; font-weight:bold; text-align:center;">Vencimento</th>
-        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; font-weight:bold; text-align:right;">Valor</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; font-weight:bold; text-align:center;">Parc.</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; font-weight:bold; text-align:center;">Dias</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; font-weight:bold; text-align:right;">Valor</th>
       </tr>
       ${parcelas.map(p => `
         <tr>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${p.numero}/${parcelas.length}</td>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${p.dias} dias</td>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:right;">${formatBR(p.valor)}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; text-align:center;">${p.numero}/${parcelas.length}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; text-align:center;">${p.dias}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; text-align:right;">${formatBR(p.valor)}</td>
         </tr>
       `).join('')}
       <tr>
-        <td colspan="2" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:3px; text-align:right; font-size:8pt; font-weight:bold;">TOTAL:</td>
-        <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:3px; text-align:right; font-size:8pt; font-weight:bold;">${formatBR(totalFinal)}</td>
+        <td colspan="2" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:right; font-size:6pt; font-weight:bold;">TOTAL:</td>
+        <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:right; font-size:6pt; font-weight:bold;">${formatBR(totalFinal)}</td>
       </tr>
     </table>
     <div style="clear:both;"></div>
@@ -700,6 +700,170 @@ function gerarPdfOrcamento(
     return { url: file.getUrl(), nome: file.getName(), memoriaUrl: memoriaUrl };
   } catch (err) {
     Logger.log("ERRO gerarPdfOrcamento: " + err.toString());
+    throw err;
+  }
+}
+
+/* ======= GERAR PDF ORDEM DE PRODUÇÃO (sem valores) ======= */
+function gerarPdfOrdemProducao(linhaOuKey) {
+  try {
+    // Carrega os dados do orçamento
+    const dados = carregarRascunho(linhaOuKey);
+    if (!dados) {
+      throw new Error("Não foi possível carregar os dados do orçamento");
+    }
+
+    // Extrai dados necessários
+    const chapas = dados.chapas || [];
+    const cliente = dados.cliente || {};
+    const observacoes = dados.observacoes || {};
+    const projeto = dados.projeto || {};
+    const processosPedido = dados.processosPedido || [];
+    const produtosCadastrados = dados.produtosCadastrados || [];
+
+    const codigoProjeto = (projeto.data || "") + (projeto.indice || "") + (projeto.iniciais || "");
+    const versao = projeto.versao || "";
+    const numeroProposta = (codigoProjeto || "") + (versao || "");
+
+    // Calcula resultados (mas sem mostrar valores)
+    const resultados = calcularOrcamento(chapas);
+
+    // Adiciona produtos cadastrados aos resultados (sem valores)
+    if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      produtosCadastrados.forEach(prod => {
+        resultados.push({
+          codigo: prod.codigo || "",
+          descricao: prod.descricao || "",
+          quantidade: prod.quantidade || 0,
+          precoUnitario: 0,
+          precoTotal: 0
+        });
+      });
+    }
+
+    // Busca pasta
+    const nomePasta = projeto.pasta || "";
+    const data = projeto.data || "";
+    const pasta = criarOuUsarPasta(codigoProjeto, nomePasta, data);
+    const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
+    const comSubFolder = getOrCreateSubFolder(workFolder, "COM");
+
+    // Logo
+    const logoFile = DriveApp.getFileById(ID_LOGO);
+    const logoBlob = logoFile.getBlob();
+    const logoBase64 = Utilities.base64Encode(logoBlob.getBytes());
+    const logoMime = logoBlob.getContentType();
+
+    // Data/hora
+    const agora = new Date();
+    const dataBrasil = formatarDataBrasil(agora);
+    const horaBrasil = agora.toLocaleTimeString("pt-BR");
+
+    // cores
+    const headerColor = "#FF9933";
+    const rowColor = "#FDF5E6";
+
+    // helpers
+    function esc(v) {
+      if (v === null || v === undefined) return "";
+      return String(v)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // Gera HTML dos itens SEM valores
+    const itensHtml = resultados.map(function (p) {
+      return ''
+        + '<tr>'
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.codigo || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.descricao || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:center; font-size:8pt;">${esc(p.quantidade || 0)}</td>`
+        + '</tr>';
+    }).join('');
+
+    const htmlContent = `
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body, table, th, td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; margin: 5px; line-height:1.2; -webkit-font-smoothing:antialiased; }
+          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+          .logo { max-height:180px; }
+          .company-info { text-align:right; font-size:9pt; }
+          h2 { text-align:left; margin:20px 0 30px 0; font-size:14pt; }
+          h3 { margin-top:15px; margin-bottom:5px; font-size:11pt; }
+          table { width:100%; border-collapse:collapse; border-spacing:0; font-size:8pt; }
+        </style>
+      </head>
+      <body style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div class="header">
+          <img class="logo" src="data:${logoMime};base64,${logoBase64}">
+          <div class="company-info">
+            <strong>TUBA FERRAMENTARIA LTDA</strong><br>
+            CNPJ: 10.684.825/0001-26<br>
+            Inscrição Estadual: 635592888110<br>
+            Endereço: Estrada Dos Alvarengas, 4101 - Assunção<br>
+            São Bernardo do Campo - SP - CEP: 09850-550<br>
+            Site: www.tb4.com.br<br>
+            <b>Email:</b> tubaferram@gmail.com<br>
+            <b>Telefone:</b> (11) 91285-4204
+          </div>
+        </div>
+
+        <h2>Ordem de Produção Nº ${esc(numeroProposta)}</h2>
+
+        <h3>Informações do Cliente:</h3>
+        <p style="margin-bottom:12px; font-size:9pt; line-height:1.3;">
+          <p><strong>${esc(cliente.nome)}</strong><br></p>
+            CNPJ/CPF: ${esc(cliente.cpf)}<br>
+            ${esc(cliente.endereco)}<br>
+            <b>Telefone:</b> ${esc(cliente.telefone)}<br>
+            <b>Email:</b> ${esc(cliente.email)}<br>
+            <b>Responsável:</b> ${esc(cliente.responsavel || "-")}
+        </p>
+
+        <h3>Itens da Ordem de Produção</h3>
+        <table style="margin-top:8px;">
+          <tr>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Código</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Descrição</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:center; border:0.1px solid #fff; font-size:8pt;">Quantidade</th>
+          </tr>
+          ${itensHtml}
+        </table>
+
+        <h3 style="margin-top:12px;">Outras Informações</h3>
+        <p style="font-size:8pt; line-height:1.25;">
+          <b>Ordem de Produção - gerado em:</b> ${esc(dataBrasil)} às ${esc(horaBrasil)}
+        </p>
+
+        <p style="font-size:8pt; line-height:1.25;">
+          <b>Previsão de Faturamento:</b> ${esc(formatarDataBrasil(observacoes.faturamento) || "-")}<br>
+          <b>Vendedor:</b> ${esc(observacoes.vendedor || "-")}<br>
+        </p>
+
+        <p style="font-size:8pt; line-height:1.25;">
+          <b>PROJ:</b> ${esc(observacoes.projeto || codigoProjeto || "-")}<br>
+          <b>Condições do Material:</b> ${esc(observacoes.materialCond || "-")}<br>
+        </p>
+
+        ${observacoes.adicional ? `<p style="font-size:8pt; line-height:1.25;"><b>Observações adicionais:</b><br>${esc(observacoes.adicional)}</p>` : ""}
+
+      </body>
+      </html>
+    `;
+
+    const blob = Utilities.newBlob(htmlContent, "text/html", "ordem_producao.html");
+    const pdf = blob.getAs("application/pdf").setName("Ordem_Producao_" + numeroProposta + ".pdf");
+    const file = comSubFolder.createFile(pdf);
+
+    return { url: file.getUrl(), nome: file.getName() };
+  } catch (err) {
+    Logger.log("ERRO gerarPdfOrdemProducao: " + err.toString());
     throw err;
   }
 }
