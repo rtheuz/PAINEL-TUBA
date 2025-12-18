@@ -561,7 +561,7 @@ function gerarPdfOrcamento(
       
       if (parcelas && parcelas.length > 1) {
         tabelaParcelasHtml = `
-    <table width="35%" cellpadding="1" cellspacing="0" style="border-collapse:collapse; margin-top:5px; float:right; font-size:6pt;">
+    <table cellpadding="1" cellspacing="0" style="width:auto; max-width:200px; border-collapse:collapse; margin-top:5px; margin-left:auto; font-size:6pt;">
       <tr>
         <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:center; font-size:7pt; font-weight:bold;">
           📋 Pagamento
@@ -584,7 +584,6 @@ function gerarPdfOrcamento(
         <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:right; font-size:6pt; font-weight:bold;">${formatBR(totalFinal)}</td>
       </tr>
     </table>
-    <div style="clear:both;"></div>
     `;
       }
     }
@@ -595,12 +594,12 @@ function gerarPdfOrcamento(
         <meta charset="utf-8">
         <style>
           body, table, th, td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; margin: 5px; line-height:1.2; -webkit-font-smoothing:antialiased; } /* margem reduzida e fonte menor */
-          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-          .logo { max-height:180px; }
+          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; margin: 2px; line-height:1.2; -webkit-font-smoothing:antialiased; } /* margem ainda menor */
+          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+          .logo { max-height:160px; }
           .company-info { text-align:right; font-size:9pt; }
-          h2 { text-align:left; margin:20px 0 30px 0; font-size:14pt; } /* reduzido */
-          h3 { margin-top:15px; margin-bottom:5px; font-size:11pt; }
+          h2 { text-align:left; margin:15px 0 20px 0; font-size:14pt; } /* reduzido */
+          h3 { margin-top:12px; margin-bottom:4px; font-size:11pt; }
           table { width:100%; border-collapse:collapse; border-spacing:0; font-size:8pt; }
         </style>
       </head>
