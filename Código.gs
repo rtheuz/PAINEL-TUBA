@@ -538,19 +538,19 @@ function gerarPdfOrcamento(
     const itensHtml = resultados.map(function (p) {
       return ''
         + '<tr>'
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt;">${esc(p.codigo || "")}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt;">${esc(p.descricao || "")}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${esc(p.quantidade || 0)}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(p.precoUnitario || 0)}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(p.precoTotal || 0)}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.codigo || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.descricao || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${esc(p.quantidade || 0)}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${formatBR(p.precoUnitario || 0)}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${formatBR(p.precoTotal || 0)}</td>`
         + '</tr>';
     }).join('');
 
     const processosPedidoRow = (somaProcessosPedido && Number(somaProcessosPedido) > 0)
       ? ''
       + '<tr>'
-      + `<td colspan="4" bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;"><strong>${esc(descricaoProcessosPedido || "")}</strong></td>`
-      + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(somaProcessosPedido)}</td>`
+      + `<td colspan="4" bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;"><strong>${esc(descricaoProcessosPedido || "")}</strong></td>`
+      + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${formatBR(somaProcessosPedido)}</td>`
       + '</tr>'
       : '';
 
@@ -561,30 +561,30 @@ function gerarPdfOrcamento(
       
       if (parcelas && parcelas.length > 1) {
         tabelaParcelasHtml = `
-    <br>
-    <table width="100%" cellpadding="3" cellspacing="0" style="border-collapse:collapse; margin-top:10px;">
+    <table width="50%" cellpadding="2" cellspacing="0" style="border-collapse:collapse; margin-top:8px; float:right;">
       <tr>
-        <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:5px; text-align:left; font-size:10pt; font-weight:bold;">
+        <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:3px; text-align:left; font-size:8pt; font-weight:bold;">
           📋 Condições de Pagamento
         </th>
       </tr>
       <tr>
-        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:5px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:center;">Parcela</th>
-        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:5px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:center;">Vencimento</th>
-        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:5px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:right;">Valor</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; font-weight:bold; text-align:center;">Parcela</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; font-weight:bold; text-align:center;">Vencimento</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; font-weight:bold; text-align:right;">Valor</th>
       </tr>
       ${parcelas.map(p => `
         <tr>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt; text-align:center;">${p.numero}/${parcelas.length}</td>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt; text-align:center;">${p.dias} dias</td>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt; text-align:right;">${formatBR(p.valor)}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${p.numero}/${parcelas.length}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${p.dias} dias</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:right;">${formatBR(p.valor)}</td>
         </tr>
       `).join('')}
       <tr>
-        <td colspan="2" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:5px; text-align:right; font-size:10pt; font-weight:bold;">TOTAL:</td>
-        <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:5px; text-align:right; font-size:10pt; font-weight:bold;">${formatBR(totalFinal)}</td>
+        <td colspan="2" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:3px; text-align:right; font-size:8pt; font-weight:bold;">TOTAL:</td>
+        <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:3px; text-align:right; font-size:8pt; font-weight:bold;">${formatBR(totalFinal)}</td>
       </tr>
     </table>
+    <div style="clear:both;"></div>
     `;
       }
     }
@@ -595,13 +595,13 @@ function gerarPdfOrcamento(
         <meta charset="utf-8">
         <style>
           body, table, th, td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; margin: 10px; line-height:1.3; -webkit-font-smoothing:antialiased; } /* margem menor */
-          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
-          .logo { max-height:200px; }
-          .company-info { text-align:right; font-size:10pt; }
-          h2 { text-align:left; margin:30px 0 50px 0; } /* mais espaço abaixo */
-          h3 { margin-top:25px; margin-bottom:5px; }
-          table { width:100%; border-collapse:collapse; border-spacing:0; font-size:9pt; }
+          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; margin: 5px; line-height:1.2; -webkit-font-smoothing:antialiased; } /* margem reduzida e fonte menor */
+          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+          .logo { max-height:180px; }
+          .company-info { text-align:right; font-size:9pt; }
+          h2 { text-align:left; margin:20px 0 30px 0; font-size:14pt; } /* reduzido */
+          h3 { margin-top:15px; margin-bottom:5px; font-size:11pt; }
+          table { width:100%; border-collapse:collapse; border-spacing:0; font-size:8pt; }
         </style>
       </head>
       <body style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
@@ -623,7 +623,7 @@ function gerarPdfOrcamento(
         <h2>Proposta Comercial Nº ${esc(numeroProposta)}</h2>
 
         <h3>Informações do Cliente:</h3>
-        <p style="margin-bottom:25px;">
+        <p style="margin-bottom:12px; font-size:9pt; line-height:1.3;">
           <p><strong>${esc(cliente.nome)}</strong><br></p>
             CNPJ/CPF: ${esc(cliente.cpf)}<br>
             ${esc(cliente.endereco)}<br>
@@ -633,52 +633,52 @@ function gerarPdfOrcamento(
         </p>
 
         <h3>Itens da Proposta Comercial</h3>
-        <table style="margin-top:12px;">
+        <table style="margin-top:8px;">
           <tr>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:left; border:0.1px solid #fff; font-size:9pt;">Código</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:left; border:0.1px solid #fff; font-size:9pt;">Descrição</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:right; border:0.1px solid #fff; font-size:9pt;">Quant.</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:right; border:0.1px solid #fff; font-size:9pt;">Unit.</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:right; border:0.1px solid #fff; font-size:9pt;">Valor Total</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Código</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Descrição</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:right; border:0.1px solid #fff; font-size:8pt;">Quant.</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:right; border:0.1px solid #fff; font-size:8pt;">Unit.</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:right; border:0.1px solid #fff; font-size:8pt;">Valor Total</th>
           </tr>
           ${itensHtml}
           ${processosPedidoRow}
         </table>
 
         <!-- Totais alinhados com a coluna Valor Total -->
-<div style="width:100%; text-align:right; margin-top:8px;">
-  <table style="display:inline-block; border-collapse:collapse; width:100%; max-width:320px;">
+<div style="width:100%; text-align:right; margin-top:5px;">
+  <table style="display:inline-block; border-collapse:collapse; width:100%; max-width:280px;">
     <tr>
-      <td style="border:none; text-align:right; width:140px; background:#fff; padding:4px; font-weight:bold;">Subtotal:</td>
-      <td style="border:none; text-align:right; background:${rowColor}; padding:4px; width:110px; font-weight:bold;">${formatBR(totalPecas)}</td>
+      <td style="border:none; text-align:right; width:120px; background:#fff; padding:3px; font-weight:bold; font-size:8pt;">Subtotal:</td>
+      <td style="border:none; text-align:right; background:${rowColor}; padding:3px; width:100px; font-weight:bold; font-size:8pt;">${formatBR(totalPecas)}</td>
     </tr>
     <tr>
-      <td style="border:none; text-align:right; background:#fff; padding:4px; font-weight:bold;">Total:</td>
-      <td style="border:none; text-align:right; background:${rowColor}; padding:4px; width:110px; font-weight:bold;">${formatBR(totalFinal)}</td>
+      <td style="border:none; text-align:right; background:#fff; padding:3px; font-weight:bold; font-size:8pt;">Total:</td>
+      <td style="border:none; text-align:right; background:${rowColor}; padding:3px; width:100px; font-weight:bold; font-size:8pt;">${formatBR(totalFinal)}</td>
     </tr>
   </table>
 </div>
 
         ${tabelaParcelasHtml}
 
-        <h3 style="margin-top:18px;">Outras Informações</h3>
-        <p style="font-size:10pt; line-height:1.35;">
+        <h3 style="margin-top:12px;">Outras Informações</h3>
+        <p style="font-size:8pt; line-height:1.25;">
           <b>Proposta Comercial - incluído em:</b> ${esc(dataBrasil)} às ${esc(horaBrasil)}<br>
           <b>Validade da Proposta:</b> 30 dias
         </p>
 
-        <p style="font-size:10pt; line-height:1.35;">
+        <p style="font-size:8pt; line-height:1.25;">
           <b>Previsão de Faturamento:</b> ${esc(formatarDataBrasil(observacoes.faturamento) || "-")}<br>
           <b>Pagamento:</b> ${esc(observacoes.pagamento || "-")}<br>
           <b>Vendedor:</b> ${esc(observacoes.vendedor || "-")}<br>
         </p>
 
-        <p style="font-size:10pt; line-height:1.35;">
+        <p style="font-size:8pt; line-height:1.25;">
           <b>PROJ:</b> ${esc(observacoes.projeto || "-")}<br>
           <b>Condições do Material:</b> ${esc(observacoes.materialCond || "-")}<br>
         </p>
 
-        ${observacoes.adicional ? `<p style="font-size:10pt; line-height:1.35;"><b>Observações adicionais:</b><br>${esc(observacoes.adicional)}</p>` : ""}
+        ${observacoes.adicional ? `<p style="font-size:8pt; line-height:1.25;"><b>Observações adicionais:</b><br>${esc(observacoes.adicional)}</p>` : ""}
 
       </body>
       </html>
