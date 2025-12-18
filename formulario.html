@@ -365,15 +365,24 @@
                     </select>
                 </div>
                 <div class="col">
-                    <label>Pagamento:</label>
-                    <select id="obsPagamento">
-                        <option value="">Selecione</option>
-                        <option value="À vista">À vista</option>
-                        <option value="30 dias">30 dias</option>
-                        <option value="30 / 60">30 / 60</option>
-                        <option value="30 / 45">30 / 45</option>
-                        <option value="30 / 45 / 60">30 / 45 / 60</option>
-                    </select>
+                    <label>Pagamento (dias entre parcelas):</label>
+                    <input 
+                        type="text" 
+                        id="obsPagamento" 
+                        list="pagamentoList" 
+                        placeholder="Ex: À vista, 30 / 60, 30 / 45 / 60"
+                        autocomplete="off"
+                        style="font-weight:600;">
+                    <datalist id="pagamentoList">
+                        <option value="À vista">
+                        <option value="30 dias">
+                        <option value="30 / 60">
+                        <option value="30 / 45">
+                        <option value="30 / 45 / 60">
+                        <option value="30 / 60 / 90">
+                        <option value="30 / 60 / 90 / 120">
+                    </datalist>
+                    <small style="color:#666;">Digite os dias de cada parcela separados por " / " (ex: 30 / 45 / 60 para 3 parcelas)</small>
                 </div>
             </div>
 
@@ -1514,21 +1523,23 @@
                 return;
             }
 
-            // Não permite deletar orçamentos já enviados
+            // ALTERADO: Permite deletar qualquer orçamento com confirmação extra
+            let mensagemConfirmacao = `Tem certeza que deseja DELETAR "${nome}"?`;
             if (nome && nome.includes("[ENVIADO]")) {
-                alert("Não é possível deletar orçamentos já enviados. Apenas rascunhos podem ser deletados.");
-                return;
+                mensagemConfirmacao = `⚠️ ATENÇÃO: Você está prestes a deletar um orçamento JÁ ENVIADO!\n\n"${nome}"\n\nEsta ação é IRREVERSÍVEL e pode afetar registros importantes.\n\nTem CERTEZA ABSOLUTA que deseja continuar?`;
+            } else {
+                mensagemConfirmacao += " Esta ação é irreversível.";
             }
 
-            if (!confirm(`Tem certeza que deseja DELETAR o rascunho "${nome}"? Esta ação é irreversível.`)) return;
+            if (!confirm(mensagemConfirmacao)) return;
 
             google.script.run
                 .withSuccessHandler(function () {
-                    alert(`Rascunho "${nome}" deletado com sucesso.`);
+                    alert(`Orçamento "${nome}" deletado com sucesso.`);
                     carregarListaRascunhos();
                 })
                 .withFailureHandler(function (err) {
-                    alert("Erro ao deletar rascunho:\n" + err.message);
+                    alert("Erro ao deletar:\n" + err.message);
                 })
                 .deletarRascunho(key);
         }
@@ -1688,6 +1699,12 @@
             // --- coletar TODOS os dados do formulário para salvar junto com o orçamento ---
             const dadosFormularioCompleto = coletarDadosFormulario();
 
+            // NOVO: Preparar informações de pagamento para gerar tabela de parcelas
+            const infoPagamento = {
+                texto: dadosColetados.observacoes.pagamento || "",
+                valorTotal: valorTotalOrcamento
+            };
+
             // --- gerar PDF ---
             google.script.run
                 .withSuccessHandler(function (pdf) {
@@ -1708,7 +1725,7 @@
                     btn.disabled = false;
                     btn.textContent = "Calcular Orçamento e Gerar PDF";
                 })
-                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto);
+                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento);
 
         }
         function voltarPagina() {

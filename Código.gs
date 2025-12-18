@@ -439,7 +439,7 @@ function buscarNomePastaPorCodigo(codigoProjeto) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento
 ) {
   try {
 
@@ -504,6 +504,37 @@ function gerarPdfOrcamento(
       return "R$ " + parts[0] + ',' + parts[1];
     }
 
+    // NOVA FUNÇÃO: Calcula parcelas baseado no texto de pagamento
+    function calcularParcelas(textoPagamento, valorTotal) {
+      if (!textoPagamento || textoPagamento.trim() === "") {
+        return null;
+      }
+      
+      const texto = textoPagamento.trim().toUpperCase();
+      
+      // Se for "À vista" ou "30 dias" (parcela única), retorna null (não precisa de tabela)
+      if (texto.includes("VISTA") || texto === "30 DIAS" || !texto.includes("/")) {
+        return null;
+      }
+      
+      // Extrai os números de dias (ex: "30 / 45 / 60" -> [30, 45, 60])
+      const diasMatch = texto.match(/\d+/g);
+      if (!diasMatch || diasMatch.length === 0) {
+        return null;
+      }
+      
+      const dias = diasMatch.map(d => parseInt(d, 10));
+      const numParcelas = dias.length;
+      const valorParcela = valorTotal / numParcelas;
+      
+      // Retorna array de objetos com dia e valor
+      return dias.map((dia, idx) => ({
+        numero: idx + 1,
+        dias: dia,
+        valor: valorParcela
+      }));
+    }
+
     const itensHtml = resultados.map(function (p) {
       return ''
         + '<tr>'
@@ -522,6 +553,41 @@ function gerarPdfOrcamento(
       + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(somaProcessosPedido)}</td>`
       + '</tr>'
       : '';
+
+    // NOVO: Gera tabela de parcelas se houver múltiplas parcelas
+    let tabelaParcelasHtml = "";
+    if (infoPagamento && infoPagamento.texto) {
+      const parcelas = calcularParcelas(infoPagamento.texto, totalFinal);
+      
+      if (parcelas && parcelas.length > 1) {
+        tabelaParcelasHtml = `
+    <br>
+    <table width="100%" cellpadding="3" cellspacing="0" style="border-collapse:collapse; margin-top:10px;">
+      <tr>
+        <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:5px; text-align:left; font-size:10pt; font-weight:bold;">
+          📋 Condições de Pagamento
+        </th>
+      </tr>
+      <tr>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:5px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:center;">Parcela</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:5px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:center;">Vencimento</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:5px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:right;">Valor</th>
+      </tr>
+      ${parcelas.map(p => `
+        <tr>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt; text-align:center;">${p.numero}/${parcelas.length}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt; text-align:center;">${p.dias} dias</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt; text-align:right;">${formatBR(p.valor)}</td>
+        </tr>
+      `).join('')}
+      <tr>
+        <td colspan="2" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:5px; text-align:right; font-size:10pt; font-weight:bold;">TOTAL:</td>
+        <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:5px; text-align:right; font-size:10pt; font-weight:bold;">${formatBR(totalFinal)}</td>
+      </tr>
+    </table>
+    `;
+      }
+    }
 
     const htmlContent = `
       <html>
@@ -592,6 +658,8 @@ function gerarPdfOrcamento(
     </tr>
   </table>
 </div>
+
+        ${tabelaParcelasHtml}
 
         <h3 style="margin-top:18px;">Outras Informações</h3>
         <p style="font-size:10pt; line-height:1.35;">
