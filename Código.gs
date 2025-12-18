@@ -2930,11 +2930,8 @@ function deletarRascunho(linhaOuKey) {
       throw new Error("Rascunho não encontrado");
     }
 
-    // Verifica se é um rascunho antes de deletar
-    const status = SHEET_ORC.getRange(linha, 10).getValue(); // Coluna 10 = STATUS
-    if (status !== "RASCUNHO") {
-      throw new Error("Este registro não é um rascunho e não pode ser deletado por esta função");
-    }
+    // ALTERADO: Permite deletar qualquer orçamento (não apenas rascunhos)
+    // A confirmação extra para orçamentos enviados é feita no frontend
 
     // Remove a linha da planilha
     SHEET_ORC.deleteRow(linha);
