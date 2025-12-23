@@ -439,7 +439,7 @@ function buscarNomePastaPorCodigo(codigoProjeto) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento
 ) {
   try {
 
@@ -504,24 +504,89 @@ function gerarPdfOrcamento(
       return "R$ " + parts[0] + ',' + parts[1];
     }
 
+    // NOVA FUNÇÃO: Calcula parcelas baseado no texto de pagamento
+    function calcularParcelas(textoPagamento, valorTotal) {
+      if (!textoPagamento || textoPagamento.trim() === "") {
+        return null;
+      }
+      
+      const texto = textoPagamento.trim().toUpperCase();
+      
+      // Se for "À vista" ou "30 dias" (parcela única), retorna null (não precisa de tabela)
+      if (texto.includes("VISTA") || texto === "30 DIAS" || !texto.includes("/")) {
+        return null;
+      }
+      
+      // Extrai os números de dias (ex: "30 / 45 / 60" -> [30, 45, 60])
+      const diasMatch = texto.match(/\d+/g);
+      if (!diasMatch || diasMatch.length === 0) {
+        return null;
+      }
+      
+      const dias = diasMatch.map(d => parseInt(d, 10));
+      const numParcelas = dias.length;
+      const valorParcela = valorTotal / numParcelas;
+      
+      // Retorna array de objetos com dia e valor
+      return dias.map((dia, idx) => ({
+        numero: idx + 1,
+        dias: dia,
+        valor: valorParcela
+      }));
+    }
+
     const itensHtml = resultados.map(function (p) {
       return ''
         + '<tr>'
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt;">${esc(p.codigo || "")}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; font-size:9pt;">${esc(p.descricao || "")}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${esc(p.quantidade || 0)}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(p.precoUnitario || 0)}</td>`
-        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(p.precoTotal || 0)}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.codigo || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.descricao || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${esc(p.quantidade || 0)}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${formatBR(p.precoUnitario || 0)}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${formatBR(p.precoTotal || 0)}</td>`
         + '</tr>';
     }).join('');
 
     const processosPedidoRow = (somaProcessosPedido && Number(somaProcessosPedido) > 0)
       ? ''
       + '<tr>'
-      + `<td colspan="4" bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;"><strong>${esc(descricaoProcessosPedido || "")}</strong></td>`
-      + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:3px; border:0.1px solid #fff; text-align:right; font-size:9pt;">${formatBR(somaProcessosPedido)}</td>`
+      + `<td colspan="4" bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;"><strong>${esc(descricaoProcessosPedido || "")}</strong></td>`
+      + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:right; font-size:8pt;">${formatBR(somaProcessosPedido)}</td>`
       + '</tr>'
       : '';
+
+    // NOVO: Gera tabela de parcelas se houver múltiplas parcelas
+    let tabelaParcelasHtml = "";
+    if (infoPagamento && infoPagamento.texto) {
+      const parcelas = calcularParcelas(infoPagamento.texto, totalFinal);
+      
+      if (parcelas && parcelas.length > 1) {
+        tabelaParcelasHtml = `
+    <table cellpadding="1" cellspacing="0" style="width:auto; max-width:200px; border-collapse:collapse; margin-top:5px; margin-left:auto; font-size:6pt;">
+      <tr>
+        <th colspan="3" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:center; font-size:7pt; font-weight:bold;">
+          📋 Pagamento
+        </th>
+      </tr>
+      <tr>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; font-weight:bold; text-align:center;">Parc.</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; font-weight:bold; text-align:center;">Dias</th>
+        <th bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; font-weight:bold; text-align:right;">Valor</th>
+      </tr>
+      ${parcelas.map(p => `
+        <tr>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; text-align:center;">${p.numero}/${parcelas.length}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; text-align:center;">${p.dias}</td>
+          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:1px; border:0.1px solid #fff; font-size:6pt; text-align:right;">${formatBR(p.valor)}</td>
+        </tr>
+      `).join('')}
+      <tr>
+        <td colspan="2" bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:right; font-size:6pt; font-weight:bold;">TOTAL:</td>
+        <td bgcolor="${headerColor}" style="background:${headerColor}; color:#fff; padding:2px; text-align:right; font-size:6pt; font-weight:bold;">${formatBR(totalFinal)}</td>
+      </tr>
+    </table>
+    `;
+      }
+    }
 
     const htmlContent = `
       <html>
@@ -529,13 +594,13 @@ function gerarPdfOrcamento(
         <meta charset="utf-8">
         <style>
           body, table, th, td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; margin: 10px; line-height:1.3; -webkit-font-smoothing:antialiased; } /* margem menor */
-          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; }
-          .logo { max-height:200px; }
-          .company-info { text-align:right; font-size:10pt; }
-          h2 { text-align:left; margin:30px 0 50px 0; } /* mais espaço abaixo */
-          h3 { margin-top:25px; margin-bottom:5px; }
-          table { width:100%; border-collapse:collapse; border-spacing:0; font-size:9pt; }
+          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; margin: 2px; line-height:1.2; -webkit-font-smoothing:antialiased; } /* margem ainda menor */
+          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+          .logo { max-height:160px; }
+          .company-info { text-align:right; font-size:9pt; }
+          h2 { text-align:left; margin:15px 0 20px 0; font-size:14pt; } /* reduzido */
+          h3 { margin-top:12px; margin-bottom:4px; font-size:11pt; }
+          table { width:100%; border-collapse:collapse; border-spacing:0; font-size:8pt; }
         </style>
       </head>
       <body style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
@@ -557,7 +622,7 @@ function gerarPdfOrcamento(
         <h2>Proposta Comercial Nº ${esc(numeroProposta)}</h2>
 
         <h3>Informações do Cliente:</h3>
-        <p style="margin-bottom:25px;">
+        <p style="margin-bottom:12px; font-size:9pt; line-height:1.3;">
           <p><strong>${esc(cliente.nome)}</strong><br></p>
             CNPJ/CPF: ${esc(cliente.cpf)}<br>
             ${esc(cliente.endereco)}<br>
@@ -567,50 +632,52 @@ function gerarPdfOrcamento(
         </p>
 
         <h3>Itens da Proposta Comercial</h3>
-        <table style="margin-top:12px;">
+        <table style="margin-top:8px;">
           <tr>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:left; border:0.1px solid #fff; font-size:9pt;">Código</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:left; border:0.1px solid #fff; font-size:9pt;">Descrição</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:right; border:0.1px solid #fff; font-size:9pt;">Quant.</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:right; border:0.1px solid #fff; font-size:9pt;">Unit.</th>
-            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:4px; text-align:right; border:0.1px solid #fff; font-size:9pt;">Valor Total</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Código</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Descrição</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:right; border:0.1px solid #fff; font-size:8pt;">Quant.</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:right; border:0.1px solid #fff; font-size:8pt;">Unit.</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:right; border:0.1px solid #fff; font-size:8pt;">Valor Total</th>
           </tr>
           ${itensHtml}
           ${processosPedidoRow}
         </table>
 
         <!-- Totais alinhados com a coluna Valor Total -->
-<div style="width:100%; text-align:right; margin-top:8px;">
-  <table style="display:inline-block; border-collapse:collapse; width:100%; max-width:320px;">
+<div style="width:100%; text-align:right; margin-top:5px;">
+  <table style="display:inline-block; border-collapse:collapse; width:100%; max-width:280px;">
     <tr>
-      <td style="border:none; text-align:right; width:140px; background:#fff; padding:4px; font-weight:bold;">Subtotal:</td>
-      <td style="border:none; text-align:right; background:${rowColor}; padding:4px; width:110px; font-weight:bold;">${formatBR(totalPecas)}</td>
+      <td style="border:none; text-align:right; width:120px; background:#fff; padding:3px; font-weight:bold; font-size:8pt;">Subtotal:</td>
+      <td style="border:none; text-align:right; background:${rowColor}; padding:3px; width:100px; font-weight:bold; font-size:8pt;">${formatBR(totalPecas)}</td>
     </tr>
     <tr>
-      <td style="border:none; text-align:right; background:#fff; padding:4px; font-weight:bold;">Total:</td>
-      <td style="border:none; text-align:right; background:${rowColor}; padding:4px; width:110px; font-weight:bold;">${formatBR(totalFinal)}</td>
+      <td style="border:none; text-align:right; background:#fff; padding:3px; font-weight:bold; font-size:8pt;">Total:</td>
+      <td style="border:none; text-align:right; background:${rowColor}; padding:3px; width:100px; font-weight:bold; font-size:8pt;">${formatBR(totalFinal)}</td>
     </tr>
   </table>
 </div>
 
-        <h3 style="margin-top:18px;">Outras Informações</h3>
-        <p style="font-size:10pt; line-height:1.35;">
+        ${tabelaParcelasHtml}
+
+        <h3 style="margin-top:12px;">Outras Informações</h3>
+        <p style="font-size:8pt; line-height:1.25;">
           <b>Proposta Comercial - incluído em:</b> ${esc(dataBrasil)} às ${esc(horaBrasil)}<br>
           <b>Validade da Proposta:</b> 30 dias
         </p>
 
-        <p style="font-size:10pt; line-height:1.35;">
+        <p style="font-size:8pt; line-height:1.25;">
           <b>Previsão de Faturamento:</b> ${esc(formatarDataBrasil(observacoes.faturamento) || "-")}<br>
           <b>Pagamento:</b> ${esc(observacoes.pagamento || "-")}<br>
           <b>Vendedor:</b> ${esc(observacoes.vendedor || "-")}<br>
         </p>
 
-        <p style="font-size:10pt; line-height:1.35;">
+        <p style="font-size:8pt; line-height:1.25;">
           <b>PROJ:</b> ${esc(observacoes.projeto || "-")}<br>
           <b>Condições do Material:</b> ${esc(observacoes.materialCond || "-")}<br>
         </p>
 
-        ${observacoes.adicional ? `<p style="font-size:10pt; line-height:1.35;"><b>Observações adicionais:</b><br>${esc(observacoes.adicional)}</p>` : ""}
+        ${observacoes.adicional ? `<p style="font-size:8pt; line-height:1.25;"><b>Observações adicionais:</b><br>${esc(observacoes.adicional)}</p>` : ""}
 
       </body>
       </html>
@@ -632,6 +699,170 @@ function gerarPdfOrcamento(
     return { url: file.getUrl(), nome: file.getName(), memoriaUrl: memoriaUrl };
   } catch (err) {
     Logger.log("ERRO gerarPdfOrcamento: " + err.toString());
+    throw err;
+  }
+}
+
+/* ======= GERAR PDF ORDEM DE PRODUÇÃO (sem valores) ======= */
+function gerarPdfOrdemProducao(linhaOuKey) {
+  try {
+    // Carrega os dados do orçamento
+    const dados = carregarRascunho(linhaOuKey);
+    if (!dados) {
+      throw new Error("Não foi possível carregar os dados do orçamento");
+    }
+
+    // Extrai dados necessários
+    const chapas = dados.chapas || [];
+    const cliente = dados.cliente || {};
+    const observacoes = dados.observacoes || {};
+    const projeto = dados.projeto || {};
+    const processosPedido = dados.processosPedido || [];
+    const produtosCadastrados = dados.produtosCadastrados || [];
+
+    const codigoProjeto = (projeto.data || "") + (projeto.indice || "") + (projeto.iniciais || "");
+    const versao = projeto.versao || "";
+    const numeroProposta = (codigoProjeto || "") + (versao || "");
+
+    // Calcula resultados (mas sem mostrar valores)
+    const resultados = calcularOrcamento(chapas);
+
+    // Adiciona produtos cadastrados aos resultados (sem valores)
+    if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      produtosCadastrados.forEach(prod => {
+        resultados.push({
+          codigo: prod.codigo || "",
+          descricao: prod.descricao || "",
+          quantidade: prod.quantidade || 0,
+          precoUnitario: 0,
+          precoTotal: 0
+        });
+      });
+    }
+
+    // Busca pasta
+    const nomePasta = projeto.pasta || "";
+    const data = projeto.data || "";
+    const pasta = criarOuUsarPasta(codigoProjeto, nomePasta, data);
+    const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
+    const comSubFolder = getOrCreateSubFolder(workFolder, "COM");
+
+    // Logo
+    const logoFile = DriveApp.getFileById(ID_LOGO);
+    const logoBlob = logoFile.getBlob();
+    const logoBase64 = Utilities.base64Encode(logoBlob.getBytes());
+    const logoMime = logoBlob.getContentType();
+
+    // Data/hora
+    const agora = new Date();
+    const dataBrasil = formatarDataBrasil(agora);
+    const horaBrasil = agora.toLocaleTimeString("pt-BR");
+
+    // cores
+    const headerColor = "#FF9933";
+    const rowColor = "#FDF5E6";
+
+    // helpers
+    function esc(v) {
+      if (v === null || v === undefined) return "";
+      return String(v)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // Gera HTML dos itens SEM valores
+    const itensHtml = resultados.map(function (p) {
+      return ''
+        + '<tr>'
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.codigo || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:8pt;">${esc(p.descricao || "")}</td>`
+        + `<td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; text-align:center; font-size:8pt;">${esc(p.quantidade || 0)}</td>`
+        + '</tr>';
+    }).join('');
+
+    const htmlContent = `
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body, table, th, td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; margin: 5px; line-height:1.2; -webkit-font-smoothing:antialiased; }
+          .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+          .logo { max-height:180px; }
+          .company-info { text-align:right; font-size:9pt; }
+          h2 { text-align:left; margin:20px 0 30px 0; font-size:14pt; }
+          h3 { margin-top:15px; margin-bottom:5px; font-size:11pt; }
+          table { width:100%; border-collapse:collapse; border-spacing:0; font-size:8pt; }
+        </style>
+      </head>
+      <body style="-webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div class="header">
+          <img class="logo" src="data:${logoMime};base64,${logoBase64}">
+          <div class="company-info">
+            <strong>TUBA FERRAMENTARIA LTDA</strong><br>
+            CNPJ: 10.684.825/0001-26<br>
+            Inscrição Estadual: 635592888110<br>
+            Endereço: Estrada Dos Alvarengas, 4101 - Assunção<br>
+            São Bernardo do Campo - SP - CEP: 09850-550<br>
+            Site: www.tb4.com.br<br>
+            <b>Email:</b> tubaferram@gmail.com<br>
+            <b>Telefone:</b> (11) 91285-4204
+          </div>
+        </div>
+
+        <h2>Ordem de Produção Nº ${esc(numeroProposta)}</h2>
+
+        <h3>Informações do Cliente:</h3>
+        <p style="margin-bottom:12px; font-size:9pt; line-height:1.3;">
+          <p><strong>${esc(cliente.nome)}</strong><br></p>
+            CNPJ/CPF: ${esc(cliente.cpf)}<br>
+            ${esc(cliente.endereco)}<br>
+            <b>Telefone:</b> ${esc(cliente.telefone)}<br>
+            <b>Email:</b> ${esc(cliente.email)}<br>
+            <b>Responsável:</b> ${esc(cliente.responsavel || "-")}
+        </p>
+
+        <h3>Itens da Ordem de Produção</h3>
+        <table style="margin-top:8px;">
+          <tr>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Código</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:8pt;">Descrição</th>
+            <th bgcolor="${headerColor}" style="background:${headerColor}; color:#ffffff; padding:3px; text-align:center; border:0.1px solid #fff; font-size:8pt;">Quantidade</th>
+          </tr>
+          ${itensHtml}
+        </table>
+
+        <h3 style="margin-top:12px;">Outras Informações</h3>
+        <p style="font-size:8pt; line-height:1.25;">
+          <b>Ordem de Produção - gerado em:</b> ${esc(dataBrasil)} às ${esc(horaBrasil)}
+        </p>
+
+        <p style="font-size:8pt; line-height:1.25;">
+          <b>Previsão de Faturamento:</b> ${esc(formatarDataBrasil(observacoes.faturamento) || "-")}<br>
+          <b>Vendedor:</b> ${esc(observacoes.vendedor || "-")}<br>
+        </p>
+
+        <p style="font-size:8pt; line-height:1.25;">
+          <b>PROJ:</b> ${esc(observacoes.projeto || codigoProjeto || "-")}<br>
+          <b>Condições do Material:</b> ${esc(observacoes.materialCond || "-")}<br>
+        </p>
+
+        ${observacoes.adicional ? `<p style="font-size:8pt; line-height:1.25;"><b>Observações adicionais:</b><br>${esc(observacoes.adicional)}</p>` : ""}
+
+      </body>
+      </html>
+    `;
+
+    const blob = Utilities.newBlob(htmlContent, "text/html", "ordem_producao.html");
+    const pdf = blob.getAs("application/pdf").setName("Ordem_Producao_" + numeroProposta + ".pdf");
+    const file = comSubFolder.createFile(pdf);
+
+    return { url: file.getUrl(), nome: file.getName() };
+  } catch (err) {
+    Logger.log("ERRO gerarPdfOrdemProducao: " + err.toString());
     throw err;
   }
 }
@@ -2862,11 +3093,8 @@ function deletarRascunho(linhaOuKey) {
       throw new Error("Rascunho não encontrado");
     }
 
-    // Verifica se é um rascunho antes de deletar
-    const status = SHEET_ORC.getRange(linha, 10).getValue(); // Coluna 10 = STATUS
-    if (status !== "RASCUNHO") {
-      throw new Error("Este registro não é um rascunho e não pode ser deletado por esta função");
-    }
+    // ALTERADO: Permite deletar qualquer orçamento (não apenas rascunhos)
+    // A confirmação extra para orçamentos enviados é feita no frontend
 
     // Remove a linha da planilha
     SHEET_ORC.deleteRow(linha);

@@ -894,8 +894,9 @@
               ${projeto['LINK DA MEMÓRIA DE CÁLCULO'] ? `<a href="${projeto['LINK DA MEMÓRIA DE CÁLCULO']}" target="_blank" class="link-icon" title="Abrir Memória de Cálculo">📊</a>` : '-'}
             </td>
             <td>
-              <button class="btn btn-small btn-success" onclick="editProjeto(${linha})" style="margin-right: 4px;">✏️</button>
-              <button class="btn btn-small btn-danger" onclick="deleteProjeto(${linha})">🗑️</button>
+              <button class="btn btn-small btn-success" onclick="editProjeto(${linha})" style="margin-right: 4px;" title="Editar Projeto">✏️</button>
+              <button class="btn btn-small" onclick="gerarOrdemProducao(${linha})" style="margin-right: 4px; background:#4CAF50; color:white;" title="Gerar Ordem de Produção">📋</button>
+              <button class="btn btn-small btn-danger" onclick="deleteProjeto(${linha})" title="Deletar Projeto">🗑️</button>
             </td>
           </tr>
         `;
@@ -951,6 +952,30 @@
                     alert('Erro ao excluir: ' + (error.message || error));
                 })
                 .excluirProjeto(linha);
+        }
+
+        // Gerar Ordem de Produção
+        function gerarOrdemProducao(linha) {
+            if (!confirm('Gerar Ordem de Produção (PDF sem valores)?')) return;
+
+            // Desabilita o botão temporariamente
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳';
+
+            google.script.run
+                .withSuccessHandler(function (result) {
+                    btn.disabled = false;
+                    btn.textContent = '📋';
+                    alert('Ordem de Produção gerada com sucesso!\n\nClique no link para abrir:\n' + result.url);
+                    window.open(result.url, '_blank');
+                })
+                .withFailureHandler(function (error) {
+                    btn.disabled = false;
+                    btn.textContent = '📋';
+                    alert('Erro ao gerar Ordem de Produção: ' + (error.message || error));
+                })
+                .gerarPdfOrdemProducao(linha);
         }
 
         // Editar projeto (abre modal de edição)
