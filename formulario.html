@@ -166,6 +166,20 @@
             margin-top: 8px;
         }
 
+        /* Preview section styles */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #4caf50;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* responsive */
         @media (max-width: 720px) {
             .row {
@@ -389,6 +403,34 @@
             <div style="margin-top:8px;">
                 <label>Observações adicionais:</label>
                 <textarea id="obsAdicional" rows="4"></textarea>
+            </div>
+        </div>
+
+        <!-- PREVIEW DO ORÇAMENTO -->
+        <div class="section" id="previewSection" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #4caf50;">
+            <div class="section-header">
+                <div>
+                    <h3 style="color: #2e7d32;">💰 Preview do Orçamento</h3>
+                    <small id="previewStatus" style="color: #666;">Preencha os dados para ver o preview</small>
+                </div>
+                <div id="previewLoading" class="hidden" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="spinner"></div>
+                    <span style="color: #666;">Calculando...</span>
+                </div>
+            </div>
+            
+            <div id="previewContent">
+                <div class="row" style="margin-top: 12px;">
+                    <div class="col">
+                        <div id="previewDetalhamento" style="font-size: 13px; color: #555;"></div>
+                    </div>
+                </div>
+                <div style="margin-top: 16px; padding: 16px; background: #fff; border-radius: 8px; border-left: 4px solid #4caf50;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 18px; font-weight: 600; color: #2e7d32;">TOTAL ESTIMADO:</span>
+                        <span id="previewTotal" style="font-size: 28px; font-weight: 700; color: #2e7d32;">R$ 0,00</span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1739,6 +1781,278 @@
 
         // ---------- INICIAL (Alterado para incluir carregamento de rascunhos) ----------
         carregarListaRascunhos(); // Carrega a lista de rascunhos salvos
+
+        /* ========================================================= */
+        /* ========== PREVIEW EM TEMPO REAL DO ORÇAMENTO ========== */
+        /* ========================================================= */
+
+        // Função de debounce para evitar chamadas excessivas ao servidor
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Função para coletar apenas as chapas do formulário
+        function coletarChapas() {
+            const chapas = [];
+            document.querySelectorAll(".chapa").forEach(cDiv => {
+                const chapa = {
+                    material: cDiv.querySelector(".material")?.value || "",
+                    comprimento: parseFloat(cDiv.querySelector(".chapaComprimento")?.value) || 0,
+                    largura: parseFloat(cDiv.querySelector(".chapaLargura")?.value) || 0,
+                    espessura: parseFloat(cDiv.querySelector(".chapaEspessura")?.value) || 0,
+                    isConjunto: cDiv.querySelector(".isConjunto")?.checked || false,
+                    descricaoConjunto: cDiv.querySelector(".descricaoConjunto")?.value || "",
+                    codigoConjunto: cDiv.querySelector(".codigoConjunto")?.value || "",
+                    quantidadeConjunto: parseInt(cDiv.querySelector(".quantidadeConjunto")?.value) || 1,
+                    pecas: []
+                };
+
+                cDiv.querySelectorAll(".peca").forEach(pDiv => {
+                    const peca = {
+                        descricao: pDiv.querySelector(".descricao")?.value || "",
+                        codigo: pDiv.querySelector(".codigo")?.value || "",
+                        comprimento: parseFloat(pDiv.querySelector(".pecaComprimento")?.value) || 0,
+                        largura: parseFloat(pDiv.querySelector(".pecaLargura")?.value) || 0,
+                        numPecasLote: parseInt(pDiv.querySelector(".numPecasLote")?.value) || 0,
+                        numPecasChapa: parseInt(pDiv.querySelector(".numPecasChapa")?.value) || 0,
+                        tempoCorte: pDiv.querySelector(".temCorte")?.checked ? (parseInt(pDiv.querySelector(".tempoCorte")?.value) || 0) : 0,
+                        numDobras: pDiv.querySelector(".temDobra")?.checked ? (parseInt(pDiv.querySelector(".numDobras")?.value) || 0) : 0,
+                        tempoDobra: pDiv.querySelector(".temDobra")?.checked ? (parseFloat(pDiv.querySelector(".tempoDobra")?.value) || 0) : 0,
+                        setupDobra: pDiv.querySelector(".temDobra")?.checked ? (parseFloat(pDiv.querySelector(".setupDobra")?.value) || 0) : 0,
+                        processos: [],
+                        adicionaisTotal: 0,
+                        tempoTotal: 0
+                    };
+
+                    // Coleta processos adicionais da peça
+                    if (pDiv.querySelector(".temProcessos")?.checked) {
+                        pDiv.querySelectorAll(".processo").forEach(procDiv => {
+                            const tempoSetup = parseFloat(procDiv.querySelector(".procSetup")?.value) || 0;
+                            const valorHora = parseFloat(procDiv.querySelector(".procValorHora")?.value) || 0;
+                            const horas = parseFloat(procDiv.querySelector(".procHoras")?.value) || 0;
+                            const qtdMat = parseFloat(procDiv.querySelector(".procQtdMat")?.value) || 0;
+                            const valorMat = parseFloat(procDiv.querySelector(".procValorMat")?.value) || 0;
+                            const precoProc = (tempoSetup + horas) * valorHora + (qtdMat * valorMat);
+                            peca.adicionaisTotal += precoProc;
+                            peca.tempoTotal += (tempoSetup + horas);
+                        });
+                    }
+
+                    chapa.pecas.push(peca);
+                });
+
+                if (chapa.pecas.length > 0) {
+                    chapas.push(chapa);
+                }
+            });
+            return chapas;
+        }
+
+        // Função para coletar processos do pedido
+        function coletarProcessosPedido() {
+            const processos = [];
+            document.querySelectorAll(".procPedido").forEach(procDiv => {
+                processos.push({
+                    descricao: procDiv.querySelector(".procPedidoDescricao")?.value || "",
+                    valorHora: parseFloat(procDiv.querySelector(".procPedidoValorHora")?.value) || 0,
+                    horas: parseFloat(procDiv.querySelector(".procPedidoHoras")?.value) || 0,
+                    material: procDiv.querySelector(".procPedidoMaterial")?.value || "",
+                    valorMat: parseFloat(procDiv.querySelector(".procPedidoValorMat")?.value) || 0,
+                    qtdMat: parseFloat(procDiv.querySelector(".procPedidoQtdMat")?.value) || 0,
+                    valorFixo: parseFloat(procDiv.querySelector(".procPedidoValorFixo")?.value) || 0
+                });
+            });
+            return processos;
+        }
+
+        // Função para formatar número em reais
+        function formatarReais(valor) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+        }
+
+        // Função para atualizar o preview
+        function atualizarPreview() {
+            try {
+                // Coleta dados do formulário
+                const dados = {
+                    chapas: coletarChapas(),
+                    produtosCadastrados: coletarProdutosCadastrados(),
+                    processosPedido: coletarProcessosPedido()
+                };
+
+                // Verifica se há dados para calcular
+                const temDados = dados.chapas.length > 0 || dados.produtosCadastrados.length > 0 || dados.processosPedido.length > 0;
+                
+                if (!temDados) {
+                    document.getElementById("previewStatus").textContent = "Preencha os dados para ver o preview";
+                    document.getElementById("previewTotal").textContent = "R$ 0,00";
+                    document.getElementById("previewDetalhamento").innerHTML = "";
+                    return;
+                }
+
+                // Mostra loading
+                document.getElementById("previewLoading").classList.remove("hidden");
+                document.getElementById("previewStatus").textContent = "Calculando...";
+
+                // Chama o servidor para calcular
+                google.script.run
+                    .withSuccessHandler(function(resultado) {
+                        // Esconde loading
+                        document.getElementById("previewLoading").classList.add("hidden");
+                        
+                        if (resultado.erro) {
+                            document.getElementById("previewStatus").textContent = "Erro ao calcular: " + resultado.erro;
+                            return;
+                        }
+
+                        // Atualiza status
+                        const agora = new Date();
+                        document.getElementById("previewStatus").textContent = "Atualizado às " + agora.toLocaleTimeString('pt-BR');
+                        
+                        // Atualiza total
+                        document.getElementById("previewTotal").textContent = formatarReais(resultado.total);
+
+                        // Atualiza detalhamento
+                        let detalhamentoHtml = "";
+                        
+                        // Agrupa por tipo
+                        const produtos = resultado.detalhamento.filter(d => d.tipo === 'produto');
+                        const pecas = resultado.detalhamento.filter(d => d.tipo === 'peca');
+                        const processos = resultado.detalhamento.filter(d => d.tipo === 'processo');
+
+                        if (produtos.length > 0) {
+                            detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>📦 Produtos Cadastrados:</strong><br>';
+                            produtos.forEach(p => {
+                                detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao} (${p.quantidade}x) - ${formatarReais(p.precoTotal)}<br>`;
+                            });
+                            detalhamentoHtml += '</div>';
+                        }
+
+                        if (pecas.length > 0) {
+                            detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>🔧 Peças/Chapas:</strong><br>';
+                            pecas.forEach(p => {
+                                detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao || p.codigo} (${p.quantidade}x) - ${formatarReais(p.precoTotal)}<br>`;
+                            });
+                            detalhamentoHtml += '</div>';
+                        }
+
+                        if (processos.length > 0) {
+                            detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>⚙️ Processos Adicionais:</strong><br>';
+                            processos.forEach(p => {
+                                detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao} - ${formatarReais(p.precoTotal)}<br>`;
+                            });
+                            detalhamentoHtml += '</div>';
+                        }
+
+                        document.getElementById("previewDetalhamento").innerHTML = detalhamentoHtml;
+                    })
+                    .withFailureHandler(function(erro) {
+                        document.getElementById("previewLoading").classList.add("hidden");
+                        document.getElementById("previewStatus").textContent = "Erro ao calcular preview";
+                        console.error("Erro ao calcular preview:", erro);
+                    })
+                    .calcularPreviewOrcamento(dados);
+
+            } catch (erro) {
+                console.error("Erro ao atualizar preview:", erro);
+                document.getElementById("previewStatus").textContent = "Erro ao processar dados";
+            }
+        }
+
+        // Cria versão com debounce para evitar muitas chamadas
+        const atualizarPreviewDebounced = debounce(atualizarPreview, 600);
+
+        // MutationObserver para detectar mudanças nos containers
+        const observerConfig = { childList: true, subtree: true };
+
+        // Observer para container de chapas
+        const chapasObserver = new MutationObserver(function(mutations) {
+            atualizarPreviewDebounced();
+        });
+
+        const chapasContainer = document.getElementById("chapasContainer");
+        if (chapasContainer) {
+            chapasObserver.observe(chapasContainer, observerConfig);
+        }
+
+        // Observer para container de produtos
+        const produtosObserver = new MutationObserver(function(mutations) {
+            atualizarPreviewDebounced();
+        });
+
+        const produtosContainer = document.getElementById("produtosCadastradosContainer");
+        if (produtosContainer) {
+            produtosObserver.observe(produtosContainer, observerConfig);
+        }
+
+        // Observer para container de processos do pedido
+        const processosObserver = new MutationObserver(function(mutations) {
+            atualizarPreviewDebounced();
+        });
+
+        const processosContainer = document.getElementById("processosPedidoContainer");
+        if (processosContainer) {
+            processosObserver.observe(processosContainer, observerConfig);
+        }
+
+        // Event listeners para campos numéricos e de preço (com delegação de eventos)
+        document.addEventListener('input', function(e) {
+            const target = e.target;
+            
+            // Verifica se é um campo numérico relevante
+            if (target.type === 'number' || 
+                target.classList.contains('produtoPrecoUnit') ||
+                target.classList.contains('produtoQuantidade') ||
+                target.classList.contains('chapaComprimento') ||
+                target.classList.contains('chapaLargura') ||
+                target.classList.contains('chapaEspessura') ||
+                target.classList.contains('pecaComprimento') ||
+                target.classList.contains('pecaLargura') ||
+                target.classList.contains('numPecasLote') ||
+                target.classList.contains('numPecasChapa') ||
+                target.classList.contains('tempoCorte') ||
+                target.classList.contains('numDobras') ||
+                target.classList.contains('tempoDobra') ||
+                target.classList.contains('setupDobra') ||
+                target.classList.contains('procValorHora') ||
+                target.classList.contains('procHoras') ||
+                target.classList.contains('procValorMat') ||
+                target.classList.contains('procQtdMat') ||
+                target.classList.contains('procPedidoValorHora') ||
+                target.classList.contains('procPedidoHoras') ||
+                target.classList.contains('procPedidoValorMat') ||
+                target.classList.contains('procPedidoQtdMat') ||
+                target.classList.contains('procPedidoValorFixo')) {
+                atualizarPreviewDebounced();
+            }
+        });
+
+        // Event listeners para checkboxes que afetam cálculos
+        document.addEventListener('change', function(e) {
+            const target = e.target;
+            
+            if (target.type === 'checkbox' && 
+                (target.classList.contains('temCorte') ||
+                 target.classList.contains('temDobra') ||
+                 target.classList.contains('temProcessos') ||
+                 target.classList.contains('isConjunto'))) {
+                atualizarPreviewDebounced();
+            }
+        });
+
+        // Atualiza preview inicial (após um pequeno delay para garantir que tudo carregou)
+        setTimeout(function() {
+            atualizarPreview();
+        }, 1000);
+
     </script>
 </body>
 

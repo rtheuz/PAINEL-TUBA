@@ -374,6 +374,77 @@ function calcularOrcamento(chapas) {
   return resultados.concat(agrupados);
 }
 
+// ========================= PREVIEW DE ORÇAMENTO =========================
+/**
+ * Calcula preview do orçamento em tempo real
+ * @param {Object} dados - Dados do formulário (chapas, produtosCadastrados, processosPedido)
+ * @returns {Object} { total, detalhamento, timestamp }
+ */
+function calcularPreviewOrcamento(dados) {
+  try {
+    let totalGeral = 0;
+    const detalhamento = [];
+
+    // 1. Produtos Cadastrados
+    if (dados.produtosCadastrados && Array.isArray(dados.produtosCadastrados)) {
+      dados.produtosCadastrados.forEach(prod => {
+        const precoTotal = (parseFloat(prod.precoUnitario) || 0) * (parseFloat(prod.quantidade) || 0);
+        totalGeral += precoTotal;
+        detalhamento.push({
+          tipo: 'produto',
+          descricao: prod.descricao || prod.codigo,
+          quantidade: prod.quantidade,
+          precoUnitario: prod.precoUnitario,
+          precoTotal: precoTotal
+        });
+      });
+    }
+
+    // 2. Chapas/Peças (usa função existente)
+    if (dados.chapas && Array.isArray(dados.chapas)) {
+      const resultadosChapas = calcularOrcamento(dados.chapas);
+      resultadosChapas.forEach(res => {
+        totalGeral += res.precoTotal || 0;
+        detalhamento.push({
+          tipo: 'peca',
+          descricao: res.descricao,
+          codigo: res.codigo,
+          quantidade: res.quantidade,
+          precoUnitario: res.precoUnitario,
+          precoTotal: res.precoTotal
+        });
+      });
+    }
+
+    // 3. Processos do Pedido
+    if (dados.processosPedido && Array.isArray(dados.processosPedido)) {
+      dados.processosPedido.forEach(proc => {
+        const valorHora = parseFloat(proc.valorHora) || 0;
+        const horas = parseFloat(proc.horas) || 0;
+        const valorMat = parseFloat(proc.valorMat) || 0;
+        const qtdMat = parseFloat(proc.qtdMat) || 0;
+        const valorFixo = parseFloat(proc.valorFixo) || 0;
+        const preco = valorHora * horas + valorMat * qtdMat + valorFixo;
+        totalGeral += preco;
+        detalhamento.push({
+          tipo: 'processo',
+          descricao: proc.descricao || 'Processo adicional',
+          precoTotal: preco
+        });
+      });
+    }
+
+    return {
+      total: totalGeral,
+      detalhamento: detalhamento,
+      timestamp: new Date().toISOString()
+    };
+  } catch (err) {
+    Logger.log("Erro calcularPreviewOrcamento: " + err.message);
+    return { total: 0, detalhamento: [], erro: err.message };
+  }
+}
+
 // ========================= CLIENTES =========================
 function getTodosClientes() {
   const dados = SHEET_CLIENTES.getDataRange().getValues();
