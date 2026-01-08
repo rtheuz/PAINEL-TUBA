@@ -719,15 +719,28 @@
     // Função para verificar se uma coluna deve usar correspondência exata (colunas numéricas)
     function isNumericColumn(colName) {
       const upperColName = colName.toUpperCase();
-      // Colunas que devem ter correspondência exata numérica
-      return upperColName.includes('ESPESSURA') || 
-             upperColName === 'ESP' ||
-             upperColName === 'QTDE' ||
-             upperColName.includes('PESO') ||
-             upperColName === 'NF' ||
-             (upperColName.includes('N') && upperColName.includes('CHAPA')) ||
-             upperColName.includes('Nº') ||
-             upperColName.includes('N°');
+      
+      // Lista de colunas numéricas conhecidas
+      if (upperColName === 'ESP' || 
+          upperColName === 'QTDE' || 
+          upperColName === 'NF') {
+        return true;
+      }
+      
+      // Padrões de nomes de colunas numéricas
+      if (upperColName.includes('ESPESSURA') || 
+          upperColName.includes('PESO')) {
+        return true;
+      }
+      
+      // N DA CHAPA - verificação mais específica
+      const temN = upperColName.includes('N') || upperColName.includes('Nº') || upperColName.includes('N°');
+      const temChapa = upperColName.includes('CHAPA');
+      if (temN && temChapa) {
+        return true;
+      }
+      
+      return false;
     }
 
     // Função para normalizar valor numérico (trata vírgula e ponto)
@@ -864,7 +877,7 @@
       
       document.querySelectorAll('.column-filter').forEach(input => {
         const colName = input.dataset.column;
-        const value = input.value.toLowerCase().trim();
+        const value = input.value.trim(); // Mantém o formato original para matchFilter decidir
         if (value) {
           columnFilters[colName] = {
             value: value,
