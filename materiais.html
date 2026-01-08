@@ -716,6 +716,50 @@
       return map;
     }
 
+    // Função para verificar se uma coluna deve usar correspondência exata (colunas numéricas)
+    function isNumericColumn(colName) {
+      const upperColName = colName.toUpperCase();
+      // Colunas que devem ter correspondência exata numérica
+      return upperColName.includes('ESPESSURA') || 
+             upperColName === 'ESP' ||
+             upperColName === 'QTDE' ||
+             upperColName.includes('PESO') ||
+             upperColName === 'NF' ||
+             (upperColName.includes('N') && upperColName.includes('CHAPA')) ||
+             upperColName.includes('Nº') ||
+             upperColName.includes('N°');
+    }
+
+    // Função para normalizar valor numérico (trata vírgula e ponto)
+    function normalizeNumericValue(value) {
+      if (!value) return '';
+      // Converte vírgula em ponto para comparação numérica
+      return value.trim().replace(',', '.');
+    }
+
+    // Função para comparar valores considerando tipo de coluna
+    function matchFilter(valorCelula, filterValue, colName) {
+      if (isNumericColumn(colName)) {
+        // Para colunas numéricas, fazer correspondência exata
+        const normalizedCelula = normalizeNumericValue(valorCelula);
+        const normalizedFilter = normalizeNumericValue(filterValue);
+        
+        // Se ambos são números, comparar como números
+        const numCelula = parseFloat(normalizedCelula);
+        const numFilter = parseFloat(normalizedFilter);
+        
+        if (!isNaN(numCelula) && !isNaN(numFilter)) {
+          return numCelula === numFilter;
+        }
+        
+        // Se não são números válidos, comparar como string exata
+        return normalizedCelula === normalizedFilter;
+      } else {
+        // Para colunas de texto, usar correspondência parcial (includes)
+        return valorCelula.toLowerCase().includes(filterValue.toLowerCase());
+      }
+    }
+
     // Função para atualizar o badge de filtros ativos
     function atualizarBadgeFiltros() {
       const badge = document.getElementById('filtrosAtivosBadge');
@@ -848,8 +892,8 @@
           const cell = row.cells[filter.index];
           
           if (cell) {
-            const valorCelula = obterValorCelula(cell).toLowerCase();
-            if (!valorCelula.includes(filter.value)) {
+            const valorCelula = obterValorCelula(cell);
+            if (!matchFilter(valorCelula, filter.value, colName)) {
               visivelColunas = false;
               break; // Se falhar em um filtro, não precisa verificar os outros
             }
