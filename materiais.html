@@ -299,11 +299,43 @@
       font-size: 12px;
       font-family: inherit;
       display: block;
+      transition: background-color 0.2s ease;
     }
 
     th .filter-input:focus {
       outline: none;
       box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Destaque visual para filtros com valor */
+    th .filter-input.has-value {
+      background: #fff9c4;
+      border-color: #fbc02d;
+      font-weight: 600;
+    }
+
+    /* Badge de filtros ativos */
+    .filtros-ativos-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a73e8;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .filtros-ativos-badge.hidden {
+      display: none;
+    }
+
+    .filtros-ativos-badge span {
+      color: #1a73e8;
+      font-weight: 700;
     }
 
     td input {
@@ -405,6 +437,11 @@
       .filter-global-container {
         width: 100%;
         min-width: auto;
+      }
+
+      .filtros-ativos-badge {
+        font-size: 13px;
+        padding: 7px 12px;
       }
 
       .btn {
@@ -555,6 +592,9 @@
         <span style="font-weight: 600; color: white;">🔍</span>
         <input type="text" id="filtroGlobal" placeholder="Buscar em todas as colunas...">
       </div>
+      <span class="filtros-ativos-badge hidden" id="filtrosAtivosBadge">
+        🔍 <span id="numFiltrosAtivos">0</span> filtros ativos
+      </span>
       <button class="btn btn-secondary" onclick="limparFiltros()">🔄 Limpar Filtros</button>
     </div>
 
@@ -564,16 +604,11 @@
         <table id="etiquetasTable">
           <thead>
             <tr>
-              <? for (let key in dados[0]) { 
-                const isNChapa = (key.toUpperCase().includes("N") || key.toUpperCase().includes("Nº") || key.toUpperCase().includes("N°")) && 
-                                 (key.toUpperCase().includes("CHAPA"));
-              ?>
-              <th data-col="<?= key ?>" class="<?= isNChapa ? 'has-filter' : '' ?>">
+              <? for (let key in dados[0]) { ?>
+              <th data-col="<?= key ?>" class="has-filter">
                 <div class="th-content">
                   <span class="th-title"><?= key ?></span>
-                  <? if (isNChapa) { ?>
-                  <input type="text" class="filter-input" id="filtroNChapa" placeholder="Filtrar Nº..." onclick="event.stopPropagation()">
-                  <? } ?>
+                  <input type="text" class="filter-input column-filter" data-column="<?= key ?>" placeholder="Filtrar..." onclick="event.stopPropagation()">
                 </div>
               </th>
               <? } ?>
@@ -649,6 +684,73 @@
       return num ? parseInt(num, 10) : 0;
     }
 
+    // Função helper para obter valor correto de cada tipo de célula
+    function obterValorCelula(cell) {
+      if (!cell) return '';
+      
+      const input = cell.querySelector('input');
+      if (input) {
+        return input.value.trim();
+      }
+      
+      if (cell.classList.contains('feito-por')) {
+        return cell.dataset.nomeOriginal || '';
+      }
+      
+      return cell.textContent.trim();
+    }
+
+    // Função para mapear nomes de colunas para índices
+    function getColumnIndexMap() {
+      const table = document.getElementById('etiquetasTable');
+      const headers = Array.from(table.tHead.rows[0].cells);
+      const map = {};
+      
+      headers.forEach((th, index) => {
+        const colName = th.dataset.col;
+        if (colName) {
+          map[colName] = index;
+        }
+      });
+      
+      return map;
+    }
+
+    // Função para atualizar o badge de filtros ativos
+    function atualizarBadgeFiltros() {
+      const badge = document.getElementById('filtrosAtivosBadge');
+      const numElement = document.getElementById('numFiltrosAtivos');
+      
+      if (!badge || !numElement) return;
+      
+      let count = 0;
+      
+      // Conta filtro global
+      const filtroGlobal = document.getElementById('filtroGlobal');
+      if (filtroGlobal && filtroGlobal.value.trim()) {
+        count++;
+      }
+      
+      // Conta filtros de coluna
+      const columnFilters = document.querySelectorAll('.column-filter');
+      columnFilters.forEach(input => {
+        if (input.value.trim()) {
+          count++;
+          input.classList.add('has-value');
+        } else {
+          input.classList.remove('has-value');
+        }
+      });
+      
+      numElement.textContent = count;
+      
+      if (count > 0) {
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
     // Função para extrair dimensões (largura x altura) e converter para número
     function parseDimension(dim) {
       if (!dim) return 0;
@@ -706,68 +808,75 @@
       document.getElementById('pesoTotal').textContent = pesoTotal.toFixed(2) + " Kg";
     }
 
-    // Filtros combinados (Global + N DA CHAPA)
+    // Filtros combinados (Global + todos os filtros de coluna)
     function aplicarFiltros() {
       const filtroGlobal = document.getElementById('filtroGlobal').value.toLowerCase().trim();
-      const filtroNChapa = document.getElementById('filtroNChapa')?.value.toLowerCase().trim() || '';
       const table = document.getElementById('etiquetasTable');
       const rows = table.tBodies[0].rows;
       
-      // Encontra o índice da coluna N DA CHAPA
-      const headers = Array.from(table.tHead.rows[0].cells);
-      let nChapaIndex = -1;
-      headers.forEach((th, i) => {
-        const colName = th.dataset.col;
-        if (colName) {
-          const upper = colName.toUpperCase();
-          if ((upper.includes("N") || upper.includes("Nº") || upper.includes("N°")) && upper.includes("CHAPA")) {
-            nChapaIndex = i;
-          }
+      // Obter todos os filtros de coluna ativos
+      const columnFilters = {};
+      const columnIndexMap = getColumnIndexMap();
+      
+      document.querySelectorAll('.column-filter').forEach(input => {
+        const colName = input.dataset.column;
+        const value = input.value.toLowerCase().trim();
+        if (value) {
+          columnFilters[colName] = {
+            value: value,
+            index: columnIndexMap[colName]
+          };
         }
       });
 
       Array.from(rows).forEach(row => {
         let visivelGlobal = true;
-        let visivelNChapa = true;
+        let visivelColunas = true;
 
         // Filtro Global
         if (filtroGlobal) {
           let textoLinha = '';
           Array.from(row.cells).forEach(cell => {
-            const input = cell.querySelector('input');
-            if (input) {
-              textoLinha += input.value + ' ';
-            } else if (cell.classList.contains('feito-por')) {
-              textoLinha += cell.dataset.nomeOriginal + ' ';
-            } else {
-              textoLinha += cell.textContent + ' ';
-            }
+            textoLinha += obterValorCelula(cell) + ' ';
           });
           visivelGlobal = textoLinha.toLowerCase().includes(filtroGlobal);
         }
 
-        // Filtro N DA CHAPA
-        if (filtroNChapa && nChapaIndex >= 0) {
-          const cellNChapa = row.cells[nChapaIndex];
-          if (cellNChapa) {
-            const valorNChapa = cellNChapa.textContent.toLowerCase().trim();
-            visivelNChapa = valorNChapa.includes(filtroNChapa);
+        // Filtros de Coluna (lógica AND - todos devem passar)
+        for (const colName in columnFilters) {
+          const filter = columnFilters[colName];
+          const cell = row.cells[filter.index];
+          
+          if (cell) {
+            const valorCelula = obterValorCelula(cell).toLowerCase();
+            if (!valorCelula.includes(filter.value)) {
+              visivelColunas = false;
+              break; // Se falhar em um filtro, não precisa verificar os outros
+            }
           }
         }
 
-        row.style.display = (visivelGlobal && visivelNChapa) ? '' : 'none';
+        row.style.display = (visivelGlobal && visivelColunas) ? '' : 'none';
       });
 
+      atualizarBadgeFiltros();
       atualizarSomaPesos();
     }
 
     function limparFiltros() {
       document.getElementById('filtroGlobal').value = '';
-      const filtroNChapa = document.getElementById('filtroNChapa');
-      if (filtroNChapa) filtroNChapa.value = '';
+      
+      // Limpar todos os filtros de coluna
+      const columnFilters = document.querySelectorAll('.column-filter');
+      columnFilters.forEach(input => {
+        input.value = '';
+        input.classList.remove('has-value');
+      });
       
       const table = document.getElementById('etiquetasTable');
       Array.from(table.tBodies[0].rows).forEach(row => row.style.display = '');
+      
+      atualizarBadgeFiltros();
       atualizarSomaPesos();
     }
 
@@ -993,6 +1102,15 @@
       window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
     }
 
+    // Configurar eventos para os filtros de coluna
+    function setupColumnFilters() {
+      const columnFilters = document.querySelectorAll('.column-filter');
+      
+      columnFilters.forEach(input => {
+        input.addEventListener('input', debounce(aplicarFiltros, 300));
+      });
+    }
+
     // Inicialização
     window.addEventListener('load', () => {
       padronizarDatas();
@@ -1007,11 +1125,8 @@
         filtroGlobal.addEventListener('input', debounce(aplicarFiltros, 300));
       }
 
-      // Filtro N DA CHAPA
-      const filtroNChapa = document.getElementById('filtroNChapa');
-      if (filtroNChapa) {
-        filtroNChapa.addEventListener('input', debounce(aplicarFiltros, 300));
-      }
+      // Configurar filtros de coluna
+      setupColumnFilters();
 
       // Dados iniciais
       Array.from(table.tBodies[0].rows).forEach(tr => {
@@ -1064,6 +1179,7 @@
 
       setupOrdenacao();
       atualizarSomaPesos();
+      atualizarBadgeFiltros();
     });
   </script>
 </body>
