@@ -584,6 +584,7 @@
                     <div class="form-group" id="statusPedidoGroup">
                         <label>Status do Pedido *</label>
                         <select id="newStatusPedido">
+                            <option value="">-</option>
                             <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
                             <option value="Processo de Corte">Processo de Corte</option>
                             <option value="Processo de Dobra">Processo de Dobra</option>
@@ -1051,6 +1052,12 @@
         function saveEditProject(event) {
             event.preventDefault();
 
+            // Get submit button and save original state
+            const submitBtn = document.querySelector('#editProjectForm button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Salvando...';
+            submitBtn.disabled = true;
+
             const linha = document.getElementById('editLinha').value;
             const clienteNome = document.getElementById('editCliente').value.trim();
             
@@ -1074,11 +1081,15 @@
             salvarClienteEExecutar(clienteNome, function () {
                 google.script.run
                     .withSuccessHandler(function () {
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
                         closeEditProjectModal();
                         loadProjetos();
                         alert('Projeto atualizado com sucesso!');
                     })
                     .withFailureHandler(function (error) {
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
                         alert('Erro ao atualizar projeto: ' + (error.message || error));
                     })
                     .atualizarProjetoNaPlanilha(linha, updates);
@@ -1106,6 +1117,7 @@
                 // Se for rascunho, esconde o campo de status do pedido
                 statusPedidoGroup.style.display = 'none';
                 statusPedidoSelect.removeAttribute('required');
+                statusPedidoSelect.value = '';
             } else {
                 // Se for pedido, mostra o campo de status do pedido
                 statusPedidoGroup.style.display = 'block';
@@ -1143,6 +1155,12 @@
         function saveNewProject(event) {
             event.preventDefault();
 
+            // Get submit button and save original state
+            const submitBtn = document.querySelector('#newProjectForm button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Salvando...';
+            submitBtn.disabled = true;
+
             const tipo = document.getElementById('newTipo').value;
             const clienteNome = document.getElementById('newCliente').value.trim();
             const dataValue = document.getElementById('newData').value;
@@ -1178,29 +1196,33 @@
             salvarClienteEExecutar(clienteNome, function () {
                 google.script.run
                     .withSuccessHandler(function () {
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
                         closeNewProjectModal();
                         loadProjetos();
                         alert('Projeto adicionado com sucesso!');
                     })
                     .withFailureHandler(function (error) {
+                        submitBtn.textContent = originalText;
+                        submitBtn.disabled = false;
                         alert('Erro ao adicionar projeto: ' + (error.message || error));
                     })
                     .adicionarNovoProjetoNaPlanilha(projeto);
             });
         }
 
-        // Fechar modais ao clicar fora
-        document.getElementById('newProjectModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                closeNewProjectModal();
-            }
-        });
+        // Modals should only close via X button or Cancel button, not by clicking outside
+        // document.getElementById('newProjectModal').addEventListener('click', function (e) {
+        //     if (e.target === this) {
+        //         closeNewProjectModal();
+        //     }
+        // });
 
-        document.getElementById('editProjectModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                closeEditProjectModal();
-            }
-        });
+        // document.getElementById('editProjectModal').addEventListener('click', function (e) {
+        //     if (e.target === this) {
+        //         closeEditProjectModal();
+        //     }
+        // });
 
         // Event listener para mudança de status no modal de edição
         document.getElementById('editStatusOrcamento').addEventListener('change', toggleEditStatusPedido);
