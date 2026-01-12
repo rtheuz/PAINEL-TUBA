@@ -2197,9 +2197,12 @@ function salvarTempoReal(cliente, projeto, processoSlug, tipo, timestamp, duraca
       dadosParsed.dados.temposReais[processoSlug].duracaoMinutos = duracaoMinutos || null;
     }
     
-    // Salva de volta na planilha
+    // Salva de volta na planilha Projetos
     const novoJson = JSON.stringify(dadosParsed);
     targetSheet.getRange(linhaEncontrada, idxJsonDados + 1).setValue(novoJson);
+    
+    // === NOVA FUNCIONALIDADE: Salvar também na aba "TemposReais" ===
+    salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos);
     
     Logger.log('salvarTempoReal: Sucesso');
     return { success: true };
@@ -2207,6 +2210,84 @@ function salvarTempoReal(cliente, projeto, processoSlug, tipo, timestamp, duraca
   } catch (err) {
     Logger.log('salvarTempoReal ERROR: %s\n%s', err.message, err.stack);
     return { success: false, error: err.message };
+  }
+}
+
+// === Nova função para salvar tempos em aba separada ===
+function salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos) {
+  try {
+    // Obtém ou cria a aba TemposReais
+    let sheetTempos = ss.getSheetByName("TemposReais");
+    
+    if (!sheetTempos) {
+      // Cria a aba com cabeçalhos
+      sheetTempos = ss.insertSheet("TemposReais");
+      sheetTempos.appendRow([
+        "CLIENTE",
+        "PROJETO", 
+        "PROCESSO",
+        "DATA_HORA_INICIO",
+        "DATA_HORA_FIM",
+        "DURACAO_MINUTOS",
+        "STATUS"
+      ]);
+      // Formata cabeçalho
+      const headerRange = sheetTempos.getRange(1, 1, 1, 7);
+      headerRange.setFontWeight("bold");
+      headerRange.setBackground("#1a73e8");
+      headerRange.setFontColor("#ffffff");
+    }
+    
+    // Converte slug para nome legível
+    const nomeProcesso = processoSlug
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+    
+    // Busca linha existente para este cliente + projeto + processo
+    const dados = sheetTempos.getDataRange().getValues();
+    let linhaExistente = null;
+    
+    for (let i = 1; i < dados.length; i++) {
+      const rowCliente = String(dados[i][0] || '').trim();
+      const rowProjeto = String(dados[i][1] || '').trim();
+      const rowProcesso = String(dados[i][2] || '').trim();
+      const rowStatus = String(dados[i][6] || '').trim();
+      
+      // Procura linha com mesmo cliente, projeto, processo e status "EM_EXECUCAO"
+      if (rowCliente === String(cliente).trim() && 
+          rowProjeto === String(projeto).trim() && 
+          rowProcesso === nomeProcesso &&
+          rowStatus === 'EM_EXECUCAO') {
+        linhaExistente = i + 1;
+        break;
+      }
+    }
+    
+    if (tipo === 'INICIO') {
+      // Cria nova linha com início
+      const novaLinha = [
+        cliente,
+        projeto,
+        nomeProcesso,
+        timestamp,
+        '', // DATA_HORA_FIM vazio
+        '', // DURACAO_MINUTOS vazio
+        'EM_EXECUCAO'
+      ];
+      sheetTempos.appendRow(novaLinha);
+      
+    } else if (tipo === 'FIM' && linhaExistente) {
+      // Atualiza linha existente com fim e duração
+      sheetTempos.getRange(linhaExistente, 5).setValue(timestamp); // DATA_HORA_FIM
+      sheetTempos.getRange(linhaExistente, 6).setValue(duracaoMinutos); // DURACAO_MINUTOS
+      sheetTempos.getRange(linhaExistente, 7).setValue('FINALIZADO'); // STATUS
+    }
+    
+    Logger.log('salvarTempoRealNaAba: Sucesso');
+    
+  } catch (err) {
+    Logger.log('salvarTempoRealNaAba ERROR: %s\n%s', err.message, err.stack);
+    // Não falha a operação principal se houver erro na aba secundária
   }
 }
 

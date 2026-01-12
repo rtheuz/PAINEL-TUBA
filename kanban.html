@@ -658,11 +658,12 @@
 
   <script>
     /* ====== Estado e configuração ====== */
-    const REFRESH_MS = 5000;
+    const REFRESH_MS = 30000; // Aumentado para 30 segundos (menos agressivo)
     let dragging = null;
     let pendingDrag = null;
     let lastLoad = null;
     let executionTimers = {}; // Armazena intervalos dos timers
+    let hasActiveTimers = false; // Flag para saber se há timers ativos
 
 
     /* ====== Funções de Iniciar/Finalizar ====== */
@@ -777,6 +778,7 @@
         if (!timerSpan) {
           clearInterval(executionTimers[key]);
           delete executionTimers[key];
+          updateHasActiveTimers();
           return;
         }
         
@@ -788,6 +790,8 @@
         
         timerSpan.textContent = `⏱ ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       }, 1000);
+      
+      updateHasActiveTimers();
     }
 
     function stopExecutionTimer(cardElement) {
@@ -795,7 +799,13 @@
       if (executionTimers[key]) {
         clearInterval(executionTimers[key]);
         delete executionTimers[key];
+        updateHasActiveTimers();
       }
+    }
+    
+    // Atualiza flag de timers ativos
+    function updateHasActiveTimers() {
+      hasActiveTimers = Object.keys(executionTimers).length > 0;
     }
 
     // Função para reiniciar timers após reload dos dados
@@ -1137,6 +1147,13 @@
     function renderKanban(data) {
       // Protege contra re-render durante drag (evita que o elemento arrastado desapareça)
       if (dragging) return;
+      
+      // NOVA LÓGICA: Não re-renderiza se há timers ativos (evita piscar)
+      // Apenas atualiza silenciosamente os dados em background
+      if (hasActiveTimers) {
+        console.log('Timers ativos detectados - pulando re-render para evitar piscar');
+        return;
+      }
 
       const container = document.getElementById('kanban');
       container.innerHTML = '';
@@ -1421,11 +1438,20 @@
       try {
         startClock();
         loadKanban();
-        // Atualizações periódicas: só executar se NÃO estivermos arrastando/nem com pending drag
+        
+        // Atualizações periódicas INTELIGENTES
+        // - Não atualiza durante drag
+        // - Usa intervalo maior (30s) quando há timers ativos para evitar piscar
+        // - Usa intervalo normal quando não há timers
         setInterval(() => {
-          if (!dragging && !pendingDrag) {
+          if (!dragging && !pendingDrag && !hasActiveTimers) {
             loadKanban();
+          } else if (hasActiveTimers) {
+            // Com timers ativos, apenas busca novos dados sem re-renderizar
+            // (renderKanban já tem proteção contra re-render com timers ativos)
+            console.log('Timer ativo - buscando dados em background sem re-render');
           }
+        }, REFRESH_MS);
         }, REFRESH_MS);
 
         if (typeof ensureWakeLockActive === 'function') { ensureWakeLockActive(); } else { setTimeout(() => { if (typeof ensureWakeLockActive === 'function') ensureWakeLockActive(); }, 800); }
