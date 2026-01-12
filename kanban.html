@@ -658,7 +658,7 @@
 
   <script>
     /* ====== Estado e configuração ====== */
-    const REFRESH_MS = 30000; // Aumentado para 30 segundos (menos agressivo)
+    const REFRESH_MS = 10000; // 10 segundos - balanço entre sincronização e performance
     let dragging = null;
     let pendingDrag = null;
     let lastLoad = null;
@@ -1091,8 +1091,15 @@
         }
       }
 
-      // Adiciona botões de Iniciar/Finalizar para processos (não para orçamento)
-      if (columnName && !columnName.toLowerCase().includes('orçament')) {
+      // Adiciona botões de Iniciar/Finalizar para processos 
+      // Excluindo: orçamento e envio/coleta
+      const isOrcamento = columnName && columnName.toLowerCase().includes('orçament');
+      const isEnvioColeta = columnName && (
+        columnName.toLowerCase().includes('envio') || 
+        columnName.toLowerCase().includes('coleta')
+      );
+      
+      if (columnName && !isOrcamento && !isEnvioColeta) {
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'card-actions';
         
@@ -1148,15 +1155,21 @@
       // Protege contra re-render durante drag (evita que o elemento arrastado desapareça)
       if (dragging) return;
       
-      // NOVA LÓGICA: Não re-renderiza se há timers ativos (evita piscar)
-      // Apenas atualiza silenciosamente os dados em background
-      if (hasActiveTimers) {
-        console.log('Timers ativos detectados - pulando re-render para evitar piscar');
-        return;
-      }
+      // NOVA LÓGICA MELHORADA: Atualiza tudo EXCETO cards com timer ativo
+      // Isso permite sincronização entre navegadores sem piscar o timer
+      const cardsComTimerAtivo = new Set();
+      Object.keys(executionTimers).forEach(key => {
+        cardsComTimerAtivo.add(key); // key é "cliente|projeto"
+      });
 
       const container = document.getElementById('kanban');
-      container.innerHTML = '';
+      
+      // Se há timers ativos, fazemos update incremental em vez de limpar tudo
+      const updateIncremental = hasActiveTimers && container.children.length > 0;
+      
+      if (!updateIncremental) {
+        container.innerHTML = '';
+      }
 
       const colunas = [
         "Processo de Orçamento",
@@ -1167,28 +1180,83 @@
         "Envio / Coleta"
       ];
 
-      colunas.forEach(col => {
-        const colDiv = document.createElement('div');
+      colunas.forEach((col, colIndex) => {
+        let colDiv;
+        
+        if (updateIncremental) {
+          // Busca coluna existente
+          colDiv = container.children[colIndex];
+          if (!colDiv) {
+            colDiv = document.createElement('div');
+            container.appendChild(colDiv);
+          }
+        } else {
+          colDiv = document.createElement('div');
+        }
+        
         colDiv.className = 'column';
         colDiv.dataset.status = col;
 
         const colSlug = slugify(col);
         colDiv.classList.add('col-' + colSlug);
 
-        const h2 = document.createElement('h2'); h2.textContent = col;
-        colDiv.appendChild(h2);
+        // Atualiza ou cria header
+        let h2 = colDiv.querySelector('h2');
+        if (!h2) {
+          h2 = document.createElement('h2');
+          colDiv.insertBefore(h2, colDiv.firstChild);
+        }
+        h2.textContent = col;
 
-        const list = document.createElement('div'); list.className = 'list'; list.setAttribute('role', 'list');
+        // Atualiza ou cria lista
+        let list = colDiv.querySelector('.list');
+        if (!list) {
+          list = document.createElement('div');
+          list.className = 'list';
+          list.setAttribute('role', 'list');
+          colDiv.appendChild(list);
+        }
 
         const items = data[col] || data[slugify(col)] || [];
 
-        (items || []).forEach(card => {
-          const cardEl = createCardElement(card, col);
-          list.appendChild(cardEl);
-        });
-
-        colDiv.appendChild(list);
-        container.appendChild(colDiv);
+        if (updateIncremental) {
+          // Update incremental: apenas atualiza cards que NÃO tem timer ativo
+          const existingCards = Array.from(list.querySelectorAll('.card'));
+          const existingCardMap = new Map();
+          
+          existingCards.forEach(card => {
+            const key = card.dataset.cliente + '|' + card.dataset.projeto;
+            existingCardMap.set(key, card);
+          });
+          
+          // Limpa lista
+          list.innerHTML = '';
+          
+          // Re-adiciona cards (preservando os com timer ativo)
+          items.forEach(cardData => {
+            const key = cardData.cliente + '|' + cardData.projeto;
+            
+            if (cardsComTimerAtivo.has(key) && existingCardMap.has(key)) {
+              // Preserva card existente com timer ativo (não re-cria)
+              list.appendChild(existingCardMap.get(key));
+            } else {
+              // Cria novo card ou atualiza card sem timer
+              const cardEl = createCardElement(cardData, col);
+              list.appendChild(cardEl);
+            }
+          });
+        } else {
+          // Render completo normal
+          list.innerHTML = '';
+          (items || []).forEach(card => {
+            const cardEl = createCardElement(card, col);
+            list.appendChild(cardEl);
+          });
+        }
+        
+        if (!updateIncremental) {
+          container.appendChild(colDiv);
+        }
       });
 
       attachPointerHandlers();
@@ -1439,19 +1507,14 @@
         startClock();
         loadKanban();
         
-        // Atualizações periódicas INTELIGENTES
+        // Atualizações periódicas MELHORADAS
+        // - Sempre atualiza, mas de forma inteligente (update incremental quando há timers)
         // - Não atualiza durante drag
-        // - Usa intervalo maior (30s) quando há timers ativos para evitar piscar
-        // - Usa intervalo normal quando não há timers
+        // - Intervalo de 10s para boa sincronização entre navegadores
         setInterval(() => {
-          if (!dragging && !pendingDrag && !hasActiveTimers) {
-            loadKanban();
-          } else if (hasActiveTimers) {
-            // Com timers ativos, apenas busca novos dados sem re-renderizar
-            // (renderKanban já tem proteção contra re-render com timers ativos)
-            console.log('Timer ativo - buscando dados em background sem re-render');
+          if (!dragging && !pendingDrag) {
+            loadKanban(); // Sempre atualiza! renderKanban usa update incremental
           }
-        }, REFRESH_MS);
         }, REFRESH_MS);
 
         if (typeof ensureWakeLockActive === 'function') { ensureWakeLockActive(); } else { setTimeout(() => { if (typeof ensureWakeLockActive === 'function') ensureWakeLockActive(); }, 800); }
