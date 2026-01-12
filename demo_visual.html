@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo: Botões Iniciar/Finalizar - Kanban TUBA</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap');
+    
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f5f7ff;
+      padding: 40px;
+      margin: 0;
+    }
+    
+    h1 {
+      color: #1a73e8;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px;
+      box-shadow: 0 6px 18px rgba(11, 46, 140, 0.06);
+      border-left: 6px solid #00c2e0;
+    }
+    
+    .card strong {
+      display: block;
+      font-size: 16px;
+      color: #1a73e8;
+      margin-bottom: 6px;
+    }
+    
+    .card p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: #333;
+    }
+    
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .btn-start-finish {
+      flex: 1;
+      min-width: 100px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
+    }
+    
+    .btn-start-finish:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.35);
+    }
+    
+    .btn-start-finish.finishing {
+      background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);
+      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.25);
+    }
+    
+    .btn-start-finish.finished {
+      background: #6c757d;
+      cursor: default;
+      opacity: 0.7;
+    }
+    
+    .card.in-execution {
+      box-shadow: 0 8px 24px rgba(26, 115, 232, 0.2);
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-border {
+      0%, 100% {
+        box-shadow: 0 8px 24px rgba(26, 115, 232, 0.2), 0 0 0 0 rgba(26, 115, 232, 0.4);
+      }
+      50% {
+        box-shadow: 0 8px 24px rgba(26, 115, 232, 0.3), 0 0 0 8px rgba(26, 115, 232, 0);
+      }
+    }
+    
+    .execution-timer {
+      display: inline-block;
+      font-weight: 700;
+      color: #1a73e8;
+      font-size: 14px;
+      padding: 4px 8px;
+      background: rgba(26, 115, 232, 0.1);
+      border-radius: 4px;
+    }
+    
+    .demo-label {
+      text-align: center;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 10px;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <h1>📊 Demo: Sistema de Rastreamento de Tempo Real</h1>
+  
+  <div class="demo-container">
+    <!-- Card 1: Estado Inicial -->
+    <div>
+      <div class="demo-label">Estado 1: Inicial (Pronto para Iniciar)</div>
+      <div class="card">
+        <strong>ACME Corp</strong>
+        <p>Projeto: 260112A-ACM</p>
+        <p>Descrição: Chapas de aço inox</p>
+        <div class="card-actions">
+          <button class="btn-start-finish">▶ Iniciar</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Card 2: Em Execução -->
+    <div>
+      <div class="demo-label">Estado 2: Em Execução (com timer)</div>
+      <div class="card in-execution">
+        <strong>TechSolutions LTDA</strong>
+        <p>Projeto: 260112B-TCH</p>
+        <p>Descrição: Peças dobradas</p>
+        <div class="card-actions">
+          <span class="execution-timer">⏱ 12:34</span>
+          <button class="btn-start-finish finishing">⏹ Finalizar</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Card 3: Finalizado -->
+    <div>
+      <div class="demo-label">Estado 3: Finalizado (mostra duração)</div>
+      <div class="card">
+        <strong>Metalúrgica XYZ</strong>
+        <p>Projeto: 260112C-MTL</p>
+        <p>Descrição: Corte a laser</p>
+        <div class="card-actions">
+          <button class="btn-start-finish finished" disabled>✓ 45min</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div style="margin-top: 60px; padding: 20px; background: white; border-radius: 10px; max-width: 800px; margin-left: auto; margin-right: auto;">
+    <h2 style="color: #1a73e8; margin-top: 0;">Como Funciona</h2>
+    <ol style="line-height: 1.8;">
+      <li><strong>Estado Inicial:</strong> Botão verde "▶ Iniciar" - Pronto para começar o trabalho</li>
+      <li><strong>Em Execução:</strong> 
+        <ul>
+          <li>Card destacado com borda pulsante animada</li>
+          <li>Timer mostra tempo decorrido em tempo real (⏱ MM:SS)</li>
+          <li>Botão vermelho "⏹ Finalizar" para concluir</li>
+        </ul>
+      </li>
+      <li><strong>Finalizado:</strong> Botão cinza mostra duração total (✓ XXmin)</li>
+    </ol>
+    
+    <h3 style="color: #1a73e8;">Benefícios</h3>
+    <ul style="line-height: 1.8;">
+      <li>📊 <strong>Tempo real de execução</strong> separado do tempo de fila</li>
+      <li>⏱️ <strong>Visibilidade clara</strong> de qual pedido está sendo trabalhado</li>
+      <li>📈 <strong>Dados precisos</strong> para planejamento futuro</li>
+      <li>👆 <strong>Interface touch-friendly</strong> para dispositivos móveis</li>
+    </ul>
+  </div>
+  
+  <script>
+    // Simula timer em tempo real no card 2
+    let seconds = 754; // 12:34
+    setInterval(() => {
+      seconds++;
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      document.querySelector('.execution-timer').textContent = 
+        `⏱ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }, 1000);
+  </script>
+</body>
+</html>
