@@ -1230,6 +1230,13 @@
 
     function onPointerDownStarter(ev) {
       if (ev.button && ev.button !== 0) return;
+      
+      // Ignora eventos em botões de ação (Iniciar/Finalizar)
+      const target = ev.target;
+      if (target.closest('.btn-start-finish') || target.closest('.card-actions')) {
+        return; // Permite que o botão processe o clique normalmente
+      }
+      
       const card = ev.currentTarget;
       if (pendingDrag && pendingDrag.startElement) cleanupPendingDrag();
       const rect = card.getBoundingClientRect();
