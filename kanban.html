@@ -1103,45 +1103,15 @@
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'card-actions';
         
-        // Verifica se existe tempo real registrado para esta coluna
-        const temposReais = card.temposReais || {};
-        const colSlug = slugify(columnName);
-        const tempoReal = temposReais[colSlug] || {};
-        
-        const isRunning = tempoReal.iniciadoEm && !tempoReal.finalizadoEm;
-        
+        // Sempre cria botão Iniciar (estado não persiste após refresh)
+        // Dados são salvos apenas na aba TemposReais para análise
         const btn = document.createElement('button');
         btn.className = 'btn-start-finish';
         btn.type = 'button';
+        btn.innerHTML = '▶ Iniciar';
+        btn.dataset.action = 'start';
         
-        if (isRunning) {
-          btn.classList.add('finishing');
-          btn.innerHTML = '⏹ Finalizar';
-          btn.dataset.action = 'finish';
-          el.classList.add('in-execution');
-          
-          // Adiciona timer de execução
-          const timerSpan = document.createElement('span');
-          timerSpan.className = 'execution-timer';
-          timerSpan.textContent = '⏱ 00:00';
-          actionsDiv.appendChild(timerSpan);
-          
-          // Armazena timestamp de início para o timer
-          el.dataset.startTime = tempoReal.iniciadoEm;
-        } else if (tempoReal.finalizadoEm) {
-          // Processo já finalizado - mostra duração
-          btn.innerHTML = `✓ ${tempoReal.duracaoMinutos || 0}min`;
-          btn.disabled = true;
-          btn.style.opacity = '0.6';
-          btn.style.cursor = 'default';
-        } else {
-          btn.innerHTML = '▶ Iniciar';
-          btn.dataset.action = 'start';
-        }
-        
-        if (!btn.disabled) {
-          btn.addEventListener('click', (e) => handleStartFinish(e, el, columnName));
-        }
+        btn.addEventListener('click', (e) => handleStartFinish(e, el, columnName));
         
         actionsDiv.appendChild(btn);
         el.appendChild(actionsDiv);

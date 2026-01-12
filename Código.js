@@ -2130,78 +2130,8 @@ function salvarTempoReal(cliente, projeto, processoSlug, tipo, timestamp, duraca
   try {
     Logger.log('salvarTempoReal: cliente=%s, projeto=%s, processo=%s, tipo=%s', cliente, projeto, processoSlug, tipo);
     
-    // Busca na aba Projetos
-    const sheetProj = ss.getSheetByName("Projetos");
-    const targetSheet = sheetProj || SHEET_PED;
-    
-    if (!targetSheet) {
-      Logger.log('salvarTempoReal: Nenhuma planilha encontrada');
-      return { success: false, error: 'Planilha não encontrada' };
-    }
-    
-    // Encontra a linha do projeto
-    const dados = targetSheet.getDataRange().getValues();
-    const headers = dados[0];
-    const idxCliente = _findHeaderIndex(headers, "CLIENTE");
-    const idxProjeto = _findHeaderIndex(headers, "PROJETO");
-    const idxJsonDados = headers.length - 1; // JSON_DADOS sempre é a última coluna
-    
-    let linhaEncontrada = null;
-    for (let i = 1; i < dados.length; i++) {
-      const valCliente = String(dados[i][idxCliente] || '').trim();
-      const valProjeto = String(dados[i][idxProjeto] || '').trim();
-      
-      if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
-        linhaEncontrada = i + 1; // +1 porque índice começa em 0
-        break;
-      }
-    }
-    
-    if (!linhaEncontrada) {
-      Logger.log('salvarTempoReal: Projeto não encontrado');
-      return { success: false, error: 'Projeto não encontrado' };
-    }
-    
-    // Lê os dados JSON atuais
-    let dadosJson = dados[linhaEncontrada - 1][idxJsonDados];
-    let dadosParsed = {};
-    
-    if (dadosJson) {
-      try {
-        dadosParsed = JSON.parse(dadosJson);
-      } catch (e) {
-        Logger.log('salvarTempoReal: Erro ao parsear JSON existente, criando novo');
-        dadosParsed = {};
-      }
-    }
-    
-    // Garante estrutura de dados
-    if (!dadosParsed.dados) dadosParsed.dados = {};
-    if (!dadosParsed.dados.temposReais) dadosParsed.dados.temposReais = {};
-    
-    // Atualiza tempo real para o processo específico
-    if (!dadosParsed.dados.temposReais[processoSlug]) {
-      dadosParsed.dados.temposReais[processoSlug] = {
-        iniciadoEm: null,
-        finalizadoEm: null,
-        duracaoMinutos: null
-      };
-    }
-    
-    if (tipo === 'INICIO') {
-      dadosParsed.dados.temposReais[processoSlug].iniciadoEm = timestamp;
-      dadosParsed.dados.temposReais[processoSlug].finalizadoEm = null; // Reseta fim se iniciou novamente
-      dadosParsed.dados.temposReais[processoSlug].duracaoMinutos = null;
-    } else if (tipo === 'FIM') {
-      dadosParsed.dados.temposReais[processoSlug].finalizadoEm = timestamp;
-      dadosParsed.dados.temposReais[processoSlug].duracaoMinutos = duracaoMinutos || null;
-    }
-    
-    // Salva de volta na planilha Projetos
-    const novoJson = JSON.stringify(dadosParsed);
-    targetSheet.getRange(linhaEncontrada, idxJsonDados + 1).setValue(novoJson);
-    
-    // === NOVA FUNCIONALIDADE: Salvar também na aba "TemposReais" ===
+    // === APENAS salva na aba "TemposReais" ===
+    // Removido: salvamento em JSON_DADOS (não é mais necessário)
     salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos);
     
     Logger.log('salvarTempoReal: Sucesso');
@@ -2243,6 +2173,21 @@ function salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, d
       .replace(/-/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase());
     
+    // Converte timestamp ISO para horário local do Brasil (GMT-3)
+    function converterParaHorarioBrasil(isoTimestamp) {
+      if (!isoTimestamp) return '';
+      try {
+        const data = new Date(isoTimestamp);
+        // Formata no fuso horário de São Paulo (America/Sao_Paulo)
+        return Utilities.formatDate(data, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss');
+      } catch (e) {
+        Logger.log('Erro ao converter timestamp: ' + e);
+        return isoTimestamp; // Retorna original se houver erro
+      }
+    }
+    
+    const timestampFormatado = converterParaHorarioBrasil(timestamp);
+    
     // Busca linha existente para este cliente + projeto + processo
     const dados = sheetTempos.getDataRange().getValues();
     let linhaExistente = null;
@@ -2269,7 +2214,7 @@ function salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, d
         cliente,
         projeto,
         nomeProcesso,
-        timestamp,
+        timestampFormatado, // Horário local do Brasil
         '', // DATA_HORA_FIM vazio
         '', // DURACAO_MINUTOS vazio
         'EM_EXECUCAO'
@@ -2278,7 +2223,7 @@ function salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, d
       
     } else if (tipo === 'FIM' && linhaExistente) {
       // Atualiza linha existente com fim e duração
-      sheetTempos.getRange(linhaExistente, 5).setValue(timestamp); // DATA_HORA_FIM
+      sheetTempos.getRange(linhaExistente, 5).setValue(timestampFormatado); // DATA_HORA_FIM
       sheetTempos.getRange(linhaExistente, 6).setValue(duracaoMinutos); // DURACAO_MINUTOS
       sheetTempos.getRange(linhaExistente, 7).setValue('FINALIZADO'); // STATUS
     }
