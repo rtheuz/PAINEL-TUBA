@@ -1349,6 +1349,7 @@ function getKanbanData() {
         const idxPrazo = _findHeaderIndex(headersProj, "PRAZO");
         const idxProcessos = _findHeaderIndex(headersProj, "PROCESSOS");
         const idxObs = _findHeaderIndex(headersProj, "OBSERVAÇÕES");
+        const idxJsonDados = _findHeaderIndex(headersProj, "JSON_DADOS");
 
         for (let i = 1; i < valsProj.length; i++) {
           const row = valsProj[i];
@@ -1376,6 +1377,7 @@ function getKanbanData() {
           if (statusPed && statusPed !== "" && statusPed !== "Finalizado") {
             const obs = idxObs >= 0 ? row[idxObs] : "";
             const processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || "") : "";
+            const jsonDados = idxJsonDados >= 0 ? row[idxJsonDados] : "";
             
             // Extrai tempo estimado do campo PROCESSOS
             let tempoEstimado = "";
@@ -1389,10 +1391,22 @@ function getKanbanData() {
               tempoEstimado = processosStr.match(/adici.*:?\s*([\d.,]+h?)/i)?.[1] || "";
             }
 
-            // Busca tempo real dos logs (se disponível)
+            // Extrai temposReais do JSON_DADOS se existir
+            let temposReais = {};
+            if (jsonDados) {
+              try {
+                const parsed = JSON.parse(jsonDados);
+                if (parsed && parsed.dados && parsed.dados.temposReais) {
+                  temposReais = parsed.dados.temposReais;
+                }
+              } catch (e) {
+                // Ignora erros de parse
+              }
+            }
+
+            // Busca tempo real dos logs (se disponível) - mantido para compatibilidade
             let tempoReal = "";
             const chave = cliente + "|" + projeto;
-            // mapaLogs será preenchido abaixo
 
             if (Array.isArray(data[statusPed])) {
               data[statusPed].push({
@@ -1402,6 +1416,7 @@ function getKanbanData() {
                 observacoes: obs,
                 tempoEstimado: tempoEstimado,
                 tempoReal: tempoReal,  // Será preenchido pelos logs abaixo
+                temposReais: temposReais, // Novos tempos reais detalhados
                 prazo: prazo
               });
             }
@@ -2098,6 +2113,100 @@ function registrarLog(cliente, projeto, statusAntigo, statusNovo, processosStr, 
 
   } catch (err) {
     Logger.log("Erro registrarLog: " + err);
+  }
+}
+
+// ===== Nova função para salvar tempos reais de execução =====
+/**
+ * Salva o tempo real de início ou fim de um processo no card
+ * @param {string} cliente - Nome do cliente
+ * @param {string} projeto - Número do projeto
+ * @param {string} processoSlug - Slug do processo (ex: "processo-de-corte")
+ * @param {string} tipo - 'INICIO' ou 'FIM'
+ * @param {string} timestamp - ISO timestamp
+ * @param {number} duracaoMinutos - Duração em minutos (apenas para FIM)
+ */
+function salvarTempoReal(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos) {
+  try {
+    Logger.log('salvarTempoReal: cliente=%s, projeto=%s, processo=%s, tipo=%s', cliente, projeto, processoSlug, tipo);
+    
+    // Busca na aba Projetos
+    const sheetProj = ss.getSheetByName("Projetos");
+    const targetSheet = sheetProj || SHEET_PED;
+    
+    if (!targetSheet) {
+      Logger.log('salvarTempoReal: Nenhuma planilha encontrada');
+      return { success: false, error: 'Planilha não encontrada' };
+    }
+    
+    // Encontra a linha do projeto
+    const dados = targetSheet.getDataRange().getValues();
+    const headers = dados[0];
+    const idxCliente = _findHeaderIndex(headers, "CLIENTE");
+    const idxProjeto = _findHeaderIndex(headers, "PROJETO");
+    const idxJsonDados = headers.length - 1; // JSON_DADOS sempre é a última coluna
+    
+    let linhaEncontrada = null;
+    for (let i = 1; i < dados.length; i++) {
+      const valCliente = String(dados[i][idxCliente] || '').trim();
+      const valProjeto = String(dados[i][idxProjeto] || '').trim();
+      
+      if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
+        linhaEncontrada = i + 1; // +1 porque índice começa em 0
+        break;
+      }
+    }
+    
+    if (!linhaEncontrada) {
+      Logger.log('salvarTempoReal: Projeto não encontrado');
+      return { success: false, error: 'Projeto não encontrado' };
+    }
+    
+    // Lê os dados JSON atuais
+    let dadosJson = dados[linhaEncontrada - 1][idxJsonDados];
+    let dadosParsed = {};
+    
+    if (dadosJson) {
+      try {
+        dadosParsed = JSON.parse(dadosJson);
+      } catch (e) {
+        Logger.log('salvarTempoReal: Erro ao parsear JSON existente, criando novo');
+        dadosParsed = {};
+      }
+    }
+    
+    // Garante estrutura de dados
+    if (!dadosParsed.dados) dadosParsed.dados = {};
+    if (!dadosParsed.dados.temposReais) dadosParsed.dados.temposReais = {};
+    
+    // Atualiza tempo real para o processo específico
+    if (!dadosParsed.dados.temposReais[processoSlug]) {
+      dadosParsed.dados.temposReais[processoSlug] = {
+        iniciadoEm: null,
+        finalizadoEm: null,
+        duracaoMinutos: null
+      };
+    }
+    
+    if (tipo === 'INICIO') {
+      dadosParsed.dados.temposReais[processoSlug].iniciadoEm = timestamp;
+      dadosParsed.dados.temposReais[processoSlug].finalizadoEm = null; // Reseta fim se iniciou novamente
+      dadosParsed.dados.temposReais[processoSlug].duracaoMinutos = null;
+    } else if (tipo === 'FIM') {
+      dadosParsed.dados.temposReais[processoSlug].finalizadoEm = timestamp;
+      dadosParsed.dados.temposReais[processoSlug].duracaoMinutos = duracaoMinutos || null;
+    }
+    
+    // Salva de volta na planilha
+    const novoJson = JSON.stringify(dadosParsed);
+    targetSheet.getRange(linhaEncontrada, idxJsonDados + 1).setValue(novoJson);
+    
+    Logger.log('salvarTempoReal: Sucesso');
+    return { success: true };
+    
+  } catch (err) {
+    Logger.log('salvarTempoReal ERROR: %s\n%s', err.message, err.stack);
+    return { success: false, error: err.message };
   }
 }
 
