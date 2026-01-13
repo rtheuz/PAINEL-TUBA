@@ -551,6 +551,79 @@
       cursor: pointer;
       font-weight: 600
     }
+
+    /* ====== Botões de Iniciar/Finalizar ====== */
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-start-finish {
+      flex: 1;
+      min-width: 100px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(40, 167, 69, 0.25);
+    }
+
+    .btn-start-finish:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.35);
+    }
+
+    .btn-start-finish:active {
+      transform: translateY(0);
+    }
+
+    .btn-start-finish.finishing {
+      background: linear-gradient(135deg, #dc3545 0%, #e74c3c 100%);
+      box-shadow: 0 2px 8px rgba(220, 53, 69, 0.25);
+    }
+
+    .btn-start-finish.finishing:hover {
+      box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
+    }
+
+    /* Card em execução - destaque visual */
+    .card.in-execution {
+      border-left-width: 6px;
+      border-left-style: solid;
+      box-shadow: 0 8px 24px rgba(26, 115, 232, 0.2);
+      animation: pulse-border 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% {
+        box-shadow: 0 8px 24px rgba(26, 115, 232, 0.2), 0 0 0 0 rgba(26, 115, 232, 0.4);
+      }
+      50% {
+        box-shadow: 0 8px 24px rgba(26, 115, 232, 0.3), 0 0 0 8px rgba(26, 115, 232, 0);
+      }
+    }
+
+    /* Timer de execução */
+    .execution-timer {
+      display: inline-block;
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 14px;
+      padding: 4px 8px;
+      background: rgba(26, 115, 232, 0.1);
+      border-radius: 4px;
+      margin-left: 6px;
+    }
   </style>
 </head>
 
@@ -585,10 +658,165 @@
 
   <script>
     /* ====== Estado e configuração ====== */
-    const REFRESH_MS = 5000;
+    const REFRESH_MS = 10000; // 10 segundos - balanço entre sincronização e performance
     let dragging = null;
     let pendingDrag = null;
     let lastLoad = null;
+    let executionTimers = {}; // Armazena intervalos dos timers
+    let hasActiveTimers = false; // Flag para saber se há timers ativos
+
+
+    /* ====== Funções de Iniciar/Finalizar ====== */
+    function handleStartFinish(event, cardElement, columnName) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const btn = event.target.closest('.btn-start-finish');
+      if (!btn || btn.disabled) return;
+      
+      const action = btn.dataset.action;
+      const cliente = cardElement.dataset.cliente;
+      const projeto = cardElement.dataset.projeto;
+      const colSlug = slugify(columnName);
+      
+      if (action === 'start') {
+        startProcess(cardElement, btn, cliente, projeto, columnName, colSlug);
+      } else if (action === 'finish') {
+        finishProcess(cardElement, btn, cliente, projeto, columnName, colSlug);
+      }
+    }
+
+    function startProcess(cardElement, btn, cliente, projeto, columnName, colSlug) {
+      const now = new Date().toISOString();
+      
+      // Atualiza UI imediatamente
+      btn.innerHTML = '⏹ Finalizar';
+      btn.classList.add('finishing');
+      btn.dataset.action = 'finish';
+      cardElement.classList.add('in-execution');
+      cardElement.dataset.startTime = now;
+      
+      // Adiciona timer se não existir
+      let timerSpan = cardElement.querySelector('.execution-timer');
+      if (!timerSpan) {
+        timerSpan = document.createElement('span');
+        timerSpan.className = 'execution-timer';
+        const actionsDiv = cardElement.querySelector('.card-actions');
+        actionsDiv.insertBefore(timerSpan, btn);
+      }
+      timerSpan.textContent = '⏱ 00:00';
+      
+      // Inicia timer de atualização
+      startExecutionTimer(cardElement, now);
+      
+      // Salva no backend
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log('Processo iniciado com sucesso:', columnName);
+          })
+          .withFailureHandler((error) => {
+            console.error('Erro ao iniciar processo:', error);
+            alert('Erro ao salvar início do processo. Tente novamente.');
+          })
+          .salvarTempoReal(cliente, projeto, colSlug, 'INICIO', now);
+      }
+    }
+
+    function finishProcess(cardElement, btn, cliente, projeto, columnName, colSlug) {
+      const startTime = cardElement.dataset.startTime;
+      if (!startTime) {
+        alert('Erro: não foi possível encontrar o horário de início.');
+        return;
+      }
+      
+      const now = new Date().toISOString();
+      const start = new Date(startTime);
+      const end = new Date(now);
+      const durationMinutes = Math.round((end - start) / (1000 * 60));
+      
+      // Para o timer
+      stopExecutionTimer(cardElement);
+      
+      // Atualiza UI
+      btn.innerHTML = `✓ ${durationMinutes}min`;
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.style.cursor = 'default';
+      btn.classList.remove('finishing');
+      cardElement.classList.remove('in-execution');
+      
+      // Remove timer
+      const timerSpan = cardElement.querySelector('.execution-timer');
+      if (timerSpan) timerSpan.remove();
+      
+      // Salva no backend
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(() => {
+            console.log('Processo finalizado com sucesso:', columnName, durationMinutes, 'min');
+          })
+          .withFailureHandler((error) => {
+            console.error('Erro ao finalizar processo:', error);
+            alert('Erro ao salvar finalização do processo. Tente novamente.');
+          })
+          .salvarTempoReal(cliente, projeto, colSlug, 'FIM', now, durationMinutes);
+      }
+    }
+
+    function startExecutionTimer(cardElement, startTimeISO) {
+      const key = cardElement.dataset.cliente + '|' + cardElement.dataset.projeto;
+      
+      // Limpa timer existente se houver
+      if (executionTimers[key]) {
+        clearInterval(executionTimers[key]);
+      }
+      
+      // Cria novo timer
+      executionTimers[key] = setInterval(() => {
+        const timerSpan = cardElement.querySelector('.execution-timer');
+        if (!timerSpan) {
+          clearInterval(executionTimers[key]);
+          delete executionTimers[key];
+          updateHasActiveTimers();
+          return;
+        }
+        
+        const start = new Date(startTimeISO);
+        const now = new Date();
+        const diffMs = now - start;
+        const minutes = Math.floor(diffMs / (1000 * 60));
+        const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+        
+        timerSpan.textContent = `⏱ ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }, 1000);
+      
+      updateHasActiveTimers();
+    }
+
+    function stopExecutionTimer(cardElement) {
+      const key = cardElement.dataset.cliente + '|' + cardElement.dataset.projeto;
+      if (executionTimers[key]) {
+        clearInterval(executionTimers[key]);
+        delete executionTimers[key];
+        updateHasActiveTimers();
+      }
+    }
+    
+    // Atualiza flag de timers ativos
+    function updateHasActiveTimers() {
+      hasActiveTimers = Object.keys(executionTimers).length > 0;
+    }
+
+    // Função para reiniciar timers após reload dos dados
+    function restartAllTimers() {
+      document.querySelectorAll('.card.in-execution').forEach(card => {
+        const startTime = card.dataset.startTime;
+        if (startTime) {
+          startExecutionTimer(card, startTime);
+        }
+      });
+    }
 
 
     /* ====== AVISOS (FRONT-ONLY) ======
@@ -863,6 +1091,32 @@
         }
       }
 
+      // Adiciona botões de Iniciar/Finalizar para processos 
+      // Excluindo: orçamento e envio/coleta
+      const isOrcamento = columnName && columnName.toLowerCase().includes('orçament');
+      const isEnvioColeta = columnName && (
+        columnName.toLowerCase().includes('envio') || 
+        columnName.toLowerCase().includes('coleta')
+      );
+      
+      if (columnName && !isOrcamento && !isEnvioColeta) {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'card-actions';
+        
+        // Sempre cria botão Iniciar (estado não persiste após refresh)
+        // Dados são salvos apenas na aba TemposReais para análise
+        const btn = document.createElement('button');
+        btn.className = 'btn-start-finish';
+        btn.type = 'button';
+        btn.innerHTML = '▶ Iniciar';
+        btn.dataset.action = 'start';
+        
+        btn.addEventListener('click', (e) => handleStartFinish(e, el, columnName));
+        
+        actionsDiv.appendChild(btn);
+        el.appendChild(actionsDiv);
+      }
+
       return el;
     }
 
@@ -870,9 +1124,22 @@
     function renderKanban(data) {
       // Protege contra re-render durante drag (evita que o elemento arrastado desapareça)
       if (dragging) return;
+      
+      // NOVA LÓGICA MELHORADA: Atualiza tudo EXCETO cards com timer ativo
+      // Isso permite sincronização entre navegadores sem piscar o timer
+      const cardsComTimerAtivo = new Set();
+      Object.keys(executionTimers).forEach(key => {
+        cardsComTimerAtivo.add(key); // key é "cliente|projeto"
+      });
 
       const container = document.getElementById('kanban');
-      container.innerHTML = '';
+      
+      // Se há timers ativos, fazemos update incremental em vez de limpar tudo
+      const updateIncremental = hasActiveTimers && container.children.length > 0;
+      
+      if (!updateIncremental) {
+        container.innerHTML = '';
+      }
 
       const colunas = [
         "Processo de Orçamento",
@@ -883,31 +1150,89 @@
         "Envio / Coleta"
       ];
 
-      colunas.forEach(col => {
-        const colDiv = document.createElement('div');
+      colunas.forEach((col, colIndex) => {
+        let colDiv;
+        
+        if (updateIncremental) {
+          // Busca coluna existente
+          colDiv = container.children[colIndex];
+          if (!colDiv) {
+            colDiv = document.createElement('div');
+            container.appendChild(colDiv);
+          }
+        } else {
+          colDiv = document.createElement('div');
+        }
+        
         colDiv.className = 'column';
         colDiv.dataset.status = col;
 
         const colSlug = slugify(col);
         colDiv.classList.add('col-' + colSlug);
 
-        const h2 = document.createElement('h2'); h2.textContent = col;
-        colDiv.appendChild(h2);
+        // Atualiza ou cria header
+        let h2 = colDiv.querySelector('h2');
+        if (!h2) {
+          h2 = document.createElement('h2');
+          colDiv.insertBefore(h2, colDiv.firstChild);
+        }
+        h2.textContent = col;
 
-        const list = document.createElement('div'); list.className = 'list'; list.setAttribute('role', 'list');
+        // Atualiza ou cria lista
+        let list = colDiv.querySelector('.list');
+        if (!list) {
+          list = document.createElement('div');
+          list.className = 'list';
+          list.setAttribute('role', 'list');
+          colDiv.appendChild(list);
+        }
 
         const items = data[col] || data[slugify(col)] || [];
 
-        (items || []).forEach(card => {
-          const cardEl = createCardElement(card, col);
-          list.appendChild(cardEl);
-        });
-
-        colDiv.appendChild(list);
-        container.appendChild(colDiv);
+        if (updateIncremental) {
+          // Update incremental: apenas atualiza cards que NÃO tem timer ativo
+          const existingCards = Array.from(list.querySelectorAll('.card'));
+          const existingCardMap = new Map();
+          
+          existingCards.forEach(card => {
+            const key = card.dataset.cliente + '|' + card.dataset.projeto;
+            existingCardMap.set(key, card);
+          });
+          
+          // Limpa lista
+          list.innerHTML = '';
+          
+          // Re-adiciona cards (preservando os com timer ativo)
+          items.forEach(cardData => {
+            const key = cardData.cliente + '|' + cardData.projeto;
+            
+            if (cardsComTimerAtivo.has(key) && existingCardMap.has(key)) {
+              // Preserva card existente com timer ativo (não re-cria)
+              list.appendChild(existingCardMap.get(key));
+            } else {
+              // Cria novo card ou atualiza card sem timer
+              const cardEl = createCardElement(cardData, col);
+              list.appendChild(cardEl);
+            }
+          });
+        } else {
+          // Render completo normal
+          list.innerHTML = '';
+          (items || []).forEach(card => {
+            const cardEl = createCardElement(card, col);
+            list.appendChild(cardEl);
+          });
+        }
+        
+        if (!updateIncremental) {
+          container.appendChild(colDiv);
+        }
       });
 
       attachPointerHandlers();
+      
+      // Reinicia timers para cards em execução
+      restartAllTimers();
     }
 
     /* ====== Load data + merge orders (Apps Script integration if available) ====== */
@@ -960,6 +1285,13 @@
 
     function onPointerDownStarter(ev) {
       if (ev.button && ev.button !== 0) return;
+      
+      // Ignora eventos em botões de ação (Iniciar/Finalizar)
+      const target = ev.target;
+      if (target.closest('.btn-start-finish') || target.closest('.card-actions')) {
+        return; // Permite que o botão processe o clique normalmente
+      }
+      
       const card = ev.currentTarget;
       if (pendingDrag && pendingDrag.startElement) cleanupPendingDrag();
       const rect = card.getBoundingClientRect();
@@ -1144,10 +1476,14 @@
       try {
         startClock();
         loadKanban();
-        // Atualizações periódicas: só executar se NÃO estivermos arrastando/nem com pending drag
+        
+        // Atualizações periódicas MELHORADAS
+        // - Sempre atualiza, mas de forma inteligente (update incremental quando há timers)
+        // - Não atualiza durante drag
+        // - Intervalo de 10s para boa sincronização entre navegadores
         setInterval(() => {
           if (!dragging && !pendingDrag) {
-            loadKanban();
+            loadKanban(); // Sempre atualiza! renderKanban usa update incremental
           }
         }, REFRESH_MS);
 
