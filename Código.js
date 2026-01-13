@@ -1349,6 +1349,7 @@ function getKanbanData() {
         const idxPrazo = _findHeaderIndex(headersProj, "PRAZO");
         const idxProcessos = _findHeaderIndex(headersProj, "PROCESSOS");
         const idxObs = _findHeaderIndex(headersProj, "OBSERVAÇÕES");
+        const idxJsonDados = _findHeaderIndex(headersProj, "JSON_DADOS");
 
         for (let i = 1; i < valsProj.length; i++) {
           const row = valsProj[i];
@@ -1376,6 +1377,7 @@ function getKanbanData() {
           if (statusPed && statusPed !== "" && statusPed !== "Finalizado") {
             const obs = idxObs >= 0 ? row[idxObs] : "";
             const processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || "") : "";
+            const jsonDados = idxJsonDados >= 0 ? row[idxJsonDados] : "";
             
             // Extrai tempo estimado do campo PROCESSOS
             let tempoEstimado = "";
@@ -1389,10 +1391,22 @@ function getKanbanData() {
               tempoEstimado = processosStr.match(/adici.*:?\s*([\d.,]+h?)/i)?.[1] || "";
             }
 
-            // Busca tempo real dos logs (se disponível)
+            // Extrai temposReais do JSON_DADOS se existir
+            let temposReais = {};
+            if (jsonDados) {
+              try {
+                const parsed = JSON.parse(jsonDados);
+                if (parsed && parsed.dados && parsed.dados.temposReais) {
+                  temposReais = parsed.dados.temposReais;
+                }
+              } catch (e) {
+                // Ignora erros de parse
+              }
+            }
+
+            // Busca tempo real dos logs (se disponível) - mantido para compatibilidade
             let tempoReal = "";
             const chave = cliente + "|" + projeto;
-            // mapaLogs será preenchido abaixo
 
             if (Array.isArray(data[statusPed])) {
               data[statusPed].push({
@@ -1402,6 +1416,7 @@ function getKanbanData() {
                 observacoes: obs,
                 tempoEstimado: tempoEstimado,
                 tempoReal: tempoReal,  // Será preenchido pelos logs abaixo
+                temposReais: temposReais, // Novos tempos reais detalhados
                 prazo: prazo
               });
             }
@@ -2098,6 +2113,126 @@ function registrarLog(cliente, projeto, statusAntigo, statusNovo, processosStr, 
 
   } catch (err) {
     Logger.log("Erro registrarLog: " + err);
+  }
+}
+
+// ===== Nova função para salvar tempos reais de execução =====
+/**
+ * Salva o tempo real de início ou fim de um processo no card
+ * @param {string} cliente - Nome do cliente
+ * @param {string} projeto - Número do projeto
+ * @param {string} processoSlug - Slug do processo (ex: "processo-de-corte")
+ * @param {string} tipo - 'INICIO' ou 'FIM'
+ * @param {string} timestamp - ISO timestamp
+ * @param {number} duracaoMinutos - Duração em minutos (apenas para FIM)
+ */
+function salvarTempoReal(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos) {
+  try {
+    Logger.log('salvarTempoReal: cliente=%s, projeto=%s, processo=%s, tipo=%s', cliente, projeto, processoSlug, tipo);
+    
+    // === APENAS salva na aba "TemposReais" ===
+    // Removido: salvamento em JSON_DADOS (não é mais necessário)
+    salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos);
+    
+    Logger.log('salvarTempoReal: Sucesso');
+    return { success: true };
+    
+  } catch (err) {
+    Logger.log('salvarTempoReal ERROR: %s\n%s', err.message, err.stack);
+    return { success: false, error: err.message };
+  }
+}
+
+// === Nova função para salvar tempos em aba separada ===
+function salvarTempoRealNaAba(cliente, projeto, processoSlug, tipo, timestamp, duracaoMinutos) {
+  try {
+    // Obtém ou cria a aba TemposReais
+    let sheetTempos = ss.getSheetByName("TemposReais");
+    
+    if (!sheetTempos) {
+      // Cria a aba com cabeçalhos
+      sheetTempos = ss.insertSheet("TemposReais");
+      sheetTempos.appendRow([
+        "CLIENTE",
+        "PROJETO", 
+        "PROCESSO",
+        "DATA_HORA_INICIO",
+        "DATA_HORA_FIM",
+        "DURACAO_MINUTOS",
+        "STATUS"
+      ]);
+      // Formata cabeçalho
+      const headerRange = sheetTempos.getRange(1, 1, 1, 7);
+      headerRange.setFontWeight("bold");
+      headerRange.setBackground("#1a73e8");
+      headerRange.setFontColor("#ffffff");
+    }
+    
+    // Converte slug para nome legível
+    const nomeProcesso = processoSlug
+      .replace(/-/g, ' ')
+      .replace(/\b\w/g, l => l.toUpperCase());
+    
+    // Converte timestamp ISO para horário local do Brasil (GMT-3)
+    function converterParaHorarioBrasil(isoTimestamp) {
+      if (!isoTimestamp) return '';
+      try {
+        const data = new Date(isoTimestamp);
+        // Formata no fuso horário de São Paulo (America/Sao_Paulo)
+        return Utilities.formatDate(data, 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm:ss');
+      } catch (e) {
+        Logger.log('Erro ao converter timestamp: ' + e);
+        return isoTimestamp; // Retorna original se houver erro
+      }
+    }
+    
+    const timestampFormatado = converterParaHorarioBrasil(timestamp);
+    
+    // Busca linha existente para este cliente + projeto + processo
+    const dados = sheetTempos.getDataRange().getValues();
+    let linhaExistente = null;
+    
+    for (let i = 1; i < dados.length; i++) {
+      const rowCliente = String(dados[i][0] || '').trim();
+      const rowProjeto = String(dados[i][1] || '').trim();
+      const rowProcesso = String(dados[i][2] || '').trim();
+      const rowStatus = String(dados[i][6] || '').trim();
+      
+      // Procura linha com mesmo cliente, projeto, processo e status "EM_EXECUCAO"
+      if (rowCliente === String(cliente).trim() && 
+          rowProjeto === String(projeto).trim() && 
+          rowProcesso === nomeProcesso &&
+          rowStatus === 'EM_EXECUCAO') {
+        linhaExistente = i + 1;
+        break;
+      }
+    }
+    
+    if (tipo === 'INICIO') {
+      // Cria nova linha com início
+      const novaLinha = [
+        cliente,
+        projeto,
+        nomeProcesso,
+        timestampFormatado, // Horário local do Brasil
+        '', // DATA_HORA_FIM vazio
+        '', // DURACAO_MINUTOS vazio
+        'EM_EXECUCAO'
+      ];
+      sheetTempos.appendRow(novaLinha);
+      
+    } else if (tipo === 'FIM' && linhaExistente) {
+      // Atualiza linha existente com fim e duração
+      sheetTempos.getRange(linhaExistente, 5).setValue(timestampFormatado); // DATA_HORA_FIM
+      sheetTempos.getRange(linhaExistente, 6).setValue(duracaoMinutos); // DURACAO_MINUTOS
+      sheetTempos.getRange(linhaExistente, 7).setValue('FINALIZADO'); // STATUS
+    }
+    
+    Logger.log('salvarTempoRealNaAba: Sucesso');
+    
+  } catch (err) {
+    Logger.log('salvarTempoRealNaAba ERROR: %s\n%s', err.message, err.stack);
+    // Não falha a operação principal se houver erro na aba secundária
   }
 }
 
