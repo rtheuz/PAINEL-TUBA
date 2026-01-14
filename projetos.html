@@ -1106,6 +1106,7 @@
                 // Se for rascunho, esconde o campo de status do pedido
                 statusPedidoGroup.style.display = 'none';
                 statusPedidoSelect.removeAttribute('required');
+                statusPedidoSelect.value = ''; // Limpa o valor
             } else {
                 // Se for pedido, mostra o campo de status do pedido
                 statusPedidoGroup.style.display = 'block';
