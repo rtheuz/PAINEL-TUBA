@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Projetos — Sistema TUBA</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-1: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+      --card-bg: rgba(255, 255, 255, 0.96);
+      --muted: #64748b;
+      --accent: #0ea5ff;
+      --radius: 12px;
+      --max-width: 1200px;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      background: var(--bg-1);
+      overflow-x: hidden;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 16px;
+      gap: 16px;
+    }
+
+    .topbar {
+      width: 100%;
+      max-width: var(--max-width);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 8px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .brand img {
+      height: 40px;
+      width: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(2, 6, 23, 0.3);
+      flex-shrink: 0;
+    }
+
+    .brand-text {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .brand h1 {
+      font-size: 17px;
+      margin: 0;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.85);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      min-height: 40px;
+      touch-action: manipulation;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-voltar {
+      appearance: none;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      background: rgba(26, 115, 232, 0.9);
+      color: white;
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 50;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      min-height: 36px;
+      touch-action: manipulation;
+    }
+
+    .btn-voltar:active {
+      transform: scale(0.95);
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent), #3b82f6);
+      color: white;
+      box-shadow: 0 4px 12px rgba(14, 165, 255, 0.3);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .btn-icon {
+      padding: 8px;
+      min-width: 36px;
+      font-size: 16px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: var(--max-width);
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #f1f5f9;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .search input {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      outline: none;
+      font-size: 14px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      padding: 8px 10px;
+      border-radius: 10px;
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .filter-group label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .filter-group select {
+      border: 0;
+      background: transparent;
+      padding: 4px;
+      outline: none;
+      font-size: 13px;
+      flex: 1;
+      min-width: 0;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Tabela responsiva com cards no mobile */
+    .table-wrapper {
+      overflow: auto;
+      border-radius: 8px;
+      margin: 0 -8px;
+      padding: 0 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      color: #0f172a;
+    }
+
+    /* Desktop table */
+    @media (min-width: 769px) {
+      table {
+        min-width: 900px;
+      }
+
+      thead th {
+        text-align: left;
+        padding: 12px 10px;
+        background: transparent;
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid rgba(15, 23, 42, 0.08);
+      }
+
+      tbody td {
+        padding: 12px 10px;
+        border-top: 1px solid rgba(15, 23, 42, 0.06);
+        vertical-align: middle;
+      }
+
+      tbody tr:hover {
+        background: linear-gradient(90deg, rgba(14, 165, 255, 0.04), rgba(59, 130, 246, 0.02));
+      }
+    }
+
+    /* Mobile: Cards em vez de tabela */
+    @media (max-width: 768px) {
+
+      table,
+      thead,
+      tbody,
+      th,
+      td,
+      tr {
+        display: block;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody tr {
+        background: white;
+        border-radius: 10px;
+        padding: 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+      }
+
+      tbody tr:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      tbody td {
+        padding: 8px 0;
+        border: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 32px;
+      }
+
+      tbody td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+        margin-right: 12px;
+      }
+
+      tbody td.td-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding-top: 12px;
+        margin-top: 8px;
+        border-top: 1px solid rgba(15, 23, 42, 0.06);
+      }
+
+      tbody td.td-actions:before {
+        display: none;
+      }
+
+      tbody td.td-actions .btn {
+        width: 100%;
+      }
+    }
+
+    select.status-select {
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      background: white;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      min-height: 32px;
+    }
+
+    a.link {
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    a.link:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      width: 100%;
+      max-width: var(--max-width);
+      color: rgba(255, 255, 255, 0.75);
+      text-align: center;
+      padding: 16px;
+      font-size: 11px;
+      line-height: 1.6;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      backdrop-filter: blur(10px);
+    }
+
+    /* Modal otimizado para mobile */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .modal {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 680px;
+      margin: 20px;
+      box-shadow: 0 20px 60px rgba(2, 6, 23, 0.5);
+      position: relative;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+
+    @media (max-width: 768px) {
+      .modal {
+        margin: 0;
+        border-radius: 0;
+        max-height: 100vh;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .modal-backdrop {
+        padding: 0;
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: rgba(239, 68, 68, 0.1);
+      border: 0;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      color: var(--danger);
+      min-width: 36px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .modal-close:active {
+      transform: scale(0.9);
+    }
+
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: rgba(15, 23, 42, 0.95);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(2, 6, 23, 0.4);
+      display: none;
+      z-index: 200;
+      font-size: 14px;
+      max-width: calc(100vw - 32px);
+      backdrop-filter: blur(10px);
+    }
+
+    @media (max-width: 768px) {
+      .toast {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+        text-align: center;
+      }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.2s;
+      min-height: 44px;
+    }
+
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+    }
+
+    .field small {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    @media (max-width: 768px) {
+      .modal-actions {
+        flex-direction: column-reverse;
+      }
+
+      .modal-actions .btn {
+        width: 100%;
+      }
+    }
+
+    /* Loading state */
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Animações suaves */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card,
+    tbody tr {
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* Scrollbar customizada */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.05);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(15, 23, 42, 0.2);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(15, 23, 42, 0.3);
+    }
+
+    /* Status badge visual melhorado */
+    .status-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 28px;
+    }
+
+    /* Melhor feedback visual */
+    .status-select.updated {
+      animation: pulse 0.5s ease;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        transform: scale(1);
+      }
+
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+      }
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: #0f172a;
+    }
+
+    .empty-state p {
+      margin: 0;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+    <button class="btn-voltar" onclick="voltarPagina()" title="Voltar" aria-label="Voltar">
+      ← Voltar
+    </button>
+
+    <div class="topbar">
+      <div class="brand">
+        <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo TUBA">
+        <div class="brand-text">
+          <h1>Projetos</h1>
+          <div class="brand-subtitle">Gerencie seus projetos</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-ghost btn-icon" onclick="limparFiltros()" title="Limpar filtros"
+          aria-label="Limpar filtros">
+          🔄
+        </button>
+        <button class="btn btn-primary" onclick="abrirModalNovo()" id="btnNovoOrcamento">
+          <span>+</span>
+          <span class="hide-mobile">Novo projeto</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="controls">
+        <div class="controls-row">
+          <div class="search" role="search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M21 21l-4.35-4.35" stroke="#0f172a" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+              <circle cx="11" cy="11" r="6" stroke="#0f172a" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+            <input id="globalSearch" placeholder="Buscar..." oninput="filtroGlobal()" aria-label="Pesquisar projetos">
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="filter-group">
+            <label for="filterStatus">Status:</label>
+            <select id="filterStatus" onchange="filtroGlobal()" aria-label="Filtrar por status">
+              <option value="">Todos</option>
+              <option value="Rascunho">Rascunho</option>
+              <option value="Enviado">Enviado</option>
+              <option value="Em análise">Em análise</option>
+              <option value="Negociação">Negociação</option>
+              <option value="Expirado/Perdido">Expirado/Perdido</option>
+              <option value="Convertido em Pedido">Convertido</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="sortSelect">Ordenar:</label>
+            <select id="sortSelect" onchange="ordenarPor(this.value)" aria-label="Ordenar por">
+              <option value="">Padrão</option>
+              <option value="cliente">Cliente (A→Z)</option>
+              <option value="valor_desc">Maior valor</option>
+              <option value="valor_asc">Menor valor</option>
+              <option value="data_desc">Mais recente</option>
+              <option value="data_asc">Mais antiga</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="tabelaOrcamentos" aria-label="Lista de projetos">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Descrição</th>
+              <th>Responsável Cliente</th>
+              <th>Projeto</th>
+              <th>Valor</th>
+              <th>Data</th>
+              <th>Prazo</th>
+              <th>Processos</th>
+              <th>PDF</th>
+              <th>Memória</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? for (var i = 0; i < dados.length; i++) { ?>
+            <tr data-row="<?!= dados[i]['_linhaPlanilha'] ?>">
+              <td data-label="Cliente" class="col-cliente">
+                <?!= dados[i]["CLIENTE"] ?>
+              </td>
+              <td data-label="Descrição" class="col-descricao">
+                <?!= dados[i]["DESCRIÇÃO"] || "" ?>
+              </td>
+              <td data-label="Responsável Cliente" class="col-resp">
+                <?!= dados[i]["RESPONSÁVEL CLIENTE"] || dados[i]["RESPONSÁVEL"] || "" ?>
+              </td>
+              <td data-label="Projeto" class="col-projeto">
+                <?!= dados[i]["PROJETO"] ?>
+              </td>
+              <td data-label="Valor" class="col-valor">
+                <?!= dados[i]["VALOR TOTAL"] ?>
+              </td>
+              <td data-label="Data" class="col-data">
+                <?!= dados[i]["DATA"] ?>
+              </td>
+              <td data-label="Prazo" class="col-prazo">
+                <?!= dados[i]["PRAZO"] || "" ?>
+              </td>
+              <td data-label="Processos" class="col-processos">
+                <?!= dados[i]["Processos"] ?>
+              </td>
+              <td data-label="PDF">
+                <a class="link" href="<?!= dados[i]['LINK DO PDF'] ?>" target="_blank">
+                  <?!= dados[i]['LINK DO PDF'] ? "Abrir" : "-" ?>
+                </a>
+              </td>
+              <td data-label="Memória">
+                <a class="link" href="<?!= dados[i]['LINK DA MEMÓRIA DE CÁLCULO'] ?>" target="_blank">
+                  <?!= dados[i]['LINK DA MEMÓRIA DE CÁLCULO'] ? "Abrir" : "-" ?>
+                </a>
+              </td>
+              <td data-label="Status">
+                <select class="status-select" onchange="atualizarStatus(this, <?!= dados[i]['_linhaPlanilha'] ?>)"
+                  aria-label="Status do orçamento">
+                  <option value="Rascunho" <?!=dados[i]["STATUS"]==="Rascunho" ? "selected" : "" ?>>Rascunho</option>
+                  <option value="Enviado" <?!=dados[i]["STATUS"]==="Enviado" ? "selected" : "" ?>>Enviado</option>
+                  <option value="Em análise" <?!=dados[i]["STATUS"]==="Em análise" ? "selected" : "" ?>>Em análise
+                  </option>
+                  <option value="Negociação" <?!=dados[i]["STATUS"]==="Negociação" ? "selected" : "" ?>>Negociação
+                  </option>
+                  <option value="Expirado/Perdido" <?!=dados[i]["STATUS"]==="Expirado/Perdido" ? "selected" : "" ?>
+                    >Expirado/Perdido</option>
+                  <option value="Convertido em Pedido" <?!=dados[i]["STATUS"]==="Convertido em Pedido" ? "selected" : ""
+                    ?>>Convertido</option>
+                </select>
+              </td>
+              <td class="td-actions">
+                <button class="btn" title="Editar" onclick="editarLinha(this)" aria-label="Editar projeto">✎
+                  Editar</button>
+                <button class="btn btn-danger" title="Excluir" onclick="confirmExcluir(this)"
+                  aria-label="Excluir projeto">🗑 Excluir</button>
+              </td>
+            </tr>
+            <? } ?>
+          </tbody>
+        </table>
+
+        <div id="emptyState" class="empty-state" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2" />
+            <line x1="9" y1="9" x2="15" y2="9" stroke-width="2" />
+            <line x1="9" y1="12" x2="15" y2="12" stroke-width="2" />
+            <line x1="9" y1="15" x2="12" y2="15" stroke-width="2" />
+          </svg>
+          <h3>Nenhum projeto encontrado</h3>
+          <p>Tente ajustar os filtros ou adicione um novo projeto</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="card">
+      &copy;
+      <?!= new Date().getFullYear() ?> —
+      <?!= empresa.nome ?><br>
+      <?!= empresa.endereco ?> | CNPJ:
+      <?!= empresa.cnpj ?><br>
+      <?!= empresa.email ?> |
+      <?!= empresa.tel ?>
+    </footer>
+  </div>
+
+  <!-- Modal: Adicionar / Editar Orçamento -->
+  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <h2 id="modalTitle">Novo Projeto</h2>
+        <button id="modalCloseBtn" class="modal-close" onclick="fecharModal()" aria-label="Fechar modal">✕</button>
+      </div>
+
+      <form id="formNovoOrcamento" onsubmit="event.preventDefault(); submitNovoOrcamento()">
+        <div class="grid">
+          <div class="field">
+            <label for="inputCliente">Cliente *</label>
+            <input id="inputCliente" name="cliente" list="clientesList" required autocomplete="off"
+              placeholder="Digite ou selecione">
+            <datalist id="clientesList"></datalist>
+            <small>Se não existir, será criado automaticamente</small>
+          </div>
+
+          <div class="field">
+            <label for="inputDescricao">Descrição</label>
+            <input id="inputDescricao" name="descricao" placeholder="Descrição do orçamento/projeto">
+          </div>
+
+          <div class="field">
+            <label for="inputResponsavelCliente">Responsável Cliente</label>
+            <input id="inputResponsavelCliente" name="responsavelcliente" placeholder="Nome do Cliente Responsável">
+          </div>
+
+          <div class="field">
+            <label for="inputProjeto">Projeto *</label>
+            <input id="inputProjeto" name="projeto" required placeholder="Nome do projeto">
+          </div>
+
+          <div class="field">
+            <label for="inputValor">Valor Total</label>
+            <input id="inputValor" name="valor" placeholder="R$ 1.234,56">
+          </div>
+
+          <div class="field">
+            <label for="inputData">Data</label>
+            <input id="inputData" name="data" placeholder="DD/MM/AAAA">
+          </div>
+
+          <div class="field">
+            <label for="inputPrazo">Prazo de Entrega</label>
+            <input id="inputPrazo" name="prazo" type="date">
+          </div>
+
+          <div class="field">
+            <label for="inputProcessos">Processos</label>
+            <input id="inputProcessos" name="processos" placeholder="Processos relacionados">
+          </div>
+
+          <div class="field">
+            <label for="inputPdf">Link do PDF</label>
+            <input id="inputPdf" name="linkPdf" type="url" placeholder="https://...">
+          </div>
+
+          <div class="field">
+            <label for="inputMemoria">Link da Memória</label>
+            <input id="inputMemoria" name="linkMemoria" type="url" placeholder="https://...">
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:14px;">
+          <label for="selectStatus">Status</label>
+          <select id="selectStatus" name="status">
+            <option>Rascunho</option>
+            <option>Enviado</option>
+            <option>Em análise</option>
+            <option>Negociação</option>
+            <option>Expirado/Perdido</option>
+            <option>Convertido em Pedido</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitModal">Adicionar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Confirmação de Exclusão -->
+  <div id="confirmBackdrop" class="modal-backdrop" style="display:none" aria-hidden="true">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <h3 id="confirmTitle" style="margin:0;font-size:16px;">Confirmar exclusão</h3>
+      </div>
+      <p id="confirmMsg" style="margin:12px 0;line-height:1.5;">Tem certeza que deseja excluir este projeto? Esta ação
+        não pode ser desfeita.</p>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn btn-ghost" onclick="cancelExcluir()" style="flex:1;">Cancelar</button>
+        <button id="btnConfirmExcluir" class="btn btn-danger" style="flex:1;">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const token = "<?= token ?>";
+    const dados = <?!= JSON.stringify(dados) ?>;
+
+    let clientesNomes = [];
+    let editingLinha = null;
+    let editingTr = null;
+
+    // Carrega lista de clientes
+    function carregarClientes() {
+      google.script.run
+        .withSuccessHandler(function (lista) {
+          if (!Array.isArray(lista)) return;
+          clientesNomes = lista.map(c => (c && c.nome) ? String(c.nome).trim() : '').filter(Boolean);
+          const datalist = document.getElementById('clientesList');
+          datalist.innerHTML = '';
+          clientesNomes.forEach(nome => {
+            const option = document.createElement('option');
+            option.value = nome;
+            datalist.appendChild(option);
+          });
+        })
+        .withFailureHandler(err => console.error('Erro ao buscar clientes:', err))
+        .getTodosClientes();
+    }
+
+    window.addEventListener('load', () => {
+      carregarClientes();
+      verificarEstadoVazio();
+    });
+
+    // Voltar página
+    function voltarPagina() {
+      if (!token) {
+        alert("Token não encontrado. Por favor, recarregue a página.");
+        return;
+      }
+      const baseUrl = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      window.location.href = `${baseUrl}?page=dashboard&token=${token}`;
+    }
+
+    // Abrir modal novo
+    function abrirModalNovo() {
+      editingLinha = null;
+      editingTr = null;
+      document.getElementById('modalTitle').textContent = 'Novo Projeto';
+      document.getElementById('btnSubmitModal').textContent = 'Adicionar';
+      document.getElementById('formNovoOrcamento').reset();
+      const mb = document.getElementById('modalBackdrop');
+      mb.style.display = 'flex';
+      mb.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      carregarClientes();
+      setTimeout(() => document.getElementById('inputCliente').focus(), 100);
+    }
+
+    // Abrir modal editar
+    function abrirModalEditar(tr, linhaPlanilha) {
+      editingLinha = Number(linhaPlanilha) || null;
+      editingTr = tr;
+      document.getElementById('modalTitle').textContent = 'Editar Orçamento';
+      document.getElementById('btnSubmitModal').textContent = 'Salvar';
+      const form = document.getElementById('formNovoOrcamento');
+
+      form.cliente.value = tr.querySelector('.col-cliente')?.textContent.trim() || '';
+      form.descricao.value = tr.querySelector('.col-descricao')?.textContent.trim() || '';
+      form.responsavelcliente.value = tr.querySelector('.col-resp')?.textContent.trim() || '';
+      form.projeto.value = tr.querySelector('.col-projeto')?.textContent.trim() || '';
+      form.valor.value = tr.querySelector('.col-valor')?.textContent.trim() || '';
+      form.data.value = tr.querySelector('.col-data')?.textContent.trim() || '';
+
+      // Parse PRAZO from DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD for date input
+      const prazoText = tr.querySelector('.col-prazo')?.textContent.trim() || '';
+      if (prazoText) {
+        const parts = prazoText.split('/');
+        if (parts.length === 3) {
+          let year = parts[2];
+          if (year.length === 2) {
+            // Use threshold: years < 50 are 20XX, >= 50 are 19XX
+            const yearNum = parseInt(year, 10);
+            year = (yearNum < 50 ? '20' : '19') + year;
+          }
+          form.prazo.value = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+      } else {
+        form.prazo.value = '';
+      }
+
+      form.processos.value = tr.querySelector('.col-processos')?.textContent.trim() || '';
+
+      const links = tr.querySelectorAll('a.link');
+      const linkPdfAttr = (links[0] && links[0].getAttribute) ? links[0].getAttribute('href') : '';
+      const linkMemAttr = (links[1] && links[1].getAttribute) ? links[1].getAttribute('href') : '';
+      form.linkPdf.value = (linkPdfAttr && linkPdfAttr !== '#') ? linkPdfAttr : '';
+      form.linkMemoria.value = (linkMemAttr && linkMemAttr !== '#') ? linkMemAttr : '';
+
+      const selRow = tr.querySelector('.status-select');
+      form.status.value = selRow ? selRow.value : 'Rascunho';
+
+      const mb = document.getElementById('modalBackdrop');
+      mb.style.display = 'flex';
+      mb.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      carregarClientes();
+      setTimeout(() => document.getElementById('inputCliente').focus(), 100);
+    }
+
+    // Fechar modal
+    function fecharModal() {
+      const mb = document.getElementById('modalBackdrop');
+      mb.style.display = 'none';
+      mb.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      document.getElementById('formNovoOrcamento').reset();
+      editingLinha = null;
+      editingTr = null;
+    }
+
+    // Toast notification
+    function showToast(msg, duration = 3000) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.style.display = 'none'; }, duration);
+    }
+
+    // Atualizar status
+    function atualizarStatus(selectElem, linhaPlanilha) {
+      const novoStatus = selectElem.value;
+      const oldValue = selectElem.getAttribute('data-old-value') || selectElem.value;
+      selectElem.setAttribute('data-old-value', novoStatus);
+
+      google.script.run
+        .withSuccessHandler(() => {
+          selectElem.classList.add('updated');
+          setTimeout(() => selectElem.classList.remove('updated'), 700);
+          showToast('Status atualizado', 1400);
+
+          if (novoStatus === "Convertido em Pedido") {
+            showToast('Convertendo em pedido...', 2000);
+          }
+        })
+        .withFailureHandler(err => {
+          console.error('Erro atualizarStatus:', err);
+          selectElem.value = oldValue;
+          alert("Erro ao atualizar status: " + (err?.message || JSON.stringify(err)));
+        })
+        .atualizarStatusNaPlanilha(Number(linhaPlanilha), novoStatus);
+    }
+
+    // Normaliza texto
+    function normalizeText(s) {
+      if (!s) return '';
+      return String(s).trim().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s\/]/g, '');
+    }
+
+    // Filtro global
+    function filtroGlobal() {
+      const qRaw = document.getElementById('globalSearch').value || '';
+      const q = normalizeText(qRaw);
+      const statusFiltroRaw = (document.getElementById('filterStatus').value || '').trim();
+      const statusFiltro = normalizeText(statusFiltroRaw);
+      const rows = document.querySelectorAll('#tabelaOrcamentos tbody tr');
+      let visibleCount = 0;
+
+      rows.forEach(r => {
+        const cliente = normalizeText(r.querySelector('.col-cliente')?.textContent || '');
+        const descricao = normalizeText(r.querySelector('.col-descricao')?.textContent || '');
+        const resp = normalizeText(r.querySelector('.col-resp')?.textContent || '');
+        const projeto = normalizeText(r.querySelector('.col-projeto')?.textContent || '');
+        const valor = normalizeText(r.querySelector('.col-valor')?.textContent || '');
+        const data = normalizeText(r.querySelector('.col-data')?.textContent || '');
+        const processos = normalizeText(r.querySelector('.col-processos')?.textContent || '');
+
+        const combined = [cliente, descricao, resp, projeto, valor, data, processos].join(' ');
+        let matchesText = true;
+        if (q) matchesText = combined.indexOf(q) !== -1;
+
+        let matchesStatus = true;
+        if (statusFiltro) {
+          const sel = r.querySelector('.status-select');
+          let rowStatus = sel ? normalizeText(sel.value) : '';
+          matchesStatus = (rowStatus === statusFiltro);
+        }
+
+        if (matchesText && matchesStatus) {
+          r.style.display = '';
+          visibleCount++;
+        } else {
+          r.style.display = 'none';
+        }
+      });
+
+      verificarEstadoVazio(visibleCount === 0);
+    }
+
+    function limparFiltros() {
+      document.getElementById('globalSearch').value = '';
+      document.getElementById('filterStatus').value = '';
+      document.getElementById('sortSelect').value = '';
+      filtroGlobal();
+    }
+
+    // Verificar estado vazio
+    function verificarEstadoVazio(forceEmpty = false) {
+      const tbody = document.querySelector('#tabelaOrcamentos tbody');
+      const emptyState = document.getElementById('emptyState');
+      const rows = tbody.querySelectorAll('tr');
+      const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
+
+      if (forceEmpty || visibleRows.length === 0) {
+        tbody.style.display = 'none';
+        emptyState.style.display = 'block';
+      } else {
+        tbody.style.display = '';
+        emptyState.style.display = 'none';
+      }
+    }
+
+    // Ordenação
+    function ordenarPor(key) {
+      const tbody = document.querySelector('#tabelaOrcamentos tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      if (!key) return;
+
+      const compare = (a, b) => {
+        if (key === 'cliente') {
+          const aa = a.querySelector('.col-cliente').textContent.trim().toLowerCase();
+          const bb = b.querySelector('.col-cliente').textContent.trim().toLowerCase();
+          return aa.localeCompare(bb);
+        }
+        if (key === 'valor_desc' || key === 'valor_asc') {
+          const na = parseNumero(a.querySelector('.col-valor').textContent);
+          const nb = parseNumero(b.querySelector('.col-valor').textContent);
+          return (na - nb) * (key === 'valor_desc' ? -1 : 1);
+        }
+        if (key === 'data_desc' || key === 'data_asc') {
+          const da = parseData(a.querySelector('.col-data').textContent);
+          const db = parseData(b.querySelector('.col-data').textContent);
+          return (da - db) * (key === 'data_desc' ? -1 : 1);
+        }
+        return 0;
+      };
+
+      rows.sort(compare);
+      rows.forEach(r => tbody.appendChild(r));
+    }
+
+    function parseNumero(txt) {
+      if (!txt) return 0;
+      const n = parseFloat(String(txt).replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
+      return n;
+    }
+
+    function parseData(txt) {
+      if (!txt) return 0;
+      const parts = String(txt).split('/');
+      if (parts.length !== 3) return 0;
+      return new Date(+parts[2], +parts[1] - 1, +parts[0]).getTime();
+    }
+
+    // Submit form
+    function submitNovoOrcamento() {
+      const form = document.getElementById('formNovoOrcamento');
+      const clienteNome = (form.cliente.value || '').trim();
+      const descricao = (form.descricao.value || '').trim();
+      const responsavelcliente = (form.responsavelcliente.value || '').trim();
+      const projeto = (form.projeto.value || '').trim();
+      const valor = (form.valor.value || '').trim();
+      const data = (form.data.value || '').trim();
+      const prazoInput = (form.prazo.value || '').trim();
+      const processos = (form.processos.value || '').trim();
+      const linkPdf = (form.linkPdf.value || '').trim();
+      const linkMem = (form.linkMemoria.value || '').trim();
+      const status = (form.status.value || '').trim();
+
+      // Convert prazo from YYYY-MM-DD to DD/MM/YYYY for storage
+      let prazo = '';
+      if (prazoInput) {
+        // Mantém o formato YYYY-MM-DD que vem do input type="date"
+        prazo = prazoInput; // já está no formato 2025-12-12
+      }
+    }
+
+    if (!clienteNome || !projeto) {
+      alert('Preencha ao menos Cliente e Projeto.');
+      return;
+    }
+
+    const dataObj = {
+      CLIENTE: clienteNome,
+      "DESCRIÇÃO": descricao,
+      "RESPONSÁVEL CLIENTE": responsavelcliente,
+      PROJETO: projeto,
+      "VALOR TOTAL": valor,
+      DATA: data,
+      PRAZO: prazo,
+      Processos: processos,
+      "LINK DO PDF": linkPdf,
+      "LINK DA MEMÓRIA DE CÁLCULO": linkMem,
+      STATUS: status
+    };
+
+    const btn = document.getElementById('btnSubmitModal');
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = editingLinha ? 'Salvando...' : 'Enviando...';
+
+    const clienteExiste = clientesNomes.includes(clienteNome);
+    const salvarClientePromise = new Promise((resolve) => {
+      if (clienteExiste) return resolve({ saved: false });
+      google.script.run
+        .withSuccessHandler(res => resolve({ saved: true, res }))
+        .withFailureHandler(err => {
+          console.warn('Erro salvarClienteSeNovo:', err);
+          resolve({ saved: false, err });
+        })
+        .salvarClienteSeNovo({ nome: clienteNome });
+    });
+
+    salvarClientePromise.then(() => {
+      if (editingLinha) {
+        google.script.run
+          .withSuccessHandler(function (result) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            updateLinhaTabela(dataObj, editingLinha);
+            showToast('Projeto atualizado com sucesso', 2500);
+            fecharModal();
+
+            if (dataObj.STATUS === "Convertido em Pedido") {
+              google.script.run
+                .withSuccessHandler(() => showToast('Orçamento convertido em pedido', 2000))
+                .withFailureHandler(err => console.error('Erro ao converter:', err))
+                .atualizarStatusNaPlanilha(Number(editingLinha), dataObj.STATUS);
+            }
+
+            if (!clienteExiste) {
+              clientesNomes.push(clienteNome);
+              const opt = document.createElement('option');
+              opt.value = clienteNome;
+              document.getElementById('clientesList').appendChild(opt);
+            }
+          })
+          .withFailureHandler(function (err) {
+            console.error('Erro atualizarOrcamentoNaPlanilha:', err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Erro ao atualizar: ' + (err?.message || JSON.stringify(err)));
+          })
+          .atualizarOrcamentoNaPlanilha(Number(editingLinha), dataObj);
+      } else {
+        google.script.run
+          .withSuccessHandler(function (result) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            const linhaPlanilha = result?.linha || result;
+            appendLinhaTabela(dataObj, linhaPlanilha);
+            form.reset();
+            document.getElementById('inputCliente').focus();
+            showToast('Projeto adicionado! Adicione outro ou feche.', 3000);
+
+            if (dataObj.STATUS === "Convertido em Pedido") {
+              google.script.run
+                .withSuccessHandler(() => showToast('Orçamento convertido em pedido', 2000))
+                .withFailureHandler(err => console.error('Erro ao converter:', err))
+                .atualizarStatusNaPlanilha(Number(linhaPlanilha), dataObj.STATUS);
+            }
+
+            if (!clienteExiste) {
+              clientesNomes.push(clienteNome);
+              const opt = document.createElement('option');
+              opt.value = clienteNome;
+              document.getElementById('clientesList').appendChild(opt);
+            }
+          })
+          .withFailureHandler(function (err) {
+            console.error('Erro adicionarOrcamentoNaPlanilha:', err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Erro ao adicionar: ' + (err?.message || JSON.stringify(err)));
+          })
+          .adicionarOrcamentoNaPlanilha(dataObj);
+      }
+    });
+    }
+
+    // Append nova linha
+    function appendLinhaTabela(dados, linhaPlanilha) {
+      const tbody = document.querySelector('#tabelaOrcamentos tbody');
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-row', String(linhaPlanilha));
+      tr.innerHTML = `
+        <td data-label="Cliente" class="col-cliente">${dados.CLIENTE || ''}</td>
+        <td data-label="Descrição" class="col-descricao">${dados["DESCRIÇÃO"] || ''}</td>
+        <td data-label="Responsável Cliente" class="col-resp">${dados["RESPONSÁVEL CLIENTE"] || ''}</td>
+        <td data-label="Projeto" class="col-projeto">${dados.PROJETO || ''}</td>
+        <td data-label="Valor" class="col-valor">${dados["VALOR TOTAL"] || ''}</td>
+        <td data-label="Data" class="col-data">${dados.DATA || ''}</td>
+        <td data-label="Prazo" class="col-prazo">${dados.PRAZO || ''}</td>
+        <td data-label="Processos" class="col-processos">${dados.Processos || ''}</td>
+        <td data-label="PDF">
+          <a class="link" href="${dados["LINK DO PDF"] || '#'}" target="_blank">
+            ${dados["LINK DO PDF"] ? 'Abrir' : '-'}
+          </a>
+        </td>
+        <td data-label="Memória">
+          <a class="link" href="${dados["LINK DA MEMÓRIA DE CÁLCULO"] || '#'}" target="_blank">
+            ${dados["LINK DA MEMÓRIA DE CÁLCULO"] ? 'Abrir' : '-'}
+          </a>
+        </td>
+        <td data-label="Status">
+          <select class="status-select" onchange="atualizarStatus(this, ${linhaPlanilha})" aria-label="Status">
+            <option value="Rascunho">Rascunho</option>
+            <option value="Enviado">Enviado</option>
+            <option value="Em análise">Em análise</option>
+            <option value="Negociação">Negociação</option>
+            <option value="Expirado/Perdido">Expirado/Perdido</option>
+            <option value="Convertido em Pedido">Convertido</option>
+          </select>
+        </td>
+        <td class="td-actions">
+          <button class="btn" onclick="editarLinha(this)" aria-label="Editar">✎ Editar</button>
+          <button class="btn btn-danger" onclick="confirmExcluir(this)" aria-label="Excluir">🗑 Excluir</button>
+        </td>
+      `;
+
+      const sel = tr.querySelector('.status-select');
+      sel.value = dados.STATUS || 'Rascunho';
+      tbody.insertBefore(tr, tbody.firstChild);
+      verificarEstadoVazio();
+      filtroGlobal();
+    }
+
+    // Update linha existente
+    function updateLinhaTabela(dados, linhaPlanilha) {
+      const tr = document.querySelector(`#tabelaOrcamentos tbody tr[data-row="${linhaPlanilha}"]`);
+      if (!tr) {
+        console.warn('Linha não encontrada:', linhaPlanilha);
+        return;
+      }
+
+      tr.querySelector('.col-cliente').textContent = dados.CLIENTE || '';
+      tr.querySelector('.col-descricao').textContent = dados["DESCRIÇÃO"] || '';
+      tr.querySelector('.col-resp').textContent = dados["RESPONSÁVEL CLIENTE"] || '';
+      tr.querySelector('.col-projeto').textContent = dados.PROJETO || '';
+      tr.querySelector('.col-valor').textContent = dados["VALOR TOTAL"] || '';
+      tr.querySelector('.col-data').textContent = dados.DATA || '';
+      tr.querySelector('.col-prazo').textContent = dados.PRAZO || '';
+      tr.querySelector('.col-processos').textContent = dados.Processos || '';
+
+      const links = tr.querySelectorAll('a.link');
+      if (dados["LINK DO PDF"]) {
+        links[0].setAttribute('href', dados["LINK DO PDF"]);
+        links[0].textContent = 'Abrir';
+      } else {
+        links[0].setAttribute('href', '#');
+        links[0].textContent = '-';
+      }
+
+      if (dados["LINK DA MEMÓRIA DE CÁLCULO"]) {
+        links[1].setAttribute('href', dados["LINK DA MEMÓRIA DE CÁLCULO"]);
+        links[1].textContent = 'Abrir';
+      } else {
+        links[1].setAttribute('href', '#');
+        links[1].textContent = '-';
+      }
+
+      const sel = tr.querySelector('.status-select');
+      if (sel) sel.value = dados.STATUS || 'Rascunho';
+
+      filtroGlobal();
+    }
+
+    // Exclusão
+    let linhaParaExcluir = null;
+    let trParaExcluir = null;
+
+    function confirmExcluir(button) {
+      const tr = button.closest('tr');
+      linhaParaExcluir = Number(tr.getAttribute('data-row'));
+      trParaExcluir = tr;
+      document.getElementById('confirmBackdrop').style.display = 'flex';
+      document.getElementById('confirmBackdrop').setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function cancelExcluir() {
+      linhaParaExcluir = null;
+      trParaExcluir = null;
+      document.getElementById('confirmBackdrop').style.display = 'none';
+      document.getElementById('confirmBackdrop').setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('btnConfirmExcluir').addEventListener('click', function () {
+      if (!linhaParaExcluir) return;
+      const btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Excluindo...';
+
+      google.script.run
+        .withSuccessHandler(function () {
+          if (trParaExcluir && trParaExcluir.parentNode) {
+            trParaExcluir.parentNode.removeChild(trParaExcluir);
+          }
+          cancelExcluir();
+          btn.disabled = false;
+          btn.textContent = 'Excluir';
+          showToast('Projeto excluído', 2000);
+          verificarEstadoVazio();
+        })
+        .withFailureHandler(function (err) {
+          console.error('Erro excluirOrcamento:', err);
+          btn.disabled = false;
+          btn.textContent = 'Excluir';
+          alert('Erro ao excluir: ' + (err?.message || JSON.stringify(err)));
+        })
+        .excluirOrcamento(Number(linhaParaExcluir));
+    });
+
+    // Editar linha
+    function editarLinha(button) {
+      const tr = button?.closest('tr');
+      if (!tr) {
+        alert('Não foi possível identificar a linha.');
+        return;
+      }
+
+      const linhaAttr = tr.getAttribute('data-row') || tr.dataset?.row || '';
+      if (!linhaAttr || linhaAttr.trim() === '') {
+        alert('Não foi possível identificar a linha.');
+        return;
+      }
+
+      const linha = Number(linhaAttr.trim());
+      if (!Number.isFinite(linha) || linha <= 0) {
+        alert('Linha inválida: ' + linhaAttr);
+        return;
+      }
+
+      abrirModalEditar(tr, linha);
+    }
+
+    // Fechar modal ao clicar fora (opcional - descomente se desejar)
+    /*
+    document.getElementById('modalBackdrop').addEventListener('click', function(e) {
+      if (e.target === this) fecharModal();
+    });
+    document.getElementById('confirmBackdrop').addEventListener('click', function(e) {
+      if (e.target === this) cancelExcluir();
+    });
+    */
+
+    // Atalhos de teclado
+    document.addEventListener('keydown', function (e) {
+      // ESC fecha modals
+      if (e.key === 'Escape') {
+        if (document.getElementById('modalBackdrop').style.display === 'flex') {
+          fecharModal();
+        }
+        if (document.getElementById('confirmBackdrop').style.display === 'flex') {
+          cancelExcluir();
+        }
+      }
+    });
+
+    // Prevenir zoom em inputs no iOS
+    document.addEventListener('touchstart', function () { }, { passive: true });
+  </script>
+</body>
+
+</html>
