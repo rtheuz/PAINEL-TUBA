@@ -2695,7 +2695,7 @@ function adicionarNovoProjetoNaPlanilha(projeto) {
         projeto['LINK DO PDF'] || '',
         projeto['LINK DA MEMÓRIA DE CÁLCULO'] || '',
         projeto.STATUS_ORCAMENTO || 'Convertido em Pedido',
-        projeto.STATUS_PEDIDO || 'Processo de Preparação MP / CAD / CAM',
+        projeto.STATUS_PEDIDO !== undefined ? projeto.STATUS_PEDIDO : 'Processo de Preparação MP / CAD / CAM',
         projeto.PRAZO || '',
         projeto['OBSERVAÇÕES'] || '',
         projeto.JSON_DADOS || ''
