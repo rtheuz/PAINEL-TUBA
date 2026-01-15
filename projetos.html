@@ -35,6 +35,7 @@
             color: #0f172a;
             background: var(--bg-1);
             overflow-x: hidden;
+            width: 100%;
         }
 
         .page {
@@ -44,6 +45,9 @@
             align-items: center;
             padding: 20px 16px 60px;
             gap: 16px;
+            width: 100%;
+            max-width: 100vw;
+            box-sizing: border-box;
         }
 
         .topbar {
@@ -55,6 +59,7 @@
             gap: 12px;
             flex-wrap: wrap;
             padding-top: 8px;
+            box-sizing: border-box;
         }
 
         .brand {
@@ -128,6 +133,7 @@
             border-radius: var(--radius);
             padding: 20px;
             box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+            box-sizing: border-box;
         }
 
         .filters {
@@ -389,6 +395,18 @@
             }
         }
 
+        .spinner-small {
+            display: inline-block;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
         /* Modal styles */
         .modal {
             display: none;
@@ -584,6 +602,7 @@
                     <div class="form-group" id="statusPedidoGroup">
                         <label>Status do Pedido *</label>
                         <select id="newStatusPedido">
+                            <option value="">Selecione...</option>
                             <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
                             <option value="Processo de Corte">Processo de Corte</option>
                             <option value="Processo de Dobra">Processo de Dobra</option>
@@ -1111,6 +1130,10 @@
                 // Se for pedido, mostra o campo de status do pedido
                 statusPedidoGroup.style.display = 'block';
                 statusPedidoSelect.setAttribute('required', 'required');
+                // Seleciona a primeira opção com valor se ainda estiver vazio
+                if (!statusPedidoSelect.value) {
+                    statusPedidoSelect.value = 'Processo de Preparação MP / CAD / CAM';
+                }
             }
         }
 
@@ -1143,6 +1166,11 @@
 
         function saveNewProject(event) {
             event.preventDefault();
+
+            // Get submit button and add visual feedback
+            const submitBtn = document.querySelector('#newProjectForm button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-small"></span> Salvando...';
 
             const tipo = document.getElementById('newTipo').value;
             const clienteNome = document.getElementById('newCliente').value.trim();
@@ -1179,29 +1207,20 @@
             salvarClienteEExecutar(clienteNome, function () {
                 google.script.run
                     .withSuccessHandler(function () {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Salvar Projeto';
                         closeNewProjectModal();
                         loadProjetos();
                         alert('Projeto adicionado com sucesso!');
                     })
                     .withFailureHandler(function (error) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Salvar Projeto';
                         alert('Erro ao adicionar projeto: ' + (error.message || error));
                     })
                     .adicionarNovoProjetoNaPlanilha(projeto);
             });
         }
-
-        // Fechar modais ao clicar fora
-        document.getElementById('newProjectModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                closeNewProjectModal();
-            }
-        });
-
-        document.getElementById('editProjectModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                closeEditProjectModal();
-            }
-        });
 
         // Event listener para mudança de status no modal de edição
         document.getElementById('editStatusOrcamento').addEventListener('change', toggleEditStatusPedido);
