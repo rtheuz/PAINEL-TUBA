@@ -34,16 +34,17 @@
             font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
             color: #0f172a;
             background: var(--bg-1);
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
         .page {
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 20px 16px 60px;
-            gap: 16px;
+            padding: 16px 16px 16px;
+            gap: 12px;
+            overflow: hidden;
         }
 
         .topbar {
@@ -55,6 +56,7 @@
             gap: 12px;
             flex-wrap: wrap;
             padding-top: 8px;
+            flex-shrink: 0;
         }
 
         .brand {
@@ -126,17 +128,23 @@
             max-width: var(--max-width);
             background: var(--card-bg);
             border-radius: var(--radius);
-            padding: 20px;
+            padding: 16px;
             box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
         }
 
         .filters {
             display: flex;
             gap: 12px;
             flex-wrap: wrap;
-            margin-bottom: 20px;
-            padding-bottom: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
             border-bottom: 2px solid #e5e7eb;
+            flex-shrink: 0;
         }
 
         .filter-group {
@@ -173,16 +181,18 @@
         }
 
         .table-wrapper {
-            overflow-x: auto;
-            margin: 0 -20px;
-            padding: 0 20px;
+            overflow: auto;
+            margin: 0 -16px;
+            padding: 0 16px;
+            flex: 1;
+            min-height: 0;
         }
 
         table {
             width: 100%;
             border-collapse: separate;
             border-spacing: 0;
-            font-size: 13px;
+            font-size: 12px;
         }
 
         thead {
@@ -193,12 +203,12 @@
         }
 
         th {
-            padding: 12px 10px;
+            padding: 10px 8px;
             text-align: left;
             font-weight: 600;
             color: var(--muted);
             text-transform: uppercase;
-            font-size: 11px;
+            font-size: 10px;
             letter-spacing: 0.5px;
             border-bottom: 2px solid #e5e7eb;
             white-space: nowrap;
@@ -206,7 +216,7 @@
         }
 
         td {
-            padding: 12px 10px;
+            padding: 10px 8px;
             border-bottom: 1px solid #f3f4f6;
             vertical-align: middle;
         }
@@ -334,11 +344,11 @@
 
         @media (max-width: 768px) {
             .page {
-                padding: 12px 8px 40px;
+                padding: 10px 8px 10px;
             }
 
             .card {
-                padding: 12px;
+                padding: 10px;
             }
 
             .filters {
@@ -350,12 +360,12 @@
             }
 
             table {
-                font-size: 12px;
+                font-size: 11px;
             }
 
             th,
             td {
-                padding: 8px 6px;
+                padding: 6px 4px;
             }
 
             .brand h1 {
@@ -387,6 +397,18 @@
             100% {
                 transform: rotate(360deg);
             }
+        }
+
+        .spinner-small {
+            display: inline-block;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
         }
 
         /* Modal styles */
@@ -1144,6 +1166,11 @@
         function saveNewProject(event) {
             event.preventDefault();
 
+            // Get submit button and add visual feedback
+            const submitBtn = document.querySelector('#newProjectForm button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-small"></span> Salvando...';
+
             const tipo = document.getElementById('newTipo').value;
             const clienteNome = document.getElementById('newCliente').value.trim();
             const dataValue = document.getElementById('newData').value;
@@ -1179,11 +1206,15 @@
             salvarClienteEExecutar(clienteNome, function () {
                 google.script.run
                     .withSuccessHandler(function () {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Salvar Projeto';
                         closeNewProjectModal();
                         loadProjetos();
                         alert('Projeto adicionado com sucesso!');
                     })
                     .withFailureHandler(function (error) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Salvar Projeto';
                         alert('Erro ao adicionar projeto: ' + (error.message || error));
                     })
                     .adicionarNovoProjetoNaPlanilha(projeto);
