@@ -637,31 +637,32 @@
         carregarProdutosCadastrados();
 
         /* ---------- GERAÇÃO DE CÓDIGOS PRD ---------- */
-        let proximoCodigoPRD = null;
-        let contadorPRDLocal = 0;
+        // REMOVIDO: Códigos PRD agora são gerados apenas ao calcular orçamento
+        // let proximoCodigoPRD = null;
+        // let contadorPRDLocal = 0;
 
-        // Carrega o próximo código PRD da planilha ao iniciar
-        function carregarProximoCodigoPRD() {
-            google.script.run.withSuccessHandler(function (codigoPRD) {
-                proximoCodigoPRD = codigoPRD;
-                contadorPRDLocal = 0;
-            }).getProximoCodigoPRD();
-        }
-        carregarProximoCodigoPRD();
+        // REMOVIDO: Carrega o próximo código PRD da planilha ao iniciar
+        // function carregarProximoCodigoPRD() {
+        //     google.script.run.withSuccessHandler(function (codigoPRD) {
+        //         proximoCodigoPRD = codigoPRD;
+        //         contadorPRDLocal = 0;
+        //     }).getProximoCodigoPRD();
+        // }
+        // carregarProximoCodigoPRD();
 
-        // Gera o próximo código PRD localmente
-        function gerarCodigoPRDLocal() {
-            if (!proximoCodigoPRD) {
-                return "PRD00001"; // Fallback se ainda não carregou
-            }
-
-            // Extrai o número do código base
-            const numeroBase = parseInt(proximoCodigoPRD.substring(3), 10);
-            const novoNumero = numeroBase + contadorPRDLocal;
-            contadorPRDLocal++;
-
-            return "PRD" + String(novoNumero).padStart(5, "0");
-        }
+        // REMOVIDO: Gera o próximo código PRD localmente
+        // function gerarCodigoPRDLocal() {
+        //     if (!proximoCodigoPRD) {
+        //         return "PRD00001"; // Fallback se ainda não carregou
+        //     }
+        //
+        //     // Extrai o número do código base
+        //     const numeroBase = parseInt(proximoCodigoPRD.substring(3), 10);
+        //     const novoNumero = numeroBase + contadorPRDLocal;
+        //     contadorPRDLocal++;
+        //
+        //     return "PRD" + String(novoNumero).padStart(5, "0");
+        // }
 
         function addProdutoCadastrado() {
             const container = document.getElementById("produtosCadastradosContainer");
@@ -673,8 +674,8 @@
             div.style.borderRadius = "8px";
             div.style.background = "#f9fbff";
 
-            // Gera código PRD padrão
-            const codigoPRDPadrao = gerarCodigoPRDLocal();
+            // Código PRD será gerado automaticamente ao calcular orçamento
+            const codigoPRDPadrao = "";
 
             div.innerHTML = `
                 <div class="row">
@@ -696,8 +697,8 @@
                 <div class="row" style="margin-top:8px;">
                     <div class="col">
                         <label>Código:</label>
-                        <input type="text" class="produtoCodigo" value="${codigoPRDPadrao}" style="font-weight:600;">
-                        <small style="color:#666;">PRD gerado automaticamente, editável</small>
+                        <input type="text" class="produtoCodigo" value="${codigoPRDPadrao}" placeholder="Será gerado ao calcular (ou digite um existente)" style="font-weight:600;">
+                        <small style="color:#666;">Será gerado automaticamente ao calcular o orçamento, ou pesquise um PRD existente</small>
                     </div>
                     <div class="col" style="flex: 2;">
                         <label>Descrição:</label>
@@ -1028,11 +1029,14 @@
             const produtos = [];
             document.querySelectorAll(".produto-cadastrado").forEach(div => {
                 const codigo = div.querySelector(".produtoCodigo").value;
-                if (!codigo) return; // pula se não foi selecionado
+                const descricao = div.querySelector(".produtoDescricao").value;
+                
+                // Pula apenas se não tem nem código nem descrição
+                if (!codigo && !descricao) return;
 
                 produtos.push({
-                    codigo: codigo,
-                    descricao: div.querySelector(".produtoDescricao").value,
+                    codigo: codigo || "", // Permite código vazio (será gerado ao calcular)
+                    descricao: descricao,
                     familia: div.querySelector(".produtoFamilia").value,
                     tipo: div.querySelector(".produtoTipo").value,
                     unidade: div.querySelector(".produtoUnidade").value,

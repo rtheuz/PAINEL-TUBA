@@ -91,6 +91,36 @@ function getProximoCodigoPRD() {
 }
 
 /**
+ * Atribui códigos PRD aos produtos que não possuem código
+ * @param {Array} produtos - Array de objetos de produtos
+ * @returns {Array} Array de produtos com códigos atribuídos
+ */
+function atribuirCodigosPRDAutomaticos(produtos) {
+  if (!produtos || produtos.length === 0) return produtos;
+  
+  // Conta quantos produtos precisam de código
+  const produtosSemCodigo = produtos.filter(p => !p.codigo || p.codigo.trim() === "");
+  
+  if (produtosSemCodigo.length === 0) {
+    return produtos; // Todos já têm código
+  }
+  
+  // Obtém o próximo código PRD disponível
+  const proximoCodigo = getProximoCodigoPRD();
+  let numeroBase = parseInt(proximoCodigo.substring(3), 10);
+  
+  // Atribui códigos aos produtos que não têm
+  produtos.forEach(produto => {
+    if (!produto.codigo || produto.codigo.trim() === "") {
+      produto.codigo = "PRD" + String(numeroBase).padStart(5, "0");
+      numeroBase++;
+    }
+  });
+  
+  return produtos;
+}
+
+/**
  * Insere um produto na aba "Relação de produtos"
  * @param {Object} produto - Objeto com os dados do produto
  */
@@ -864,6 +894,11 @@ function gerarPdfOrcamento(
     const numeroSequencial = obterEIncrementarNumeroOrcamento();
 
     const resultados = calcularOrcamento(chapas);
+
+    // Atribui códigos PRD a produtos cadastrados que não têm código
+    if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      atribuirCodigosPRDAutomaticos(produtosCadastrados);
+    }
 
     // Adiciona produtos cadastrados aos resultados
     if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
@@ -3286,6 +3321,11 @@ function salvarRascunho(nomeRascunho, dados) {
     const agora = new Date();
     const dataBrasil = formatarDataBrasil(agora);
 
+    // Atribui códigos PRD a produtos cadastrados que não têm código
+    if (dados.produtosCadastrados && Array.isArray(dados.produtosCadastrados)) {
+      atribuirCodigosPRDAutomaticos(dados.produtosCadastrados);
+    }
+
     // Serializa todos os dados do formulário para JSON
     const dadosJson = JSON.stringify({
       nome: nomeRascunho,
@@ -3404,6 +3444,11 @@ function atualizarRascunho(linhaOuKey, dados) {
     // Data formatada para exibição
     const agora = new Date();
     const dataBrasil = formatarDataBrasil(agora);
+
+    // Atribui códigos PRD a produtos cadastrados que não têm código
+    if (dados.produtosCadastrados && Array.isArray(dados.produtosCadastrados)) {
+      atribuirCodigosPRDAutomaticos(dados.produtosCadastrados);
+    }
 
     // Serializa todos os dados do formulário para JSON
     const dadosJson = JSON.stringify({
