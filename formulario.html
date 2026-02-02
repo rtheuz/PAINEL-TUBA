@@ -194,6 +194,7 @@
 
 <body>
     <div class="container">
+        <form id="mainForm" onsubmit="enviarArquivosCliente(event)">
         <h1>Novo Orçamento</h1>
 
         <!-- PROJETO / PASTA -->
@@ -201,7 +202,7 @@
             <div class="section-header">
                 <div>
                     <h3>Projeto / Pasta</h3>
-                    <small>Preencha os dados do código do projeto e versão do orçamento</small>
+                    <small>Preencha os dados do código do projeto.</small>
                 </div>
             </div>
 
@@ -217,10 +218,6 @@
                 <div class="col">
                     <label>Iniciais:</label>
                     <input type="text" id="projetoIniciais" value="">
-                </div>
-                <div class="col">
-                    <label>Versão do orçamento:</label>
-                    <input type="text" id="projetoVersao" value="" placeholder="Ex: v2, v3...">
                 </div>
             </div>
 
@@ -293,8 +290,9 @@
         <div class="section" id="chapasSection">
             <div class="section-header">
                 <div>
-                    <h3>Itens do Orçamento</h3>
-                    <small>Adicione chapas e peças — você pode incluir processos adicionais por peça</small>
+                    <h3>Criar Produto</h3>
+                    <small>Crie e gere o preço automaticamente de novos produtos baseado em suas informações (material, tempo corte, dobra...).<br>
+                    Após criar, o produto será cadastrado automaticamente.</small>
                 </div>
                 <div>
                     <button type="button" onclick="addChapa()">+ Adicionar Chapa</button>
@@ -308,9 +306,9 @@
         <div class="section" id="produtosCadastradosSection">
             <div class="section-header">
                 <div>
-                    <h3>Produtos Cadastrados</h3>
-                    <small>Adicione produtos cadastrados ou crie novos com preço personalizado. O preço pode ser
-                        alterado apenas para este orçamento.</small>
+                    <h3>Produtos Cadastrados / Novos produtos</h3>
+                    <small>Adicione produtos cadastrados ou crie novos produtos com preço definido.<br>
+                        Novos produtos serão cadastrados automaticamente.</small>
                 </div>
                 <div>
                     <button type="button" onclick="addProdutoCadastrado()">+ Adicionar Produto</button>
@@ -406,6 +404,39 @@
             </div>
         </div>
 
+        <!-- ARQUIVOS DO CLIENTE -->
+        <div class="section" id="arquivosSection">
+            <div class="section-header">
+                <div>
+                    <h3>Arquivos do Cliente</h3>
+                    <small>Envie aqui desenhos, especificações e outros arquivos enviados pelo cliente para este orçamento</small>
+                </div>
+                <div>
+                    <button type="button" id="btnCriarPasta" class="secondary" onclick="criarPastaOrcamento()">Criar/Confirmar Pasta do Orçamento</button>
+                    <button type="button" id="btnAbrirPasta" class="secondary" onclick="abrirPastaOrcamento()">Abrir Pasta</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <label>Arquivos do cliente (salvos em 01_IN):</label>
+                    <input type="file" id="arquivosCliente" name="arquivosCliente" multiple>
+                    <small class="note">Os arquivos serão salvos na pasta do projeto em 01_IN, usando o mesmo código e nome de pasta do orçamento.</small>
+                    <!-- Campos hidden para passar dados do projeto junto com o formulário -->
+                    <input type="hidden" id="hiddenCodigoProjeto" name="codigoProjeto" value="">
+                    <input type="hidden" id="hiddenNomePasta" name="nomePasta" value="">
+                    <input type="hidden" id="hiddenDataProjeto" name="dataProjeto" value="">
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
+                <div class="col">
+                    <button type="submit" id="btnEnviarArquivos" class="secondary">Enviar Arquivos para a Pasta</button>
+                    <div id="arquivosStatus" class="note"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- PREVIEW DO ORÇAMENTO -->
         <div class="section" id="previewSection" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #4caf50;">
             <div class="section-header">
@@ -436,17 +467,28 @@
 
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:40px; flex-wrap:wrap;">
             <button type="button" class="secondary" onclick="salvarRascunho()">Salvar Rascunho</button>
+            <button type="button" class="secondary" id="btnAtualizarRascunho" onclick="atualizarRascunhoSelecionado()" style="display:none;">Atualizar dados</button>
+            <button type="button" class="secondary" onclick="salvarComoPedido()" style="background:#2e7d32; color:white;">Salvar como Pedido</button>
 
-            <select id="rascunhoSelect" style="padding: 8px; border-radius: 6px;"></select>
-            <button type="button" class="secondary" onclick="carregarRascunhoSelecionado()">Carregar Rascunho</button>
-            <button type="button" class="secondary muted-btn" onclick="deletarRascunhoSelecionado()">Deletar
-                Rascunho</button>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <div style="position:relative;">
+                    <input type="text" id="rascunhoBusca" placeholder="Buscar orçamento..." 
+                           list="rascunhosList" autocomplete="off" 
+                           style="padding: 8px; border-radius: 6px; border: 1px solid #ddd; min-width: 250px; font-weight:600;">
+                    <datalist id="rascunhosList">
+                        <!-- Será preenchido dinamicamente -->
+                    </datalist>
+                    <input type="hidden" id="rascunhoSelectKey" value="">
+                </div>
+                <button type="button" id="btnCarregarRascunho" class="secondary" onclick="carregarRascunhoSelecionado()">Carregar</button>
+                <button type="button" id="btnDeletarRascunho" class="secondary muted-btn" onclick="deletarRascunhoSelecionado()">Deletar</button>
+            </div>
 
-            <button id="btnGerar" onclick="calcular()">Calcular Orçamento e Gerar PDF</button>
+            <button type="button" id="btnGerar" onclick="calcular()">Calcular Orçamento e Gerar PDF</button>
             <button class="secondary muted-btn" onclick="window.close()">Fechar</button>
-            <div class="note">Dica: preencha a versão do orçamento para controlar o nome do arquivo (ex.: "v1", "v2" ou
-                "v3").</div>
+            <div class="note">A versão do orçamento será detectada automaticamente baseada nos arquivos existentes na pasta.</div>
         </div>
+        </form>
     </div>
 
     <script>
@@ -717,11 +759,16 @@
                 </div>
                 
                 <div class="controls" style="margin-top:8px;">
+                    <button type="button" class="secondary" onclick="atualizarPRDNoCatalogo(this.parentElement.parentElement)" style="background:#4caf50; color:white;">Atualizar PRD no Catálogo</button>
                     <button type="button" class="secondary" onclick="removeElement(this.parentElement.parentElement)">Remover Produto</button>
                 </div>
             `;
 
-            container.appendChild(div);
+            if (container.firstChild) {
+                container.insertBefore(div, container.firstChild);
+            } else {
+                container.appendChild(div);
+            }
 
             // Adiciona listener para atualizar total quando quantidade mudar
             const qtdInput = div.querySelector(".produtoQuantidade");
@@ -752,10 +799,25 @@
                 }
 
                 const termoLower = termo.toLowerCase();
+                // Divide o termo em palavras (separadas por espaços)
+                const palavras = termoLower.trim().split(/\s+/).filter(p => p.length > 0);
+                
                 const produtosFiltrados = produtosCatalogo.filter((p, idx) => {
                     const codigo = String(p.codigo || '').toLowerCase();
                     const descricao = String(p.descricao || '').toLowerCase();
-                    return codigo.includes(termoLower) || descricao.includes(termoLower);
+                    const familia = String(p.familia || '').toLowerCase();
+                    const textoCompleto = `${codigo} ${descricao} ${familia}`;
+                    
+                    // Se não há palavras, retorna todos
+                    if (palavras.length === 0) return true;
+                    
+                    // Se há apenas uma palavra, busca simples (compatibilidade)
+                    if (palavras.length === 1) {
+                        return codigo.includes(palavras[0]) || descricao.includes(palavras[0]) || familia.includes(palavras[0]);
+                    }
+                    
+                    // Se há múltiplas palavras, todas devem aparecer no texto completo (em qualquer ordem)
+                    return palavras.every(palavra => textoCompleto.includes(palavra));
                 });
 
                 // Atualiza o datalist com produtos filtrados
@@ -919,6 +981,49 @@
             div.querySelector(".produtoPrecoTotal").value = total.toFixed(2);
         }
 
+        function atualizarPRDNoCatalogo(div) {
+            const codigo = div.querySelector(".produtoCodigo").value.trim();
+            const descricao = div.querySelector(".produtoDescricao").value.trim();
+            const familia = div.querySelector(".produtoFamilia").value.trim();
+            const tipo = div.querySelector(".produtoTipo").value.trim();
+            const unidade = div.querySelector(".produtoUnidade").value.trim();
+            const precoUnitario = parseFloat(div.querySelector(".produtoPrecoUnit").value) || 0;
+
+            if (!codigo) {
+                alert("Por favor, preencha o código do produto antes de atualizar.");
+                return;
+            }
+
+            if (!codigo.startsWith("PRD")) {
+                alert("Apenas produtos com código PRD podem ser atualizados no catálogo.");
+                return;
+            }
+
+            if (!confirm(`Tem certeza que deseja atualizar o PRD ${codigo} no catálogo?\n\nOs dados antigos serão salvos em um log.`)) {
+                return;
+            }
+
+            const dadosProduto = {
+                codigo: codigo,
+                descricao: descricao,
+                familia: familia,
+                tipo: tipo,
+                unidade: unidade,
+                preco: precoUnitario
+            };
+
+            google.script.run
+                .withSuccessHandler(function (resultado) {
+                    alert(`PRD ${codigo} atualizado com sucesso!\n\n${resultado.mensagem}`);
+                    // Recarrega o catálogo de produtos para refletir as mudanças
+                    carregarProdutosCadastrados();
+                })
+                .withFailureHandler(function (err) {
+                    alert("Erro ao atualizar PRD:\n" + (err?.message || JSON.stringify(err)));
+                })
+                .atualizarPRDNoCatalogo(dadosProduto);
+        }
+
         function coletarProdutosCadastrados() {
             const produtos = [];
             document.querySelectorAll(".produto-cadastrado").forEach(div => {
@@ -940,25 +1045,130 @@
         }
 
         /* ---------- PROJETO / PASTA ---------- */
-        function atualizarCamposProjeto() {
-            const data = document.getElementById("projetoData").value;
-            const indice = document.getElementById("projetoIndice").value;
-            const iniciais = document.getElementById("projetoIniciais").value;
-            const versao = document.getElementById("projetoVersao").value;
-            const codigoProjeto = data + indice + iniciais;
-            document.getElementById("obsProjeto").value = codigoProjeto;
+        // preserveIndice = true: não altera o índice (ex.: ao carregar orçamento existente)
+        function atualizarCamposProjeto(preserveIndice) {
+            const data = document.getElementById("projetoData").value.trim();
+            const iniciais = document.getElementById("projetoIniciais").value.trim();
+            const indiceAtual = document.getElementById("projetoIndice").value.trim();
 
+            // Ao carregar orçamento, apenas atualiza o campo Projeto (obsProjeto) sem alterar o índice
+            if (preserveIndice === true && indiceAtual !== "") {
+                const codigoProjeto = data + indiceAtual + iniciais;
+                document.getElementById("obsProjeto").value = codigoProjeto;
+                return;
+            }
 
-
-            google.script.run.withSuccessHandler(function (nomePasta) {
-                document.getElementById("projetoPasta").value = nomePasta || "";
-            }).buscarNomePastaPorCodigo(codigoProjeto);
+            // Se data e iniciais estão preenchidos, calcula o índice automaticamente (novo orçamento)
+            if (data && iniciais && data.length === 6) {
+                google.script.run
+                    .withSuccessHandler(function (proximoIndice) {
+                        document.getElementById("projetoIndice").value = proximoIndice || "a";
+                        const indice = document.getElementById("projetoIndice").value;
+                        const codigoProjeto = data + indice + iniciais;
+                        document.getElementById("obsProjeto").value = codigoProjeto;
+                    })
+                    .withFailureHandler(function (err) {
+                        document.getElementById("projetoIndice").value = "a";
+                        const indice = document.getElementById("projetoIndice").value;
+                        const codigoProjeto = data + indice + iniciais;
+                        document.getElementById("obsProjeto").value = codigoProjeto;
+                    })
+                    .detectarProximoIndice(data, iniciais);
+            } else {
+                const indice = document.getElementById("projetoIndice").value || "a";
+                const codigoProjeto = data + indice + iniciais;
+                document.getElementById("obsProjeto").value = codigoProjeto;
+            }
         }
 
-        ["projetoData", "projetoIndice", "projetoIniciais", "projetoVersao"].forEach(id => {
+        ["projetoData", "projetoIniciais"].forEach(id => {
             document.getElementById(id).addEventListener("input", atualizarCamposProjeto);
         });
         atualizarCamposProjeto();
+
+        // Cria/garante a pasta do orçamento (inclusive para rascunhos) usando a mesma lógica do PDF
+        function criarPastaOrcamento() {
+            const btn = event?.target || document.getElementById('btnCriarPasta');
+            if (!btn) return;
+            const originalText = btn.textContent;
+            const originalDisabled = btn.disabled;
+
+            // Validação
+            const data = document.getElementById("projetoData").value.trim();
+            const indice = document.getElementById("projetoIndice").value.trim();
+            const iniciais = document.getElementById("projetoIniciais").value.trim();
+            const codigoProjeto = data + indice + iniciais;
+            const nomePastaCampo = document.getElementById("projetoPasta").value.trim();
+            const descricao = document.getElementById("obsDescricao").value.trim();
+            const nomePasta = nomePastaCampo || descricao;
+
+            if (!data || !indice || !iniciais || !nomePasta) {
+                alert("Preencha Data, Índice, Iniciais e Nome/Descrição da pasta antes de criar a pasta do orçamento.");
+                return;
+            }
+
+            // Feedback visual: desabilita botão e mostra loading
+            btn.disabled = true;
+            btn.textContent = "Criando pasta...";
+
+            google.script.run
+                .withSuccessHandler(function (info) {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
+                    let msg = "Pasta do orçamento criada/encontrada com sucesso.";
+                    if (info && info.pastaUrl) {
+                        msg += "\n\nNome: " + (info.pastaNome || "") + "\nLink: " + info.pastaUrl;
+                    }
+                    alert(msg);
+                })
+                .withFailureHandler(function (err) {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
+                    alert("Erro ao criar/obter pasta do orçamento:\n" + (err && err.message ? err.message : err));
+                })
+                .criarPastaOrcamento(codigoProjeto, nomePasta, data);
+        }
+
+        // Abre diretamente a pasta do orçamento no Drive (SEM criar - apenas busca pastas existentes)
+        function abrirPastaOrcamento() {
+            const btn = event?.target || document.getElementById('btnAbrirPasta');
+            if (!btn) return;
+            const originalText = btn.textContent;
+            const originalDisabled = btn.disabled;
+
+            // Validação
+            const data = document.getElementById("projetoData").value.trim();
+            const indice = document.getElementById("projetoIndice").value.trim();
+            const iniciais = document.getElementById("projetoIniciais").value.trim();
+            const codigoProjeto = data + indice + iniciais;
+
+            if (!data || !indice || !iniciais) {
+                alert("Preencha Data, Índice e Iniciais antes de abrir a pasta do orçamento.");
+                return;
+            }
+
+            // Feedback visual: desabilita botão e mostra loading
+            btn.disabled = true;
+            btn.textContent = "Buscando pasta...";
+
+            google.script.run
+                .withSuccessHandler(function (info) {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
+                    if (info && info.pastaUrl) {
+                        window.open(info.pastaUrl, "_blank");
+                    } else {
+                        alert("Pasta encontrada, mas não foi possível obter o link.");
+                    }
+                })
+                .withFailureHandler(function (err) {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
+                    alert("Erro ao abrir pasta do orçamento:\n" + (err && err.message ? err.message : err) + 
+                          "\n\nDica: Crie a pasta primeiro usando o botão 'Criar/Confirmar Pasta do Orçamento'.");
+                })
+                .buscarPastaOrcamento(codigoProjeto, data);
+        }
 
         /* ---------- CHAPAS / PEÇAS ---------- */
         let chapaCount = 0;
@@ -1014,7 +1224,16 @@
       <button type="button" class="secondary" onclick="removeElement('${div.id}')">Remover Chapa</button>
     </div>
   `;
-            document.getElementById("chapasContainer").appendChild(div);
+            const container = document.getElementById("chapasContainer");
+            if (container.firstChild) {
+                container.insertBefore(div, container.firstChild);
+            } else {
+                if (container.firstChild) {
+                container.insertBefore(div, container.firstChild);
+            } else {
+                container.appendChild(div);
+            }
+            }
 
             // toggle conjunto
             const isConjunto = div.querySelector(".isConjunto");
@@ -1105,7 +1324,11 @@
       <button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover Peça</button>
     </div>
   `;
-            container.appendChild(div);
+            if (container.firstChild) {
+                container.insertBefore(div, container.firstChild);
+            } else {
+                container.appendChild(div);
+            }
 
             // corte toggle
             const temCorte = div.querySelector(".temCorte");
@@ -1176,7 +1399,11 @@
       <button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover Processo</button>
     </div>
   `;
-            listDiv.appendChild(div);
+            if (listDiv.firstChild) {
+                listDiv.insertBefore(div, listDiv.firstChild);
+            } else {
+                listDiv.appendChild(div);
+            }
         }
 
         function addProcessoPedido() {
@@ -1203,7 +1430,11 @@
       <button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover Processo</button>
     </div>
   `;
-            container.appendChild(div);
+            if (container.firstChild) {
+                container.insertBefore(div, container.firstChild);
+            } else {
+                container.appendChild(div);
+            }
         }
 
 
@@ -1238,7 +1469,7 @@
                 data: document.getElementById("projetoData").value,
                 indice: document.getElementById("projetoIndice").value,
                 iniciais: document.getElementById("projetoIniciais").value,
-                versao: document.getElementById("projetoVersao").value,
+                versao: "", // Versão será detectada automaticamente no backend
                 pasta: document.getElementById("projetoPasta").value
             };
 
@@ -1342,52 +1573,61 @@
 
         // Função para preencher o formulário a partir de um objeto JSON
         function preencherFormulario(data) {
-            if (!data) return;
+            // Garante que sempre teremos um objeto, mesmo que venha null/undefined
+            const safeData = data || {};
+
+            // Cria objetos vazios padrão para evitar erros de "undefined"
+            const projeto = safeData.projeto || {};
+            const cliente = safeData.cliente || {};
+            const observacoes = safeData.observacoes || {};
+            const chapas = Array.isArray(safeData.chapas) ? safeData.chapas : [];
+            const processosPedido = Array.isArray(safeData.processosPedido) ? safeData.processosPedido : [];
 
             // 1. Projeto
-            document.getElementById("projetoData").value = data.projeto.data || "";
-            document.getElementById("projetoIndice").value = data.projeto.indice || "";
-            document.getElementById("projetoIniciais").value = data.projeto.iniciais || "";
-            document.getElementById("projetoVersao").value = data.projeto.versao || "";
-            document.getElementById("projetoPasta").value = data.projeto.pasta || "";
-            atualizarCamposProjeto();
+            document.getElementById("projetoData").value = projeto.data || "";
+            document.getElementById("projetoIndice").value = projeto.indice || "";
+            document.getElementById("projetoIniciais").value = projeto.iniciais || "";
+            // Versão não é mais editável pelo usuário, será detectada automaticamente
+            document.getElementById("projetoPasta").value = projeto.pasta || "";
+            // preserveIndice = true para não sobrescrever o índice com o "próximo" ao carregar orçamento
+            atualizarCamposProjeto(true);
 
             // 2. Cliente
             const clienteBusca = document.getElementById("clienteBusca");
-            if (data.cliente.select) {
-                clienteBusca.value = data.cliente.select;
-            } else if (data.cliente.nome) {
-                clienteBusca.value = data.cliente.nome;
+            if (cliente.select) {
+                clienteBusca.value = cliente.select;
+            } else if (cliente.nome) {
+                clienteBusca.value = cliente.nome;
                 // Tenta encontrar e preencher dados do cliente se existir na lista
-                const cliente = listaClientes.find(c => c.nome === data.cliente.nome);
-                if (cliente) {
-                    preencherDadosCliente(cliente);
+                const clienteExistente = listaClientes.find(c => c.nome === cliente.nome);
+                if (clienteExistente) {
+                    preencherDadosCliente(clienteExistente);
                     clienteBusca.style.background = "#e8f5e9";
                 }
             }
-            document.getElementById("clienteNome").value = data.cliente.nome || "";
-            document.getElementById("clienteCpf").value = data.cliente.cpf || "";
-            document.getElementById("clienteEndereco").value = data.cliente.endereco || "";
-            document.getElementById("clienteTelefone").value = data.cliente.telefone || "";
-            document.getElementById("clienteEmail").value = data.cliente.email || "";
-            document.getElementById("clienteResponsavel").value = data.cliente.responsavel || "";
-            document.getElementById("clienteData").value = data.cliente.data || "";
+            document.getElementById("clienteNome").value = cliente.nome || "";
+            document.getElementById("clienteCpf").value = cliente.cpf || "";
+            document.getElementById("clienteEndereco").value = cliente.endereco || "";
+            document.getElementById("clienteTelefone").value = cliente.telefone || "";
+            document.getElementById("clienteEmail").value = cliente.email || "";
+            document.getElementById("clienteResponsavel").value = cliente.responsavel || "";
+            document.getElementById("clienteData").value = cliente.data || "";
 
             // 3. Outras Informações
-            document.getElementById("obsFaturamento").value = data.observacoes.faturamento || "";
-            document.getElementById("obsPrazo").value = data.observacoes.prazo || "";
-            document.getElementById("obsVendedor").value = data.observacoes.vendedor || "";
-            document.getElementById("obsMaterialCond").value = data.observacoes.materialCond || "";
-            document.getElementById("obsPagamento").value = data.observacoes.pagamento || "";
-            document.getElementById("obsAdicional").value = data.observacoes.adicional || "";
-            document.getElementById("obsProjeto").value = data.observacoes.projeto || "";
-            document.getElementById("obsDescricao").value = data.observacoes.descricao || "";
+            document.getElementById("obsFaturamento").value = observacoes.faturamento || "";
+            document.getElementById("obsPrazo").value = observacoes.prazo || "";
+            document.getElementById("obsVendedor").value = observacoes.vendedor || "";
+            document.getElementById("obsMaterialCond").value = observacoes.materialCond || "";
+            document.getElementById("obsPagamento").value = observacoes.pagamento || "";
+            document.getElementById("obsAdicional").value = observacoes.adicional || "";
+            document.getElementById("obsProjeto").value = observacoes.projeto || "";
+            document.getElementById("obsDescricao").value = observacoes.descricao || "";
 
             // 4. Chapas / Peças / Processos (limpar e recriar)
             document.getElementById("chapasContainer").innerHTML = "";
             document.getElementById("processosPedidoContainer").innerHTML = "";
 
-            data.chapas.forEach(chapaData => {
+            chapas.forEach(chapaData => {
                 addChapa();
                 const cDiv = document.querySelector("#chapasContainer .chapa:last-child");
 
@@ -1453,7 +1693,7 @@
             });
 
             // 5. Processos do Pedido
-            data.processosPedido.forEach(procData => {
+            processosPedido.forEach(procData => {
                 addProcessoPedido();
                 const procDiv = document.querySelector("#processosPedidoContainer .procPedido:last-child");
                 procDiv.querySelector(".procPedidoDescricao").value = procData.descricao || "";
@@ -1496,72 +1736,264 @@
                 });
             }
 
-            alert("Rascunho carregado com sucesso!");
+            // Não mostra mais o alert aqui, será mostrado na função carregarRascunhoSelecionado após verificar o status
         }
 
-        // Inicializa a lista de rascunhos no dropdown (inclui rascunhos e orçamentos enviados)
+        // Variável global para armazenar todos os orçamentos
+        let listaOrcamentosCompleta = [];
+
+        // Inicializa a lista de rascunhos no datalist (inclui rascunhos e projetos enviados)
         function carregarListaRascunhos() {
             google.script.run
                 .withSuccessHandler(function (orcamentos) {
-                    const select = document.getElementById("rascunhoSelect");
-                    select.innerHTML = '<option value="">-- Selecionar Orçamento --</option>';
-                    orcamentos.forEach(r => {
-                        const opt = document.createElement("option");
-                        opt.value = r.key; // Usar a chave/ID
-                        opt.text = r.nome;
-                        select.add(opt);
-                    });
+                    listaOrcamentosCompleta = orcamentos; // Armazena a lista completa
+                    atualizarDatalistRascunhos("");
                 })
-                .getListaRascunhos(true); // true = incluir orçamentos enviados também
+                .getListaRascunhos(true); // true = incluir projetos enviados também
+        }
+
+        // Atualiza o datalist com base no termo de busca
+        function atualizarDatalistRascunhos(termo) {
+            const datalist = document.getElementById("rascunhosList");
+            const termoLower = termo ? termo.toLowerCase().trim() : "";
+
+            if (!termoLower) {
+                // Se não há termo, mostra todos os orçamentos
+                datalist.innerHTML = listaOrcamentosCompleta.map(r =>
+                    `<option value="${r.nome}" data-key="${r.key}">${r.nome}</option>`
+                ).join('');
+                return;
+            }
+
+            // Filtra orçamentos que correspondem ao termo de busca
+            const orcamentosFiltrados = listaOrcamentosCompleta.filter(r => {
+                const nomeLower = r.nome.toLowerCase();
+                return nomeLower.includes(termoLower);
+            });
+
+            // Atualiza o datalist com os resultados filtrados
+            datalist.innerHTML = orcamentosFiltrados.map(r =>
+                `<option value="${r.nome}" data-key="${r.key}">${r.nome}</option>`
+            ).join('');
+
+            // Atualiza visualmente o campo de busca
+            const buscaInput = document.getElementById("rascunhoBusca");
+            if (orcamentosFiltrados.length === 0) {
+                buscaInput.style.background = "#ffebee"; // Vermelho claro para indicar nenhum resultado
+            } else if (orcamentosFiltrados.length === 1 && orcamentosFiltrados[0].nome.toLowerCase() === termoLower) {
+                buscaInput.style.background = "#e8f5e9"; // Verde claro para indicar correspondência exata
+            } else {
+                buscaInput.style.background = "#fff9c4"; // Amarelo claro para indicar múltiplos resultados
+            }
+        }
+
+        // Função auxiliar para limpar o estado de rascunho carregado
+        function limparEstadoRascunho() {
+            linhaOrcamentoCarregado = null;
+            document.getElementById("btnAtualizarRascunho").style.display = "none";
+            document.getElementById("rascunhoBusca").value = "";
+            document.getElementById("rascunhoSelectKey").value = "";
+            atualizarDatalistRascunhos(""); // Reseta o datalist
         }
 
         // Função de salvar rascunho (chama o Apps Script)
         function salvarRascunho() {
-            const nomeRascunho = prompt("Digite um nome para este rascunho (ex: Nome do Cliente v1):");
+            const nomeRascunho = prompt("Digite um nome para este rascunho (ex: CORTE DE TUBOS 7mm JOALMI):");
             if (!nomeRascunho) return;
+
+            const btn = document.querySelector('button[onclick="salvarRascunho()"]');
+            if (!btn) return;
+            const originalText = btn.textContent;
+            const originalDisabled = btn.disabled;
+
+            // Feedback visual: desabilita botão e mostra loading
+            btn.disabled = true;
+            btn.textContent = "Salvando rascunho...";
 
             const dados = coletarDadosFormulario();
             google.script.run
                 .withSuccessHandler(function () {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
                     alert(`Rascunho "${nomeRascunho}" salvo com sucesso!`);
+                    limparEstadoRascunho(); // Limpa a referência ao salvar novo rascunho
                     carregarListaRascunhos(); // Atualiza a lista
                 })
                 .withFailureHandler(function (err) {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
                     alert("Erro ao salvar rascunho:\n" + err.message);
                 })
                 .salvarRascunho(nomeRascunho, dados);
         }
 
+        // Variável global para armazenar a linha/key do orçamento carregado
+        let linhaOrcamentoCarregado = null;
+
         // Função de carregar orçamento (rascunho ou enviado) - chama o Apps Script
         function carregarRascunhoSelecionado() {
-            const key = document.getElementById("rascunhoSelect").value;
+            const buscaInput = document.getElementById("rascunhoBusca");
+            const hiddenKey = document.getElementById("rascunhoSelectKey");
+            const valorBusca = buscaInput.value.trim();
+
+            // Tenta encontrar a chave do orçamento selecionado
+            let key = hiddenKey.value;
+
+            // Se não tem chave no hidden, tenta encontrar pelo nome digitado
+            if (!key && valorBusca) {
+                const orcamentoEncontrado = listaOrcamentosCompleta.find(r => 
+                    r.nome.toLowerCase() === valorBusca.toLowerCase()
+                );
+                if (orcamentoEncontrado) {
+                    key = orcamentoEncontrado.key;
+                }
+            }
+
             if (!key) {
-                alert("Selecione um orçamento para carregar.");
+                alert("Selecione um orçamento da lista para carregar.");
                 return;
+            }
+
+            const btn = document.getElementById("btnCarregarRascunho");
+            const originalText = btn ? btn.textContent : "";
+            const originalDisabled = btn ? btn.disabled : false;
+
+            // Feedback visual: desabilita botão e mostra loading
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Carregando...";
             }
 
             google.script.run
                 .withSuccessHandler(function (dados) {
-                    if (dados) {
-                        preencherFormulario(dados);
-                    } else {
-                        alert("Erro ao carregar orçamento: dados não encontrados.");
+                    if (btn) {
+                        btn.disabled = originalDisabled;
+                        btn.textContent = originalText;
                     }
+                    // Mesmo que o backend retorne null/undefined, garantimos um objeto vazio
+                    const dadosValidos = dados || {};
+
+                    linhaOrcamentoCarregado = key; // Armazena a linha/key do orçamento carregado
+                    preencherFormulario(dadosValidos);
+                    
+                    // Mostra o botão "Atualizar dados" para qualquer orçamento carregado (rascunho, enviado ou convertido em pedido)
+                    const btnAtualizar = document.getElementById("btnAtualizarRascunho");
+                    btnAtualizar.style.display = "inline-block";
+                    
+                    alert("Orçamento carregado com sucesso!");
                 })
                 .withFailureHandler(function (err) {
+                    if (btn) {
+                        btn.disabled = originalDisabled;
+                        btn.textContent = originalText;
+                    }
                     alert("Erro ao carregar orçamento:\n" + err.message);
+                    linhaOrcamentoCarregado = null;
+                    document.getElementById("btnAtualizarRascunho").style.display = "none";
                 })
                 .carregarRascunho(key);
         }
 
+        // Função para atualizar dados do orçamento carregado (rascunho, enviado ou convertido em pedido)
+        function atualizarRascunhoSelecionado() {
+            if (!linhaOrcamentoCarregado) {
+                alert("Nenhum orçamento carregado para atualizar.");
+                return;
+            }
+
+            const btn = document.getElementById("btnAtualizarRascunho");
+            const originalText = btn.textContent;
+            const originalDisabled = btn.disabled;
+
+            btn.disabled = true;
+            btn.textContent = "Atualizando...";
+
+            const dados = coletarDadosFormulario();
+            
+            google.script.run
+                .withSuccessHandler(function () {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
+                    alert("Dados atualizados com sucesso!");
+                    carregarListaRascunhos();
+                })
+                .withFailureHandler(function (err) {
+                    btn.disabled = originalDisabled;
+                    btn.textContent = originalText;
+                    alert("Erro ao atualizar:\n" + err.message);
+                })
+                .atualizarRascunho(linhaOrcamentoCarregado, dados);
+        }
+
+        // Salva o formulário diretamente como pedido (sem passar por orçamento enviado)
+        function salvarComoPedido() {
+            const dados = coletarDadosFormulario();
+            const codigoProjeto = (dados.projeto.data || "") + (dados.projeto.indice || "") + (dados.projeto.iniciais || "");
+            if (!codigoProjeto || codigoProjeto.length < 8) {
+                alert("Preencha Projeto / Pasta (Data, Índice e Iniciais) antes de salvar como pedido.");
+                return;
+            }
+            if (!dados.cliente || !dados.cliente.nome) {
+                alert("Preencha o cliente antes de salvar como pedido.");
+                return;
+            }
+            if (!confirm("Salvar este projeto diretamente como PEDIDO?\n\nO projeto será registrado já como \"Convertido em Pedido\" (sem gerar PDF de orçamento).")) {
+                return;
+            }
+
+            const btn = document.querySelector('button[onclick="salvarComoPedido()"]');
+            const originalText = btn ? btn.textContent : "";
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Salvando...";
+            }
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                    alert("Pedido registrado com sucesso!");
+                    limparEstadoRascunho();
+                    carregarListaRascunhos();
+                })
+                .withFailureHandler(function (err) {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = originalText;
+                    }
+                    alert("Erro ao salvar como pedido:\n" + (err?.message || err));
+                })
+                .salvarComoPedido(dados);
+        }
+
         // Função de deletar rascunho (chama o Apps Script)
         function deletarRascunhoSelecionado() {
-            const select = document.getElementById("rascunhoSelect");
-            const key = select.value;
-            const nome = select.options[select.selectedIndex]?.text;
+            const buscaInput = document.getElementById("rascunhoBusca");
+            const hiddenKey = document.getElementById("rascunhoSelectKey");
+            const valorBusca = buscaInput.value.trim();
+
+            // Tenta encontrar a chave do orçamento selecionado
+            let key = hiddenKey.value;
+            let nome = "";
+
+            // Se não tem chave no hidden, tenta encontrar pelo nome digitado
+            if (!key && valorBusca) {
+                const orcamentoEncontrado = listaOrcamentosCompleta.find(r => 
+                    r.nome.toLowerCase() === valorBusca.toLowerCase()
+                );
+                if (orcamentoEncontrado) {
+                    key = orcamentoEncontrado.key;
+                    nome = orcamentoEncontrado.nome;
+                }
+            } else if (key) {
+                const orcamento = listaOrcamentosCompleta.find(r => r.key === key);
+                nome = orcamento ? orcamento.nome : valorBusca;
+            }
 
             if (!key) {
-                alert("Selecione um orçamento para deletar.");
+                alert("Selecione um orçamento da lista para deletar.");
                 return;
             }
 
@@ -1714,7 +2146,8 @@
             const iniciais = dadosColetados.projeto.iniciais;
             const codigoProjeto = data + indice + iniciais;
             const nomePasta = dadosColetados.projeto.pasta;
-            const versao = dadosColetados.projeto.versao;
+            // Versão será detectada automaticamente pelo backend baseada nos arquivos existentes
+            const versao = "";
 
             const observacoes = {
                 projeto: codigoProjeto,
@@ -1756,6 +2189,9 @@
                     // abre o PDF em nova aba automaticamente
                     window.open(pdf.url, "_blank");
 
+                    // Limpa a referência ao orçamento carregado após calcular (status mudou para "Enviado")
+                    limparEstadoRascunho();
+
                     // Atualiza lista de rascunhos para refletir a mudança de status
                     carregarListaRascunhos();
 
@@ -1780,6 +2216,108 @@
         }
 
         // ---------- INICIAL (Alterado para incluir carregamento de rascunhos) ----------
+        // Aguarda o DOM estar pronto antes de adicionar event listeners
+        document.addEventListener("DOMContentLoaded", function() {
+            inicializarBuscaOrcamentos();
+        });
+        
+        // Se o DOM já estiver carregado, inicializa imediatamente
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", inicializarBuscaOrcamentos);
+        } else {
+            inicializarBuscaOrcamentos();
+        }
+
+        function inicializarBuscaOrcamentos() {
+            // Event listeners para o campo de busca de orçamentos
+            const rascunhoBuscaInput = document.getElementById("rascunhoBusca");
+            const rascunhosDatalist = document.getElementById("rascunhosList");
+            const rascunhoSelectKey = document.getElementById("rascunhoSelectKey");
+
+            if (!rascunhoBuscaInput || !rascunhosDatalist || !rascunhoSelectKey) {
+                console.error("Elementos de busca de orçamentos não encontrados");
+                return;
+            }
+
+            // Listener para quando o usuário digita
+            rascunhoBuscaInput.addEventListener("input", function () {
+                atualizarDatalistRascunhos(this.value);
+                rascunhoSelectKey.value = ""; // Limpa a chave quando o usuário digita
+            });
+
+            // Listener para quando o usuário seleciona uma opção do datalist
+            rascunhoBuscaInput.addEventListener("change", function () {
+                const valor = this.value.trim();
+                if (!valor) {
+                    rascunhoSelectKey.value = "";
+                    this.style.background = "";
+                    return;
+                }
+
+                // Procura a opção correspondente no datalist
+                const selectedOption = Array.from(rascunhosDatalist.options).find(opt =>
+                    opt.value === valor || opt.value.toLowerCase() === valor.toLowerCase()
+                );
+
+                if (selectedOption) {
+                    const key = selectedOption.getAttribute("data-key");
+                    if (key) {
+                        rascunhoSelectKey.value = key;
+                        this.style.background = "#e8f5e9"; // Verde claro para indicar seleção válida
+                    }
+                } else {
+                    // Tenta encontrar na lista completa
+                    const orcamentoEncontrado = listaOrcamentosCompleta.find(r =>
+                        r.nome.toLowerCase() === valor.toLowerCase()
+                    );
+                    if (orcamentoEncontrado) {
+                        rascunhoSelectKey.value = orcamentoEncontrado.key;
+                        this.style.background = "#e8f5e9";
+                    } else {
+                        rascunhoSelectKey.value = "";
+                        this.style.background = "#ffebee"; // Vermelho claro para indicar seleção inválida
+                    }
+                }
+            });
+
+            // Listener para quando o campo perde o foco (blur)
+            rascunhoBuscaInput.addEventListener("blur", function () {
+                const valor = this.value.trim();
+                if (valor && !rascunhoSelectKey.value) {
+                    // Tenta encontrar correspondência exata
+                    const orcamentoEncontrado = listaOrcamentosCompleta.find(r =>
+                        r.nome.toLowerCase() === valor.toLowerCase()
+                    );
+                    if (orcamentoEncontrado) {
+                        rascunhoSelectKey.value = orcamentoEncontrado.key;
+                        this.value = orcamentoEncontrado.nome; // Garante que o nome está completo
+                        this.style.background = "#e8f5e9";
+                    }
+                }
+            });
+
+            // Listener para capturar quando pressiona Enter (seleciona opção do datalist)
+            rascunhoBuscaInput.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault(); // Previne submit se houver formulário
+                    const valor = this.value.trim();
+                    if (valor) {
+                        // Tenta encontrar correspondência exata
+                        setTimeout(() => {
+                            const orcamentoEncontrado = listaOrcamentosCompleta.find(r =>
+                                r.nome.toLowerCase() === valor.toLowerCase()
+                            );
+                            if (orcamentoEncontrado) {
+                                rascunhoSelectKey.value = orcamentoEncontrado.key;
+                                this.value = orcamentoEncontrado.nome;
+                                this.style.background = "#e8f5e9";
+                            }
+                        }, 50);
+                    }
+                }
+            });
+        }
+
         carregarListaRascunhos(); // Carrega a lista de rascunhos salvos
 
         /* ========================================================= */
@@ -2052,6 +2590,86 @@
         setTimeout(function() {
             atualizarPreview();
         }, 1000);
+
+        /* ========================================================= */
+        /* ========== ENVIO DE ARQUIVOS DO CLIENTE (01_IN) ========= */
+        /* ========================================================= */
+
+        function enviarArquivosCliente(event) {
+            // Esse handler é chamado pelo submit do form principal, mas só deve tratar o envio de arquivos
+            if (event) {
+                event.preventDefault();
+            }
+
+            const inputArquivos = document.getElementById("arquivosCliente");
+            const statusEl = document.getElementById("arquivosStatus");
+            const btnSubmit = document.getElementById("btnEnviarArquivos");
+
+            if (!inputArquivos || !inputArquivos.files || inputArquivos.files.length === 0) {
+                alert("Selecione pelo menos um arquivo do cliente para enviar.");
+                return false;
+            }
+
+            const data = document.getElementById("projetoData").value.trim();
+            const indice = document.getElementById("projetoIndice").value.trim();
+            const iniciais = document.getElementById("projetoIniciais").value.trim();
+            const codigoProjeto = data + indice + iniciais;
+            const nomePastaCampo = document.getElementById("projetoPasta").value.trim();
+            const descricao = document.getElementById("obsDescricao").value.trim();
+            const nomePasta = nomePastaCampo || descricao;
+
+            if (!data || !indice || !iniciais || !nomePasta) {
+                alert("Preencha Data, Índice, Iniciais e Nome/Descrição da pasta antes de enviar arquivos.");
+                return false;
+            }
+
+            // Preenche campos hidden com os dados do projeto
+            document.getElementById("hiddenCodigoProjeto").value = codigoProjeto;
+            document.getElementById("hiddenNomePasta").value = nomePasta;
+            document.getElementById("hiddenDataProjeto").value = data;
+
+            // Feedback visual: desabilita botão e mostra status
+            const originalText = btnSubmit ? btnSubmit.textContent : "";
+            const originalDisabled = btnSubmit ? btnSubmit.disabled : false;
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = "Enviando arquivos...";
+            }
+            statusEl.textContent = "Enviando arquivos para a pasta 01_IN...";
+
+            const form = document.getElementById("mainForm");
+
+            // IMPORTANTE: Quando há file inputs, só podemos passar o formulário como único parâmetro
+            google.script.run
+                .withSuccessHandler(function (res) {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = originalDisabled;
+                        btnSubmit.textContent = originalText;
+                    }
+                    if (res && res.ok) {
+                        statusEl.textContent = "Arquivos salvos com sucesso em " +
+                            (res.inFolderNome || "01_IN") +
+                            " (" + (res.quantidade || 0) + " arquivo(s)).";
+                        // Limpa o campo de arquivos após sucesso
+                        if (inputArquivos) {
+                            inputArquivos.value = "";
+                        }
+                    } else {
+                        statusEl.textContent = "Arquivos enviados, mas não foi possível obter detalhes da pasta.";
+                    }
+                })
+                .withFailureHandler(function (err) {
+                    if (btnSubmit) {
+                        btnSubmit.disabled = originalDisabled;
+                        btnSubmit.textContent = originalText;
+                    }
+                    statusEl.textContent = "Erro ao enviar arquivos.";
+                    alert("Erro ao enviar arquivos do cliente:\n" + (err && err.message ? err.message : err));
+                })
+                .salvarArquivosCliente(form);
+
+            return false;
+        }
 
     </script>
 </body>

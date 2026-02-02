@@ -250,13 +250,6 @@
       <a id="linkSeguranca" href="#">Abrir</a>
     </div>
 
-    <div class="card">
-      <div class="icon">📺</div>
-      <h3>Modo Apresentação TV</h3>
-      <p>Kanban e Segurança alternados para TV</p>
-      <a id="linkApresentacao" href="#">Abrir</a>
-    </div>
-  </div>
 
   <script>
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
@@ -274,7 +267,7 @@
     if (!token) { window.location.href = WEBAPP_URL + "?page=login"; }
 
     document.getElementById('linkProjetos').href = WEBAPP_URL + "?page=projetos&token=" + token;
-    document.getElementById('linkKanban').href = WEBAPP_URL + "?page=kanban&token=" + token;
+    document.getElementById('linkKanban').href = WEBAPP_URL + "?page=apresentacao&token=" + token;
     document.getElementById('linkFormulario').href = WEBAPP_URL + "?page=formulario&token=" + token;
     document.getElementById('linkGeradorEtiquetas').href = WEBAPP_URL + "?page=geradoretiquetas&token=" + token;
     document.getElementById('linkMateriais').href = WEBAPP_URL + "?page=materiais&token=" + token;
@@ -285,7 +278,7 @@
     document.getElementById('linkVeiculoslist').href = WEBAPP_URL + "?page=veiculos_list&token=" + token;
     document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
     document.getElementById('linkSeguranca').href = WEBAPP_URL + "?page=seguranca";
-    document.getElementById('linkApresentacao').href = WEBAPP_URL + "?page=apresentacao&token=" + token;
+  
 
     // Atualiza estatísticas em tempo real
     function atualizarEstatisticas() {
