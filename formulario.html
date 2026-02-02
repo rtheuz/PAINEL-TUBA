@@ -675,7 +675,7 @@
             div.style.background = "#f9fbff";
 
             // Código PRD será gerado automaticamente ao calcular orçamento
-            const codigoPRDPadrao = "";
+            const codigoPRDInicial = "";
 
             div.innerHTML = `
                 <div class="row">
@@ -697,7 +697,7 @@
                 <div class="row" style="margin-top:8px;">
                     <div class="col">
                         <label>Código:</label>
-                        <input type="text" class="produtoCodigo" value="${codigoPRDPadrao}" placeholder="Será gerado ao calcular (ou digite um existente)" style="font-weight:600;">
+                        <input type="text" class="produtoCodigo" value="${codigoPRDInicial}" placeholder="Será gerado ao calcular o orçamento (ou digite um existente)" style="font-weight:600;">
                         <small style="color:#666;">Será gerado automaticamente ao calcular o orçamento, ou pesquise um PRD existente</small>
                     </div>
                     <div class="col" style="flex: 2;">
