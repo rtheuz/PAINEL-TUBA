@@ -1736,7 +1736,7 @@
             if (data.produtosCadastrados && data.produtosCadastrados.length > 0) {
                 data.produtosCadastrados.forEach(prodData => {
                     addProdutoCadastrado();
-                    const prodDiv = document.querySelector("#produtosCadastradosContainer .produto-cadastrado:last-child");
+                    const prodDiv = document.querySelector("#produtosCadastradosContainer .produto-cadastrado:first-child");
 
                     // Tenta encontrar o índice do produto no catálogo
                     const idx = produtosCatalogo.findIndex(p => p.codigo === prodData.codigo);
