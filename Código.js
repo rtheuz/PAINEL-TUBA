@@ -554,40 +554,268 @@ function salvarClienteSeNovo(cliente) {
 }
 
 // ========================= PASTAS =========================
-function criarOuUsarPasta(codigoProjeto, nomePasta, data) {
+
+/**
+ * Remove caracteres inválidos do nome da pasta
+ * @param {string} texto - Texto a ser limpo
+ * @returns {string} - Texto limpo
+ */
+function limparNomePasta(texto) {
+  if (!texto) return "";
+  return String(texto)
+    .replace(/[\/\\:*?"<>|]/g, "") // Remove caracteres inválidos do Drive
+    .replace(/\s+/g, " ")           // Normaliza espaços múltiplos
+    .trim();
+}
+
+/**
+ * Gera o nome formatado da pasta
+ * @param {string} codigoProjeto - Código do projeto (ex: "260202aBR")
+ * @param {string} nomeCliente - Nome do cliente
+ * @param {string} descricao - Descrição do projeto
+ * @param {boolean} isPedido - Se true, usa prefixo PED; se false, usa COT
+ * @returns {string} - Nome formatado (ex: "260202aBR COT CLIENTE - DESCRICAO")
+ */
+function gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido) {
+  const prefixo = isPedido ? "PED" : "COT";
+  const clienteLimpo = limparNomePasta(nomeCliente || "");
+  const descricaoLimpa = limparNomePasta(descricao || "");
+  
+  let nomeFinal = codigoProjeto + " " + prefixo;
+  if (clienteLimpo) {
+    nomeFinal += " " + clienteLimpo;
+  }
+  if (descricaoLimpa) {
+    nomeFinal += " - " + descricaoLimpa;
+  }
+  
+  return nomeFinal;
+}
+
+/**
+ * Detecta se uma pasta para o projeto já existe e retorna seu tipo (COT/PED)
+ * @param {string} codigoProjeto - Código do projeto
+ * @param {string} data - Data no formato YYMMDD
+ * @returns {Object|null} - {pasta: Folder, tipo: "COT"|"PED", estrutura: "PROJ"|"COM"} ou null
+ */
+function detectarPastaExistente(codigoProjeto, data) {
+  try {
+    const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+    const ano = data.substring(0, 2);
+    const mes = data.substring(0, 4);
+    const dia = data;
+    
+    // Tenta estrutura nova (PROJ)
+    try {
+      const pastaProj = root
+        .getFoldersByName("20" + ano).next()
+        .getFoldersByName(mes).next()
+        .getFoldersByName(dia).next()
+        .getFoldersByName("PROJ").next();
+      
+      const folders = pastaProj.getFolders();
+      while (folders.hasNext()) {
+        const f = folders.next();
+        const nome = f.getName();
+        if (nome.startsWith(codigoProjeto)) {
+          // Detecta o tipo baseado no nome
+          const tipo = nome.includes(" PED ") ? "PED" : "COT";
+          return { pasta: f, tipo: tipo, estrutura: "PROJ" };
+        }
+      }
+    } catch (e) {
+      // PROJ não existe ou pasta não encontrada
+    }
+    
+    // Tenta estrutura antiga (COM) para compatibilidade
+    try {
+      const pastaCom = root
+        .getFoldersByName("20" + ano).next()
+        .getFoldersByName(mes).next()
+        .getFoldersByName(dia).next()
+        .getFoldersByName("COM").next();
+      
+      const folders = pastaCom.getFolders();
+      while (folders.hasNext()) {
+        const f = folders.next();
+        if (f.getName().startsWith(codigoProjeto)) {
+          // Estrutura antiga sempre era COT
+          return { pasta: f, tipo: "COT", estrutura: "COM" };
+        }
+      }
+    } catch (e) {
+      // COM não existe ou pasta não encontrada
+    }
+    
+    return null;
+  } catch (e) {
+    Logger.log("Erro ao detectar pasta existente: " + e.message);
+    return null;
+  }
+}
+
+/**
+ * Atualiza o nome da pasta mantendo o prefixo atual (COT ou PED)
+ * @param {Folder} pasta - Pasta a ser renomeada
+ * @param {string} codigoProjeto - Código do projeto
+ * @param {string} nomeCliente - Nome do cliente
+ * @param {string} descricao - Descrição do projeto
+ */
+function atualizarNomePasta(pasta, codigoProjeto, nomeCliente, descricao) {
+  try {
+    const nomeAtual = pasta.getName();
+    const isPedido = nomeAtual.includes(" PED ");
+    const novoNome = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
+    
+    if (nomeAtual !== novoNome) {
+      pasta.setName(novoNome);
+      Logger.log("Pasta renomeada de '" + nomeAtual + "' para '" + novoNome + "'");
+    }
+  } catch (e) {
+    Logger.log("Erro ao atualizar nome da pasta: " + e.message);
+  }
+}
+
+/**
+ * Atualiza o prefixo da pasta de COT para PED
+ * @param {string} codigoProjeto - Código do projeto
+ * @param {string} data - Data no formato YYMMDD
+ * @param {string} nomeCliente - Nome do cliente
+ * @param {string} descricao - Descrição do projeto
+ * @returns {boolean} - true se renomeou com sucesso
+ */
+function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descricao) {
+  try {
+    const pastaInfo = detectarPastaExistente(codigoProjeto, data);
+    if (!pastaInfo) {
+      Logger.log("Pasta não encontrada para converter para PED: " + codigoProjeto);
+      return false;
+    }
+    
+    if (pastaInfo.tipo === "PED") {
+      Logger.log("Pasta já é PED: " + codigoProjeto);
+      return true; // Já está como PED
+    }
+    
+    // Renomeia para PED
+    const novoNome = gerarNomePasta(codigoProjeto, nomeCliente, descricao, true);
+    pastaInfo.pasta.setName(novoNome);
+    Logger.log("Pasta convertida de COT para PED: " + novoNome);
+    return true;
+  } catch (e) {
+    Logger.log("Erro ao converter pasta para PED: " + e.message);
+    return false;
+  }
+}
+
+/**
+ * Nova função principal para criar ou usar pasta de projeto
+ * @param {string} codigoProjeto - Código do projeto
+ * @param {string} nomeCliente - Nome do cliente
+ * @param {string} descricao - Descrição do projeto
+ * @param {string} data - Data no formato YYMMDD
+ * @param {boolean} isPedido - Se true, usa prefixo PED; se false, usa COT
+ * @returns {Folder} - Pasta do projeto
+ */
+function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, isPedido) {
+  // Valida descrição obrigatória
+  if (!descricao || descricao.trim() === "") {
+    throw new Error("Descrição do projeto é obrigatória para criar a pasta.");
+  }
+  
+  // Detecta se pasta já existe
+  const pastaInfo = detectarPastaExistente(codigoProjeto, data);
+  
+  if (pastaInfo) {
+    // Pasta existe - atualiza o nome se necessário
+    const nomeDesejado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
+    
+    // Se mudou de COT para PED, atualiza
+    if (isPedido && pastaInfo.tipo === "COT") {
+      pastaInfo.pasta.setName(nomeDesejado);
+      Logger.log("Pasta convertida de COT para PED: " + nomeDesejado);
+    } 
+    // Se o nome mudou (cliente ou descrição), atualiza mantendo o tipo atual
+    else if (!isPedido || pastaInfo.tipo === "PED") {
+      const tipoAtual = isPedido ? "PED" : pastaInfo.tipo;
+      const nomeAtualizado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, tipoAtual === "PED");
+      if (pastaInfo.pasta.getName() !== nomeAtualizado) {
+        pastaInfo.pasta.setName(nomeAtualizado);
+        Logger.log("Pasta atualizada: " + nomeAtualizado);
+      }
+    }
+    
+    // Se a pasta está na estrutura antiga (COM), move para PROJ
+    if (pastaInfo.estrutura === "COM") {
+      try {
+        const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+        const anoFolder = getOrCreateSubFolder(root, "20" + data.substring(0, 2));
+        const mesFolder = getOrCreateSubFolder(anoFolder, data.substring(0, 4));
+        const diaFolder = getOrCreateSubFolder(mesFolder, data);
+        const projFolder = getOrCreateSubFolder(diaFolder, "PROJ");
+        
+        // Move a pasta de COM para PROJ
+        const pastaCom = pastaInfo.pasta.getParents().next();
+        projFolder.addFolder(pastaInfo.pasta);
+        pastaCom.removeFolder(pastaInfo.pasta);
+        Logger.log("Pasta migrada de COM para PROJ: " + pastaInfo.pasta.getName());
+      } catch (e) {
+        Logger.log("Erro ao migrar pasta de COM para PROJ: " + e.message);
+        // Continua usando a pasta na localização antiga
+      }
+    }
+    
+    return pastaInfo.pasta;
+  }
+  
+  // Pasta não existe - cria nova na estrutura PROJ
   const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
   const anoFolder = getOrCreateSubFolder(root, "20" + data.substring(0, 2));
   const mesFolder = getOrCreateSubFolder(anoFolder, data.substring(0, 4));
   const diaFolder = getOrCreateSubFolder(mesFolder, data);
-  const comFolder = getOrCreateSubFolder(diaFolder, "COM");
+  const projFolder = getOrCreateSubFolder(diaFolder, "PROJ");
+  
+  const nomePasta = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
+  const novaPasta = projFolder.createFolder(nomePasta);
+  Logger.log("Nova pasta criada: " + nomePasta);
+  
+  return novaPasta;
+}
 
-  const folders = comFolder.getFolders();
-  while (folders.hasNext()) {
-    const f = folders.next();
-    if (f.getName().startsWith(codigoProjeto)) return f;
+// Função legada para compatibilidade - redireciona para nova estrutura
+function criarOuUsarPasta(codigoProjeto, nomePasta, data) {
+  // Tenta detectar pasta existente primeiro (suporta COM e PROJ)
+  const pastaInfo = detectarPastaExistente(codigoProjeto, data);
+  if (pastaInfo) {
+    return pastaInfo.pasta;
   }
-  const novaPastaNome = codigoProjeto + " COT " + nomePasta;
-  return comFolder.createFolder(novaPastaNome);
+  
+  // Se não existe e nomePasta está vazio, usa código como descrição temporária
+  const descricao = nomePasta || codigoProjeto;
+  
+  // Cria nova pasta usando estrutura PROJ
+  // isPedido = false (COT) por padrão para compatibilidade
+  return criarOuUsarPastaProjeto(codigoProjeto, "", descricao, data, false);
 }
 
 function buscarNomePastaPorCodigo(codigoProjeto) {
-  const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
   const ano = codigoProjeto.slice(0, 2);
   const mes = codigoProjeto.slice(0, 4);
   const dia = codigoProjeto.slice(0, 6);
+  
   try {
-    const pasta = DriveApp.getFolderById(ID_PASTA_PRINCIPAL)
-      .getFoldersByName("20" + ano).next()
-      .getFoldersByName(mes).next()
-      .getFoldersByName(dia).next()
-      .getFoldersByName("COM").next();
-    const folders = pasta.getFolders();
-    while (folders.hasNext()) {
-      const f = folders.next();
-      if (f.getName().startsWith(codigoProjeto)) return f.getName().replace(codigoProjeto + " COT ", "");
+    // Tenta detectar pasta usando nova função
+    const pastaInfo = detectarPastaExistente(codigoProjeto, dia);
+    if (pastaInfo) {
+      const nomePasta = pastaInfo.pasta.getName();
+      // Remove o código e o prefixo (COT ou PED) para retornar apenas a parte customizada
+      const prefixo = pastaInfo.tipo === "PED" ? " PED " : " COT ";
+      const nomeCustomizado = nomePasta.replace(codigoProjeto + prefixo, "");
+      return nomeCustomizado;
     }
     return "";
   } catch (e) {
+    Logger.log("Erro ao buscar nome da pasta: " + e.message);
     return "";
   }
 }
@@ -602,42 +830,23 @@ function detectarProximaVersao(codigoProjeto, data) {
   try {
     if (!codigoProjeto || !data) return "";
     
-    const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
-    const ano = data.substring(0, 2);
-    const mes = data.substring(0, 4);
-    const dia = data;
+    // Usa a nova função para detectar a pasta
+    const pastaInfo = detectarPastaExistente(codigoProjeto, data);
+    if (!pastaInfo) return ""; // Primeira versão (sem sufixo)
     
+    const pastaProjeto = pastaInfo.pasta;
+    
+    // Busca na pasta 02_WORK/COM
+    let workFolder = null;
     try {
-      const pasta = root
-        .getFoldersByName("20" + ano).next()
-        .getFoldersByName(mes).next()
-        .getFoldersByName(dia).next()
-        .getFoldersByName("COM").next();
-      
-      // Busca pasta do projeto
-      const folders = pasta.getFolders();
-      let pastaProjeto = null;
-      while (folders.hasNext()) {
-        const f = folders.next();
-        if (f.getName().startsWith(codigoProjeto)) {
-          pastaProjeto = f;
-          break;
-        }
-      }
-      
-      if (!pastaProjeto) return ""; // Primeira versão (sem sufixo)
-      
-      // Busca na pasta 02_WORK/COM
-      let workFolder = null;
-      try {
-        const workFolders = pastaProjeto.getFoldersByName("02_WORK");
-        if (workFolders.hasNext()) {
-          workFolder = workFolders.next();
-          const comFolders = workFolder.getFoldersByName("COM");
-          if (comFolders.hasNext()) {
-            const comFolder = comFolders.next();
-            const arquivos = comFolder.getFiles();
-            const prefixo = "Proposta_" + codigoProjeto;
+      const workFolders = pastaProjeto.getFoldersByName("02_WORK");
+      if (workFolders.hasNext()) {
+        workFolder = workFolders.next();
+        const comFolders = workFolder.getFoldersByName("COM");
+        if (comFolders.hasNext()) {
+          const comFolder = comFolders.next();
+          const arquivos = comFolder.getFiles();
+          const prefixo = "Proposta_" + codigoProjeto;
             const versoesEncontradas = [];
             
             while (arquivos.hasNext()) {
@@ -743,12 +952,23 @@ function detectarProximoIndice(data, iniciais) {
 // Cria (ou retorna) a pasta do orçamento SEM criar a subpasta 01_IN.
 // A subpasta 01_IN só será criada quando arquivos forem enviados.
 // Usa a mesma lógica de criação de pasta utilizada no gerarPdfOrcamento.
-function criarPastaOrcamento(codigoProjeto, nomePasta, data) {
+// Modificado para aceitar nomeCliente e isPedido
+function criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, isPedido) {
   if (!codigoProjeto || !data) {
     throw new Error("Dados do projeto incompletos para criar a pasta (código ou data ausentes).");
   }
+  
+  if (!descricao || descricao.trim() === "") {
+    throw new Error("Descrição do projeto é obrigatória para criar a pasta.");
+  }
 
-  const pastaProjeto = criarOuUsarPasta(codigoProjeto, nomePasta || "", data);
+  const pastaProjeto = criarOuUsarPastaProjeto(
+    codigoProjeto,
+    nomeCliente || "",
+    descricao,
+    data,
+    isPedido || false
+  );
 
   return {
     pastaId: pastaProjeto.getId(),
@@ -759,47 +979,39 @@ function criarPastaOrcamento(codigoProjeto, nomePasta, data) {
 
 // Busca apenas a pasta do orçamento SEM criar (retorna erro se não existir)
 // Usado pelo botão "Abrir Pasta" que só deve abrir pastas já existentes
+// Modificado para retornar o tipo da pasta (COT/PED)
 function buscarPastaOrcamento(codigoProjeto, data) {
   if (!codigoProjeto || !data) {
     throw new Error("Dados do projeto incompletos para buscar a pasta (código ou data ausentes).");
   }
 
-  const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
-  const anoFolder = getOrCreateSubFolder(root, "20" + data.substring(0, 2));
-  const mesFolder = getOrCreateSubFolder(anoFolder, data.substring(0, 4));
-  const diaFolder = getOrCreateSubFolder(mesFolder, data);
-  const comFolder = getOrCreateSubFolder(diaFolder, "COM");
-
-  // Busca pasta que começa com o código do projeto
-  const folders = comFolder.getFolders();
-  while (folders.hasNext()) {
-    const f = folders.next();
-    if (f.getName().startsWith(codigoProjeto)) {
-      // Pasta encontrada - retorna informações
-      let inFolder = null;
-      try {
-        const inFolders = f.getFoldersByName("01_IN");
-        if (inFolders.hasNext()) {
-          inFolder = inFolders.next();
-        }
-      } catch (e) {
-        // 01_IN pode não existir ainda, mas a pasta principal existe
-      }
-
-      return {
-        pastaId: f.getId(),
-        pastaNome: f.getName(),
-        pastaUrl: f.getUrl(),
-        inFolderId: inFolder ? inFolder.getId() : null,
-        inFolderNome: inFolder ? inFolder.getName() : null,
-        inFolderUrl: inFolder ? inFolder.getUrl() : null,
-        existe: true
-      };
-    }
+  const pastaInfo = detectarPastaExistente(codigoProjeto, data);
+  
+  if (!pastaInfo) {
+    throw new Error("Pasta do orçamento não encontrada. Crie a pasta primeiro usando o botão 'Criar/Confirmar Pasta do Orçamento'.");
   }
 
-  // Pasta não encontrada
-  throw new Error("Pasta do orçamento não encontrada. Crie a pasta primeiro usando o botão 'Criar/Confirmar Pasta do Orçamento'.");
+  // Busca pasta 01_IN se existir
+  let inFolder = null;
+  try {
+    const inFolders = pastaInfo.pasta.getFoldersByName("01_IN");
+    if (inFolders.hasNext()) {
+      inFolder = inFolders.next();
+    }
+  } catch (e) {
+    // 01_IN pode não existir ainda, mas a pasta principal existe
+  }
+
+  return {
+    pastaId: pastaInfo.pasta.getId(),
+    pastaNome: pastaInfo.pasta.getName(),
+    pastaUrl: pastaInfo.pasta.getUrl(),
+    inFolderId: inFolder ? inFolder.getId() : null,
+    inFolderNome: inFolder ? inFolder.getName() : null,
+    inFolderUrl: inFolder ? inFolder.getUrl() : null,
+    existe: true,
+    tipo: pastaInfo.tipo // Retorna COT ou PED
+  };
 }
 
 // Recebe arquivos enviados pelo formulário e salva dentro da pasta 01_IN do projeto.
@@ -879,7 +1091,7 @@ function salvarArquivosCliente(formObject) {
 
 // ========================= GERAR PDF (VERSÃO AJUSTADA) =========================
 function gerarPdfOrcamento(
-  chapas, cliente, observacoes, codigoProjeto, nomePasta, dataProjeto, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento
+  chapas, cliente, observacoes, codigoProjeto, nomePasta, dataProjeto, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento, isPedido
 ) {
   try {
 
@@ -909,7 +1121,10 @@ function gerarPdfOrcamento(
       });
     }
 
-    const pasta = criarOuUsarPasta(codigoProjeto, nomePasta, dataProjeto);
+    // Usa nova estrutura de pastas
+    const nomeCliente = cliente.nome || "";
+    const descricao = observacoes.descricao || nomePasta || codigoProjeto;
+    const pasta = criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, dataProjeto, isPedido || false);
     const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
     const comSubFolder = getOrCreateSubFolder(workFolder, "COM");
 
@@ -1147,7 +1362,7 @@ function gerarPdfOrcamento(
       Logger.log("Erro ao gerar memoria de calculo: " + eMem.toString());
     }
 
-    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto);
+    registrarOrcamento(cliente, codigoProjeto, totalFinal, dataBrasil, file.getUrl(), memoriaUrl, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto, isPedido);
     return { url: file.getUrl(), nome: file.getName(), memoriaUrl: memoriaUrl };
   } catch (err) {
     Logger.log("ERRO gerarPdfOrcamento: " + err.toString());
@@ -1477,7 +1692,7 @@ function findRowByColumnValue(sheet, colHeader, value) {
 
 
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
-function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto) {
+function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto, isPedido) {
   // Leitura em bloco das colunas H para as faixas de corte/dobra que você utiliza
   const matKeys = Object.keys(MATERIAIS);
   const idxMap = _getMaterialIndexMap().map; // não usado diretamente, mantido por compatibilidade
@@ -3157,6 +3372,7 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
       const idxProjeto = _findHeaderIndex(headers, "PROJETO");
       const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
       const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+      const idxDescricao = _findHeaderIndex(headers, "DESCRIÇÃO");
       const idxProcessos = _findHeaderIndex(headers, "PROCESSOS");
 
       // Valida índices
@@ -3173,12 +3389,22 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
         if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
           statusAntigo = String(row[idxStatusPed] || '').trim();
           processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || '').trim() : '';
+          const descricao = idxDescricao >= 0 ? String(row[idxDescricao] || '').trim() : '';
 
           // Se estava em orçamento e está mudando para um status de pedido, atualiza STATUS_ORCAMENTO também
           if (!statusAntigo && idxStatusOrc >= 0) {
             const statusOrc = String(row[idxStatusOrc] || '').trim();
             if (statusOrc !== "Convertido em Pedido") {
               sheetProj.getRange(i + 1, idxStatusOrc + 1).setValue("Convertido em Pedido");
+              
+              // Renomeia a pasta de COT para PED
+              try {
+                const dataProj = valProjeto.substring(0, 6);
+                atualizarPrefixoPastaParaPedido(valProjeto, dataProj, valCliente, descricao);
+                Logger.log("Pasta convertida de COT para PED: " + valProjeto);
+              } catch (e) {
+                Logger.log("Erro ao renomear pasta de COT para PED: " + e.message);
+              }
             }
           }
 
@@ -3271,6 +3497,11 @@ function salvarRascunho(nomeRascunho, dados) {
     const prazo = (dados.observacoes && dados.observacoes.prazo) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
+    
+    // Validação: Descrição obrigatória
+    if (!descricao || descricao.trim() === "") {
+      throw new Error("A descrição do projeto é obrigatória para salvar o rascunho.");
+    }
 
     // Validação de duplicidade antes de salvar
     if (codigoProjeto) {
@@ -3302,7 +3533,7 @@ function salvarRascunho(nomeRascunho, dados) {
       try {
         // Extrai componentes do código YYMMDD + índice + iniciais
         const dataProj = codigoProjeto.substring(0, 6); // YYMMDD
-        criarPastaOrcamento(codigoProjeto, descricao || nomeRascunho || "", dataProj);
+        criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, false);
       } catch (e) {
         Logger.log("Aviso ao criar pasta para rascunho: " + e.message);
       }
@@ -3421,12 +3652,17 @@ function atualizarRascunho(linhaOuKey, dados) {
     const prazo = (dados.observacoes && dados.observacoes.prazo) || "";
     const clienteResponsavel = (dados.cliente && dados.cliente.responsavel) || "";
     const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || "";
+    
+    // Validação: Descrição obrigatória
+    if (!descricao || descricao.trim() === "") {
+      throw new Error("A descrição do projeto é obrigatória para atualizar o rascunho.");
+    }
 
     // Garante que a pasta do orçamento já exista para este rascunho atualizado (SEM criar 01_IN)
     if (codigoProjeto) {
       try {
         const dataProj = codigoProjeto.substring(0, 6); // YYMMDD
-        criarPastaOrcamento(codigoProjeto, descricao || codigoProjeto, dataProj);
+        criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, false);
       } catch (e) {
         Logger.log("Aviso ao criar pasta para atualização de rascunho: " + e.message);
       }
@@ -3548,10 +3784,21 @@ function salvarComoPedido(dados) {
     if (!clienteNome) {
       throw new Error("Nome do cliente é obrigatório.");
     }
+    if (!descricao || descricao.trim() === "") {
+      throw new Error("Descrição do projeto é obrigatória.");
+    }
 
     const validacao = verificarProjetoDuplicado(codigoProjeto);
     if (validacao.duplicado) {
       throw new Error("Já existe um projeto com o número " + codigoProjeto + ". Use outro número ou carregue o projeto existente para atualizar.");
+    }
+    
+    // Cria pasta com prefixo PED (isPedido=true)
+    try {
+      const dataProj = codigoProjeto.substring(0, 6);
+      criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, true);
+    } catch (e) {
+      Logger.log("Aviso ao criar pasta como pedido: " + e.message);
     }
 
     let valorTotal = 0;
@@ -3711,24 +3958,14 @@ function carregarRascunho(linhaOuKey) {
     }
   }
 
-  // Busca nome da pasta do projeto no Drive (se existir)
-  let nomePastaProjeto = "";
-  if (codigoProjeto) {
-    try {
-      nomePastaProjeto = buscarNomePastaPorCodigo(codigoProjeto) || "";
-    } catch (e) {
-      Logger.log("Erro ao buscar nome da pasta do projeto: " + e.message);
-    }
-  }
-
   // Constrói estrutura básica compatível com o formulário
     const dadosBasicos = {
       projeto: {
         data: projetoData,
         indice: projetoIndice,
         iniciais: projetoIniciais,
-      versao: "",
-      pasta: nomePastaProjeto
+      versao: ""
+      // Removido campo "pasta" - não é mais usado
       },
       cliente: {
         select: clienteNome,
