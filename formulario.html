@@ -1836,6 +1836,14 @@
                 alert("Por favor, preencha os dados do projeto (Data, Índice, Iniciais) para gerar o código do projeto.");
                 return;
             }
+            
+            // Valida descrição obrigatória
+            const descricao = document.getElementById("obsDescricao").value.trim();
+            if (!descricao) {
+                alert("A Descrição do Projeto é obrigatória. Por favor, preencha o campo 'Descrição do Orçamento/Projeto'.");
+                document.getElementById("obsDescricao").focus();
+                return;
+            }
 
             btn.disabled = true;
             const dados = coletarDadosFormulario();
@@ -1891,7 +1899,7 @@
                 String(today.getMonth() + 1).padStart(2, '0') +
                 String(today.getDate()).padStart(2, '0');
             document.getElementById("projetoIndice").value = "a";
-            document.getElementById("projetoPasta").value = "";
+            // Campo projetoPasta removido
             
             document.getElementById("clienteBusca").value = "";
             document.getElementById("clienteBusca").style.background = "";
@@ -2026,6 +2034,11 @@
             }
             if (!dados.cliente || !dados.cliente.nome) {
                 alert("Preencha o cliente antes de salvar como pedido.");
+                return;
+            }
+            if (!dados.observacoes || !dados.observacoes.descricao || dados.observacoes.descricao.trim() === "") {
+                alert("A Descrição do Projeto é obrigatória. Por favor, preencha o campo 'Descrição do Orçamento/Projeto'.");
+                document.getElementById("obsDescricao").focus();
                 return;
             }
             if (!confirm("Salvar este projeto diretamente como PEDIDO?\n\nO projeto será registrado já como \"Convertido em Pedido\" (sem gerar PDF de orçamento).")) {
