@@ -1147,7 +1147,7 @@ function gerarPdfOrcamento(
     // Detecta automaticamente a versão se não foi fornecida
     let versaoFinal = versao || "";
     if (!versaoFinal) {
-      versaoFinal = detectarProximaVersao(codigoProjeto, dataProjeto);
+      versaoFinal = "_" + detectarProximaVersao(codigoProjeto, dataProjeto);
     }
 
     const numeroProposta = (codigoProjeto || "") + (versaoFinal || "");
@@ -2186,84 +2186,6 @@ function getKanbanData() {
         }
       }
     }
-
-    // --- Pedidos ---
-    if (typeof SHEET_PED !== 'undefined' && SHEET_PED) {
-      const valsPed = SHEET_PED.getDataRange().getValues();
-      if (valsPed && valsPed.length > 0) {
-        const headersPed = valsPed[0];
-        const idxClienteP = _findHeaderIndex(headersPed, "Cliente");
-        const idxProjetoP = _findHeaderIndex(headersPed, "Número do Projeto");
-        const idxStatusP = _findHeaderIndex(headersPed, "Status");
-        const idxObsP = _findHeaderIndex(headersPed, "Observações") >= 0 ? _findHeaderIndex(headersPed, "Observações") : _findHeaderIndex(headersPed, "Observacoes");
-        const idxTempoP = _findHeaderIndex(headersPed, "Tempo estimado por processo");
-        const idxPrazoP = _findHeaderIndex(headersPed, "PRAZO");
-        const idxDescricaoP = _findHeaderIndex(headersPed, "DESCRIÇÃO") >= 0 ? _findHeaderIndex(headersPed, "DESCRIÇÃO") : _findHeaderIndex(headersPed, "Descrição");
-
-        for (let i = 1; i < valsPed.length; i++) {
-          try {
-            const row = valsPed[i];
-            const status = idxStatusP >= 0 ? row[idxStatusP] : row[2];
-            if (!status || status === "Finalizado") continue;
-
-            const cliente = idxClienteP >= 0 ? row[idxClienteP] : "";
-            const projeto = idxProjetoP >= 0 ? row[idxProjetoP] : "";
-            const obs = idxObsP >= 0 ? row[idxObsP] : "";
-            const tempoRaw = String(idxTempoP >= 0 ? row[idxTempoP] : "");
-            let prazo = idxPrazoP >= 0 ? row[idxPrazoP] : "";
-            const descricao = idxDescricaoP >= 0 ? row[idxDescricaoP] : "";
-            // --- NORMALIZA PRAZO para string segura ---
-            prazo = normalizePrazo(prazo);
-
-            const chave = cliente + "|" + projeto;
-
-            let tempoEstimado = "";
-            let tempoReal = "";
-
-            if (/Preparação/i.test(status)) {
-              tempoEstimado = tempoRaw.match(/preparação\s*:? ?([\d.,]+h?)/i)?.[1] || "";
-              tempoReal = mapaLogs[chave]?.preparacao_mp_cad_com || "";
-            } else if (/Corte/i.test(status)) {
-              tempoEstimado = tempoRaw.match(/corte\s*:? ?([\d.,]+h?)/i)?.[1] || "";
-              tempoReal = mapaLogs[chave]?.corte || "";
-            } else if (/Dobra/i.test(status)) {
-              tempoEstimado = tempoRaw.match(/dobra\s*:? ?([\d.,]+h?)/i)?.[1] || "";
-              tempoReal = mapaLogs[chave]?.dobra || "";
-            } else if (/Adicion/i.test(status)) {
-              tempoEstimado = tempoRaw.match(/adici.*:? ?([\d.,]+h?)/i)?.[1] || "";
-              tempoReal = mapaLogs[chave]?.adicionais || "";
-            }
-
-            // push para a coluna correta (se existir)
-            if (Array.isArray(data[status])) {
-              data[status].push({
-                cliente: cliente,
-                projeto: projeto,
-                descricao: descricao,
-                observacoes: obs,
-                tempoEstimado: tempoEstimado,
-                tempoReal: tempoReal,
-                prazo: prazo
-              });
-            } else {
-              // se status novo, cria array e empurra
-              data[status] = [{
-                cliente: cliente,
-                projeto: projeto,
-                descricao: descricao,
-                observacoes: obs,
-                tempoEstimado: tempoEstimado,
-                tempoReal: tempoReal,
-                prazo: prazo
-              }];
-            }
-          } catch (eRow) {
-            Logger.log('Erro processando linha %s da aba Pedidos: %s\n%s', i + 1, eRow && eRow.message, eRow && eRow.stack);
-          }
-        }
-      }
-    }
-
     // Aplica tempos reais dos logs aos cards de pedido (para nova estrutura)
     if (sheetProj && Object.keys(mapaLogs).length > 0) {
       Object.keys(data).forEach(coluna => {
@@ -2699,13 +2621,6 @@ function doGet(e) {
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-      case 'logs':
-        const templateLogs = HtmlService.createTemplateFromFile('logs');
-        templateLogs.token = token;
-        return templateLogs.evaluate()
-          .setFaviconUrl(FAVICON)
-          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-
       case 'seguranca':
         const templateSeguranca = HtmlService.createTemplateFromFile('seguranca');
         return templateSeguranca.evaluate()
@@ -2726,12 +2641,6 @@ function doGet(e) {
   } catch (err) {
     return HtmlService.createHtmlOutput("Erro ao carregar a página: " + err.message);
   }
-}
-
-// ===== registrarLog removido: não grava mais na planilha Logs; mantém apenas salvarTempoReal (aba TemposReais) =====
-function registrarLog(cliente, projeto, statusAntigo, statusNovo, processosStr, tipoParam) {
-  // Não faz nada: registro de logs na planilha foi desativado; tempos reais são salvos via salvarTempoReal/salvarTempoRealNaAba
-  return;
 }
 
 // ===== Nova função para salvar tempos reais de execução =====
@@ -3085,29 +2994,6 @@ function exportarAvaliacoesPdf() {
   return arquivo.getUrl(); // retorna link para o PDF
 }
 
-function getLogs() {
-  if (!SHEET_LOGS) return [];
-
-  const values = SHEET_LOGS.getDataRange().getValues();
-  if (values.length < 2) return [];
-
-  const headers = values[0];
-  const data = values.slice(1).map(row => {
-    let obj = {};
-    headers.forEach((h, i) => {
-      obj[h] = row[i];
-    });
-    return obj;
-  });
-  return data;
-}
-
-// ==================== FUNÇÕES DA ABA PROJETOS UNIFICADA ====================
-
-/**
- * Retorna todos os projetos da aba Projetos
- * @returns {Array} Array de objetos com os dados dos projetos
- */
 function getProjetos() {
   try {
     // Tenta usar aba Projetos primeiro
@@ -3424,42 +3310,7 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
           break;
         }
       }
-    } else if (SHEET_PED) {
-      // === LÓGICA ANTIGA: Atualiza Status na aba Pedidos ===
-      const dadosRaw = SHEET_PED.getDataRange().getValues();
-      if (!dadosRaw || dadosRaw.length < 1) return;
-
-      const headers = dadosRaw[0].map(h => String(h || '').trim());
-      const idxCliente = headers.findIndex(h => /^cliente$/i.test(h) || /cliente/i.test(h));
-      const idxProjeto = headers.findIndex(h => /n[uú]mero do projeto/i.test(h) || /n[oº]mero do projeto/i.test(h) || /projeto/i.test(h));
-      const idxStatus = headers.findIndex(h => /status/i.test(h));
-      const idxTempo = headers.findIndex(h => /tempo estimado/i.test(h) || /tempo/i.test(h));
-
-      // valida índices
-      if (idxCliente < 0 || idxProjeto < 0 || idxStatus < 0) {
-        Logger.log('atualizarStatusKanban: cabeçalhos não encontrados. cliente:%s projeto:%s status:%s', idxCliente, idxProjeto, idxStatus);
-        return;
-      }
-
-      for (let i = 1; i < dadosRaw.length; i++) {
-        const row = dadosRaw[i];
-        const valCliente = String(row[idxCliente] || '').trim();
-        const valProjeto = String(row[idxProjeto] || '').trim();
-        if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
-          statusAntigo = String(row[idxStatus] || '').trim();
-          const tempoCell = row[idxTempo];
-          if (Object.prototype.toString.call(tempoCell) === '[object Date]') {
-            const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone() || 'GMT';
-            processosStr = Utilities.formatDate(tempoCell, tz, 'yyyy-MM-dd');
-          } else {
-            processosStr = String(tempoCell || '').trim();
-          }
-          SHEET_PED.getRange(i + 1, idxStatus + 1).setValue(novoStatus);
-          break;
-        }
-      }
     }
-
   } catch (e) {
     Logger.log('atualizarStatusKanban error: %s\n%s', e.message, e.stack);
     throw new Error('atualizarStatusKanban failed: ' + (e.message || 'erro desconhecido'));
