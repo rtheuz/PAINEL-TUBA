@@ -253,14 +253,6 @@
                     <input type="text" id="projetoIniciais" value="">
                 </div>
             </div>
-
-            <div class="row" style="margin-top:10px;">
-                <div class="col">
-                    <label>Nome da Pasta:</label>
-                    <input type="text" id="projetoPasta"
-                        placeholder="Nome da pasta depois do número do projeto (Ex: 250922aBR COT - Nome da pasta)">
-                </div>
-            </div>
         </div>
 
         <!-- CLIENTE -->
@@ -380,8 +372,9 @@
                     <input type="text" id="obsProjeto" readonly>
                 </div>
                 <div class="col" style="flex: 2;">
-                    <label>Descrição do Orçamento/Projeto:</label>
-                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado">
+                    <label>Descrição do Orçamento/Projeto: <span style="color:red;" aria-hidden="true">*</span></label>
+                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado" required aria-required="true">
+                    <small class="note" style="color:#666;">Campo obrigatório - usado para nomear a pasta do projeto</small>
                 </div>
             </div>
 
@@ -1124,12 +1117,18 @@
             const indice = document.getElementById("projetoIndice").value.trim();
             const iniciais = document.getElementById("projetoIniciais").value.trim();
             const codigoProjeto = data + indice + iniciais;
-            const nomePastaCampo = document.getElementById("projetoPasta").value.trim();
             const descricao = document.getElementById("obsDescricao").value.trim();
-            const nomePasta = nomePastaCampo || descricao;
+            const nomeCliente = document.getElementById("clienteSelect").value || document.getElementById("clienteNome").value || "";
 
-            if (!data || !indice || !iniciais || !nomePasta) {
-                alert("Preencha Data, Índice, Iniciais e Nome/Descrição da pasta antes de criar a pasta do orçamento.");
+            if (!data || !indice || !iniciais) {
+                alert("Preencha Data, Índice e Iniciais antes de criar a pasta do orçamento.");
+                return;
+            }
+            
+            if (!descricao) {
+                alert("A Descrição do Projeto é obrigatória para criar a pasta do orçamento.");
+                // Foca no campo de descrição
+                document.getElementById("obsDescricao").focus();
                 return;
             }
 
@@ -1152,7 +1151,7 @@
                     btn.textContent = originalText;
                     alert("Erro ao criar/obter pasta do orçamento:\n" + (err && err.message ? err.message : err));
                 })
-                .criarPastaOrcamento(codigoProjeto, nomePasta, data);
+                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, /* isPedido */ false);
         }
 
         // Abre diretamente a pasta do orçamento no Drive (SEM criar - apenas busca pastas existentes)
@@ -1495,8 +1494,8 @@
                 data: document.getElementById("projetoData").value,
                 indice: document.getElementById("projetoIndice").value,
                 iniciais: document.getElementById("projetoIniciais").value,
-                versao: "", // Versão será detectada automaticamente no backend
-                pasta: document.getElementById("projetoPasta").value
+                versao: "" // Versão será detectada automaticamente no backend
+                // Removido campo "pasta" - não é mais usado
             };
 
             // 2. Cliente
@@ -1614,7 +1613,7 @@
             document.getElementById("projetoIndice").value = projeto.indice || "";
             document.getElementById("projetoIniciais").value = projeto.iniciais || "";
             // Versão não é mais editável pelo usuário, será detectada automaticamente
-            document.getElementById("projetoPasta").value = projeto.pasta || "";
+            // Campo "pasta" removido - não é mais usado
             // preserveIndice = true para não sobrescrever o índice com o "próximo" ao carregar orçamento
             atualizarCamposProjeto(true);
 
@@ -1837,6 +1836,14 @@
                 alert("Por favor, preencha os dados do projeto (Data, Índice, Iniciais) para gerar o código do projeto.");
                 return;
             }
+            
+            // Valida descrição obrigatória
+            const descricao = document.getElementById("obsDescricao").value.trim();
+            if (!descricao) {
+                alert("A Descrição do Projeto é obrigatória. Por favor, preencha o campo 'Descrição do Orçamento/Projeto'.");
+                document.getElementById("obsDescricao").focus();
+                return;
+            }
 
             btn.disabled = true;
             const dados = coletarDadosFormulario();
@@ -1892,7 +1899,7 @@
                 String(today.getMonth() + 1).padStart(2, '0') +
                 String(today.getDate()).padStart(2, '0');
             document.getElementById("projetoIndice").value = "a";
-            document.getElementById("projetoPasta").value = "";
+            // Campo projetoPasta removido
             
             document.getElementById("clienteBusca").value = "";
             document.getElementById("clienteBusca").style.background = "";
@@ -2027,6 +2034,11 @@
             }
             if (!dados.cliente || !dados.cliente.nome) {
                 alert("Preencha o cliente antes de salvar como pedido.");
+                return;
+            }
+            if (!dados.observacoes || !dados.observacoes.descricao || dados.observacoes.descricao.trim() === "") {
+                alert("A Descrição do Projeto é obrigatória. Por favor, preencha o campo 'Descrição do Orçamento/Projeto'.");
+                document.getElementById("obsDescricao").focus();
                 return;
             }
             if (!confirm("Salvar este projeto diretamente como PEDIDO?\n\nO projeto será registrado já como \"Convertido em Pedido\" (sem gerar PDF de orçamento).")) {
@@ -2236,10 +2248,24 @@
             const data = dadosColetados.projeto.data;
             const indice = dadosColetados.projeto.indice;
             const iniciais = dadosColetados.projeto.iniciais;
+            
+            // Validações antes de gerar PDF
+            if (!data || !indice || !iniciais) {
+                alert("Preencha Data, Índice e Iniciais do projeto.");
+                return;
+            }
+            
             const codigoProjeto = data + indice + iniciais;
-            const nomePasta = dadosColetados.projeto.pasta;
             // Versão será detectada automaticamente pelo backend baseada nos arquivos existentes
             const versao = "";
+            
+            // Validação: Descrição obrigatória
+            const descricao = dadosColetados.observacoes.descricao || "";
+            if (!descricao || descricao.trim() === "") {
+                alert("A Descrição do Projeto é obrigatória. Por favor, preencha o campo 'Descrição do Orçamento/Projeto'.");
+                document.getElementById("obsDescricao").focus();
+                return;
+            }
 
             const observacoes = {
                 projeto: codigoProjeto,
@@ -2295,7 +2321,21 @@
                     btn.disabled = false;
                     btn.textContent = "Calcular Orçamento e Gerar PDF";
                 })
-                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, nomePasta, data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento);
+                .gerarPdfOrcamento(
+                    chapas, 
+                    cliente, 
+                    observacoes, 
+                    codigoProjeto, 
+                    "", // nomePasta (deprecated, using description now)
+                    data, 
+                    versao, 
+                    somaProcessosPedido, 
+                    descricaoProcessosPedido, 
+                    produtosCadastrados, 
+                    dadosFormularioCompleto, 
+                    infoPagamento, 
+                    /* isPedido */ false
+                );
 
         }
         function voltarPagina() {
@@ -2706,18 +2746,22 @@
             const indice = document.getElementById("projetoIndice").value.trim();
             const iniciais = document.getElementById("projetoIniciais").value.trim();
             const codigoProjeto = data + indice + iniciais;
-            const nomePastaCampo = document.getElementById("projetoPasta").value.trim();
             const descricao = document.getElementById("obsDescricao").value.trim();
-            const nomePasta = nomePastaCampo || descricao;
 
-            if (!data || !indice || !iniciais || !nomePasta) {
-                alert("Preencha Data, Índice, Iniciais e Nome/Descrição da pasta antes de enviar arquivos.");
+            if (!data || !indice || !iniciais) {
+                alert("Preencha Data, Índice e Iniciais antes de enviar arquivos.");
+                return false;
+            }
+            
+            if (!descricao) {
+                alert("A Descrição do Projeto é obrigatória para enviar arquivos.");
+                document.getElementById("obsDescricao").focus();
                 return false;
             }
 
             // Preenche campos hidden com os dados do projeto
             document.getElementById("hiddenCodigoProjeto").value = codigoProjeto;
-            document.getElementById("hiddenNomePasta").value = nomePasta;
+            document.getElementById("hiddenNomePasta").value = descricao;
             document.getElementById("hiddenDataProjeto").value = data;
 
             // Feedback visual: desabilita botão e mostra status
