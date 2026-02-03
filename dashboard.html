@@ -208,18 +208,17 @@
     </div>
 
     <div class="card">
-      <div class="icon">📜</div>
-      <h3>Logs de Produção</h3>
-      <div class="stats" id="statLogs">0</div>
-      <p>Registros de produção</p>
-      <a id="linkLogs" href="#">Abrir</a>
-    </div>
-
-    <div class="card">
       <div class="icon">🔒</div>
       <h3>Administração</h3>
       <p>Área reservada</p>
       <a id="linkTESTE" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
+      <div class="icon">📊</div>
+      <h3>Painel Financeiro</h3>
+      <p>Área financeira</p>
+      <a id="linkFinanceiro" href="#">Abrir</a>
     </div>
 
     <div class="card">
@@ -270,14 +269,12 @@
     document.getElementById('linkKanban').href = WEBAPP_URL + "?page=apresentacao&token=" + token;
     document.getElementById('linkFormulario').href = WEBAPP_URL + "?page=formulario&token=" + token;
     document.getElementById('linkGeradorEtiquetas').href = WEBAPP_URL + "?page=geradoretiquetas&token=" + token;
-    document.getElementById('linkMateriais').href = WEBAPP_URL + "?page=materiais&token=" + token;
-    document.getElementById('linkLogs').href = WEBAPP_URL + "?page=logs&token=" + token;
     document.getElementById('linkTESTE').href = WEBAPP_URL + "?page=paginasprotegidas&token=" + token;
     document.getElementById('linkManutencao').href = WEBAPP_URL + "?page=manutencao&token=" + token;
     document.getElementById('linkVeiculos').href = WEBAPP_URL + "?page=veiculos&token=" + token;
     document.getElementById('linkVeiculoslist').href = WEBAPP_URL + "?page=veiculos_list&token=" + token;
     document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
-    document.getElementById('linkSeguranca').href = WEBAPP_URL + "?page=seguranca";
+    document.getElementById('linkSeguranca').href = WEBAPP_URL + "?page=seguranca&token=" + token;
   
 
     // Atualiza estatísticas em tempo real
@@ -288,7 +285,6 @@
         document.getElementById('statKanban').textContent = res.kanban || 0;
         document.getElementById('statEtiquetas').textContent = res.etiquetas || 0;
         document.getElementById('statMateriais').textContent = res.materiais || 0;
-        document.getElementById('statLogs').textContent = res.logs || 0;
         document.getElementById('statProdutos').textContent = res.produtos || 0;
         document.getElementById('statProjetos').textContent = res.projetos || 0;
       }).getDashboardStats();
