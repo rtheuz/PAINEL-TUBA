@@ -1382,6 +1382,7 @@ function gerarPdfOrdemProducao(linhaOuKey) {
     const projeto = dados.projeto || {};
     const processosPedido = dados.processosPedido || [];
     const produtosCadastrados = dados.produtosCadastrados || [];
+    const numeroSequencial = dados.numeroSequencial || null;
 
     const codigoProjeto = (projeto.data || "") + (projeto.indice || "") + (projeto.iniciais || "");
     const data = projeto.data || "";
@@ -1481,6 +1482,7 @@ function gerarPdfOrdemProducao(linhaOuKey) {
         </div>
 
         <h2>Ordem de Produção Nº ${esc(numeroProposta)}</h2>
+        ${numeroSequencial ? `<h2><strong>Orçamento Nº ${numeroSequencial}</strong></h2>` : ''}
 
         <h3>Informações do Cliente:</h3>
         <p style="margin-bottom:12px; font-size:9pt; line-height:1.3;">
@@ -1777,6 +1779,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     const dadosJson = JSON.stringify({
       nome: codigoProjeto,
       dataSalvo: agora.toISOString(),
+      numeroSequencial: numeroSequencial,
       dados: dadosFormularioCompleto || {
         chapas: chapas,
         cliente: cliente,
@@ -3879,7 +3882,10 @@ function carregarRascunho(linhaOuKey) {
     if (dadosJson) {
       try {
         const dadosParsed = JSON.parse(dadosJson);
-        return dadosParsed.dados; // Retorna apenas os dados do formulário
+        // Incluir numeroSequencial nos dados retornados
+        const dadosRetorno = dadosParsed.dados;
+        dadosRetorno.numeroSequencial = dadosParsed.numeroSequencial || null;
+        return dadosRetorno;
       } catch (parseErr) {
         Logger.log("Erro ao parsear JSON_DADOS na linha " + linha + ": " + parseErr.message);
         // Se falhar o parse, continua para construir dados básicos
