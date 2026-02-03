@@ -31,7 +31,8 @@ function getProdutosCadastrados() {
     if (dados.length < 2) return [];
 
     // Estrutura da planilha:
-    // A=Código do Produto, B=Descrição do Produto, H=Preço Unitário de Venda, I=Unidade
+    // A=Código do Produto, B=Descrição do Produto, C=Código da Família, D=Código EAN (GTIN), 
+    // E=Código NCM, F=Preço Unitário de Venda, G=Unidade, H=Características, I=Estoque, J=Local de estoque
     const produtos = [];
     for (let i = 1; i < dados.length; i++) {
       const row = dados[i];
@@ -39,10 +40,11 @@ function getProdutosCadastrados() {
         produtos.push({
           codigo: row[0],                    // Coluna A - Código do Produto
           descricao: row[1] || "",           // Coluna B - Descrição do Produto
-          familia: row[3] || "",             // Coluna D - Família de Produto
-          tipo: row[4] || "",                // Coluna E - Tipo do Produto
-          preco: parseFloat(row[7]) || 0,    // Coluna H - Preço Unitário de Venda
-          unidade: row[8] || "UN"            // Coluna I - Unidade
+          codigoFamilia: row[2] || "",       // Coluna C - Código da Família
+          codigoEAN: row[3] || "",           // Coluna D - Código EAN (GTIN)
+          ncm: row[4] || "",                 // Coluna E - Código NCM
+          preco: parseFloat(row[5]) || 0,    // Coluna F - Preço Unitário de Venda
+          unidade: row[6] || "UN"            // Coluna G - Unidade
         });
       }
     }
@@ -148,20 +150,17 @@ function inserirProdutoNaRelacao(produto) {
     }
 
     // Estrutura da planilha:
-    // A=Código do Produto, B=Descrição, C=Código da Família, D=Família de Produto, 
-    // E=Tipo do Produto, F=Código EAN, G=Código NCM, H=Preço Unitário de Venda, 
-    // I=Unidade, J=Características
+    // A=Código do Produto, B=Descrição, C=Código da Família, D=Código EAN (GTIN), 
+    // E=Código NCM, F=Preço Unitário de Venda, G=Unidade, H=Características, I=Estoque, J=Local de estoque
     const novaLinha = [
       produto.codigo || "",           // A - Código do Produto
       produto.descricao || "",        // B - Descrição do Produto
       "",                             // C - Código da Família (vazio)
-      produto.familia || "",          // D - Família de Produto
-      produto.tipo || "",             // E - Tipo do Produto
-      "",                             // F - Código EAN (vazio)
-      "",                             // G - Código NCM (vazio)
-      produto.preco || 0,             // H - Preço Unitário de Venda
-      produto.unidade || "UN",        // I - Unidade
-      produto.caracteristicas || ""   // J - Características
+      "",                             // D - Código EAN (vazio)
+      produto.ncm || "",              // E - Código NCM
+      produto.preco || 0,             // F - Preço Unitário de Venda
+      produto.unidade || "UN",        // G - Unidade
+      produto.caracteristicas || ""   // H - Características
     ];
 
     Logger.log("Inserindo nova linha: " + JSON.stringify(novaLinha));
@@ -203,10 +202,9 @@ function atualizarPRDNoCatalogo(dadosNovos) {
         dadosAntigos = {
           codigo: dados[i][0] || "",
           descricao: dados[i][1] || "",
-          familia: dados[i][3] || "",
-          tipo: dados[i][4] || "",
-          preco: dados[i][7] || 0,
-          unidade: dados[i][8] || "UN"
+          ncm: dados[i][4] || "",
+          preco: dados[i][5] || 0,
+          unidade: dados[i][6] || "UN"
         };
         break;
       }
@@ -217,12 +215,11 @@ function atualizarPRDNoCatalogo(dadosNovos) {
     }
 
     // Atualiza os dados na planilha
-    // Estrutura: A=Código, B=Descrição, C=Código Família, D=Família, E=Tipo, F=EAN, G=NCM, H=Preço, I=Unidade, J=Características
+    // Estrutura: A=Código, B=Descrição, C=Código Família, D=EAN, E=NCM, F=Preço, G=Unidade, H=Características
     SHEET_PRODUTOS.getRange(linhaEncontrada, 2).setValue(dadosNovos.descricao || ""); // B - Descrição
-    SHEET_PRODUTOS.getRange(linhaEncontrada, 4).setValue(dadosNovos.familia || ""); // D - Família
-    SHEET_PRODUTOS.getRange(linhaEncontrada, 5).setValue(dadosNovos.tipo || ""); // E - Tipo
-    SHEET_PRODUTOS.getRange(linhaEncontrada, 8).setValue(dadosNovos.preco || 0); // H - Preço
-    SHEET_PRODUTOS.getRange(linhaEncontrada, 9).setValue(dadosNovos.unidade || "UN"); // I - Unidade
+    SHEET_PRODUTOS.getRange(linhaEncontrada, 5).setValue(dadosNovos.ncm || ""); // E - NCM
+    SHEET_PRODUTOS.getRange(linhaEncontrada, 6).setValue(dadosNovos.preco || 0); // F - Preço
+    SHEET_PRODUTOS.getRange(linhaEncontrada, 7).setValue(dadosNovos.unidade || "UN"); // G - Unidade
 
     return {
       success: true,
@@ -260,8 +257,7 @@ function inserirProdutosDasChapas(chapas) {
             const produto = {
               codigo: peca.codigo,
               descricao: peca.descricao || "",
-              familia: chapa.material || "",
-              tipo: "Peça",
+              ncm: "",  // Peças não têm NCM específico
               preco: peca.precoUnitario || 0,
               unidade: "UN",
               caracteristicas: `${chapa.material} - ${peca.comprimento}x${peca.largura} - ${chapa.espessura}mm`
@@ -1424,8 +1420,7 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
       <tr>
         <th>Código</th>
         <th>Descrição</th>
-        <th>Família</th>
-        <th>Tipo</th>
+        <th>NCM</th>
         <th>Unidade</th>
         <th>Quantidade</th>
         <th>Preço Unitário (R$)</th>
@@ -1436,8 +1431,7 @@ function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, no
       htmlMemoria += `<tr>
         <td>${produto.codigo || "-"}</td>
         <td>${produto.descricao || "-"}</td>
-        <td>${produto.familia || "-"}</td>
-        <td>${produto.tipo || "-"}</td>
+        <td>${produto.ncm || "-"}</td>
         <td>${produto.unidade || "UN"}</td>
         <td>${formatarNumero(produto.quantidade || 0)}</td>
         <td>${formatarNumero(produto.precoUnitario || 0)}</td>
@@ -1631,8 +1625,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
           const produtoRelacao = {
             codigo: codigo,
             descricao: prod.descricao || "",
-            familia: prod.familia || "",
-            tipo: prod.tipo || "Produto",
+            ncm: prod.ncm || "",
             preco: Number(prod.precoUnitario) || 0,
             unidade: prod.unidade || "UN",
             caracteristicas: ""
@@ -1687,8 +1680,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
             inserirProdutoNaRelacao({
               codigo: codigo,
               descricao: prod.descricao || "",
-              familia: prod.familia || "",
-              tipo: prod.tipo || "Produto",
+              ncm: prod.ncm || "",
               preco: Number(prod.precoUnitario) || 0,
               unidade: prod.unidade || "UN",
               caracteristicas: ""
