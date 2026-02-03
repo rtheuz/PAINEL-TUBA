@@ -605,51 +605,83 @@ function detectarPastaExistente(codigoProjeto, data) {
     const mes = data.substring(0, 4);
     const dia = data;
     
-    // Tenta estrutura nova (PROJ)
+    Logger.log("🔍 Buscando pasta para projeto: " + codigoProjeto + " na data: " + dia);
+    
+    // Tenta estrutura nova: PROJ
     try {
-      const pastaProj = root
-        .getFoldersByName("20" + ano).next()
-        .getFoldersByName(mes).next()
-        .getFoldersByName(dia).next()
-        .getFoldersByName("PROJ").next();
-      
-      const folders = pastaProj.getFolders();
-      while (folders.hasNext()) {
-        const f = folders.next();
-        const nome = f.getName();
-        if (nome.startsWith(codigoProjeto)) {
-          // Detecta o tipo baseado no nome
-          const tipo = nome.includes(" PED ") ? "PED" : "COT";
-          return { pasta: f, tipo: tipo, estrutura: "PROJ" };
+      const anoFolder = root.getFoldersByName("20" + ano);
+      if (anoFolder.hasNext()) {
+        const ano_f = anoFolder.next();
+        const mesFolder = ano_f.getFoldersByName(mes);
+        if (mesFolder.hasNext()) {
+          const mes_f = mesFolder.next();
+          const diaFolder = mes_f.getFoldersByName(dia);
+          if (diaFolder.hasNext()) {
+            const dia_f = diaFolder.next();
+            const projFolder = dia_f.getFoldersByName("PROJ");
+            if (projFolder.hasNext()) {
+              const proj_f = projFolder.next();
+              
+              // Busca pasta que COMEÇA com o código do projeto
+              const pastas = proj_f.getFolders();
+              while (pastas.hasNext()) {
+                const pasta = pastas.next();
+                const nomePasta = pasta.getName();
+                
+                // Verifica se o nome começa com o código do projeto seguido de espaço
+                if (nomePasta.startsWith(codigoProjeto + " ")) {
+                  const tipo = nomePasta.includes(" PED ") ? "PED" : "COT";
+                  Logger.log("✅ Pasta encontrada: " + nomePasta + " (tipo: " + tipo + ")");
+                  return { pasta: pasta, tipo: tipo, estrutura: "PROJ" };
+                }
+              }
+            }
+          }
         }
       }
     } catch (e) {
-      // PROJ não existe ou pasta não encontrada
+      Logger.log("Estrutura PROJ não encontrada: " + e.message);
     }
     
-    // Tenta estrutura antiga (COM) para compatibilidade
+    // Tenta estrutura antiga: COM
     try {
-      const pastaCom = root
-        .getFoldersByName("20" + ano).next()
-        .getFoldersByName(mes).next()
-        .getFoldersByName(dia).next()
-        .getFoldersByName("COM").next();
-      
-      const folders = pastaCom.getFolders();
-      while (folders.hasNext()) {
-        const f = folders.next();
-        if (f.getName().startsWith(codigoProjeto)) {
-          // Estrutura antiga sempre era COT
-          return { pasta: f, tipo: "COT", estrutura: "COM" };
+      const anoFolder = root.getFoldersByName("20" + ano);
+      if (anoFolder.hasNext()) {
+        const ano_f = anoFolder.next();
+        const mesFolder = ano_f.getFoldersByName(mes);
+        if (mesFolder.hasNext()) {
+          const mes_f = mesFolder.next();
+          const diaFolder = mes_f.getFoldersByName(dia);
+          if (diaFolder.hasNext()) {
+            const dia_f = diaFolder.next();
+            const comFolder = dia_f.getFoldersByName("COM");
+            if (comFolder.hasNext()) {
+              const com_f = comFolder.next();
+              
+              // Busca pasta que COMEÇA com o código do projeto
+              const pastas = com_f.getFolders();
+              while (pastas.hasNext()) {
+                const pasta = pastas.next();
+                const nomePasta = pasta.getName();
+                
+                if (nomePasta.startsWith(codigoProjeto + " ")) {
+                  const tipo = nomePasta.includes(" PED ") ? "PED" : "COT";
+                  Logger.log("✅ Pasta encontrada (estrutura antiga): " + nomePasta + " (tipo: " + tipo + ")");
+                  return { pasta: pasta, tipo: tipo, estrutura: "COM" };
+                }
+              }
+            }
+          }
         }
       }
     } catch (e) {
-      // COM não existe ou pasta não encontrada
+      Logger.log("Estrutura COM não encontrada: " + e.message);
     }
     
+    Logger.log("❌ Pasta não encontrada para: " + codigoProjeto);
     return null;
   } catch (e) {
-    Logger.log("Erro ao detectar pasta existente: " + e.message);
+    Logger.log("Erro ao detectar pasta: " + e.message);
     return null;
   }
 }
@@ -677,39 +709,40 @@ function atualizarNomePasta(pasta, codigoProjeto, nomeCliente, descricao) {
 }
 
 /**
- * Atualiza o prefixo da pasta de COT para PED
+ * Atualiza o prefixo da pasta de COT para PED quando um orçamento é convertido em pedido
  * @param {string} codigoProjeto - Código do projeto
  * @param {string} data - Data no formato YYMMDD
  * @param {string} nomeCliente - Nome do cliente
  * @param {string} descricao - Descrição do projeto
- * @returns {boolean} - true se renomeou com sucesso
+ * @returns {boolean} - True se renomeou com sucesso, false caso contrário
  */
 function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descricao) {
   try {
+    Logger.log("🔄 Iniciando conversão de COT para PED: " + codigoProjeto);
+    
     const pastaInfo = detectarPastaExistente(codigoProjeto, data);
     if (!pastaInfo) {
-      Logger.log("Pasta não encontrada para converter para PED: " + codigoProjeto);
+      Logger.log("❌ Pasta não encontrada para converter para PED: " + codigoProjeto);
       return false;
     }
     
     if (pastaInfo.tipo === "PED") {
-      Logger.log("Pasta já é PED: " + codigoProjeto);
+      Logger.log("✅ Pasta já é PED: " + codigoProjeto);
       return true; // Já está como PED
     }
     
     // Renomeia para PED
     const novoNome = gerarNomePasta(codigoProjeto, nomeCliente, descricao, true);
     pastaInfo.pasta.setName(novoNome);
-    Logger.log("Pasta convertida de COT para PED: " + novoNome);
+    Logger.log("✅ Pasta convertida de COT para PED: " + novoNome);
     return true;
   } catch (e) {
-    Logger.log("Erro ao converter pasta para PED: " + e.message);
+    Logger.log("❌ Erro ao converter pasta para PED: " + e.message);
     return false;
   }
 }
-
 /**
- * Nova função principal para criar ou usar pasta de projeto
+ * Cria ou usa pasta existente do projeto na estrutura PROJ
  * @param {string} codigoProjeto - Código do projeto
  * @param {string} nomeCliente - Nome do cliente
  * @param {string} descricao - Descrição do projeto
@@ -718,6 +751,8 @@ function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descr
  * @returns {Folder} - Pasta do projeto
  */
 function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, isPedido) {
+  Logger.log("📁 criarOuUsarPastaProjeto - Código: " + codigoProjeto + ", isPedido: " + isPedido);
+  
   // Valida descrição obrigatória
   if (!descricao || descricao.trim() === "") {
     throw new Error("Descrição do projeto é obrigatória para criar a pasta.");
@@ -727,13 +762,14 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
   const pastaInfo = detectarPastaExistente(codigoProjeto, data);
   
   if (pastaInfo) {
+    Logger.log("✅ Usando pasta existente: " + pastaInfo.pasta.getName());
     // Pasta existe - atualiza o nome se necessário
     const nomeDesejado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
     
     // Se mudou de COT para PED, atualiza
     if (isPedido && pastaInfo.tipo === "COT") {
       pastaInfo.pasta.setName(nomeDesejado);
-      Logger.log("Pasta convertida de COT para PED: " + nomeDesejado);
+      Logger.log("🔄 Pasta convertida de COT para PED: " + nomeDesejado);
     } 
     // Se o nome mudou (cliente ou descrição), atualiza mantendo o tipo atual
     else if (!isPedido || pastaInfo.tipo === "PED") {
@@ -741,7 +777,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
       const nomeAtualizado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, tipoAtual === "PED");
       if (pastaInfo.pasta.getName() !== nomeAtualizado) {
         pastaInfo.pasta.setName(nomeAtualizado);
-        Logger.log("Pasta atualizada: " + nomeAtualizado);
+        Logger.log("📝 Pasta atualizada: " + nomeAtualizado);
       }
     }
     
@@ -758,9 +794,9 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
         const pastaCom = pastaInfo.pasta.getParents().next();
         projFolder.addFolder(pastaInfo.pasta);
         pastaCom.removeFolder(pastaInfo.pasta);
-        Logger.log("Pasta migrada de COM para PROJ: " + pastaInfo.pasta.getName());
+        Logger.log("📦 Pasta migrada de COM para PROJ: " + pastaInfo.pasta.getName());
       } catch (e) {
-        Logger.log("Erro ao migrar pasta de COM para PROJ: " + e.message);
+        Logger.log("⚠️ Erro ao migrar pasta de COM para PROJ: " + e.message);
         // Continua usando a pasta na localização antiga
       }
     }
@@ -769,6 +805,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
   }
   
   // Pasta não existe - cria nova na estrutura PROJ
+  Logger.log("📁 Criando nova pasta para projeto: " + codigoProjeto);
   const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
   const anoFolder = getOrCreateSubFolder(root, "20" + data.substring(0, 2));
   const mesFolder = getOrCreateSubFolder(anoFolder, data.substring(0, 4));
@@ -777,11 +814,10 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
   
   const nomePasta = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
   const novaPasta = projFolder.createFolder(nomePasta);
-  Logger.log("Nova pasta criada: " + nomePasta);
+  Logger.log("✅ Nova pasta criada: " + nomePasta);
   
   return novaPasta;
 }
-
 // Função legada para compatibilidade - redireciona para nova estrutura
 function criarOuUsarPasta(codigoProjeto, nomePasta, data) {
   // Tenta detectar pasta existente primeiro (suporta COM e PROJ)
@@ -3070,62 +3106,68 @@ function getProjetos() {
 }
 
 /**
- * Atualiza um projeto na planilha
+ * Atualiza dados de um projeto na planilha
  * @param {number} linha - Número da linha na planilha
- * @param {Object} dataObj - Objeto com os campos a atualizar
+ * @param {Object} dadosAtualizacao - Objeto com campos a atualizar
+ * @returns {Object} - {sucesso: boolean}
  */
-function atualizarProjetoNaPlanilha(linha, dataObj) {
-  linha = Number(linha);
-  if (!linha || linha < 2) {
-    throw new Error('Parâmetro "linha" inválido. Deve ser número de linha da planilha (>= 2).');
-  }
-
-  // Tenta usar aba Projetos primeiro
-  const sheetProj = ss.getSheetByName("Projetos");
-  const targetSheet = sheetProj;
-
-  if (!targetSheet) {
-    throw new Error("Nenhuma aba de projetos encontrada");
-  }
-
-  // Cabeçalhos
-  var lastCol = targetSheet.getLastColumn();
-  var headers = targetSheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
-
-  // Função utilitária para normalizar strings
-  function normalizeKey(s) {
-    if (s === null || s === undefined) return '';
-    return String(s).trim().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '');
-  }
-
-  // Normaliza as chaves do dataObj
-  var normalizedData = {};
-  var originalKeys = Object.keys(dataObj || {});
-  originalKeys.forEach(function (k) {
-    var nk = normalizeKey(k);
-    normalizedData[nk] = dataObj[k];
-  });
-
-  // Lê a linha atual para preservar valores não enviados
-  var currentRow = targetSheet.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
-
-  // Monta nova linha: se header correspondente existe em normalizedData, usa-o; senão mantém currentRow
-  var newRow = headers.map(function (h, idx) {
-    var hk = normalizeKey(h);
-    if (normalizedData.hasOwnProperty(hk)) {
-      return normalizedData[hk];
-    }
-    return currentRow[idx];
-  });
-
-  // Gravar nova linha
+function atualizarProjetoNaPlanilha(linha, dadosAtualizacao) {
   try {
-    targetSheet.getRange(linha, 1, 1, newRow.length).setValues([newRow]);
-    return { success: true, linha: linha };
-  } catch (err) {
-    throw new Error('Erro ao escrever na planilha: ' + (err && err.message ? err.message : err));
+    const sheetProj = ss.getSheetByName("Projetos");
+    if (!sheetProj) {
+      throw new Error("Aba 'Projetos' não encontrada");
+    }
+    
+    // Busca cabeçalhos
+    const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+    const headerMap = {};
+    headers.forEach((h, idx) => {
+      if (h) headerMap[h.toString().trim().toUpperCase()] = idx;
+    });
+    
+    // Atualiza cada campo
+    for (let campo in dadosAtualizacao) {
+      const colIdx = headerMap[campo.toUpperCase()];
+      if (colIdx !== undefined) {
+        sheetProj.getRange(linha, colIdx + 1).setValue(dadosAtualizacao[campo]);
+      }
+    }
+    
+    // Se mudou para "Convertido em Pedido", renomeia pasta
+    if (dadosAtualizacao.STATUS_ORCAMENTO === "Convertido em Pedido") {
+      try {
+        Logger.log("🔄 Detectado conversão para pedido, tentando renomear pasta...");
+        
+        const numCols = sheetProj.getLastColumn();
+        const rowData = sheetProj.getRange(linha, 1, 1, numCols).getValues()[0];
+        
+        const idxProjeto = headerMap["PROJETO"];
+        const idxCliente = headerMap["CLIENTE"];
+        const idxDescricao = headerMap["DESCRIÇÃO"] || headerMap["DESCRICAO"];
+        
+        if (idxProjeto !== undefined && rowData[idxProjeto]) {
+          const codigoProjeto = String(rowData[idxProjeto]).trim();
+          const cliente = idxCliente !== undefined ? String(rowData[idxCliente] || "").trim() : "";
+          const descricao = idxDescricao !== undefined ? String(rowData[idxDescricao] || "").trim() : "";
+          const dataProj = codigoProjeto.substring(0, 6);
+          
+          // Renomear pasta de COT para PED
+          const sucesso = atualizarPrefixoPastaParaPedido(codigoProjeto, dataProj, cliente, descricao);
+          if (sucesso) {
+            Logger.log("✅ Pasta convertida de COT para PED: " + codigoProjeto);
+          } else {
+            Logger.log("⚠️ Não foi possível converter pasta de COT para PED: " + codigoProjeto);
+          }
+        }
+      } catch (e) {
+        Logger.log("⚠️ Erro ao renomear pasta de COT para PED: " + e.message);
+      }
+    }
+    
+    return { sucesso: true };
+  } catch (e) {
+    Logger.log("Erro ao atualizar projeto: " + e.message);
+    throw new Error("Erro ao atualizar projeto: " + e.message);
   }
 }
 
@@ -4531,3 +4573,4 @@ function limparTodasMensagensApresentacao() {
     return { success: false, error: e.message };
   }
 }
+
