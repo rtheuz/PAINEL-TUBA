@@ -372,8 +372,8 @@
                     <input type="text" id="obsProjeto" readonly>
                 </div>
                 <div class="col" style="flex: 2;">
-                    <label>Descrição do Orçamento/Projeto: <span style="color:red;">*</span></label>
-                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado" required>
+                    <label>Descrição do Orçamento/Projeto: <span style="color:red;" aria-hidden="true">*</span></label>
+                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado" required aria-required="true">
                     <small class="note" style="color:#666;">Campo obrigatório - usado para nomear a pasta do projeto</small>
                 </div>
             </div>
@@ -1151,7 +1151,7 @@
                     btn.textContent = originalText;
                     alert("Erro ao criar/obter pasta do orçamento:\n" + (err && err.message ? err.message : err));
                 })
-                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, false);
+                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, /* isPedido */ false);
         }
 
         // Abre diretamente a pasta do orçamento no Drive (SEM criar - apenas busca pastas existentes)
@@ -2321,7 +2321,21 @@
                     btn.disabled = false;
                     btn.textContent = "Calcular Orçamento e Gerar PDF";
                 })
-                .gerarPdfOrcamento(chapas, cliente, observacoes, codigoProjeto, "", data, versao, somaProcessosPedido, descricaoProcessosPedido, produtosCadastrados, dadosFormularioCompleto, infoPagamento, false);
+                .gerarPdfOrcamento(
+                    chapas, 
+                    cliente, 
+                    observacoes, 
+                    codigoProjeto, 
+                    "", // nomePasta (deprecated, using description now)
+                    data, 
+                    versao, 
+                    somaProcessosPedido, 
+                    descricaoProcessosPedido, 
+                    produtosCadastrados, 
+                    dadosFormularioCompleto, 
+                    infoPagamento, 
+                    /* isPedido */ false
+                );
 
         }
         function voltarPagina() {
