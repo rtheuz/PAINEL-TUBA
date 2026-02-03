@@ -1097,6 +1097,11 @@ function gerarPdfOrcamento(
     // Obtém e incrementa o número sequencial do orçamento
     const numeroSequencial = obterEIncrementarNumeroOrcamento();
 
+    // Persiste numeroSequencial em dadosFormularioCompleto
+    if (dadosFormularioCompleto) {
+      dadosFormularioCompleto.numeroSequencial = numeroSequencial;
+    }
+
     const resultados = calcularOrcamento(chapas);
 
     // Atribui códigos PRD a produtos cadastrados que não têm código
@@ -1774,6 +1779,9 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
+    // Extrai numeroSequencial de dadosFormularioCompleto se disponível
+    const numeroSequencial = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial) || null;
+    
     // Serializa TODOS os dados do formulário para JSON (para poder reabrir e editar depois)
     const agora = new Date();
     const dadosJson = JSON.stringify({
@@ -1852,10 +1860,14 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     // fallback: tentar appendRow (comportamento antigo) se algo falhar
     try {
+      // Extrai numeroSequencial de dadosFormularioCompleto se disponível
+      const numeroSequencial = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial) || null;
+      
       const agora = new Date();
       const dadosJson = JSON.stringify({
         nome: codigoProjeto,
         dataSalvo: agora.toISOString(),
+        numeroSequencial: numeroSequencial,
         dados: dadosFormularioCompleto || {
           chapas: chapas,
           cliente: cliente,
