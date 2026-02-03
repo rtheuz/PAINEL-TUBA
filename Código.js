@@ -3210,6 +3210,23 @@ function atualizarProjetoNaPlanilha(linha, dataObj) {
   // Lê a linha atual para preservar valores não enviados
   var currentRow = targetSheet.getRange(linha, 1, 1, lastCol).getValues()[0] || [];
 
+  // Detecta se STATUS_ORCAMENTO está mudando para "Convertido em Pedido"
+  var idxStatusOrc = headers.findIndex(function (h) {
+    return normalizeKey(h) === normalizeKey('STATUS_ORCAMENTO');
+  });
+  var idxProjeto = headers.findIndex(function (h) {
+    return normalizeKey(h) === normalizeKey('PROJETO');
+  });
+  var idxCliente = headers.findIndex(function (h) {
+    return normalizeKey(h) === normalizeKey('CLIENTE');
+  });
+  var idxDescricao = headers.findIndex(function (h) {
+    return normalizeKey(h) === normalizeKey('DESCRIÇÃO');
+  });
+
+  var statusOrcamentoAntigo = idxStatusOrc >= 0 ? String(currentRow[idxStatusOrc] || '').trim() : '';
+  var statusOrcamentoNovo = normalizedData[normalizeKey('STATUS_ORCAMENTO')];
+
   // Monta nova linha: se header correspondente existe em normalizedData, usa-o; senão mantém currentRow
   var newRow = headers.map(function (h, idx) {
     var hk = normalizeKey(h);
@@ -3222,6 +3239,25 @@ function atualizarProjetoNaPlanilha(linha, dataObj) {
   // Gravar nova linha
   try {
     targetSheet.getRange(linha, 1, 1, newRow.length).setValues([newRow]);
+
+    // Se STATUS_ORCAMENTO mudou para "Convertido em Pedido", renomeia pasta de COT para PED
+    if (statusOrcamentoNovo === "Convertido em Pedido" && statusOrcamentoAntigo !== "Convertido em Pedido") {
+      try {
+        var codigoProjeto = idxProjeto >= 0 ? String(currentRow[idxProjeto] || '').trim() : '';
+        var cliente = idxCliente >= 0 ? String(currentRow[idxCliente] || '').trim() : '';
+        var descricao = idxDescricao >= 0 ? String(currentRow[idxDescricao] || '').trim() : '';
+        
+        if (codigoProjeto && codigoProjeto.length >= 6) {
+          var dataProjeto = codigoProjeto.substring(0, 6);
+          atualizarPrefixoPastaParaPedido(codigoProjeto, dataProjeto, cliente, descricao);
+          Logger.log("atualizarProjetoNaPlanilha: Pasta convertida de COT para PED: " + codigoProjeto);
+        }
+      } catch (errPasta) {
+        Logger.log("atualizarProjetoNaPlanilha: Erro ao renomear pasta: " + errPasta.message);
+        // Não lança erro para não impedir a atualização da planilha
+      }
+    }
+
     return { success: true, linha: linha };
   } catch (err) {
     throw new Error('Erro ao escrever na planilha: ' + (err && err.message ? err.message : err));
