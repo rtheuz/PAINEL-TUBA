@@ -197,6 +197,39 @@
         <form id="mainForm" onsubmit="enviarArquivosCliente(event)">
         <h1>Novo Orçamento</h1>
 
+        <!-- BUSCAR ORÇAMENTO EXISTENTE -->
+        <div class="section" id="buscarOrcamentoSection" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 2px solid #ffc107;">
+            <div class="section-header">
+                <div>
+                    <h3 style="color: #f57c00;">🔍 Carregar Orçamento Existente</h3>
+                    <small>Busque e carregue um orçamento/projeto existente para editar ou visualizar</small>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col" style="flex: 2;">
+                    <label>Buscar por código do projeto, cliente ou descrição:</label>
+                    <input type="text" id="rascunhoBusca" placeholder="Digite para buscar orçamentos..." 
+                           list="rascunhosList" autocomplete="off" 
+                           style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-weight:600;">
+                    <datalist id="rascunhosList"></datalist>
+                    <input type="hidden" id="rascunhoSelectKey" value="">
+                </div>
+                <div class="col" style="flex: 0 0 auto; display: flex; align-items: flex-end; gap: 8px;">
+                    <button type="button" id="btnCarregarRascunho" class="secondary" onclick="carregarRascunhoSelecionado()">📂 Carregar</button>
+                    <button type="button" id="btnDeletarRascunho" class="secondary muted-btn" onclick="deletarRascunhoSelecionado()">Deletar</button>
+                </div>
+            </div>
+            <div id="orcamentoCarregadoInfo" class="hidden" style="margin-top: 12px; padding: 10px; background: #fff; border-radius: 8px; border-left: 4px solid #1a73e8;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong id="orcamentoCarregadoNome" style="color: #1565c0;"></strong>
+                        <span id="orcamentoCarregadoStatus" style="margin-left: 8px; padding: 2px 8px; border-radius: 4px; font-size: 11px;"></span>
+                    </div>
+                    <button type="button" class="secondary muted-btn" onclick="limparFormularioCompleto()" style="padding: 4px 10px; font-size: 12px;">✨ Novo Orçamento</button>
+                </div>
+            </div>
+        </div>
+
         <!-- PROJETO / PASTA -->
         <div class="section" id="projetoSection">
             <div class="section-header">
@@ -466,24 +499,8 @@
         </div>
 
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:40px; flex-wrap:wrap;">
-            <button type="button" class="secondary" onclick="salvarRascunho()">Salvar Rascunho</button>
-            <button type="button" class="secondary" id="btnAtualizarRascunho" onclick="atualizarRascunhoSelecionado()" style="display:none;">Atualizar dados</button>
+            <button type="button" class="secondary" onclick="salvarOrcamento()">💾 Salvar Orçamento</button>
             <button type="button" class="secondary" onclick="salvarComoPedido()" style="background:#2e7d32; color:white;">Salvar como Pedido</button>
-
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <div style="position:relative;">
-                    <input type="text" id="rascunhoBusca" placeholder="Buscar orçamento..." 
-                           list="rascunhosList" autocomplete="off" 
-                           style="padding: 8px; border-radius: 6px; border: 1px solid #ddd; min-width: 250px; font-weight:600;">
-                    <datalist id="rascunhosList">
-                        <!-- Será preenchido dinamicamente -->
-                    </datalist>
-                    <input type="hidden" id="rascunhoSelectKey" value="">
-                </div>
-                <button type="button" id="btnCarregarRascunho" class="secondary" onclick="carregarRascunhoSelecionado()">Carregar</button>
-                <button type="button" id="btnDeletarRascunho" class="secondary muted-btn" onclick="deletarRascunhoSelecionado()">Deletar</button>
-            </div>
-
             <button type="button" id="btnGerar" onclick="calcular()">Calcular Orçamento e Gerar PDF</button>
             <button class="secondary muted-btn" onclick="window.close()">Fechar</button>
             <div class="note">A versão do orçamento será detectada automaticamente baseada nos arquivos existentes na pasta.</div>
@@ -680,26 +697,23 @@
             div.innerHTML = `
                 <div class="row">
                     <div class="col" style="flex: 2;">
-                        <label>Buscar Produto (digite código ou descrição):</label>
+                        <label>Buscar Produto ou criar novo:</label>
                         <input type="text" class="produtoBusca" placeholder="Digite código ou descrição do produto..." 
                                list="produtosList-${Date.now()}" 
                                autocomplete="off"
                                style="font-weight:600;">
                         <datalist id="produtosList-${Date.now()}" class="produtosDatalist">
                             ${produtosCatalogo.map((p, idx) =>
-                `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
+                `<option value="${p.codigo} - ${p.descricao}" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
             ).join('')}
                         </datalist>
                         <input type="hidden" class="produtoSelectIndex" value="">
+                        <input type="hidden" class="produtoCodigo" value="${codigoPRDInicial}">
+                        <small style="color:#666;">Selecione um produto existente ou preencha os dados abaixo para criar um novo</small>
                     </div>
                 </div>
                 
                 <div class="row" style="margin-top:8px;">
-                    <div class="col">
-                        <label>Código:</label>
-                        <input type="text" class="produtoCodigo" value="${codigoPRDInicial}" placeholder="Será gerado ao calcular o orçamento (ou digite um existente)" style="font-weight:600;">
-                        <small style="color:#666;">Será gerado automaticamente ao calcular o orçamento, ou pesquise um PRD existente</small>
-                    </div>
                     <div class="col" style="flex: 2;">
                         <label>Descrição:</label>
                         <input type="text" class="produtoDescricao" placeholder="Descrição do produto" style="font-weight:600;">
@@ -708,12 +722,22 @@
                 
                 <div class="row" style="margin-top:8px;">
                     <div class="col">
-                        <label>Família:</label>
-                        <input type="text" class="produtoFamilia" placeholder="Família">
-                    </div>
-                    <div class="col">
-                        <label>Tipo:</label>
-                        <input type="text" class="produtoTipo" placeholder="Tipo">
+                        <label>NCM:</label>
+                        <select class="produtoNCM">
+                            <option value="">Selecione</option>
+                            <option value="7326.90.90">7326.90.90 - Outras obras de ferro ou aço</option>
+                            <option value="7308.90.90">7308.90.90 - Construções e partes de ferro/aço</option>
+                            <option value="7318.15.00">7318.15.00 - Parafusos e pinos</option>
+                            <option value="7318.16.00">7318.16.00 - Porcas</option>
+                            <option value="7307.99.00">7307.99.00 - Acessórios para tubos</option>
+                            <option value="7304.49.00">7304.49.00 - Tubos de aço inox</option>
+                            <option value="7306.40.00">7306.40.00 - Tubos soldados de aço inox</option>
+                            <option value="7222.40.90">7222.40.90 - Barras de aço inox</option>
+                            <option value="7219.33.00">7219.33.00 - Chapas de aço inox laminadas</option>
+                            <option value="7220.20.90">7220.20.90 - Tiras de aço inox laminadas</option>
+                            <option value="8207.30.00">8207.30.00 - Ferramentas de embutir/estampar</option>
+                            <option value="8466.93.50">8466.93.50 - Partes de máquinas</option>
+                        </select>
                     </div>
                     <div class="col">
                         <label>Unidade:</label>
@@ -946,10 +970,12 @@
         }
 
         function preencherDadosProdutoPorIndex(div, idx) {
+            const hiddenCodigo = div.querySelector(".produtoCodigo");
+            
             if (idx === "" || idx === null || idx === undefined || idx < 0 || idx >= produtosCatalogo.length) {
+                if (hiddenCodigo) hiddenCodigo.value = "";
                 div.querySelector(".produtoDescricao").value = "";
-                div.querySelector(".produtoFamilia").value = "";
-                div.querySelector(".produtoTipo").value = "";
+                div.querySelector(".produtoNCM").value = "";
                 div.querySelector(".produtoPrecoUnit").value = "";
                 div.querySelector(".produtoUnidade").value = "UN";
                 div.querySelector(".produtoQuantidade").value = "1";
@@ -958,10 +984,9 @@
             }
 
             const produto = produtosCatalogo[idx];
-            div.querySelector(".produtoCodigo").value = produto.codigo;
+            if (hiddenCodigo) hiddenCodigo.value = produto.codigo;
             div.querySelector(".produtoDescricao").value = produto.descricao;
-            div.querySelector(".produtoFamilia").value = produto.familia || "";
-            div.querySelector(".produtoTipo").value = produto.tipo || "";
+            div.querySelector(".produtoNCM").value = produto.ncm || "";
             div.querySelector(".produtoPrecoUnit").value = produto.preco.toFixed(2);
             div.querySelector(".produtoUnidade").value = produto.unidade;
             div.querySelector(".produtoQuantidade").value = "1";
@@ -985,8 +1010,7 @@
         function atualizarPRDNoCatalogo(div) {
             const codigo = div.querySelector(".produtoCodigo").value.trim();
             const descricao = div.querySelector(".produtoDescricao").value.trim();
-            const familia = div.querySelector(".produtoFamilia").value.trim();
-            const tipo = div.querySelector(".produtoTipo").value.trim();
+            const ncm = div.querySelector(".produtoNCM").value.trim();
             const unidade = div.querySelector(".produtoUnidade").value.trim();
             const precoUnitario = parseFloat(div.querySelector(".produtoPrecoUnit").value) || 0;
 
@@ -1007,8 +1031,7 @@
             const dadosProduto = {
                 codigo: codigo,
                 descricao: descricao,
-                familia: familia,
-                tipo: tipo,
+                ncm: ncm,
                 unidade: unidade,
                 preco: precoUnitario
             };
@@ -1037,8 +1060,7 @@
                 produtos.push({
                     codigo: codigo || "", // Permite código vazio (será gerado ao calcular)
                     descricao: descricao,
-                    familia: div.querySelector(".produtoFamilia").value,
-                    tipo: div.querySelector(".produtoTipo").value,
+                    ncm: div.querySelector(".produtoNCM").value,
                     unidade: div.querySelector(".produtoUnidade").value,
                     precoUnitario: parseFloat(div.querySelector(".produtoPrecoUnit").value) || 0,
                     quantidade: parseFloat(div.querySelector(".produtoQuantidade").value) || 0,
@@ -1723,16 +1745,16 @@
                         const buscaInput = prodDiv.querySelector(".produtoBusca");
                         const hiddenIndex = prodDiv.querySelector(".produtoSelectIndex");
                         const produto = produtosCatalogo[idx];
-                        buscaInput.value = `${produto.codigo} - ${produto.descricao} (${produto.familia || 'N/A'})`;
+                        buscaInput.value = `${produto.codigo} - ${produto.descricao}`;
                         hiddenIndex.value = idx;
                         buscaInput.style.background = "#e8f5e9";
                     }
 
                     // Preenche os campos diretamente (suporta produtos manuais e customizados)
-                    prodDiv.querySelector(".produtoCodigo").value = prodData.codigo || "";
+                    const hiddenCodigo = prodDiv.querySelector(".produtoCodigo");
+                    if (hiddenCodigo) hiddenCodigo.value = prodData.codigo || "";
                     prodDiv.querySelector(".produtoDescricao").value = prodData.descricao || "";
-                    prodDiv.querySelector(".produtoFamilia").value = prodData.familia || "";
-                    prodDiv.querySelector(".produtoTipo").value = prodData.tipo || "";
+                    prodDiv.querySelector(".produtoNCM").value = prodData.ncm || "";
                     prodDiv.querySelector(".produtoUnidade").value = prodData.unidade || "UN";
                     prodDiv.querySelector(".produtoPrecoUnit").value = prodData.precoUnitario || "";
                     prodDiv.querySelector(".produtoQuantidade").value = prodData.quantidade || 1;
@@ -1794,41 +1816,108 @@
         // Função auxiliar para limpar o estado de rascunho carregado
         function limparEstadoRascunho() {
             linhaOrcamentoCarregado = null;
-            document.getElementById("btnAtualizarRascunho").style.display = "none";
             document.getElementById("rascunhoBusca").value = "";
+            document.getElementById("rascunhoBusca").style.background = "";
             document.getElementById("rascunhoSelectKey").value = "";
-            atualizarDatalistRascunhos(""); // Reseta o datalist
+            document.getElementById("orcamentoCarregadoInfo").classList.add("hidden");
+            atualizarDatalistRascunhos("");
         }
 
-        // Função de salvar rascunho (chama o Apps Script)
-        function salvarRascunho() {
-            const nomeRascunho = prompt("Digite um nome para este rascunho (ex: CORTE DE TUBOS 7mm JOALMI):");
-            if (!nomeRascunho) return;
-
-            const btn = document.querySelector('button[onclick="salvarRascunho()"]');
+        // Função UNIFICADA de salvar - salva novo ou atualiza existente
+        function salvarOrcamento() {
+            const btn = document.querySelector('button[onclick="salvarOrcamento()"]');
             if (!btn) return;
+            
             const originalText = btn.textContent;
             const originalDisabled = btn.disabled;
 
-            // Feedback visual: desabilita botão e mostra loading
-            btn.disabled = true;
-            btn.textContent = "Salvando rascunho...";
+            // Valida se tem código do projeto
+            const codigoProjeto = document.getElementById("obsProjeto").value.trim();
+            if (!codigoProjeto || codigoProjeto.length < 8) {
+                alert("Por favor, preencha os dados do projeto (Data, Índice, Iniciais) para gerar o código do projeto.");
+                return;
+            }
 
+            btn.disabled = true;
             const dados = coletarDadosFormulario();
-            google.script.run
-                .withSuccessHandler(function () {
-                    btn.disabled = originalDisabled;
-                    btn.textContent = originalText;
-                    alert(`Rascunho "${nomeRascunho}" salvo com sucesso!`);
-                    limparEstadoRascunho(); // Limpa a referência ao salvar novo rascunho
-                    carregarListaRascunhos(); // Atualiza a lista
-                })
-                .withFailureHandler(function (err) {
-                    btn.disabled = originalDisabled;
-                    btn.textContent = originalText;
-                    alert("Erro ao salvar rascunho:\n" + err.message);
-                })
-                .salvarRascunho(nomeRascunho, dados);
+            
+            // Se já tem um orçamento carregado, atualiza ele
+            if (linhaOrcamentoCarregado) {
+                btn.textContent = "Atualizando...";
+                
+                google.script.run
+                    .withSuccessHandler(function () {
+                        btn.disabled = originalDisabled;
+                        btn.textContent = originalText;
+                        alert("Orçamento atualizado com sucesso!");
+                        carregarListaRascunhos();
+                    })
+                    .withFailureHandler(function (err) {
+                        btn.disabled = originalDisabled;
+                        btn.textContent = originalText;
+                        alert("Erro ao atualizar orçamento:\n" + err.message);
+                    })
+                    .atualizarRascunho(linhaOrcamentoCarregado, dados);
+            } else {
+                // Se não tem orçamento carregado, salva como novo rascunho
+                btn.textContent = "Salvando...";
+                
+                // Usa o código do projeto como nome interno (a exibição na lista é gerada pelo backend)
+                const nomeRascunho = codigoProjeto;
+                
+                google.script.run
+                    .withSuccessHandler(function () {
+                        btn.disabled = originalDisabled;
+                        btn.textContent = originalText;
+                        alert("Orçamento salvo com sucesso!");
+                        carregarListaRascunhos();
+                    })
+                    .withFailureHandler(function (err) {
+                        btn.disabled = originalDisabled;
+                        btn.textContent = originalText;
+                        alert("Erro ao salvar orçamento:\n" + err.message);
+                    })
+                    .salvarRascunho(nomeRascunho, dados);
+            }
+        }
+
+        // Função para limpar formulário e iniciar novo orçamento
+        function limparFormularioCompleto() {
+            if (!confirm("Deseja limpar todos os dados e iniciar um novo orçamento?")) return;
+            
+            limparEstadoRascunho();
+            
+            const today = new Date();
+            document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
+                String(today.getMonth() + 1).padStart(2, '0') +
+                String(today.getDate()).padStart(2, '0');
+            document.getElementById("projetoIndice").value = "a";
+            document.getElementById("projetoPasta").value = "";
+            
+            document.getElementById("clienteBusca").value = "";
+            document.getElementById("clienteBusca").style.background = "";
+            document.getElementById("clienteNome").value = "";
+            document.getElementById("clienteCpf").value = "";
+            document.getElementById("clienteEndereco").value = "";
+            document.getElementById("clienteTelefone").value = "";
+            document.getElementById("clienteEmail").value = "";
+            document.getElementById("clienteResponsavel").value = "";
+            document.getElementById("clienteData").value = today.toISOString().slice(0, 10);
+            
+            document.getElementById("chapasContainer").innerHTML = "";
+            document.getElementById("produtosCadastradosContainer").innerHTML = "";
+            document.getElementById("processosPedidoContainer").innerHTML = "";
+            
+            document.getElementById("obsDescricao").value = "";
+            document.getElementById("obsFaturamento").value = today.toISOString().slice(0, 10);
+            document.getElementById("obsPrazo").value = "";
+            document.getElementById("obsMaterialCond").value = "";
+            document.getElementById("obsPagamento").value = "";
+            document.getElementById("obsAdicional").value = "";
+            
+            if (typeof atualizarCamposProjeto === 'function') {
+                atualizarCamposProjeto();
+            }
         }
 
         // Variável global para armazenar a linha/key do orçamento carregado
@@ -1842,15 +1931,18 @@
 
             // Tenta encontrar a chave do orçamento selecionado
             let key = hiddenKey.value;
+            let orcamentoSelecionado = null;
 
             // Se não tem chave no hidden, tenta encontrar pelo nome digitado
             if (!key && valorBusca) {
-                const orcamentoEncontrado = listaOrcamentosCompleta.find(r => 
+                orcamentoSelecionado = listaOrcamentosCompleta.find(r => 
                     r.nome.toLowerCase() === valorBusca.toLowerCase()
                 );
-                if (orcamentoEncontrado) {
-                    key = orcamentoEncontrado.key;
+                if (orcamentoSelecionado) {
+                    key = orcamentoSelecionado.key;
                 }
+            } else if (key) {
+                orcamentoSelecionado = listaOrcamentosCompleta.find(r => r.key === key);
             }
 
             if (!key) {
@@ -1880,9 +1972,36 @@
                     linhaOrcamentoCarregado = key; // Armazena a linha/key do orçamento carregado
                     preencherFormulario(dadosValidos);
                     
-                    // Mostra o botão "Atualizar dados" para qualquer orçamento carregado (rascunho, enviado ou convertido em pedido)
-                    const btnAtualizar = document.getElementById("btnAtualizarRascunho");
-                    btnAtualizar.style.display = "inline-block";
+                    // Mostra informações do orçamento carregado
+                    const infoDiv = document.getElementById("orcamentoCarregadoInfo");
+                    const nomeSpan = document.getElementById("orcamentoCarregadoNome");
+                    const statusSpan = document.getElementById("orcamentoCarregadoStatus");
+                    
+                    if (orcamentoSelecionado) {
+                        nomeSpan.textContent = orcamentoSelecionado.nome || "Orçamento carregado";
+                        
+                        // Define cor e texto do status
+                        const status = orcamentoSelecionado.status || "rascunho";
+                        if (status === "Rascunho") {
+                            statusSpan.textContent = "📝 Rascunho";
+                            statusSpan.style.background = "#e3f2fd";
+                            statusSpan.style.color = "#1565c0";
+                        } else if (status === "Enviado") {
+                            statusSpan.textContent = "✉️ Enviado";
+                            statusSpan.style.background = "#fff3e0";
+                            statusSpan.style.color = "#e65100";
+                        } else if (status === "Convertido em Pedido") {
+                            statusSpan.textContent = "✅ Pedido";
+                            statusSpan.style.background = "#e8f5e9";
+                            statusSpan.style.color = "#2e7d32";
+                        } else {
+                            statusSpan.textContent = status;
+                            statusSpan.style.background = "#f5f5f5";
+                            statusSpan.style.color = "#666";
+                        }
+                        
+                        infoDiv.classList.remove("hidden");
+                    }
                     
                     alert("Orçamento carregado com sucesso!");
                 })
@@ -1893,40 +2012,9 @@
                     }
                     alert("Erro ao carregar orçamento:\n" + err.message);
                     linhaOrcamentoCarregado = null;
-                    document.getElementById("btnAtualizarRascunho").style.display = "none";
+                    document.getElementById("orcamentoCarregadoInfo").classList.add("hidden");
                 })
                 .carregarRascunho(key);
-        }
-
-        // Função para atualizar dados do orçamento carregado (rascunho, enviado ou convertido em pedido)
-        function atualizarRascunhoSelecionado() {
-            if (!linhaOrcamentoCarregado) {
-                alert("Nenhum orçamento carregado para atualizar.");
-                return;
-            }
-
-            const btn = document.getElementById("btnAtualizarRascunho");
-            const originalText = btn.textContent;
-            const originalDisabled = btn.disabled;
-
-            btn.disabled = true;
-            btn.textContent = "Atualizando...";
-
-            const dados = coletarDadosFormulario();
-            
-            google.script.run
-                .withSuccessHandler(function () {
-                    btn.disabled = originalDisabled;
-                    btn.textContent = originalText;
-                    alert("Dados atualizados com sucesso!");
-                    carregarListaRascunhos();
-                })
-                .withFailureHandler(function (err) {
-                    btn.disabled = originalDisabled;
-                    btn.textContent = originalText;
-                    alert("Erro ao atualizar:\n" + err.message);
-                })
-                .atualizarRascunho(linhaOrcamentoCarregado, dados);
         }
 
         // Salva o formulário diretamente como pedido (sem passar por orçamento enviado)
