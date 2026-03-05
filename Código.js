@@ -1920,6 +1920,36 @@ function gerarPdfOrdemProducao(linhaOuKey) {
       return '<th bgcolor="' + headerColor + '" style="background:' + headerColor + '; color:#ffffff; padding:3px; text-align:center; border:0.1px solid #fff; font-size:8pt;">' + sigla + '</th>';
     }).join("");
 
+    var PROCESSOS_DESCRICOES = {
+      "MP": "Matéria Prima",
+      "CL": "Corte Laser",
+      "D": "Dobra",
+      "S": "Solda",
+      "Pin": "Pintura",
+      "CAD": "Projeto CAD",
+      "ACB": "Acabamento"
+    };
+
+    var legendaProcessosHtml = "";
+    if (processosPresentes.length > 0) {
+      var linhasLegenda = processosPresentes.map(function (sigla) {
+        var desc = PROCESSOS_DESCRICOES[sigla] || sigla;
+        return '<tr>'
+          + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:4px; border:0.1px solid #fff; font-size:9pt; font-weight:bold; text-align:center; width:60px;">' + sigla + '</td>'
+          + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:4px; border:0.1px solid #fff; font-size:9pt;">' + desc + '</td>'
+          + '</tr>';
+      }).join("");
+
+      legendaProcessosHtml = '<h3 style="margin-top:15px;">Legenda dos Processos</h3>'
+        + '<table style="margin-top:8px; width:auto; max-width:350px;">'
+        + '<tr>'
+        + '<th bgcolor="' + headerColor + '" style="background:' + headerColor + '; color:#ffffff; padding:3px; text-align:center; border:0.1px solid #fff; font-size:9pt; width:60px;">Sigla</th>'
+        + '<th bgcolor="' + headerColor + '" style="background:' + headerColor + '; color:#ffffff; padding:3px; text-align:left; border:0.1px solid #fff; font-size:9pt;">Descrição</th>'
+        + '</tr>'
+        + linhasLegenda
+        + '</table>';
+    }
+
     const htmlContent = `
       <html>
       <head>
@@ -1987,6 +2017,8 @@ function gerarPdfOrdemProducao(linhaOuKey) {
         </p>
 
         ${observacoes.adicional ? `<p style="font-size:8pt; line-height:1.25;"><b>Observações para o cliente:</b><br>${esc(observacoes.adicional)}</p>` : ""}
+
+        ${legendaProcessosHtml}
 
       </body>
       </html>
@@ -2598,7 +2630,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     if (!linhaExistente && sheetProj) {
       linhaExistente = findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto) || 0;
     }
-    const statusOrcamento = isPedido ? "Convertido em Pedido" : "Rascunho";
+    const statusOrcamento = isPedido ? "Convertido em Pedido" : "Enviado";
     const statusPedidoInicial = isPedido ? "Processo de Preparação MP / CAD / CAM" : "";
     const observacoesKanban = (observacoes && observacoes.observacoesKanban != null) ? String(observacoes.observacoesKanban).trim() : "";
     const prazoProposta = (observacoes && observacoes.prazoProposta != null) ? String(observacoes.prazoProposta).trim() : "";
