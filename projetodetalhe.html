@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Projeto — Sistema TUBA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+      min-height: 100vh;
+      color: #0f172a;
+    }
+    .header {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 20px 24px;
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(10px); box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .header img { height: 44px; width: 44px; border-radius: 10px; }
+    .header h1 { color: #fff; font-size: 22px; font-weight: 700; }
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px;
+      font-weight: 600; font-size: 14px; text-decoration: none; border: none; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.2); }
+    .btn-ghost { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+    .btn-primary { background: linear-gradient(90deg, #0ea5ff, #3b82f6); color: #fff; }
+    .btn-success { background: linear-gradient(90deg, #10b981, #059669); color: #fff; }
+    .btn-teal { background: #0ea5a1; color: #fff; }
+    .btn-warning { background: #f59e0b; color: #fff; }
+    .btn-danger { background: #ef4444; color: #fff; }
+
+    .wrap { padding: 20px 24px; max-width: 1100px; margin: 0 auto; }
+    .card-panel {
+      background: rgba(255,255,255,0.96); border-radius: 14px; padding: 24px; margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    .card-panel h2 { font-size: 18px; color: #0f172a; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #e2e8f0; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 24px; }
+    .info-item { font-size: 14px; }
+    .info-item .label { font-weight: 600; color: #64748b; margin-bottom: 2px; }
+    .info-item .value { color: #0f172a; }
+    .info-item .value a { color: #0ea5ff; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-weight: 600; font-size: 13px; color: #0f172a; margin-bottom: 4px; }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      outline: none; border-color: #0ea5ff; box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1);
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .form-actions { display: flex; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .status-rascunho { background: #f3f4f6; color: #6b7280; }
+    .status-enviado { background: #dbeafe; color: #1e40af; }
+    .status-convertido { background: #d1fae5; color: #065f46; }
+    .status-expirado { background: #fee2e2; color: #991b1b; }
+
+    .actions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 16px; }
+    .action-card {
+      background: #f8fafc; border-radius: 12px; padding: 18px; text-align: center;
+      border: 1px solid #e2e8f0; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .action-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+    .action-card .icon { font-size: 28px; margin-bottom: 8px; }
+    .action-card h3 { font-size: 15px; color: #0f172a; margin-bottom: 6px; }
+    .action-card p { font-size: 12px; color: #64748b; margin-bottom: 12px; }
+    .action-card .btn { width: 100%; justify-content: center; }
+
+    .loading, .erro { text-align: center; padding: 40px 24px; color: rgba(255,255,255,0.9); }
+    .erro { background: rgba(239,68,68,0.2); margin: 20px 24px; border-radius: 12px; }
+    .hidden { display: none !important; }
+
+    /* Barra de edição rápida de status (sempre visível) */
+    .status-quick {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px;
+      padding: 14px 18px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .status-quick label { font-weight: 600; font-size: 13px; color: #0c4a6e; margin-right: 6px; }
+    .status-quick select { max-width: 280px; padding: 8px 12px; border-radius: 8px; border: 1px solid #7dd3fc; font-size: 13px; }
+
+    /* Modal Ordem de Compra */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+    .modal.active { display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal-content { background: #fff; padding: 24px; border-radius: 12px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; }
+    .modal-header h2 { margin: 0; font-size: 18px; color: #0f172a; }
+    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #64748b; padding: 0; width: 32px; height: 32px; border-radius: 6px; }
+    .modal-close:hover { background: #f1f5f9; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .table-wrapper { min-width: auto; max-height: 50vh; overflow: auto; }
+    .table-wrapper table { width: 100%; font-size: 12px; border-collapse: collapse; }
+    .table-wrapper th, .table-wrapper td { padding: 8px 10px; border: 1px solid #e2e8f0; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="display:flex; align-items:center; gap:12px;">
+      <img src="https://i.imgur.com/F8X7ZMs.png" alt="TUBA">
+      <h1>Detalhe do Projeto</h1>
+    </div>
+    <div class="header-actions">
+      <a id="btnVoltar" href="#" class="btn btn-ghost">← Voltar aos Projetos</a>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">Carregando projeto...</div>
+  <div id="erro" class="erro hidden"></div>
+
+  <div id="conteudo" class="wrap hidden">
+    <!-- Edição rápida de status (sempre visível, fora do modal de edição) -->
+    <div id="statusQuick" class="card-panel status-quick">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <label for="quickStatusOrcamento">Status Orçamento</label>
+        <select id="quickStatusOrcamento">
+          <option value="RASCUNHO">Rascunho</option>
+          <option value="Enviado">Enviado</option>
+          <option value="Convertido em Pedido">Convertido em Pedido</option>
+          <option value="Expirado/Perdido">Expirado/Perdido</option>
+        </select>
+      </div>
+      <div id="quickStatusPedidoWrap" style="display:flex; align-items:center; gap:8px;">
+        <label for="quickStatusPedido">Status do Pedido</label>
+        <select id="quickStatusPedido">
+          <option value="">-</option>
+          <option value="Processo de Preparação MP / CAD / CAM">Preparação MP / CAD / CAM</option>
+          <option value="Processo de Corte">Corte</option>
+          <option value="Processo de Dobra">Dobra</option>
+          <option value="Processos Adicionais">Processos Adicionais</option>
+          <option value="Envio / Coleta">Envio / Coleta</option>
+          <option value="Finalizado">Finalizado</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Bloco: Dados do projeto (visualização) -->
+    <div id="blocoInfo" class="card-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <h2>Dados do Projeto</h2>
+        <button type="button" class="btn btn-primary" id="btnEditar">✏️ Editar dados</button>
+      </div>
+      <div id="infoGrid" class="info-grid"></div>
+    </div>
+
+    <!-- Bloco: Formulário de edição (oculto até clicar em Editar) -->
+    <div id="blocoEdit" class="card-panel hidden">
+      <h2>Editar Projeto</h2>
+      <form id="formEdit" onsubmit="salvarEdicao(event)">
+        <datalist id="clientesList"></datalist>
+        <div class="info-grid">
+          <div class="form-group"><label>Cliente *</label><input type="text" id="editCliente" list="clientesList" required placeholder="Selecione ou digite"></div>
+          <div class="form-group"><label>Número do Projeto *</label><input type="text" id="editProjeto" required></div>
+          <div class="form-group" style="grid-column:1/-1;"><label>Descrição</label><textarea id="editDescricao"></textarea><small style="display:block;margin-top:4px;color:#64748b;">Não use COT ou PED na descrição.</small></div>
+          <div class="form-group"><label>Responsável Cliente</label><input type="text" id="editResponsavel"></div>
+          <div class="form-group"><label>Valor Total</label><input type="text" id="editValor" placeholder="R$ 0,00"></div>
+          <div class="form-group"><label>Data</label><input type="date" id="editData"></div>
+          <div class="form-group"><label>Processos</label><input type="text" id="editProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h"></div>
+          <div class="form-group"><label>Link do Orçamento</label><input type="url" id="editLinkPdf" placeholder="https://..."></div>
+          <div class="form-group"><label>Link da Memória de Cálculo</label><input type="url" id="editLinkMemoria" placeholder="https://..."></div>
+          <div class="form-group"><label>Prazo</label><input type="date" id="editPrazo"></div>
+          <div class="form-group" style="grid-column:1/-1;"><label>Observações</label><textarea id="editObservacoes"></textarea></div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="btnCancelarEdit">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSalvarEdit">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Bloco: Ações -->
+    <div id="blocoAcoes" class="card-panel">
+      <h2>Ações</h2>
+      <div id="containerAcoes" class="actions-grid"></div>
+    </div>
+
+    <!-- Modal Ordem de Compra (executado na própria página de detalhe) -->
+    <div id="ordemCompraModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Ordem de Compra</h2>
+          <button type="button" class="modal-close" onclick="closeOrdemCompraModal()">×</button>
+        </div>
+        <p id="ordemCompraProjetoInfo" style="margin:0 0 16px 0; color:#64748b; font-size:13px;"></p>
+        <div class="form-group" style="margin-bottom:16px;">
+          <label>Fornecedor (destinatário da ordem)</label>
+          <select id="ordemCompraFornecedorSelect" class="filter-select" style="width:100%; padding:10px 12px;">
+            <option value="">Carregando...</option>
+          </select>
+          <div id="ordemCompraNovoFornecedor" style="display:none; margin-top:12px; padding:12px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0;">
+            <p style="margin:0 0 10px 0; font-size:12px; font-weight:600;">Dados do novo fornecedor</p>
+            <div class="form-group" style="margin-bottom:8px;"><label style="font-size:12px;">Nome *</label><input type="text" id="ocFornNome" placeholder="Nome ou razão social"></div>
+            <div class="form-group" style="margin-bottom:8px;"><label style="font-size:12px;">CPF/CNPJ</label><input type="text" id="ocFornCpf" placeholder="CPF ou CNPJ"></div>
+            <div class="form-group" style="margin-bottom:8px;"><label style="font-size:12px;">Endereço</label><input type="text" id="ocFornEndereco" placeholder="Endereço"></div>
+            <div class="form-group" style="margin-bottom:8px;"><label style="font-size:12px;">Telefone</label><input type="text" id="ocFornTelefone" placeholder="Telefone"></div>
+            <div class="form-group" style="margin-bottom:0;"><label style="font-size:12px;">Email</label><input type="text" id="ocFornEmail" placeholder="Email"></div>
+          </div>
+        </div>
+        <p style="margin:0 0 12px 0; font-size:12px;">Marque os itens e informe o valor <strong>unitário</strong> ou <strong>total</strong>. Apenas itens com valor entram no PDF.</p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40px;">Incluir</th>
+                <th>Código</th>
+                <th>Descrição</th>
+                <th style="text-align:center; width:80px;">Qtd</th>
+                <th style="width:120px;">Valor (R$)</th>
+                <th style="width:140px;">Tipo</th>
+              </tr>
+            </thead>
+            <tbody id="ordemCompraLista"></tbody>
+          </table>
+        </div>
+        <div id="ordemCompraEmpty" style="display:none; text-align:center; padding:20px; color:#64748b;">Nenhum item no orçamento. Gere o orçamento primeiro.</div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" onclick="closeOrdemCompraModal()">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="ordemCompraBtnGerar" onclick="gerarPdfOrdemCompraFromModal()">Gerar PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = '<?= token ?>';
+    const linha = '<?= linha ?>';
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+    let projetoAtual = null;
+
+    var btnVoltar = document.getElementById('btnVoltar');
+    btnVoltar.href = pageUrl('projetos', 'token=' + encodeURIComponent(token));
+    if (baseUrl) btnVoltar.setAttribute('target', '_top');
+
+    function parseCurrencyBr(str) {
+      if (str === '' || str == null) return null;
+      if (typeof str === 'number') return Math.round(str * 100) / 100;
+      var s = String(str).trim().replace(/\s/g, '').replace(/^R\$\s*/i, '');
+      if (s.indexOf(',') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+      var num = parseFloat(s);
+      return isNaN(num) ? null : Math.round(num * 100) / 100;
+    }
+    function formatCurrencyForInput(value) {
+      if (value === '' || value == null) return '';
+      var num = typeof value === 'number' ? value : parseCurrencyBr(value);
+      if (num == null || isNaN(num)) return '';
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    }
+    function formatCurrency(value) {
+      if (value === '' || value == null) return '-';
+      var num = typeof value === 'number' ? value : parseCurrencyBr(value);
+      if (num == null || isNaN(num)) return '-';
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    }
+    function formatDate(v) {
+      if (!v) return '-';
+      if (typeof v === 'string' && /\d{2}\/\d{2}\/\d{4}/.test(v)) return v;
+      try {
+        var d = new Date(v);
+        if (isNaN(d.getTime())) return v;
+        return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+      } catch (e) { return v; }
+    }
+    function statusBadge(s) {
+      if (!s) return '';
+      var c = 'status-rascunho';
+      if (/enviado/i.test(s)) c = 'status-enviado';
+      else if (/convertido/i.test(s)) c = 'status-convertido';
+      else if (/expirado|perdido/i.test(s)) c = 'status-expirado';
+      return '<span class="status-badge ' + c + '">' + String(s).replace(/</g,'&lt;') + '</span>';
+    }
+
+    function item(label, value) {
+      if (value === undefined || value === null) value = '';
+      value = String(value).trim();
+      if (value && (value.indexOf('http') === 0 || value.indexOf('https') === 0)) value = '<a href="' + value.replace(/"/g,'&quot;') + '" target="_blank">Abrir link</a>';
+      return '<div class="info-item"><div class="label">' + (label || '') + '</div><div class="value">' + (value || '-') + '</div></div>';
+    }
+
+    function preencherInfo(projeto) {
+      var html = '';
+      html += item('Cliente', projeto.CLIENTE);
+      html += item('Número do Projeto', projeto.PROJETO);
+      html += item('Descrição', projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO);
+      html += item('Responsável Cliente', projeto['RESPONSÁVEL CLIENTE'] || projeto.RESPONSÁVEL);
+      html += item('Valor Total', formatCurrency(projeto['VALOR TOTAL']));
+      html += item('Data', formatDate(projeto.DATA));
+      html += item('Processos', projeto.PROCESSOS);
+      html += item('Prazo', formatDate(projeto.PRAZO));
+      html += item('Observações', projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES);
+      html += item('Status Orçamento', projeto.STATUS_ORCAMENTO ? statusBadge(projeto.STATUS_ORCAMENTO) : '-');
+      html += item('Status do Pedido', projeto.STATUS_PEDIDO || '-');
+      var linkPdf = (projeto['LINK DO PDF'] || '').replace(/"/g, '&quot;');
+      var linkOp = (projeto['LINK ORDEM DE PRODUÇÃO'] || projeto['LINK ORDEM DE PRODUCAO'] || '').replace(/"/g, '&quot;');
+      var linkOc = (projeto['LINK ORDEM DE COMPRA'] || '').replace(/"/g, '&quot;');
+      html += item('Link do Orçamento', linkPdf ? ('<a href="' + linkPdf + '" target="_blank">Abrir orçamento</a>') : '-');
+      html += item('Ordem de Produção', linkOp ? ('<a href="' + linkOp + '" target="_blank">Abrir PDF</a>') : '-');
+      html += item('Ordem de Compra', linkOc ? ('<a href="' + linkOc + '" target="_blank">Abrir PDF</a>') : '-');
+      document.getElementById('infoGrid').innerHTML = html;
+    }
+
+    function preencherFormEdit(projeto) {
+      document.getElementById('editCliente').value = projeto.CLIENTE || '';
+      document.getElementById('editProjeto').value = projeto.PROJETO || '';
+      document.getElementById('editDescricao').value = projeto['DESCRIÇÃO'] || projeto.DESCRIÇÃO || '';
+      document.getElementById('editResponsavel').value = projeto['RESPONSÁVEL CLIENTE'] || projeto.RESPONSÁVEL || '';
+      document.getElementById('editValor').value = formatCurrencyForInput(projeto['VALOR TOTAL']);
+      document.getElementById('editProcessos').value = projeto.PROCESSOS || '';
+      document.getElementById('editLinkPdf').value = projeto['LINK DO PDF'] || '';
+      document.getElementById('editLinkMemoria').value = projeto['LINK DA MEMÓRIA DE CÁLCULO'] || projeto['LINK DA MEMÓRIA DE CALCULO'] || '';
+      document.getElementById('editObservacoes').value = projeto['OBSERVAÇÕES'] || projeto.OBSERVAÇÕES || '';
+      var dataVal = '', prazoVal = '';
+      if (projeto.DATA && projeto.DATA !== '-') {
+        var m = String(projeto.DATA).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (m) dataVal = m[3] + '-' + m[2] + '-' + m[1];
+      }
+      if (projeto.PRAZO && projeto.PRAZO !== '-') {
+        m = String(projeto.PRAZO).match(/(\d{2})\/(\d{2})\/(\d{4})/);
+        if (m) prazoVal = m[3] + '-' + m[2] + '-' + m[1];
+      }
+      document.getElementById('editData').value = dataVal;
+      document.getElementById('editPrazo').value = prazoVal;
+    }
+
+    function preencherStatusRapido(projeto) {
+      var stOrc = projeto.STATUS_ORCAMENTO || 'RASCUNHO';
+      var stPed = projeto.STATUS_PEDIDO || '';
+      document.getElementById('quickStatusOrcamento').value = stOrc;
+      document.getElementById('quickStatusPedido').value = stPed;
+      document.getElementById('quickStatusPedidoWrap').style.display = (stOrc === 'Convertido em Pedido') ? 'flex' : 'none';
+    }
+
+    function salvarStatusRapido(campo, valor) {
+      var linhaNum = parseInt(linha, 10);
+      var updates = {};
+      if (campo === 'STATUS_ORCAMENTO') {
+        updates.STATUS_ORCAMENTO = valor;
+        updates.STATUS_PEDIDO = (valor === 'Convertido em Pedido') ? (document.getElementById('quickStatusPedido').value || '') : '';
+      } else {
+        updates.STATUS_PEDIDO = valor;
+      }
+      google.script.run
+        .withSuccessHandler(function () { carregarProjeto(); })
+        .withFailureHandler(function (err) { alert('Erro ao atualizar status: ' + (err.message || err)); })
+        .atualizarProjetoNaPlanilha(linhaNum, updates);
+    }
+
+    document.getElementById('quickStatusOrcamento').addEventListener('change', function () {
+      var v = this.value;
+      document.getElementById('quickStatusPedidoWrap').style.display = (v === 'Convertido em Pedido') ? 'flex' : 'none';
+      if (v !== 'Convertido em Pedido') document.getElementById('quickStatusPedido').value = '';
+      salvarStatusRapido('STATUS_ORCAMENTO', v);
+    });
+    document.getElementById('quickStatusPedido').addEventListener('change', function () {
+      salvarStatusRapido('STATUS_PEDIDO', this.value);
+    });
+
+    function mostrarEdicao() {
+      document.getElementById('blocoInfo').classList.add('hidden');
+      document.getElementById('blocoEdit').classList.remove('hidden');
+      if (projetoAtual) preencherFormEdit(projetoAtual);
+    }
+    function esconderEdicao() {
+      document.getElementById('blocoEdit').classList.add('hidden');
+      document.getElementById('blocoInfo').classList.remove('hidden');
+      if (projetoAtual) preencherInfo(projetoAtual);
+    }
+    document.getElementById('btnEditar').addEventListener('click', mostrarEdicao);
+    document.getElementById('btnCancelarEdit').addEventListener('click', esconderEdicao);
+
+    function salvarClienteEExecutar(nome, callback) {
+      if (!nome || !nome.trim()) { callback(); return; }
+      google.script.run.withSuccessHandler(callback).withFailureHandler(callback).salvarClienteSeNovo({ nome: nome.trim(), cpf: '', endereco: '', telefone: '', email: '' });
+    }
+
+    function salvarEdicao(e) {
+      e.preventDefault();
+      var desc = (document.getElementById('editDescricao').value || '').trim();
+      if (/\bCOT\b/i.test(desc) || /\bPED\b/i.test(desc)) {
+        alert('A descrição não pode conter COT ou PED (reservadas pelo sistema).');
+        return;
+      }
+      var linhaNum = parseInt(linha, 10);
+      var updates = {
+        'CLIENTE': document.getElementById('editCliente').value.trim(),
+        'PROJETO': document.getElementById('editProjeto').value,
+        'DESCRIÇÃO': desc,
+        'RESPONSÁVEL CLIENTE': document.getElementById('editResponsavel').value,
+        'VALOR TOTAL': (parseCurrencyBr(document.getElementById('editValor').value) ?? ''),
+        'DATA': document.getElementById('editData').value,
+        'PROCESSOS': document.getElementById('editProcessos').value,
+        'LINK DO PDF': document.getElementById('editLinkPdf').value,
+        'LINK DA MEMÓRIA DE CÁLCULO': document.getElementById('editLinkMemoria').value,
+        'PRAZO': document.getElementById('editPrazo').value,
+        'OBSERVAÇÕES': document.getElementById('editObservacoes').value
+      };
+      var btn = document.getElementById('btnSalvarEdit');
+      btn.disabled = true;
+      btn.textContent = 'Salvando...';
+      salvarClienteEExecutar(updates.CLIENTE, function () {
+        google.script.run
+          .withSuccessHandler(function () {
+            btn.disabled = false;
+            btn.textContent = 'Salvar Alterações';
+            alert('Projeto salvo com sucesso!');
+            carregarProjeto();
+            esconderEdicao();
+          })
+          .withFailureHandler(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Salvar Alterações';
+            alert('Erro ao salvar: ' + (err.message || err));
+          })
+          .atualizarProjetoNaPlanilha(linhaNum, updates);
+      });
+    }
+
+    function montarAcoes(projeto) {
+      var c = document.getElementById('containerAcoes');
+      c.innerHTML = '';
+      function addCard(icon, title, desc, hrefOrOnclick) {
+        var isLink = typeof hrefOrOnclick === 'string' && (hrefOrOnclick.indexOf('http') === 0 || hrefOrOnclick.indexOf('https') === 0);
+        var div = document.createElement('div');
+        div.className = 'action-card';
+        div.innerHTML = '<div class="icon">' + icon + '</div><h3>' + title + '</h3><p>' + desc + '</p>' +
+          (isLink ? '<a href="' + hrefOrOnclick.replace(/"/g,'&quot;') + '" class="btn btn-success">Abrir</a>' : '<button type="button" class="btn btn-success" onclick="' + hrefOrOnclick.replace(/"/g,'&quot;') + '">Executar</button>');
+        c.appendChild(div);
+      }
+      addCard('📝', 'Abrir no formulário', 'Editar orçamento com este projeto carregado.', pageUrl('formulario', 'token=' + encodeURIComponent(token) + '&linha=' + encodeURIComponent(linha)));
+      addCard('📋', 'Ordem de Produção', 'Gerar PDF da ordem de produção.', 'gerarOrdemProducao()');
+      addCard('🛒', 'Ordem de Compra', 'Gerar PDF de ordem de compra (ex.: pintura).', 'openOrdemCompraDetalhe()');
+      if (projeto.temNotaFiscal) {
+        addCard('📄', 'Nota Fiscal', 'Informar número da NF.', 'informarNFDetalhe()');
+      }
+      addCard('🗑️', 'Excluir projeto', 'Remover este projeto da planilha.', 'if(confirm(\'Tem certeza que deseja excluir este projeto?\')){ window.location.href=\'' + pageUrl('projetos', 'token=' + encodeURIComponent(token) + '&linha=' + encodeURIComponent(linha) + '&acao=deletar') + '\'; }');
+    }
+
+    function gerarOrdemProducao() {
+      if (!confirm('Gerar Ordem de Produção (PDF sem valores)?')) return;
+      var btn = event && event.target;
+      if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
+      google.script.run
+        .withSuccessHandler(function (result) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Executar'; }
+          alert('Ordem de Produção gerada!\n\n' + result.url);
+          window.open(result.url, '_blank');
+          carregarProjeto();
+        })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Executar'; }
+          alert('Erro: ' + (err.message || err));
+        })
+        .gerarPdfOrdemProducao(parseInt(linha, 10));
+    }
+
+    var ordemCompraLinha = null;
+    var ordemCompraItens = [];
+    var ordemCompraFornecedores = [];
+
+    function openOrdemCompraDetalhe() {
+      var linhaNum = parseInt(linha, 10);
+      ordemCompraLinha = linhaNum;
+      ordemCompraItens = [];
+      document.getElementById('ordemCompraLista').innerHTML = '';
+      document.getElementById('ordemCompraProjetoInfo').textContent = 'Carregando...';
+      document.getElementById('ordemCompraEmpty').style.display = 'none';
+      var tw = document.querySelector('#ordemCompraModal .table-wrapper');
+      if (tw) tw.style.display = 'block';
+      document.getElementById('ordemCompraBtnGerar').disabled = true;
+      document.getElementById('ordemCompraFornecedorSelect').innerHTML = '<option value="">Carregando fornecedores...</option>';
+      document.getElementById('ordemCompraNovoFornecedor').style.display = 'none';
+
+      google.script.run
+        .withSuccessHandler(function (fornecedores) {
+          ordemCompraFornecedores = fornecedores || [];
+          var sel = document.getElementById('ordemCompraFornecedorSelect');
+          sel.innerHTML = '';
+          var opt0 = document.createElement('option');
+          opt0.value = '';
+          opt0.textContent = 'Selecione o fornecedor';
+          sel.appendChild(opt0);
+          ordemCompraFornecedores.forEach(function (f, i) {
+            var opt = document.createElement('option');
+            opt.value = String(i);
+            opt.textContent = (f.nome || 'Sem nome');
+            sel.appendChild(opt);
+          });
+          var optNovo = document.createElement('option');
+          optNovo.value = '__novo__';
+          optNovo.textContent = '➕ Novo fornecedor...';
+          sel.appendChild(optNovo);
+        })
+        .withFailureHandler(function () {
+          document.getElementById('ordemCompraFornecedorSelect').innerHTML = '<option value="">Erro ao carregar fornecedores</option>';
+        })
+        .getTodosFornecedores();
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          ordemCompraItens = res.itens || [];
+          document.getElementById('ordemCompraProjetoInfo').textContent = 'Projeto: ' + (res.codigoProjeto || '');
+          if (ordemCompraItens.length === 0) {
+            document.getElementById('ordemCompraEmpty').style.display = 'block';
+            if (tw) tw.style.display = 'none';
+          } else {
+            ordemCompraItens.forEach(function (item, idx) {
+              var tr = document.createElement('tr');
+              tr.innerHTML =
+                '<td><input type="checkbox" class="oc-incluir" data-idx="' + idx + '"></td>' +
+                '<td>' + (item.codigo || '') + '</td>' +
+                '<td>' + (item.descricao || '') + '</td>' +
+                '<td style="text-align:center"><input type="number" class="oc-qtd" data-idx="' + idx + '" value="' + (item.quantidade != null ? item.quantidade : '') + '" min="0" step="1" style="width:70px; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px; text-align:center;"></td>' +
+                '<td><input type="text" class="oc-valor" data-idx="' + idx + '" placeholder="0,00" inputmode="decimal" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px;"></td>' +
+                '<td><label><input type="radio" name="oc-tipo-' + idx + '" value="unit" checked> Unit.</label> <label><input type="radio" name="oc-tipo-' + idx + '" value="total"> Total</label></td>';
+              document.getElementById('ordemCompraLista').appendChild(tr);
+            });
+          }
+          document.getElementById('ordemCompraBtnGerar').disabled = false;
+        })
+        .withFailureHandler(function (err) {
+          document.getElementById('ordemCompraProjetoInfo').textContent = 'Erro: ' + (err.message || err);
+          document.getElementById('ordemCompraBtnGerar').disabled = false;
+        })
+        .getItensProjetoParaOrdemCompra(linhaNum);
+      document.getElementById('ordemCompraModal').classList.add('active');
+    }
+
+    document.getElementById('ordemCompraFornecedorSelect').addEventListener('change', function () {
+      document.getElementById('ordemCompraNovoFornecedor').style.display = this.value === '__novo__' ? 'block' : 'none';
+    });
+
+    function closeOrdemCompraModal() {
+      document.getElementById('ordemCompraModal').classList.remove('active');
+    }
+
+    function gerarPdfOrdemCompraFromModal() {
+      if (ordemCompraLinha == null || !ordemCompraItens.length) return;
+      var selForn = document.getElementById('ordemCompraFornecedorSelect').value;
+      var fornecedor = null;
+      if (selForn === '__novo__') {
+        var nome = (document.getElementById('ocFornNome').value || '').trim();
+        if (!nome) {
+          alert('Informe o nome do fornecedor.');
+          return;
+        }
+        fornecedor = {
+          nome: nome,
+          cpf: (document.getElementById('ocFornCpf').value || '').trim(),
+          endereco: (document.getElementById('ocFornEndereco').value || '').trim(),
+          telefone: (document.getElementById('ocFornTelefone').value || '').trim(),
+          email: (document.getElementById('ocFornEmail').value || '').trim()
+        };
+      } else if (selForn !== '') {
+        var idx = parseInt(selForn, 10);
+        if (idx >= 0 && ordemCompraFornecedores[idx]) {
+          fornecedor = ordemCompraFornecedores[idx];
+        }
+      }
+      if (!fornecedor) {
+        alert('Selecione um fornecedor ou cadastre um novo.');
+        return;
+      }
+      var itensComValor = [];
+      ordemCompraItens.forEach(function (item, idx) {
+        var inputValor = document.querySelector('.oc-valor[data-idx="' + idx + '"]');
+        var radios = document.querySelectorAll('input[name="oc-tipo-' + idx + '"]');
+        var isUnit = true;
+        if (radios.length >= 2) isUnit = radios[0].checked;
+        var raw = (inputValor && inputValor.value) ? String(inputValor.value).trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.') : '';
+        var num = raw ? parseFloat(raw) : NaN;
+        if (isNaN(num) || num <= 0) return;
+        var inputQtd = document.querySelector('.oc-qtd[data-idx="' + idx + '"]');
+        var qtd = (inputQtd && inputQtd.value !== '') ? parseFloat(inputQtd.value) : item.quantidade;
+        if (isNaN(qtd) || qtd <= 0) qtd = item.quantidade || 0;
+        itensComValor.push({
+          codigo: item.codigo,
+          descricao: item.descricao,
+          quantidade: qtd,
+          valorUnitario: isUnit ? num : undefined,
+          valorTotal: isUnit ? undefined : num
+        });
+      });
+      if (itensComValor.length === 0) {
+        alert('Informe o valor (unitário ou total) em pelo menos um item para gerar a Ordem de Compra.');
+        return;
+      }
+      var btn = document.getElementById('ordemCompraBtnGerar');
+      btn.disabled = true;
+      btn.textContent = 'Gerando...';
+      function chamarGerarPdf() {
+        google.script.run
+          .withSuccessHandler(function (result) {
+            btn.disabled = false;
+            btn.textContent = 'Gerar PDF';
+            closeOrdemCompraModal();
+            alert('Ordem de Compra gerada com sucesso!\n\n' + result.url);
+            window.open(result.url, '_blank');
+            carregarProjeto();
+          })
+          .withFailureHandler(function (err) {
+            btn.disabled = false;
+            btn.textContent = 'Gerar PDF';
+            alert('Erro ao gerar Ordem de Compra: ' + (err.message || err));
+          })
+          .gerarPdfOrdemCompra(ordemCompraLinha, itensComValor, fornecedor);
+      }
+      if (selForn === '__novo__') {
+        google.script.run.withSuccessHandler(chamarGerarPdf).withFailureHandler(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Gerar PDF';
+          alert('Erro ao cadastrar fornecedor: ' + (err.message || err));
+        }).salvarFornecedorSeNovo(fornecedor);
+      } else {
+        chamarGerarPdf();
+      }
+    }
+
+    function informarNFDetalhe() {
+      var valorAtual = (projetoAtual && projetoAtual.valorNF) ? String(projetoAtual.valorNF) : '';
+      var valor = prompt('Informe o número da Nota Fiscal (ex: 4866):', valorAtual);
+      if (valor === null) return;
+      var valorTrim = (valor || '').trim();
+      if (!valorTrim) {
+        alert('Informe o número da NF.');
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(function () {
+          alert('Número da NF registrado. A página de Pedidos foi atualizada.');
+          carregarProjeto();
+        })
+        .withFailureHandler(function (err) {
+          alert('Erro ao informar NF: ' + (err.message || err));
+        })
+        .informarValorNFProjeto(parseInt(linha, 10), valorTrim);
+    }
+
+    function carregarProjeto() {
+      google.script.run
+        .withSuccessHandler(function (data) {
+          document.getElementById('loading').classList.add('hidden');
+          var projetos = data || [];
+          var p = projetos.find(function (x) { return String(x._linhaPlanilha) === String(linha); });
+          if (!p) {
+            document.getElementById('erro').classList.remove('hidden');
+            document.getElementById('erro').textContent = 'Projeto não encontrado.';
+            return;
+          }
+          projetoAtual = p;
+          document.getElementById('conteudo').classList.remove('hidden');
+          document.getElementById('erro').classList.add('hidden');
+          preencherInfo(p);
+          preencherStatusRapido(p);
+          montarAcoes(p);
+        })
+        .withFailureHandler(function (err) {
+          document.getElementById('loading').classList.add('hidden');
+          document.getElementById('erro').classList.remove('hidden');
+          document.getElementById('erro').textContent = 'Erro ao carregar: ' + (err.message || err);
+        })
+        .getProjetos();
+    }
+
+    function carregarClientes() {
+      google.script.run.withSuccessHandler(function (clientes) {
+        var dl = document.getElementById('clientesList');
+        dl.innerHTML = '';
+        (clientes || []).forEach(function (c) { var o = document.createElement('option'); o.value = c.nome; dl.appendChild(o); });
+      }).getTodosClientes();
+    }
+
+    if (!linha || linha === '') {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('erro').classList.remove('hidden');
+      document.getElementById('erro').textContent = 'Projeto não informado. Volte à lista de projetos e clique no menu do projeto.';
+    } else {
+      carregarClientes();
+      carregarProjeto();
+    }
+  </script>
+</body>
+</html>

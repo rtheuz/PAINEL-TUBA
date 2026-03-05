@@ -116,52 +116,41 @@
       }
     }
 
-    /* AVISOS - TICKER */
-    .notices-wrap {
+    /* Menu de contagem por processo */
+    .process-count-menu {
       background: #fff;
-      padding: 8px clamp(12px, 2.5vw, 28px);
+      padding: 10px clamp(12px, 2.5vw, 28px);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px 16px;
       flex: 0 0 auto;
-      overflow: hidden
     }
 
-    .notices-label {
-      font-weight: 700;
-      color: var(--primary);
-      margin-right: 12px;
-      flex: 0 0 auto
-    }
-
-    .notices-ticker {
-      display: block;
-      white-space: nowrap;
-      overflow: hidden;
-      flex: 1
-    }
-
-    .notices-ticker-inner {
-      display: inline-block;
-      will-change: transform
-    }
-
-    .notice-item {
-      display: inline-block;
-      margin-right: 36px;
-      padding: 6px 10px;
+    .process-count-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
       border-radius: 8px;
-      background: linear-gradient(90deg, #fff8e6 0, #fffef6 100%);
-      border-left: 4px solid #ffb020;
+      background: #e9eef8;
+      color: var(--primary);
       font-weight: 600;
-      color: #4a3b00
+      font-size: clamp(12px, 1.1vw, 14px);
     }
 
-    .notice-item.important {
-      background: linear-gradient(90deg, #fff6f6 0%, #fff1f1 100%);
-      border-left-color: #dc3545;
-      color: #5a1b1b
+    .process-count-item .count {
+      background: var(--primary);
+      color: #fff;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
     }
 
     /* CONTÊINER KANBAN */
@@ -390,6 +379,22 @@
       background: linear-gradient(180deg, #f6fff6 0%, #ecfff0 100%) !important;
       border-left-color: #28a745 !important;
       box-shadow: 0 6px 18px rgba(40, 167, 69, 0.06)
+    }
+
+    .card-nf {
+      margin: 6px 0 0 0;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .card-nf-pendente {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .card-nf-feita {
+      background: #d4edda;
+      color: #155724;
     }
 
     /* badge do tempo estimado (canto superior direito) */
@@ -641,14 +646,8 @@
     </div>
   </header>
 
-  <!-- AVISOS: front-only. Edite a constante NOTICES no script abaixo para alterar/atualizar -->
-  <div class="notices-wrap" role="region" aria-label="Avisos do painel" id="notices-wrap" aria-live="polite"
-    aria-atomic="true" style="display:none">
-    <div class="notices-label">Avisos</div>
-    <div class="notices-ticker" id="notices-ticker" aria-hidden="false">
-      <div class="notices-ticker-inner" id="notices-ticker-inner"></div>
-    </div>
-  </div>
+  <!-- Menu com quantidade de cards por processo -->
+  <div class="process-count-menu" id="process-count-menu" role="region" aria-label="Quantidade de cards por processo"></div>
 
   <div class="board-wrap">
     <div class="kanban" id="kanban" role="list"></div>
@@ -819,72 +818,49 @@
     }
 
 
-    /* ====== AVISOS (FRONT-ONLY) ======
-       Edite esta constante diretamente no HTML quando quiser atualizar os avisos.
-    */
-    const NOTICES = [
-      "VERIFICAR MANUTENÇÕES EM ATRASO ⚠️",
-      "ATUALIZAR ORÇAMENTOS PENDENTES ⚠️",
-      "Utilize o QR code abaixo para acessar o painel pelo celular"
-
+    /* ====== Mapeamento colunas: nome curto (exibição) → chave backend ====== */
+    const COLUNAS_KANBAN = [
+      { label: 'Em Orçamento', key: 'Processo de Orçamento' },
+      { label: 'Em Preparação', key: 'Processo de Preparação MP / CAD / CAM' },
+      { label: 'Corte', key: 'Processo de Corte' },
+      { label: 'Dobra', key: 'Processo de Dobra' },
+      { label: 'Adicionais', key: 'Processos Adicionais' },
+      { label: 'Envio / Coleta', key: 'Envio / Coleta' }
     ];
 
-    // Configurações do ticker
-    const TICKER_BASE_DURATION_PER_PIXEL = 18; // ms por pixel (menor = mais rápido)
-    const MIN_TICKER_DURATION_MS = 6000;
-
-    function startNoticesTicker(notices) {
-      const wrap = document.getElementById('notices-wrap');
-      const container = document.getElementById('notices-ticker');
-      container.innerHTML = '<div class="notices-ticker-inner" id="notices-ticker-inner"></div>';
-      const inner = document.getElementById('notices-ticker-inner');
-
-      if (!notices || notices.length === 0) {
-        wrap.style.display = 'none';
-        return;
-      }
-
-      wrap.style.display = 'flex';
-
-      // criar itens
-      notices.forEach(msg => {
-        const it = document.createElement('span');
-        it.className = 'notice-item';
-        const low = String(msg).toLowerCase();
-        if (low.includes('⚠') || low.includes('atraso') || low.includes('urgente') || low.includes('importante')) it.classList.add('important');
-        it.textContent = msg;
-        inner.appendChild(it);
+    function updateProcessCountMenu(data) {
+      const menu = document.getElementById('process-count-menu');
+      if (!menu) return;
+      menu.innerHTML = '';
+      COLUNAS_KANBAN.forEach(col => {
+        const items = data[col.key] || [];
+        const count = Array.isArray(items) ? items.length : 0;
+        const item = document.createElement('div');
+        item.className = 'process-count-item';
+        item.setAttribute('role', 'status');
+        item.innerHTML = `<span>${col.label}</span><span class="count">${count}</span>`;
+        menu.appendChild(item);
       });
-
-      // duplicar para rolagem contínua suave
-      const clone = inner.cloneNode(true);
-      clone.id = '';
-      container.appendChild(clone);
-
-      // medir largura e animar usando requestAnimationFrame
-      requestAnimationFrame(() => {
-        const innerElems = container.querySelectorAll('.notices-ticker-inner');
-        const contentWidth = innerElems[0].scrollWidth;
-        const durationMs = Math.max(MIN_TICKER_DURATION_MS, Math.round(contentWidth * TICKER_BASE_DURATION_PER_PIXEL));
-        let start = performance.now();
-        function step(now) {
-          const elapsed = now - start;
-          const distance = (elapsed / durationMs) * contentWidth; // pixels deslocados
-          const x = -(distance % contentWidth);
-          innerElems.forEach((el, idx) => {
-            const offset = idx === 0 ? x : x + contentWidth;
-            el.style.transform = `translateX(${offset}px)`;
-          });
-          requestAnimationFrame(step);
-        }
-        requestAnimationFrame(step);
+      // Fazer NF: mesmo critério "NF ?" de projetos.html — convertidos em pedido, exige NF e ainda não preenchido (vazio ou "SN")
+      let countFazerNF = 0;
+      const keyOrcamento = 'Processo de Orçamento';
+      COLUNAS_KANBAN.forEach(col => {
+        if (col.key === keyOrcamento) return; // só conta convertidos em pedido (demais colunas)
+        const items = data[col.key] || [];
+        if (!Array.isArray(items)) return;
+        items.forEach(card => {
+          const exigeNF = !!card.temNotaFiscal;
+          const nfValor = (card.valorNF != null && String(card.valorNF).trim() !== '') ? String(card.valorNF).trim() : '';
+          const nfPreenchida = !!nfValor && nfValor.toUpperCase() !== 'SN';
+          if (exigeNF && !nfPreenchida) countFazerNF++;
+        });
       });
+      const nfItem = document.createElement('div');
+      nfItem.className = 'process-count-item';
+      nfItem.setAttribute('role', 'status');
+      nfItem.innerHTML = `<span>Fazer NF</span><span class="count">${countFazerNF}</span>`;
+      menu.appendChild(nfItem);
     }
-
-    // Inicializa avisos (front-only)
-    (function initNotices() {
-      startNoticesTicker(Array.isArray(NOTICES) ? NOTICES : [String(NOTICES)]);
-    })();
 
     /* ====== Utils ====== */
     function formatDateTime(d) {
@@ -988,6 +964,15 @@
         (descricao ? `<p>${descricao}</p>` : '') +
         (obs ? `<p>Obs: ${obs}</p>` : '');
 
+      // Envio/Coleta: indicador de Nota Fiscal (Precisa de NF ou NF feita)
+      const isEnvioColeta = columnName && (columnName.indexOf('Envio') !== -1 || columnName.indexOf('Coleta') !== -1);
+      if (isEnvioColeta && (card.temNotaFiscal || card.valorNF)) {
+        const nfLabel = card.valorNF
+          ? '<p class="card-nf card-nf-feita">📄 NF feita' + (card.valorNF ? ' — ' + String(card.valorNF).replace(/</g, '&lt;') : '') + '</p>'
+          : '<p class="card-nf card-nf-pendente">📄 Precisa de Nota Fiscal</p>';
+        el.insertAdjacentHTML('beforeend', nfLabel);
+      }
+
       // TEMPO ESTIMADO (se existir) — badge no canto superior direito
       if (tempo) {
         const safeTitle = String(tempoRaw).replace(/"/g, '&#34;').replace(/</g, '&lt;');
@@ -998,8 +983,11 @@
         el.classList.add('with-time');
       }
 
-      // PRAZO (procura por vários nomes possíveis vindo da planilha)
-      const prazoKeys = ['prazo', 'PRAZO', 'Prazo', 'prazoEntrega', 'prazo_entrega', 'PrazoEntrega', 'dataPrazo', 'data_prazo', 'PRAZO_ENTREGA'];
+      // PRAZO: na coluna "Processo de orçamento" usa PRAZO_PROPOSTA; nas demais usa PRAZO (prazo de entrega)
+      const isOrcamentoCol = columnName && columnName.toLowerCase().includes('orçament');
+      const prazoKeysOrcamento = ['prazoProposta', 'PRAZO_PROPOSTA', 'PrazoProposta', 'prazo_proposta', 'PRAZO PROPOSTA'];
+      const prazoKeysEntrega = ['prazo', 'PRAZO', 'Prazo', 'prazoEntrega', 'prazo_entrega', 'PrazoEntrega', 'dataPrazo', 'data_prazo', 'PRAZO_ENTREGA'];
+      const prazoKeys = isOrcamentoCol ? [...prazoKeysOrcamento, ...prazoKeysEntrega] : prazoKeysEntrega;
       let prazoRaw = null;
       for (let k of prazoKeys) {
         if (card[k] !== undefined && card[k] !== null && String(card[k]).toString().trim() !== '') {
@@ -1092,13 +1080,8 @@
       }
 
       // Adiciona botões de Iniciar/Finalizar para processos 
-      // Excluindo: orçamento e envio/coleta
+      // Excluindo: orçamento e envio/coleta (isEnvioColeta já declarado acima)
       const isOrcamento = columnName && columnName.toLowerCase().includes('orçament');
-      const isEnvioColeta = columnName && (
-        columnName.toLowerCase().includes('envio') || 
-        columnName.toLowerCase().includes('coleta')
-      );
-      
       if (columnName && !isOrcamento && !isEnvioColeta) {
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'card-actions';
@@ -1141,20 +1124,15 @@
         container.innerHTML = '';
       }
 
-      const colunas = [
-        "Processo de Orçamento",
-        "Processo de Preparação MP / CAD / CAM",
-        "Processo de Corte",
-        "Processo de Dobra",
-        "Processos Adicionais",
-        "Envio / Coleta"
-      ];
+      // Atualiza menu de contagem (usa chaves do backend)
+      updateProcessCountMenu(data);
 
-      colunas.forEach((col, colIndex) => {
+      COLUNAS_KANBAN.forEach((colConfig, colIndex) => {
+        const col = colConfig.key;
+        const label = colConfig.label;
         let colDiv;
         
         if (updateIncremental) {
-          // Busca coluna existente
           colDiv = container.children[colIndex];
           if (!colDiv) {
             colDiv = document.createElement('div');
@@ -1170,13 +1148,12 @@
         const colSlug = slugify(col);
         colDiv.classList.add('col-' + colSlug);
 
-        // Atualiza ou cria header
         let h2 = colDiv.querySelector('h2');
         if (!h2) {
           h2 = document.createElement('h2');
           colDiv.insertBefore(h2, colDiv.firstChild);
         }
-        h2.textContent = col;
+        h2.textContent = label;
 
         // Atualiza ou cria lista
         let list = colDiv.querySelector('.list');
@@ -1216,7 +1193,6 @@
             }
           });
         } else {
-          // Render completo normal
           list.innerHTML = '';
           (items || []).forEach(card => {
             const cardEl = createCardElement(card, col);

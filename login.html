@@ -166,7 +166,7 @@
     <h2>Bem-vindo</h2>
 
     <div class="input-group">
-      <input type="text" id="usuario" placeholder="Usuário" autofocus>
+      <input type="text" id="usuario" placeholder="Usuário">
       <div class="icon">👤</div>
     </div>
 
@@ -185,12 +185,17 @@
 
     var redirectTo = <?!= (typeof redirectTo !== 'undefined' && redirectTo) ? ("'" + String(redirectTo).replace(/'/g, "\\'") + "'") : "null" ?>;
     var postLoginMsg = <?!= (typeof postLoginMsg !== 'undefined' && postLoginMsg) ? ("'" + String(postLoginMsg).replace(/'/g, "\\'") + "'") : "null" ?>;
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
 
-    // Flag vinda do Code.gs: templateLogin.embedded
+    // Flag vinda do Code.gs: templateLogin.embedded (ou detectar se está em iframe)
     var embeddedMode = <?!= (typeof embedded !== 'undefined' && embedded) ? 'true' : 'false' ?>;
 
     function isEmbeddedMode() {
-      return embeddedMode === true || embeddedMode === 'true';
+      if (embeddedMode === true || embeddedMode === 'true') return true;
+      try {
+        if (window.self !== window.top) return true;
+      } catch (e) { return true; }
+      return false;
     }
 
     // (initInfo permanece igual)
@@ -231,9 +236,24 @@
           if (res && res.success) {
 
             if (isEmbeddedMode()) {
-              console.log("Executando em modo EMBEDDED: Enviando token para o app externo.");
-              const message = { type: 'AUTH_TOKEN', token: res.token, redirectTo: redirectTo };
-              window.top.postMessage(message, '*');
+              if (baseUrl) {
+                var page = 'dashboard';
+                var rest = '';
+                if (redirectTo) {
+                  try {
+                    var params = new URLSearchParams(redirectTo.startsWith('?') ? redirectTo : '?' + redirectTo);
+                    page = params.get('page') || 'dashboard';
+                    params.delete('page');
+                    params.delete('token');
+                    rest = params.toString();
+                  } catch (e) {}
+                }
+                var url = (baseUrl.replace(/\/$/, '')) + '/' + page + '.html?' + (rest ? rest + '&' : '') + 'token=' + encodeURIComponent(res.token);
+                window.top.location.href = url;
+              } else {
+                var message = { type: 'AUTH_TOKEN', token: res.token, redirectTo: redirectTo };
+                window.top.postMessage(message, '*');
+              }
               btn.textContent = "Sucesso!";
             } else {
               console.log("Executando em modo Standalone: Redirecionando para o dashboard.");

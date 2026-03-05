@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8">
+    <base target="_top">
+    <title>Pedidos — Sistema TUBA</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-1: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+            --card-bg: rgba(255, 255, 255, 0.96);
+            --muted: #64748b;
+            --accent: #0ea5ff;
+            --radius: 12px;
+            --max-width: 100%;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            color: #0f172a;
+            background: var(--bg-1);
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .page {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .topbar {
+            flex-shrink: 0;
+            width: 100%;
+            max-width: var(--max-width);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 12px 20px 12px 16px;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+            z-index: 20;
+        }
+
+        .page-content-scroll {
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            padding: 16px 16px 20px;
+            transform: translateZ(0);
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; color: white; }
+        .brand img { height: 40px; width: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(2, 6, 23, 0.3); }
+        .brand h1 { font-size: 20px; margin: 0; font-weight: 700; }
+        .brand-subtitle { font-size: 12px; color: rgba(255, 255, 255, 0.85); margin-top: 2px; }
+
+        .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .btn {
+            appearance: none;
+            border: 0;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            gap: 6px;
+            align-items: center;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background: linear-gradient(90deg, var(--accent), #3b82f6); color: white; box-shadow: 0 4px 12px rgba(14, 165, 255, 0.3); }
+        .btn-ghost { background: rgba(255, 255, 255, 0.15); color: white; border: 1px solid rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); }
+
+        .card {
+            width: 100%;
+            min-width: 1200px;
+            max-width: var(--max-width);
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(2, 6, 23, 0.12);
+            box-sizing: border-box;
+        }
+
+        .filters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+        .filter-group { flex: 1; min-width: 200px; }
+        .filter-group label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .filter-input, .filter-select { width: 100%; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; transition: all 0.2s; }
+        .filter-input:focus, .filter-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1); }
+        .filter-checkboxes { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 8px 0; }
+        .filter-check-label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #334155; cursor: pointer; text-transform: none; }
+        .filter-check-label input { margin: 0; cursor: pointer; }
+        .filter-status-multi { min-width: 320px; }
+
+        .table-wrapper { margin: 0 -20px; padding: 0 20px; min-width: 1200px; transform: translateZ(0); backface-visibility: hidden; }
+        .table-wrapper table { margin-bottom: 0; }
+        table { width: 100%; min-width: 1200px; border-collapse: separate; border-spacing: 0; font-size: 13px; background: #fff; }
+        thead { position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 2px solid #e5e7eb; }
+        thead tr { background: #fff; }
+        th { padding: 12px 10px; text-align: left; font-weight: 600; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb; white-space: nowrap; background: #fff; }
+        th.sortable { cursor: pointer; user-select: none; }
+        th.sortable:hover { color: var(--accent); }
+        th .sort-icon { opacity: 0.5; margin-left: 4px; }
+        th.sorted-asc .sort-icon::after { content: ' ▲'; opacity: 1; }
+        th.sorted-desc .sort-icon::after { content: ' ▼'; opacity: 1; }
+        td { padding: 12px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+        tr:hover { background: #f9fafb; }
+        .valor-pago { color: #065f46; font-weight: 600; }
+
+        .status-pago { background: #d1fae5; color: #065f46; }
+        .status-pendente { background: #fef3c7; color: #92400e; }
+        .status-atrasado { background: #fee2e2; color: #991b1b; }
+        .status-parcial { background: #dbeafe; color: #1e40af; }
+        .status-averificar { background: #e0e7ff; color: #3730a3; }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .btn-pasta { background: #e0f2fe; color: #0369a1; border: 1px solid #0ea5e9; font-weight: 600; }
+        .btn-pasta:hover { background: #bae6fd; color: #0c4a6e; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+        .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .loading { text-align: center; padding: 40px; color: var(--muted); }
+        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 24px; border-radius: 12px; max-width: 520px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f3f4f6; }
+        .modal-header h2 { margin: 0; font-size: 20px; color: #0f172a; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+        .modal-close:hover { background: #f3f4f6; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; color: #0f172a; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(14, 165, 255, 0.1); }
+        .modal-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 2px solid #f3f4f6; }
+        .btn-small { padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+        .form-hint { font-size: 11px; color: #64748b; margin: 0 0 8px 0; }
+        .historico-pagamentos-group { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background: #f8fafc; }
+        .historico-list { max-height: 180px; overflow-y: auto; margin-bottom: 10px; }
+        .historico-list table { width: 100%; font-size: 12px; border-collapse: collapse; }
+        .historico-list th, .historico-list td { padding: 6px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .historico-list th { background: #e2e8f0; font-weight: 600; }
+        .sortable-historico { cursor: pointer; user-select: none; }
+        .sortable-historico:hover { color: var(--accent); }
+        .historico-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .historico-add input[type="date"] { width: 130px; }
+        .historico-add input[type="text"] { width: 100px; }
+        .historico-add input[type="number"] { width: 70px; }
+        .parcelas-resumo { font-size: 11px; color: #475569; min-width: 220px; max-width: 280px; }
+        .parcela-linha { display: block; white-space: nowrap; line-height: 1.5; }
+        .celula-multilinha { font-size: 12px; line-height: 1.35; }
+        .celula-multilinha .parcela-linha { margin-bottom: 2px; }
+        .celula-vencimento { min-width: 120px; }
+        .venc-line { display: block; line-height: 1.4; white-space: nowrap; }
+        .celula-valor-pendente { min-width: 160px; line-height: 1.5; }
+        table td.col-parcelas, table th.col-parcelas { min-width: 220px; }
+        table td.col-valor-pendente, table th.col-valor-pendente { min-width: 160px; }
+        table td.col-obs, table th.col-obs { min-width: 120px; max-width: 200px; }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <div class="topbar">
+            <div class="brand">
+                <img src="https://i.imgur.com/F8X7ZMs.png" alt="TUBA">
+                <div class="brand-text">
+                    <h1>Pedidos</h1>
+                    <div class="brand-subtitle">Orçamentos convertidos em pedido — acompanhamento e pagamento</div>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-ghost" onclick="voltarPagina()" title="Voltar para o Dashboard">← Voltar</button>
+                <a class="btn btn-primary" id="linkProjetos" href="#">Ver Projetos</a>
+            </div>
+        </div>
+
+        <!-- Modal Editar Pedido -->
+        <div id="editPedidoModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Editar Pedido</h2>
+                    <button class="modal-close" onclick="closeEditPedidoModal()">×</button>
+                </div>
+                <form id="editPedidoForm" onsubmit="saveEditPedido(event)">
+                    <input type="hidden" id="editLinha">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <input type="text" id="editCliente" readonly disabled style="background:#f3f4f6;">
+                    </div>
+                    <div class="form-group">
+                        <label>Projeto</label>
+                        <input type="text" id="editProjeto" readonly disabled style="background:#f3f4f6;">
+                    </div>
+                    <div class="form-group">
+                        <label>Número sequencial (Nº orçamento)</label>
+                        <input type="text" id="editNumeroSequencial" placeholder="Ex: 123">
+                    </div>
+                    <div class="form-group">
+                        <label>Nota fiscal (NF)</label>
+                        <input type="text" id="editNotaFiscal" placeholder="Ex: 12345">
+                    </div>
+                    <div class="form-group">
+                        <label>Data de competência</label>
+                        <input type="date" id="editDataCompetencia" title="Data em que o orçamento foi convertido em pedido">
+                    </div>
+                    <div class="form-group">
+                        <label>Condições de pagamento</label>
+                        <input type="text" id="editCondicoesPagamento" placeholder="Ex: À vista, 30 dias, 30/45/60">
+                    </div>
+                    <div class="form-group">
+                        <label>Data de entrega</label>
+                        <input type="date" id="editDataEntrega">
+                    </div>
+                    <div class="form-group">
+                        <label>Data(s) de vencimento</label>
+                        <textarea id="editDataVencimento" rows="3" placeholder="Uma data por linha (dd/mm/aaaa). Altere a condição de pgto. para recalcular." style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Status de pagamento</label>
+                        <select id="editStatusPagamento">
+                            <option value="Pendente">Pendente</option>
+                            <option value="Pago">Pago</option>
+                            <option value="Atrasado">Atrasado</option>
+                            <option value="Pago parcialmente">Pago parcialmente</option>
+                            <option value="Pago (A VERIFICAR)">Pago (A VERIFICAR)</option>
+                        </select>
+                    </div>
+                    <div class="form-group historico-pagamentos-group">
+                        <label>Parcelas / Pagamentos realizados</label>
+                        <p class="form-hint">Registre cada parcela na ordem (1ª, 2ª, 3ª…). O número da parcela é preenchido automaticamente.</p>
+                        <div id="editHistoricoPagamentosList" class="historico-list"></div>
+                        <div class="historico-add">
+                            <input type="date" id="editPagamentoData">
+                            <input type="text" id="editPagamentoValor" placeholder="Valor (R$)">
+                            <button type="button" class="btn btn-small btn-primary" onclick="addPagamentoHistorico()">+ Adicionar</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>OBS (observações do pedido)</label>
+                        <textarea id="editObs" rows="2" placeholder="Observações apenas deste pedido" style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-ghost" onclick="closeEditPedidoModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="page-content-scroll">
+        <div class="card">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Buscar</label>
+                    <input type="text" class="filter-input" id="searchInput" placeholder="Cliente, Projeto...">
+                </div>
+                <div class="filter-group">
+                    <label>Mês do pedido</label>
+                    <select class="filter-select" id="mesFilter">
+                        <option value="">Todos</option>
+                        <!-- preenchido por JS -->
+                    </select>
+                </div>
+                <div class="filter-group filter-status-multi">
+                    <label>Status de pagamento (múltipla escolha)</label>
+                    <div class="filter-checkboxes" id="statusPagFilterGroup">
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago"> Pago</label>
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pendente"> Pendente</label>
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Atrasado"> Atrasado</label>
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago parcialmente"> Pago parcialmente</label>
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago (A VERIFICAR)"> Pago (A VERIFICAR)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tableContainer">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div>Carregando pedidos...</div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <script type="application/json" id="pedidos-iniciais"><?!= pedidosData || '[]' ?></script>
+    <script>
+        const token = '<?= token ?>';
+        var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+        const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+        let pedidos = [];
+        var pedidosIniciais = [];
+        try {
+            var elPedidos = document.getElementById('pedidos-iniciais');
+            if (elPedidos && elPedidos.textContent) pedidosIniciais = JSON.parse(elPedidos.textContent);
+        } catch (e) { pedidosIniciais = []; }
+        var sortKey = '';
+        var sortDir = 1; // 1 asc, -1 desc
+        var editHistoricoPagamentos = []; // lista de { data, valor, parcela } no modal de edição
+
+        function voltarPagina() {
+            if (!token) { alert("Token não encontrado. Recarregue a página."); return; }
+            window.location.href = pageUrl('painelfinanceiro', 'token=' + token);
+        }
+
+        if (document.getElementById('linkProjetos')) {
+            var lp = document.getElementById('linkProjetos');
+            lp.href = pageUrl('projetos', 'token=' + token);
+            if (baseUrl) lp.setAttribute('target', '_top');
+        }
+
+        function getDataCompetencia(p) {
+            return p._dataCompetencia || p["DATA_COMPETENCIA"] || p["DATA COMPETÊNCIA"] || p.DATA || "";
+        }
+        function getCondicoesPagamento(p) {
+            if (p._condicoesPagamento !== undefined) return (p._condicoesPagamento || "").toString().trim();
+            return (p["CONDICOES_PAGAMENTO"] || p["CONDIÇÕES DE PAGAMENTO"] || "").toString().trim();
+        }
+        function getValorRestante(p) {
+            if (p._valorRestante === null || getStatusPagamento(p) === 'Pago') return null;
+            return p._valorRestante;
+        }
+        function formatValorPagoInput(v) {
+            if (v == null || v === '') return '';
+            if (typeof v === 'number') return v.toFixed(2).replace('.', ',');
+            var s = (v + '').replace(/\./g, '').replace(',', '.');
+            var n = parseFloat(s);
+            return isNaN(n) ? '' : n.toFixed(2).replace('.', ',');
+        }
+        function getMesAno(dataStr) {
+            if (!dataStr) return '';
+            var m = (dataStr + '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return m[2] + '/' + m[3];
+            try {
+                var d = new Date(dataStr);
+                if (!isNaN(d.getTime())) return ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+            } catch (e) {}
+            return '';
+        }
+        function getDataEntrega(p) {
+            return (p["DATA_ENTREGA"] || p["DATA DE ENTREGA"] || p.PRAZO || "").toString().trim();
+        }
+        function getDataVencimento(p) {
+            return (p._dataVencimento || p["DATA_VENCIMENTO"] || p["DATA DE VENCIMENTO"] || "").toString().trim();
+        }
+        function getStatusPagamento(p) {
+            return (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "Pendente").toString().trim();
+        }
+        function getNotaFiscal(p) {
+            return (p["NF"] || p["NOTA_FISCAL"] || p["NOTA FISCAL"] || "").toString().trim();
+        }
+        function getDataVencimentoMultilinha(p) {
+            var v = (p._dataVencimento || p["DATA_VENCIMENTO"] || p["DATA VENCIMENTO"] || "").toString().trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            if (!v) return '-';
+            var partes = v.split(/[,\n]+/).map(function (x) { return x.trim().replace(/\s+/g, ' '); }).filter(Boolean);
+            if (partes.length === 0) return '-';
+            if (partes.length === 1) return (formatDateDisplay(partes[0]) || partes[0]).replace(/\s+/g, ' ').trim() || '-';
+            return partes.map(function (d, i) {
+                var dataFmt = (formatDateDisplay(d) || d).replace(/\s+/g, ' ').trim();
+                return 'VENC ' + (i + 1) + ': ' + dataFmt;
+            }).join('\n');
+        }
+        function getParcelasPagasMultilinha(p) {
+            var hist = p._historicoPagamentos || [];
+            if (!hist.length) return '-';
+            return hist.map(function (x) {
+                var parc = (x.parcela != null && x.parcela !== '') ? (x.parcela + ' PARC') : 'PGTO';
+                return parc + ' - ' + formatCurrency(x.valor) + ' - ' + dataToDisplay(x.data);
+            }).join('\n');
+        }
+        function getParcelasPagasResumo(p) {
+            var hist = p._historicoPagamentos || [];
+            if (!hist.length) return '-';
+            return hist.map(function (x) {
+                var parc = (x.parcela != null && x.parcela !== '') ? (x.parcela + ' PARC') : 'PGTO';
+                return parc + ' - ' + formatCurrency(x.valor) + ' - ' + dataToDisplay(x.data);
+            }).join('\n');
+        }
+        /** Considera a primeira data de vencimento (quando há várias separadas por vírgula/newline) para marcar Atrasado. */
+        function getStatusExibicao(p) {
+            var status = getStatusPagamento(p);
+            if (status === "Pago" || status === "Pago (A VERIFICAR)") return status;
+            var dataVenc = getDataVencimento(p);
+            if (dataVenc) {
+                var primeiraData = (dataVenc + "").trim().split(/[\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
+                var m = primeiraData.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (m) {
+                    var d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+                    var hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    d.setHours(0, 0, 0, 0);
+                    if (d.getTime() < hoje.getTime()) return "Atrasado";
+                } else {
+                    var iso = primeiraData.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (iso) {
+                        var d = new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+                        var hoje = new Date();
+                        hoje.setHours(0, 0, 0, 0);
+                        d.setHours(0, 0, 0, 0);
+                        if (d.getTime() < hoje.getTime()) return "Atrasado";
+                    }
+                }
+            }
+            return status;
+        }
+
+        function loadPedidos() {
+            google.script.run
+                .withSuccessHandler(function (data) {
+                    pedidos = data || [];
+                    populateMesFilter();
+                    renderTable();
+                })
+                .withFailureHandler(function (err) {
+                    document.getElementById('tableContainer').innerHTML =
+                        '<div class="empty-state"><div class="empty-state-icon">⚠️</div><div>Erro ao carregar pedidos: ' + (err.message || err) + '</div></div>';
+                })
+                .getPedidos();
+        }
+
+        function formatCurrency(value) {
+            if (!value) return '-';
+            if (typeof value === 'string' && value.indexOf('R$') >= 0) return value;
+            var num = parseFloat(value);
+            if (isNaN(num)) return value;
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+        }
+
+        function formatDateDisplay(value) {
+            if (value == null || value === '') return '';
+            if (typeof value === 'object' && typeof value.getMonth === 'function') {
+                var d = value;
+                return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+            }
+            var s = (value || "").toString().trim();
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+            try {
+                var d = new Date(value);
+                if (isNaN(d.getTime())) return value;
+                var dd = ('0' + d.getDate()).slice(-2);
+                var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+                return dd + '/' + mm + '/' + d.getFullYear();
+            } catch (e) { return value; }
+        }
+
+        function dateToInput(value) {
+            if (!value) return '';
+            var s = (value || "").toString().trim();
+            var m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+            if (m) return m[3] + '-' + m[2] + '-' + m[1];
+            try {
+                var d = new Date(value);
+                if (!isNaN(d.getTime())) return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+            } catch (e) {}
+            return '';
+        }
+
+        function getStatusPagamentoClass(status) {
+            if (!status) return '';
+            var s = (status || "").toLowerCase();
+            if (s.indexOf('pago') >= 0 && s.indexOf('verificar') >= 0) return 'status-averificar';
+            if (s.indexOf('pago') >= 0 && s.indexOf('parcial') >= 0) return 'status-parcial';
+            if (s.indexOf('pago') >= 0) return 'status-pago';
+            if (s.indexOf('atrasado') >= 0) return 'status-atrasado';
+            return 'status-pendente';
+        }
+
+        function populateMesFilter() {
+            var meses = {};
+            pedidos.forEach(function (p) {
+                var ma = getMesAno(getDataCompetencia(p));
+                if (ma) meses[ma] = true;
+            });
+            var lista = Object.keys(meses).sort(function (a, b) {
+                var [ma, aa] = a.split('/').map(Number);
+                var [mb, ab] = b.split('/').map(Number);
+                return aa !== ab ? ab - aa : mb - ma;
+            });
+            var sel = document.getElementById('mesFilter');
+            if (!sel) return;
+            var cur = sel.value;
+            sel.innerHTML = '<option value="">Todos</option>';
+            lista.forEach(function (m) {
+                var opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                if (m === cur) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        function compareVal(a, b, key) {
+            var va = a[key];
+            var vb = b[key];
+            if (key === '_numeroSequencial' || key === '_numero') return (parseInt(va, 10) || 0) - (parseInt(vb, 10) || 0);
+            if (key === '_notaFiscal') {
+                va = getNotaFiscal(a);
+                vb = getNotaFiscal(b);
+                return (va || '').toString().localeCompare((vb || '').toString());
+            }
+            if (key === 'CLIENTE' || key === 'PROJETO') {
+                va = (va || '').toString().toLowerCase();
+                vb = (vb || '').toString().toLowerCase();
+                return va.localeCompare(vb);
+            }
+            if (key === '_dataCompetencia' || key === '_dataVencimento' || key === '_dataEntrega' || key === 'DATA' || key === 'PRAZO') {
+                if (key === '_dataEntrega') { va = getDataEntrega(a); vb = getDataEntrega(b); }
+                if (key === '_dataVencimento') { va = a._dataVencimentoOrdenar || va; vb = b._dataVencimentoOrdenar || vb; }
+                var da = parseDateForSort(va);
+                var db = parseDateForSort(vb);
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return da.getTime() - db.getTime();
+            }
+            if (key === 'VALOR TOTAL' || key === '_valorRestante') {
+                var na = (va == null && key === '_valorRestante') ? 0 : parseNum(va);
+                var nb = (vb == null && key === '_valorRestante') ? 0 : parseNum(vb);
+                return na - nb;
+            }
+            if (key === 'STATUS_PAGAMENTO') {
+                var orderStatus = ['Pendente', 'Atrasado', 'Pago parcialmente', 'Pago (A VERIFICAR)', 'Pago'];
+                var ia = orderStatus.indexOf(getStatusExibicao(a) || '');
+                var ib = orderStatus.indexOf(getStatusExibicao(b) || '');
+                if (ia < 0) ia = 999;
+                if (ib < 0) ib = 999;
+                return ia - ib;
+            }
+            if (key === '_historicoPagamentos') {
+                var ha = a._historicoPagamentos || [];
+                var hb = b._historicoPagamentos || [];
+                var dataA = getHistoricoSortDate(ha);
+                var dataB = getHistoricoSortDate(hb);
+                var da = parseDateForSort(dataA);
+                var db = parseDateForSort(dataB);
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return da.getTime() - db.getTime();
+            }
+            va = (va || '').toString();
+            vb = (vb || '').toString();
+            return va.localeCompare(vb);
+        }
+        function getHistoricoSortDate(historico) {
+            if (!historico || historico.length === 0) return '';
+            var minT = null;
+            for (var i = 0; i < historico.length; i++) {
+                var d = parseDataHistorico(historico[i].data);
+                if (d && d.getTime) {
+                    var t = d.getTime();
+                    if (minT === null || t < minT) minT = t;
+                }
+            }
+            if (minT === null) return '';
+            var dMin = new Date(minT);
+            var dd = ('0' + dMin.getDate()).slice(-2);
+            var mm = ('0' + (dMin.getMonth() + 1)).slice(-2);
+            return dd + '/' + mm + '/' + dMin.getFullYear();
+        }
+        function parseDateForSort(v) {
+            if (!v) return null;
+            var s = (v + '').trim();
+            var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+            var d = new Date(v);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        function parseNum(v) {
+            if (v == null || v === '') return 0;
+            if (typeof v === 'number' && !isNaN(v)) return v;
+            var s = (v + '').trim().replace(/[^\d,.]/g, '');
+            if (!s) return 0;
+            var lastC = s.lastIndexOf(',');
+            var lastD = s.lastIndexOf('.');
+            if (lastC > lastD) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+            if (lastD > lastC) return parseFloat(s.replace(/,/g, '')) || 0;
+            return parseFloat(s.replace(',', '.')) || 0;
+        }
+
+        function sortBy(key) {
+            if (sortKey === key) sortDir = -sortDir;
+            else { sortKey = key; sortDir = 1; }
+            renderTable();
+        }
+
+        function getStatusFilterSelected() {
+            var cbs = document.querySelectorAll('.filter-status-cb:checked');
+            var arr = [];
+            for (var i = 0; i < cbs.length; i++) arr.push((cbs[i].value || '').trim());
+            return arr;
+        }
+
+        function renderTable() {
+            var searchTerm = (document.getElementById('searchInput').value || '').toLowerCase();
+            var statusSelected = getStatusFilterSelected();
+            var mesVal = (document.getElementById('mesFilter').value || '').trim();
+
+            var filtered = pedidos.filter(function (p) {
+                var matchSearch = !searchTerm ||
+                    (p.CLIENTE || '').toString().toLowerCase().indexOf(searchTerm) >= 0 ||
+                    (p.PROJETO || '').toString().toLowerCase().indexOf(searchTerm) >= 0;
+                var statusExib = getStatusExibicao(p);
+                var matchStatus = statusSelected.length === 0 || statusSelected.indexOf(statusExib) >= 0;
+                var matchMes = !mesVal || getMesAno(getDataCompetencia(p)) === mesVal;
+                return matchSearch && matchStatus && matchMes;
+            });
+
+            if (sortKey) {
+                filtered = filtered.slice().sort(function (a, b) {
+                    return sortDir * compareVal(a, b, sortKey);
+                });
+            }
+
+            if (filtered.length === 0) {
+                document.getElementById('tableContainer').innerHTML =
+                    '<div class="empty-state"><div class="empty-state-icon">📋</div><div>' +
+                    (pedidos.length === 0 ? 'Nenhum pedido encontrado. Converta orçamentos em pedido na página Projetos.' : 'Nenhum pedido corresponde aos filtros.') + '</div></div>';
+                return;
+            }
+
+            var cols = [
+                { key: '_numeroSequencial', label: 'N°', sortable: true, colClass: '' },
+                { key: '_notaFiscal', label: 'NF', sortable: true, colClass: '' },
+                { key: 'CLIENTE', label: 'Cliente', sortable: true, colClass: '' },
+                { key: 'PROJETO', label: 'Projeto', sortable: true, colClass: '' },
+                { key: '_dataCompetencia', label: 'Data comp.', sortable: true, colClass: '' },
+                { key: 'VALOR TOTAL', label: 'Valor ped.', sortable: true, colClass: '' },
+                { key: '_condicoesPagamento', label: 'Condições pgto.', sortable: true, colClass: '' },
+                { key: '_dataEntrega', label: 'Data entrega', sortable: true, colClass: '' },
+                { key: '_dataVencimento', label: 'Data venc.', sortable: true, colClass: 'celula-vencimento' },
+                { key: '_historicoPagamentos', label: 'Parcelas e pgtos.', sortable: true, colClass: 'col-parcelas parcelas-resumo celula-multilinha' },
+                { key: '_valorRestante', label: 'Valor pendente', sortable: true, colClass: 'col-valor-pendente celula-valor-pendente' },
+                { key: 'STATUS_PAGAMENTO', label: 'Status pgto. pedido', sortable: true, colClass: '' },
+                { key: '_obs', label: 'OBS', sortable: false, colClass: 'col-obs' },
+                { key: '', label: 'Ações', sortable: false, colClass: '' }
+            ];
+            var thead = cols.map(function (c) {
+                var extraClass = (c.colClass || '').toString().trim();
+                if (!c.sortable) return '<th' + (extraClass ? ' class="' + extraClass + '"' : '') + '>' + c.label + '</th>';
+                var cl = 'sortable' + (sortKey === c.key ? (sortDir === 1 ? ' sorted-asc' : ' sorted-desc') : '') + (extraClass ? ' ' + extraClass : '');
+                return '<th class="' + cl + '" data-sort="' + c.key + '" onclick="sortBy(\'' + c.key + '\')">' + c.label + '<span class="sort-icon"></span></th>';
+            }).join('');
+
+            var html = '<div class="table-wrapper"><table><thead><tr>' + thead + '</tr></thead><tbody>';
+
+            filtered.forEach(function (p, idx) {
+                var linha = p._linhaPlanilha || 0;
+                var statusExib = getStatusExibicao(p);
+                var statusClass = getStatusPagamentoClass(statusExib);
+                var valorPagoNum = parseNum(p["VALOR_PAGO"] || p["VALOR PAGO"]) || 0;
+                var valorTotalNum = parseNum(p["VALOR TOTAL"]) || 0;
+                var pagoLabel = 'Pago: ' + (valorPagoNum > 0 ? formatCurrency(valorPagoNum) : '-');
+                var valorPendenteCell = getValorRestante(p) === null
+                    ? 'Pago: ' + formatCurrency(valorTotalNum)
+                    : pagoLabel + '<br>Pendente: ' + formatCurrency(p._valorRestante);
+                var dataVencStr = getDataVencimentoMultilinha(p);
+                var dataVencCellHtml = (dataVencStr === '-' || dataVencStr.indexOf('\n') < 0)
+                    ? dataVencStr
+                    : dataVencStr.split('\n').map(function (l) { return '<span class="venc-line">' + String(l).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>'; }).join('');
+                var parcelasStr = getParcelasPagasMultilinha(p);
+                var parcelasCellHtml = parcelasStr === '-' ? '-' : parcelasStr.split('\n').map(function (line) {
+                    return '<span class="parcela-linha">' + String(line).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+                }).join('');
+                html += '<tr data-linha="' + linha + '">' +
+                    '<td>' + (p._numeroSequencial != null && p._numeroSequencial !== '' ? p._numeroSequencial : '') + '</td>' +
+                    '<td>' + (getNotaFiscal(p) || '-') + '</td>' +
+                    '<td>' + (p.CLIENTE || '') + '</td>' +
+                    '<td><strong>' + (p.PROJETO || '') + '</strong></td>' +
+                    '<td>' + formatDateDisplay(getDataCompetencia(p)) + '</td>' +
+                    '<td>' + formatCurrency(p["VALOR TOTAL"]) + '</td>' +
+                    '<td>' + (getCondicoesPagamento(p) || '-') + '</td>' +
+                    '<td>' + formatDateDisplay(getDataEntrega(p)) + '</td>' +
+                    '<td class="celula-multilinha celula-vencimento">' + dataVencCellHtml + '</td>' +
+                    '<td class="col-parcelas parcelas-resumo celula-multilinha">' + parcelasCellHtml + '</td>' +
+                    '<td class="col-valor-pendente celula-valor-pendente">' + valorPendenteCell + '</td>' +
+                    '<td><span class="status-badge ' + statusClass + '">' + (statusExib || 'Pendente') + '</span></td>' +
+                    '<td class="col-obs">' + (p.OBS != null ? String(p.OBS).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;') : '') + '</td>' +
+                    '<td>' +
+                    (p['LINK DO PDF'] ? '<a href="' + String(p['LINK DO PDF']).replace(/"/g, '&quot;') + '" target="_blank" class="btn btn-small" style="margin-right:6px;" title="Abrir orçamento (PDF)">📄</a> ' : '') +
+                    '<button type="button" class="btn btn-small btn-primary" onclick="editPedido(' + linha + ')" title="Editar">✏️ Editar</button> <button type="button" class="btn btn-small btn-pasta" onclick="abrirPastaProjeto(this)" data-projeto="' + String(p.PROJETO != null ? p.PROJETO : '').replace(/"/g, '&quot;') + '" title="Abrir pasta do projeto">📁 Pasta</button></td>' +
+                    '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('tableContainer').innerHTML = html;
+        }
+
+        function dataToInput(d) {
+            if (d == null || d === '') return '';
+            var s = (d + '').trim();
+            var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return m[3] + '-' + m[2] + '-' + m[1];
+            if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.substring(0, 10);
+            return s;
+        }
+        function inputDateToBr(str) {
+            if (!str || !(str + '').trim()) return '';
+            var s = (str + '').trim().substring(0, 10);
+            var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) return m[3] + '/' + m[2] + '/' + m[1];
+            return str;
+        }
+        // dataBaseStr = data de entrega (prioridade) ou data de competência para cálculo dos vencimentos
+        function calcularVencimentosFromCondicao(condicoes, dataBaseStr, valorTotal) {
+            if (!condicoes || !condicoes.trim()) return [];
+            var texto = condicoes.trim().toUpperCase().replace(/\s+/g, ' ');
+            if (texto.indexOf('VISTA') >= 0 && texto.indexOf('/') < 0) return [];
+            var dias = [];
+            if (texto.indexOf('/') >= 0) {
+                var partes = texto.split(/\s*\/\s*/);
+                for (var i = 0; i < partes.length; i++) {
+                    var p = (partes[i] || '').trim();
+                    if (/vista/i.test(p)) dias.push(0);
+                    else {
+                        var num = parseInt(p.replace(/\D/g, ''), 10);
+                        if (!isNaN(num)) dias.push(num);
+                    }
+                }
+            }
+            if (dias.length === 0) {
+                var diasMatch = texto.match(/\d+/g);
+                if (!diasMatch || diasMatch.length === 0) return [];
+                dias = diasMatch.map(function (x) { return parseInt(x, 10); }).filter(function (n) { return !isNaN(n) && n >= 0; });
+            }
+            if (dias.length === 0) return [];
+            var s = (dataBaseStr || '').trim();
+            var dBase = null;
+            var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (mBr) {
+                dBase = new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10));
+            } else {
+                var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (mIso) {
+                    dBase = new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10));
+                }
+            }
+            if (!dBase || isNaN(dBase.getTime())) return [];
+            return dias.map(function (dia) {
+                var d = new Date(dBase.getTime());
+                d.setDate(d.getDate() + dia);
+                var dd = ('0' + d.getDate()).slice(-2);
+                var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+                return dd + '/' + mm + '/' + d.getFullYear();
+            });
+        }
+        function recalcDataVencimentoNoModal() {
+            var cond = document.getElementById('editCondicoesPagamento').value.trim();
+            var dataEntregaInput = (document.getElementById('editDataEntrega') && document.getElementById('editDataEntrega').value) ? document.getElementById('editDataEntrega').value.trim() : '';
+            var dataCompInput = (document.getElementById('editDataCompetencia') && document.getElementById('editDataCompetencia').value) ? document.getElementById('editDataCompetencia').value.trim() : '';
+            var dataBase = dataEntregaInput ? (inputDateToBr(dataEntregaInput) || dataEntregaInput) : (dataCompInput ? (inputDateToBr(dataCompInput) || dataCompInput) : '');
+            if (!dataBase && dataEntregaInput.match(/^\d{4}-\d{2}-\d{2}/)) dataBase = inputDateToBr(dataEntregaInput);
+            if (!dataBase && dataCompInput.match(/^\d{4}-\d{2}-\d{2}/)) dataBase = inputDateToBr(dataCompInput);
+            var vt = document.getElementById('editPedidoModal').getAttribute('data-valor-total') || '0';
+            var valorTotal = parseFloat(vt) || 0;
+            var datas = calcularVencimentosFromCondicao(cond, dataBase || dataEntregaInput || dataCompInput, valorTotal);
+            var vencEl = document.getElementById('editDataVencimento');
+            if (datas.length > 0) {
+                vencEl.value = datas.join('\n');
+            }
+        }
+        function dataToDisplay(d) {
+            if (!d) return '-';
+            var s = formatDateDisplay(d);
+            return s || (d + '').trim() || '-';
+        }
+        function parseDataHistorico(str) {
+            if (!str) return null;
+            var s = (str + '').trim();
+            var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+            var m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m2) return new Date(parseInt(m2[1], 10), parseInt(m2[2], 10) - 1, parseInt(m2[3], 10));
+            return null;
+        }
+        var historicoSortByDateDir = 1;
+        function renderHistoricoList() {
+            var el = document.getElementById('editHistoricoPagamentosList');
+            if (!el) return;
+            if (editHistoricoPagamentos.length === 0) {
+                el.innerHTML = '<p style="font-size:12px;color:#64748b;margin:0;">Nenhum pagamento registrado.</p>';
+                return;
+            }
+            var copia = editHistoricoPagamentos.map(function (x, i) { return { item: x, idx: i }; });
+            copia.sort(function (a, b) {
+                var da = parseDataHistorico(a.item.data);
+                var db = parseDataHistorico(b.item.data);
+                if (!da && !db) return 0;
+                if (!da) return 1;
+                if (!db) return -1;
+                return historicoSortByDateDir * (da.getTime() - db.getTime());
+            });
+            var html = '<table><thead><tr><th class="sortable-historico" onclick="toggleSortHistoricoData()" title="Clique para ordenar por data">Parcelas / Pagamentos ▼/▲</th><th></th></tr></thead><tbody>';
+            copia.forEach(function (o) {
+                var item = o.item;
+                var idx = o.idx;
+                var numParc = (item.parcela != null && item.parcela !== '') ? item.parcela : (idx + 1);
+                var parc = numParc + ' PARC';
+                var linha = parc + ' - ' + formatCurrency(item.valor) + ' - ' + dataToDisplay(item.data);
+                html += '<tr><td>' + linha + '</td><td><button type="button" class="btn btn-small" onclick="removePagamentoHistorico(' + idx + ')" title="Remover">✕</button></td></tr>';
+            });
+            html += '</tbody></table>';
+            el.innerHTML = html;
+        }
+        function toggleSortHistoricoData() {
+            historicoSortByDateDir = -historicoSortByDateDir;
+            renderHistoricoList();
+        }
+        function updateStatusByPayments() {
+            var valorTotalStr = document.getElementById('editPedidoModal') && document.getElementById('editPedidoModal').getAttribute('data-valor-total');
+            var valorTotal = valorTotalStr !== '' && !isNaN(parseFloat(valorTotalStr)) ? parseFloat(valorTotalStr) : 0;
+            var somaHistorico = editHistoricoPagamentos.reduce(function (s, x) { return s + (parseFloat(x.valor) || 0); }, 0);
+            var sel = document.getElementById('editStatusPagamento');
+            if (!sel) return;
+            var novoStatus;
+            if (valorTotal <= 0) novoStatus = sel.value;
+            else if (somaHistorico >= valorTotal - 0.01) novoStatus = 'Pago';
+            else if (somaHistorico > 0) novoStatus = 'Pago parcialmente';
+            else {
+                // Pendente sem pagamento: verificar se há vencimento no passado para exibir Atrasado (igual à tabela)
+                var vencEl = document.getElementById('editDataVencimento');
+                var vencStr = (vencEl && vencEl.value) ? (vencEl.value + '').trim().split(/[\n,]+/)[0] : '';
+                var m = vencStr && vencStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (m) {
+                    var d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+                    var hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    d.setHours(0, 0, 0, 0);
+                    if (d.getTime() < hoje.getTime()) novoStatus = 'Atrasado';
+                    else novoStatus = 'Pendente';
+                } else novoStatus = 'Pendente';
+            }
+            sel.value = novoStatus;
+        }
+        function addPagamentoHistorico() {
+            var dataInput = document.getElementById('editPagamentoData');
+            var valorInput = document.getElementById('editPagamentoValor');
+            var dataVal = dataInput.value.trim();
+            var valorStr = (valorInput.value || '').replace(/\./g, '').replace(',', '.');
+            var valor = parseFloat(valorStr);
+            if (!dataVal) { alert('Informe a data do pagamento.'); return; }
+            if (isNaN(valor) || valor <= 0) { alert('Informe o valor do pagamento.'); return; }
+            var dataBr = dataVal;
+            if (dataVal.indexOf('-') >= 0) {
+                var parts = dataVal.split('-');
+                if (parts.length === 3) dataBr = parts[2] + '/' + parts[1] + '/' + parts[0];
+            }
+            var parcela = editHistoricoPagamentos.length + 1;
+            editHistoricoPagamentos.push({ data: dataBr, valor: valor, parcela: parcela });
+            dataInput.value = ''; valorInput.value = '';
+            renderHistoricoList();
+            updateStatusByPayments();
+        }
+        function removePagamentoHistorico(idx) {
+            editHistoricoPagamentos.splice(idx, 1);
+            for (var i = 0; i < editHistoricoPagamentos.length; i++) editHistoricoPagamentos[i].parcela = i + 1;
+            renderHistoricoList();
+            updateStatusByPayments();
+        }
+        function editPedido(linha) {
+            var p = pedidos.find(function (x) { return x._linhaPlanilha == linha; });
+            if (!p) { alert('Pedido não encontrado'); return; }
+
+            document.getElementById('editLinha').value = linha;
+            document.getElementById('editCliente').value = p.CLIENTE || '';
+            document.getElementById('editProjeto').value = p.PROJETO || '';
+            document.getElementById('editNumeroSequencial').value = (p._numeroSequencial != null && p._numeroSequencial !== '') ? p._numeroSequencial : '';
+            document.getElementById('editNotaFiscal').value = getNotaFiscal(p);
+            document.getElementById('editDataCompetencia').value = dataToInput(formatDateDisplay(getDataCompetencia(p)) || '') || '';
+            document.getElementById('editCondicoesPagamento').value = getCondicoesPagamento(p);
+            document.getElementById('editDataEntrega').value = dataToInput(formatDateDisplay(getDataEntrega(p)) || '') || '';
+            var vencStr = (getDataVencimento(p) || '').toString().trim();
+            if (vencStr) {
+                var vencPartes = vencStr.split(/[,\n]+/).map(function (x) { return formatDateDisplay(x.trim()) || x.trim(); }).filter(Boolean);
+                document.getElementById('editDataVencimento').value = vencPartes.join('\n');
+            } else {
+                document.getElementById('editDataVencimento').value = '';
+            }
+            var valorTotalNum = parseNum(p["VALOR TOTAL"]);
+            // Usar status de exibição (ex.: Atrasado quando vencimento passou) para manter consistência com a tabela
+            document.getElementById('editStatusPagamento').value = getStatusExibicao(p) || getStatusPagamento(p) || 'Pendente';
+            document.getElementById('editPedidoModal').setAttribute('data-valor-total', String(valorTotalNum));
+
+            editHistoricoPagamentos = (p._historicoPagamentos || []).map(function (x, i) {
+                return { data: x.data || '', valor: parseFloat(x.valor) || 0, parcela: i + 1 };
+            });
+            renderHistoricoList();
+            document.getElementById('editPagamentoData').value = '';
+            document.getElementById('editPagamentoValor').value = '';
+            var obsEl = document.getElementById('editObs');
+            if (obsEl) obsEl.value = (p.OBS != null ? p.OBS : (p['OBS'] != null ? p['OBS'] : '')) || '';
+
+            document.getElementById('editPedidoModal').classList.add('active');
+            updateStatusByPayments();
+        }
+
+        function closeEditPedidoModal() {
+            document.getElementById('editPedidoModal').classList.remove('active');
+        }
+
+        function saveEditPedido(event) {
+            event.preventDefault();
+            var btnSalvar = document.querySelector('#editPedidoForm button[type="submit"]');
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+                btnSalvar.textContent = 'Salvando...';
+            }
+
+            var projeto = (document.getElementById('editProjeto') && document.getElementById('editProjeto').value) ? document.getElementById('editProjeto').value.trim() : '';
+            if (!projeto) {
+                if (btnSalvar) { btnSalvar.disabled = false; btnSalvar.textContent = 'Salvar'; }
+                alert('Erro: código do projeto não informado.');
+                return;
+            }
+            var linha = parseInt(document.getElementById('editLinha').value, 10);
+            var p = pedidos.find(function (x) { return x._linhaPlanilha == linha; });
+            var condicoes = document.getElementById('editCondicoesPagamento').value.trim();
+            var numeroSequencial = document.getElementById('editNumeroSequencial').value.trim();
+            var dataEntrega = (document.getElementById('editDataEntrega') && document.getElementById('editDataEntrega').value) ? document.getElementById('editDataEntrega').value.trim() : '';
+            var dataVencimento = (document.getElementById('editDataVencimento') && document.getElementById('editDataVencimento').value) ? document.getElementById('editDataVencimento').value.trim().replace(/\r\n/g, '\n').replace(/\n/g, ', ') : '';
+            var statusPagamento = document.getElementById('editStatusPagamento').value;
+            var somaHistorico = editHistoricoPagamentos.reduce(function (s, x) { return s + (parseFloat(x.valor) || 0); }, 0);
+            var valorPagoStr = somaHistorico > 0 ? String(somaHistorico) : '';
+            if (statusPagamento === 'Pago' && somaHistorico <= 0) {
+                var valorTotalStr = document.getElementById('editPedidoModal').getAttribute('data-valor-total') || '';
+                if (valorTotalStr !== '' && !isNaN(parseFloat(valorTotalStr))) valorPagoStr = String(parseFloat(valorTotalStr));
+            }
+            var updates = {};
+            updates.CONDICOES_PAGAMENTO = condicoes;
+            updates.NUMERO_SEQUENCIAL = numeroSequencial;
+            updates.DATA_VENCIMENTO = dataVencimento || '';
+            if (valorPagoStr !== '' && !isNaN(parseFloat(valorPagoStr))) {
+                updates.VALOR_PAGO = parseFloat(valorPagoStr);
+            } else {
+                updates.VALOR_PAGO = '';
+            }
+            updates.STATUS_PAGAMENTO = statusPagamento || 'Pendente';
+            updates.HISTORICO_PAGAMENTOS = JSON.stringify(editHistoricoPagamentos);
+            var editObsEl = document.getElementById('editObs');
+            updates.OBS = (editObsEl && editObsEl.value) ? editObsEl.value.trim() : '';
+            updates.NOTA_FISCAL = (document.getElementById('editNotaFiscal') && document.getElementById('editNotaFiscal').value) ? document.getElementById('editNotaFiscal').value.trim() : '';
+            var dataCompetenciaInput = (document.getElementById('editDataCompetencia') && document.getElementById('editDataCompetencia').value) ? document.getElementById('editDataCompetencia').value.trim() : '';
+            if (dataCompetenciaInput) updates.DATA_COMPETENCIA = inputDateToBr(dataCompetenciaInput) || dataCompetenciaInput;
+            updates.DATA_ENTREGA = dataEntrega ? (inputDateToBr(dataEntrega) || dataEntrega) : '';
+
+            var dadosProjeto = p ? { CLIENTE: p.CLIENTE, 'VALOR TOTAL': p['VALOR TOTAL'], _dataCompetencia: dataCompetenciaInput || p._dataCompetencia, _linhaPlanilha: p._linhaPlanilha } : undefined;
+
+            function aplicarAlteracoesNaLista() {
+                var idx = pedidos.findIndex(function (x) { return x._linhaPlanilha == linha; });
+                if (idx < 0) return;
+                var ped = pedidos[idx];
+                ped["CONDICOES_PAGAMENTO"] = condicoes;
+                ped["NUMERO_SEQUENCIAL"] = numeroSequencial;
+                ped["DATA_ENTREGA"] = dataEntrega ? (inputDateToBr(dataEntrega) || dataEntrega) : '';
+                ped["DATA_VENCIMENTO"] = dataVencimento;
+                ped["VALOR_PAGO"] = valorPagoStr !== '' && !isNaN(parseFloat(valorPagoStr)) ? parseFloat(valorPagoStr) : '';
+                ped["STATUS_PAGAMENTO"] = statusPagamento;
+                ped["PARCELAS E PGTOS"] = updates.HISTORICO_PAGAMENTOS;
+                ped["OBS"] = (updates.OBS != null ? updates.OBS : '');
+                ped["NF"] = updates.NOTA_FISCAL;
+                if (dataCompetenciaInput) ped["DATA_COMPETENCIA"] = inputDateToBr(dataCompetenciaInput) || dataCompetenciaInput;
+                ped._condicoesPagamento = condicoes;
+                ped._dataVencimento = dataVencimento;
+                ped._historicoPagamentos = editHistoricoPagamentos.slice();
+                ped._numeroSequencial = numeroSequencial || null;
+                ped._dataCompetencia = (dataCompetenciaInput ? (inputDateToBr(dataCompetenciaInput) || dataCompetenciaInput) : ped._dataCompetencia) || ped["DATA_COMPETENCIA"];
+                var vtNum = parseNum(ped["VALOR TOTAL"]);
+                var vpNum = parseNum(ped["VALOR_PAGO"]);
+                ped._valorRestante = (statusPagamento === 'Pago') ? null : Math.max(0, vtNum - vpNum);
+                renderTable();
+            }
+
+            var saveResolved = false;
+            var saveTimeout = window.setTimeout(function () {
+                if (saveResolved) return;
+                saveResolved = true;
+                window.clearTimeout(saveTimeout);
+                if (btnSalvar) {
+                    btnSalvar.disabled = false;
+                    btnSalvar.textContent = 'Salvar';
+                }
+                closeEditPedidoModal();
+                aplicarAlteracoesNaLista();
+                alert('Salvamento enviado. Os dados na tabela foram atualizados.');
+            }, 15000);
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    if (saveResolved) return;
+                    saveResolved = true;
+                    window.clearTimeout(saveTimeout);
+                    if (btnSalvar) {
+                        btnSalvar.disabled = false;
+                        btnSalvar.textContent = 'Salvar';
+                    }
+                    closeEditPedidoModal();
+                    aplicarAlteracoesNaLista();
+                    alert('Pedido atualizado com sucesso.');
+                })
+                .withFailureHandler(function (err) {
+                    if (saveResolved) return;
+                    saveResolved = true;
+                    window.clearTimeout(saveTimeout);
+                    if (btnSalvar) {
+                        btnSalvar.disabled = false;
+                        btnSalvar.textContent = 'Salvar';
+                    }
+                    alert('Erro ao atualizar: ' + (err.message || err));
+                })
+                .atualizarPedidoNaPlanilha(projeto, updates, dadosProjeto);
+        }
+
+        var elCondicoes = document.getElementById('editCondicoesPagamento');
+        if (elCondicoes) {
+            elCondicoes.addEventListener('change', recalcDataVencimentoNoModal);
+            elCondicoes.addEventListener('blur', recalcDataVencimentoNoModal);
+        }
+        var elDataEntrega = document.getElementById('editDataEntrega');
+        if (elDataEntrega) {
+            elDataEntrega.addEventListener('change', recalcDataVencimentoNoModal);
+            elDataEntrega.addEventListener('blur', recalcDataVencimentoNoModal);
+        }
+        var statusFilterGroup = document.getElementById('statusPagFilterGroup');
+        if (statusFilterGroup) statusFilterGroup.addEventListener('change', renderTable);
+        var elSearch = document.getElementById('searchInput');
+        if (elSearch) elSearch.addEventListener('input', renderTable);
+        var elMes = document.getElementById('mesFilter');
+        if (elMes) elMes.addEventListener('change', renderTable);
+
+        function abrirPastaProjeto(btn) {
+            var codigo = (btn && btn.getAttribute && btn.getAttribute('data-projeto')) || '';
+            if (!codigo) { alert('Código do projeto não informado.'); return; }
+            google.script.run
+                .withSuccessHandler(function (url) {
+                    if (url) window.open(url, '_blank');
+                    else alert('Pasta do projeto não encontrada no Drive.');
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao buscar pasta: ' + (err.message || err));
+                })
+                .getUrlPastaProjeto(codigo);
+        }
+
+        (function () {
+            var scrollEl = document.querySelector('.page-content-scroll');
+            if (!scrollEl) return;
+            var raf = null;
+            scrollEl.addEventListener('scroll', function () {
+                if (raf) cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(function () {
+                    raf = null;
+                    var wrapper = scrollEl.querySelector('.table-wrapper');
+                    if (wrapper) wrapper.offsetHeight;
+                });
+            });
+        })();
+
+        pedidos = Array.isArray(pedidosIniciais) ? pedidosIniciais : [];
+        populateMesFilter();
+        renderTable();
+    </script>
+</body>
+
+</html>

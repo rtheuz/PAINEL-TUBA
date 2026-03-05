@@ -168,25 +168,21 @@
       ← Voltar
     </button>
     <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
-    <h1>Páginas Protegidas</h1>
+    <h1>Painel Financeiro</h1>
+  </div>
+  <div class="container">
+      <div class="card">
+    <div class="icon">💵</div>
+    <h3>Acompanhamento de Pedidos</h3>
+    <p>Consultar status de pagamentos</p>
+    <a id="linkPedidos" href="#">Abrir</a>
   </div>
   <div class="card">
-    <div class="icon">📲</div>
-    <h3>Avaliações</h3>
-    <p>Avaliações de Desempenho</p>
-    <a id="linkaval" href="#">Abrir</a>
+    <div class="icon">📊</div>
+    <h3>Dashboard Financeiro</h3>
+    <p>Visão consolidada: saldo, inadimplência, carro-chefe e filtros</p>
+    <a id="linkDashboardFin" href="#">Abrir</a>
   </div>
-  <div class="card">
-    <div class="icon">📝</div>
-    <h3>Relatórios de Avaliações</h3>
-    <p>Relatórios de Avaliações</p>
-    <a id="linkRelatorios" href="#">Abrir</a>
-  </div>
-  <div class="card">
-    <div class="icon">🛠️</div>
-    <h3>Logs de Manutenção</h3>
-    <p>Registros de Manutenção</p>
-    <a id="linkmanut" href="#">Abrir</a>
   </div>
   <script>
     var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
@@ -194,12 +190,11 @@
     function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
     const token = localStorage.getItem('token');
 
-    if (!token) { window.location.href = pageUrl('login', ''); }
+    if (!token) { window.location.href = pageUrl('dashboard', ''); }
 
-    document.getElementById('linkaval').href = pageUrl('avaliacoes', 'token=' + token);
-    document.getElementById('linkmanut').href = pageUrl('manutencaologs', 'token=' + token);
-    document.getElementById('linkRelatorios').href = pageUrl('avaliacoespage', 'token=' + token);
-    if (baseUrl) { document.getElementById('linkaval').setAttribute('target', '_top'); document.getElementById('linkmanut').setAttribute('target', '_top'); document.getElementById('linkRelatorios').setAttribute('target', '_top'); }
+    document.getElementById('linkDashboardFin').href = pageUrl('painelfinanceiro-dashboard', 'token=' + token);
+    document.getElementById('linkPedidos').href = pageUrl('pedidos', 'token=' + token);
+    if (baseUrl) { document.getElementById('linkDashboardFin').setAttribute('target', '_top'); document.getElementById('linkPedidos').setAttribute('target', '_top'); }
 
     function voltarPagina() {
       window.location.href = pageUrl('dashboard', 'token=' + token);

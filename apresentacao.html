@@ -427,9 +427,9 @@
     <!-- Notificação de novo orçamento -->
   <div class="notificacao-novo-orcamento" id="notificacaoNovoOrcamento">
     <div class="notificacao-conteudo">
-      <h2>🔔 Novo Orçamento!</h2>
-      <p>Um novo orçamento entrou na aba de <strong>Rascunho</strong></p>
-      <button id="btnConfirmarNotificacao">Confirmar Visualização</button>
+      <h2>NOVO PEDIDO DE ORÇAMENTO</h2>
+      <p id="notificacaoOrcamentoMensagem">CLIENTE:<br>PROJ:<br><em>*Confirme pressionando OK para remover a notificação</em></p>
+      <button id="btnConfirmarNotificacao">OK</button>
     </div>
   </div>
 
@@ -455,8 +455,9 @@
   <!-- Áudio para notificação será gerado via Web Audio API -->
 
   <script>
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
     var WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-    
+    function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
     var config = {
       timeKanban: 10,
       timeSeguranca: 1,
@@ -482,6 +483,7 @@
     var projetosPreparacaoVistos = new Set(); // IDs dos projetos em preparação já vistos
     var primeiraVerificacaoPreparacao = true; // Flag para marcar projetos existentes como vistos
     var intervaloAudioPreparacao = null; // Intervalo de áudio para notificação de preparação
+    var LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE = 'apresentacao_notificacao_orcamento_pendente';
 
     var kanbanSlide = document.getElementById('kanbanSlide');
     var segurancaSlide = document.getElementById('segurancaSlide');
@@ -505,10 +507,8 @@
 
     var token = getToken();
 
-    var kanbanUrl = token 
-      ?  WEBAPP_URL + "?page=kanban&token=" + token
-      : WEBAPP_URL + "?page=kanban";
-    var segurancaUrl = WEBAPP_URL + "?page=seguranca";
+    var kanbanUrl = token ? pageUrl('kanban', 'token=' + token) : pageUrl('kanban', '');
+    var segurancaUrl = pageUrl('seguranca', '');
 
     kanbanFrame.src = kanbanUrl;
     segurancaFrame.src = segurancaUrl;
@@ -925,6 +925,7 @@
         // Se já há notificação ativa, adiciona os novos orçamentos à lista
         orcamentosNotificacaoAtual = orcamentosNotificacaoAtual.concat(novosOrcamentos);
         atualizarMensagemNotificacao();
+        salvarNotificacaoPendenteLocalStorage();
         return;
       }
 
@@ -942,6 +943,9 @@
       var notificacao = document.getElementById('notificacaoNovoOrcamento');
       notificacao.classList.add('ativo');
 
+      // Persiste no localStorage para reaparecer ao reabrir a página até o usuário pressionar OK
+      salvarNotificacaoPendenteLocalStorage();
+
       // Inicia o som de notificação
       iniciarSomNotificacao();
       
@@ -949,6 +953,50 @@
       setTimeout(function() {
         verificarEIgnorarConfirmacoesAntigas(novoTimestamp);
       }, 500);
+    }
+
+    function salvarNotificacaoPendenteLocalStorage() {
+      try {
+        var payload = {
+          timestamp: timestampNotificacaoAtual,
+          orcamentos: orcamentosNotificacaoAtual
+        };
+        localStorage.setItem(LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE, JSON.stringify(payload));
+      } catch (e) {
+        console.log('Erro ao salvar notificação no localStorage:', e);
+      }
+    }
+
+    function limparNotificacaoPendenteLocalStorage() {
+      try {
+        localStorage.removeItem(LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE);
+      } catch (e) {
+        console.log('Erro ao limpar notificação do localStorage:', e);
+      }
+    }
+
+    // Restaura notificação pendente do localStorage ao carregar a página (mantém até OK)
+    function restaurarNotificacaoPendenteLocalStorage() {
+      if (notificacaoAtiva) return;
+      try {
+        var raw = localStorage.getItem(LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        if (!data || !data.orcamentos || data.orcamentos.length === 0) {
+          limparNotificacaoPendenteLocalStorage();
+          return;
+        }
+        notificacaoAtiva = true;
+        timestampNotificacaoAtual = data.timestamp || new Date().getTime();
+        orcamentosNotificacaoAtual = data.orcamentos;
+        atualizarMensagemNotificacao();
+        var notificacao = document.getElementById('notificacaoNovoOrcamento');
+        if (notificacao) notificacao.classList.add('ativo');
+        iniciarSomNotificacao();
+      } catch (e) {
+        console.log('Erro ao restaurar notificação do localStorage:', e);
+        limparNotificacaoPendenteLocalStorage();
+      }
     }
     
     // Verifica e ignora confirmações antigas (anteriores ao timestamp da notificação)
@@ -981,13 +1029,19 @@
     // Atualiza a mensagem da notificação com os orçamentos atuais
     function atualizarMensagemNotificacao() {
       var notificacao = document.getElementById('notificacaoNovoOrcamento');
-      var conteudo = notificacao.querySelector('.notificacao-conteudo p');
-      
+      var conteudo = notificacao ? notificacao.querySelector('#notificacaoOrcamentoMensagem') : null;
+      if (!conteudo) return;
+
       if (orcamentosNotificacaoAtual.length === 1) {
-        conteudo.innerHTML = 'Um novo orçamento entrou na aba de <strong>Rascunho</strong><br>' +
-                            '<small>Cliente: ' + orcamentosNotificacaoAtual[0].cliente + '</small>';
+        conteudo.innerHTML = 'CLIENTE: ' + (orcamentosNotificacaoAtual[0].cliente || '-') + '<br>' +
+                            'PROJ: ' + (orcamentosNotificacaoAtual[0].projeto || '-') + '<br>' +
+                            '<em>*Confirme pressionando OK para remover a notificação</em>';
       } else {
-        conteudo.innerHTML = '<strong>' + orcamentosNotificacaoAtual.length + '</strong> novos orçamentos entraram na aba de <strong>Rascunho</strong>';
+        var linhas = [];
+        for (var i = 0; i < orcamentosNotificacaoAtual.length; i++) {
+          linhas.push('CLIENTE: ' + (orcamentosNotificacaoAtual[i].cliente || '-') + ' | PROJ: ' + (orcamentosNotificacaoAtual[i].projeto || '-'));
+        }
+        conteudo.innerHTML = linhas.join('<br>') + '<br><em>*Confirme pressionando OK para remover a notificação</em>';
       }
     }
 
@@ -1079,33 +1133,24 @@
       }
     }
 
-    // Função para tocar o som repetidamente (limitado a 10 segundos)
+    // Função para tocar o som ao aparecer e repetir a cada 5 minutos até o usuário pressionar OK
+    var INTERVALO_SOM_NOTIFICACAO_MS = 5 * 60 * 1000; // 5 minutos
+
     function iniciarSomNotificacao() {
       // Para qualquer intervalo anterior
       pararSomNotificacao();
       
-      // Toca o som imediatamente
+      // Toca o som imediatamente quando a notificação aparece
       tocarSomNotificacao();
 
-      var tempoInicio = Date.now();
-      var duracaoMaxima = 10000; // 10 segundos em milissegundos
-
-      // Configura para tocar a cada 3 segundos, mas apenas por 10 segundos
+      // Repete o som a cada 5 minutos enquanto a notificação estiver ativa
       intervaloAudio = setInterval(function() {
-        var tempoDecorrido = Date.now() - tempoInicio;
-        
-        if (tempoDecorrido >= duracaoMaxima) {
-          // Para o som após 10 segundos
-          pararSomNotificacao();
-          return;
-        }
-        
         if (notificacaoAtiva) {
           tocarSomNotificacao();
         } else {
           pararSomNotificacao();
         }
-      }, 3000);
+      }, INTERVALO_SOM_NOTIFICACAO_MS);
     }
 
     // Função para parar o som de notificação de orçamento
@@ -1154,9 +1199,10 @@
       timestampNotificacaoAtual = null;
       orcamentosNotificacaoAtual = [];
       var notificacao = document.getElementById('notificacaoNovoOrcamento');
-      notificacao.classList.remove('ativo');
+      if (notificacao) notificacao.classList.remove('ativo');
       pararSomNotificacao();
       ultimaConfirmacaoVerificada = timestampFechamento;
+      limparNotificacaoPendenteLocalStorage();
     }
 
     // Função para verificar se houve confirmação de outra instância
@@ -1598,10 +1644,12 @@
     iniciarVerificacaoOrcamentos();
     iniciarVerificacaoConfirmacao();
     
-    // Verifica notificações pendentes ao carregar a página
+    // Ao carregar a página: restaura notificação pendente do localStorage primeiro (prioridade)
+    // Assim a mensagem continua até o usuário pressionar OK, mesmo fechando/abrindo várias vezes
     setTimeout(function() {
+      restaurarNotificacaoPendenteLocalStorage();
       verificarNotificacoesPendentes();
-    }, 3000); // Aguarda 3 segundos para garantir que tudo está carregado
+    }, 1500); // Verificação após 1.5s para garantir que o DOM está pronto
   </script>
 </body>
 

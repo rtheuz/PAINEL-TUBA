@@ -1,7 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <base target="_top">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
@@ -62,6 +64,47 @@
       font-size: 36px;
       text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
       margin: 0;
+    }
+
+    .header-extra {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 40px 0;
+      margin-bottom: 8px;
+    }
+
+    .busca-modulos {
+      flex: 1;
+      min-width: 200px;
+      max-width: 320px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #1a1a1a;
+    }
+
+    .busca-modulos::placeholder {
+      color: #666;
+    }
+
+    .busca-modulos:focus {
+      outline: 2px solid rgba(26, 115, 232, 0.8);
+    }
+
+    .status-atualizacao {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .status-atualizacao.atualizando {
+      opacity: 0.85;
     }
 
     .container {
@@ -126,7 +169,21 @@
       background: rgba(26, 115, 232, 1);
     }
 
+    .card.hidden-by-search {
+      display: none;
+    }
+
     @media(max-width:500px) {
+      .header-extra {
+        padding: 16px 20px 0;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .busca-modulos {
+        max-width: none;
+      }
+
       .container {
         padding: 20px;
         gap: 15px;
@@ -155,10 +212,9 @@
   </div>
 
 
+  <div class="container" id="containerCards">
 
-  <div class="container">
-
-    <div class="card">
+    <div class="card" data-module-name="gerenciar projetos projetos ativos finalizados">
       <div class="icon">🗃️</div>
       <h3>Gerenciar Projetos</h3>
       <div class="stats" id="statProjetos">0</div>
@@ -166,16 +222,7 @@
       <a id="linkProjetos" href="#">Abrir</a>
     </div>
 
-    <div class="card">
-      <div class="icon">📄</div>
-      <h3>Nova Proposta Comercial</h3>
-      <div class="stats" id="statPropostas">0</div>
-      <p>Propostas criadas</p>
-      <a id="linkFormulario" href="#">Abrir</a>
-    </div>
-
-    
-    <div class="card">
+    <div class="card" data-module-name="linha de produção tarefas produção kanban">
       <div class="icon">🏭</div>
       <h3>Linha de Produção</h3>
       <div class="stats" id="statKanban">0</div>
@@ -183,7 +230,7 @@
       <a id="linkKanban" href="#">Abrir</a>
     </div>
 
-    <div class="card">
+    <div class="card" data-module-name="gerador etiquetas etiquetas geradas">
       <div class="icon">🏷️</div>
       <h3>Gerador de Etiquetas</h3>
       <div class="stats" id="statEtiquetas">0</div>
@@ -191,15 +238,15 @@
       <a id="linkGeradorEtiquetas" href="#">Abrir</a>
     </div>
 
-    <div class="card">
+    <div class="card" data-module-name="controle materia prima mp empresa materiais">
       <div class="icon">📦</div>
-      <h3>Controle de Materiais</h3>
+      <h3>Controle de Materia Prima</h3>
       <div class="stats" id="statMateriais">0</div>
       <p>Materiais em estoque</p>
       <a id="linkMateriais" href="#">Abrir</a>
     </div>
 
-    <div class="card">
+    <div class="card" data-module-name="produtos cadastrados">
       <div class="icon">🛍️</div>
       <h3>Produtos Cadastrados</h3>
       <div class="stats" id="statProdutos">0</div>
@@ -207,51 +254,36 @@
       <a id="linkProdutos" href="#">Abrir</a>
     </div>
 
-    <div class="card">
+    <div class="card" data-module-name="administração área reservada">
       <div class="icon">🔒</div>
       <h3>Administração</h3>
       <p>Área reservada</p>
       <a id="linkTESTE" href="#">Abrir</a>
     </div>
 
-    <div class="card">
-      <div class="icon">📊</div>
-      <h3>Painel Financeiro</h3>
-      <p>Área financeira</p>
-      <a id="linkFinanceiro" href="#">Abrir</a>
+    <div class="card card-financeiro-resumo" data-module-name="financeiro painel financeiro">
+      <div class="icon">💰</div>
+      <h3>Financeiro</h3>
+      <p>Visão do painel financeiro por completo</p>
+      <a id="linkFinanceiroResumo" href="#">Abrir</a>
     </div>
 
-    <div class="card">
+    <div class="card" data-module-name="formulário manutenção máquinas">
       <div class="icon">⚙️</div>
       <h3>Formulário de Manutenção</h3>
       <p>Realizar manutenção das máquinas</p>
       <a id="linkManutencao" href="#">Abrir</a>
     </div>
 
-    <div class="card">
-      <div class="icon">🛻</div>
-      <h3>Saída de Veículos</h3>
-      <p>Registrar saída de veículos</p>
-      <a id="linkVeiculos" href="#">Abrir</a>
-    </div>
-
-    <div class="card">
-      <div class="icon">🏁</div>
-      <h3>Retorno de veículos</h3>
-      <p>Registrar e consultar retorno de veículos</p>
-      <a id="linkVeiculoslist" href="#">Abrir</a>
-    </div>
-
-    <div class="card">
-      <div class="icon">🛡️</div>
-      <h3>Mensagens de Segurança</h3>
-      <p>Exibir mensagens de segurança no trabalho</p>
-      <a id="linkSeguranca" href="#">Abrir</a>
-    </div>
-
+  </div>
 
   <script>
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+    function pageUrl(page, qs) {
+      if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+      return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
+    }
 
     // Verifica se o token veio na URL, se sim, salva no localStorage
     const urlParams = new URLSearchParams(window.location.search);
@@ -263,35 +295,45 @@
 
     const token = localStorage.getItem('token');
 
-    if (!token) { window.location.href = WEBAPP_URL + "?page=login"; }
+    if (!token) { window.location.href = pageUrl('login', ''); }
 
-    document.getElementById('linkProjetos').href = WEBAPP_URL + "?page=projetos&token=" + token;
-    document.getElementById('linkKanban').href = WEBAPP_URL + "?page=apresentacao&token=" + token;
-    document.getElementById('linkFormulario').href = WEBAPP_URL + "?page=formulario&token=" + token;
-    document.getElementById('linkGeradorEtiquetas').href = WEBAPP_URL + "?page=geradoretiquetas&token=" + token;
-    document.getElementById('linkTESTE').href = WEBAPP_URL + "?page=paginasprotegidas&token=" + token;
-    document.getElementById('linkManutencao').href = WEBAPP_URL + "?page=manutencao&token=" + token;
-    document.getElementById('linkVeiculos').href = WEBAPP_URL + "?page=veiculos&token=" + token;
-    document.getElementById('linkVeiculoslist').href = WEBAPP_URL + "?page=veiculos_list&token=" + token;
-    document.getElementById('linkProdutos').href = WEBAPP_URL + "?page=produtos&token=" + token;
-    document.getElementById('linkSeguranca').href = WEBAPP_URL + "?page=seguranca&token=" + token;
-  
+    var setLink = function(id, page, qs) {
+      var el = document.getElementById(id);
+      el.href = pageUrl(page, qs || 'token=' + token);
+      if (baseUrl) el.setAttribute('target', '_top');
+    };
+    setLink('linkProjetos', 'projetos');
+    setLink('linkKanban', 'apresentacao');
+    setLink('linkGeradorEtiquetas', 'geradoretiquetas');
+    setLink('linkTESTE', 'paginasprotegidas');
+    setLink('linkManutencao', 'manutencao');
+    setLink('linkProdutos', 'produtos');
+    setLink('linkFinanceiroResumo', 'painelfinanceiro');
+    setLink('linkMateriais', 'materiais');
 
-    // Atualiza estatísticas em tempo real
+    var lastUpdateTime = null;
+
+    // Atualiza estatísticas em tempo real (com tratamento de erro e indicador)
     function atualizarEstatisticas() {
-      google.script.run.withSuccessHandler(res => {
-        document.getElementById('statPropostas').textContent = res.propostas || 0;
-        document.getElementById('statProjetos').textContent = res.projetos || 0;
-        document.getElementById('statKanban').textContent = res.kanban || 0;
-        document.getElementById('statEtiquetas').textContent = res.etiquetas || 0;
-        document.getElementById('statMateriais').textContent = res.materiais || 0;
-        document.getElementById('statProdutos').textContent = res.produtos || 0;
-        document.getElementById('statProjetos').textContent = res.projetos || 0;
-      }).getDashboardStats();
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          lastUpdateTime = Date.now();
+          document.getElementById('statProjetos').textContent = res.projetos != null ? res.projetos : 0;
+          document.getElementById('statKanban').textContent = res.kanban != null ? res.kanban : 0;
+          document.getElementById('statEtiquetas').textContent = res.etiquetas != null ? res.etiquetas : 0;
+          document.getElementById('statMateriais').textContent = res.materiais != null ? res.materiais : 0;
+          document.getElementById('statProdutos').textContent = res.produtos != null ? res.produtos : 0;
+        })
+        .withFailureHandler(function (err) {
+          console.error('getDashboardStats:', err);
+        })
+        .getDashboardStats();
     }
 
     atualizarEstatisticas();
     setInterval(atualizarEstatisticas, 10000);
+
   </script>
 
 </body>
