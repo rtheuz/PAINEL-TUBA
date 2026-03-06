@@ -652,6 +652,7 @@
                 { key: '_notaFiscal', label: 'NF', sortable: true, colClass: '' },
                 { key: 'CLIENTE', label: 'Cliente', sortable: true, colClass: '' },
                 { key: 'PROJETO', label: 'Projeto', sortable: true, colClass: '' },
+                { key: 'PROCESSOS', label: 'Processos', sortable: true, colClass: '' },
                 { key: '_dataCompetencia', label: 'Data comp.', sortable: true, colClass: '' },
                 { key: 'VALOR TOTAL', label: 'Valor ped.', sortable: true, colClass: '' },
                 { key: '_condicoesPagamento', label: 'Condições pgto.', sortable: true, colClass: '' },
@@ -695,6 +696,7 @@
                     '<td>' + (getNotaFiscal(p) || '-') + '</td>' +
                     '<td>' + (p.CLIENTE || '') + '</td>' +
                     '<td><strong>' + (p.PROJETO || '') + '</strong></td>' +
+                    '<td>' + (p.PROCESSOS || '-') + '</td>' +
                     '<td>' + formatDateDisplay(getDataCompetencia(p)) + '</td>' +
                     '<td>' + formatCurrency(p["VALOR TOTAL"]) + '</td>' +
                     '<td>' + (getCondicoesPagamento(p) || '-') + '</td>' +

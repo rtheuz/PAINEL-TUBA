@@ -2568,7 +2568,24 @@ function salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf) {
 
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
 function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto, isPedido) {
-  const processosStr = "";
+  // Calcula a união dos processos de todos os itens (produtos cadastrados)
+  const todosProcessos = [];
+  const ordemProcessos = ["MP", "CL", "D", "S", "Pin", "CAD", "ACB"];
+  (produtosCadastrados || []).forEach(function(prod) {
+    var procs = prod.processos;
+    if (procs && Array.isArray(procs)) {
+      procs.forEach(function(sigla) {
+        if (todosProcessos.indexOf(sigla) < 0) todosProcessos.push(sigla);
+      });
+    }
+  });
+  // Ordena na ordem padrão
+  todosProcessos.sort(function(a, b) {
+    return ordemProcessos.indexOf(a) - ordemProcessos.indexOf(b);
+  });
+  // Se o usuário digitou algo manual no campo obsProcessos, usa isso; senão usa a união dos itens
+  const processosManual = (observacoes && observacoes.processos) ? String(observacoes.processos).trim() : "";
+  const processosStr = processosManual || todosProcessos.join(", ");
 
   // Extrai descrição e prazo das observações
   const descricao = (observacoes && observacoes.descricao) || "";
@@ -4939,6 +4956,7 @@ function getPedidos() {
         p._linhaPlanilha = proj._linhaPlanilha;
         p["LINK DO PDF"] = proj["LINK DO PDF"] || "";
         p.JSON_DADOS = proj.JSON_DADOS || proj["JSON_DADOS"] || "";
+        p.PROCESSOS = proj.PROCESSOS || "";
       } else {
         p._linhaPlanilha = 50000 + (rowPed._linhaPedidos || 0);
       }
@@ -4966,6 +4984,7 @@ function getPedidos() {
           "VALOR TOTAL": proj["VALOR TOTAL"] || proj["VALOR_TOTAL"],
           CLIENTE: proj.CLIENTE || "",
           DATA: proj.DATA || "",
+          PROCESSOS: proj.PROCESSOS || "",
           "LINK DO PDF": proj["LINK DO PDF"] || "",
           JSON_DADOS: proj.JSON_DADOS || proj["JSON_DADOS"] || "",
           _linhaPlanilha: proj._linhaPlanilha
