@@ -1089,6 +1089,19 @@
                             </label>
                         </div>
                     </div>
+                    <div class="filter-group filter-status-multi">
+                        <label>Data de Entrega</label>
+                        <div class="filter-checkboxes" id="entregaFilterGroup">
+                            <label class="filter-check-label">
+                                <input type="checkbox" class="filter-entrega-cb" value="com">
+                                Entrega Informada
+                            </label>
+                            <label class="filter-check-label">
+                                <input type="checkbox" class="filter-entrega-cb" value="sem">
+                                Entrega a Informar
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="tableContainer">
@@ -1105,6 +1118,7 @@
         const token = '<?= token ?>';
         let projetos = [];
         var lastNFInformada = null; // para repassar valor NF após salvar e recarregar
+        var lastEntregaInformada = null; // para repassar data entrega após salvar e recarregar
         var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
@@ -1243,6 +1257,11 @@
                             if (p) p.valorNF = lastNFInformada.valor;
                             lastNFInformada = null;
                         }
+                        if (lastEntregaInformada) {
+                            var p = projetos.find(function (proj) { return proj._linhaPlanilha == lastEntregaInformada.linha; });
+                            if (p) p.dataEntregaReal = lastEntregaInformada.valor;
+                            lastEntregaInformada = null;
+                        }
                         renderTable();
                     })
                     .withFailureHandler(function (error) {
@@ -1270,6 +1289,7 @@
             const statusOrc = document.getElementById('statusOrcFilter').value;
             const statusPed = document.getElementById('statusPedFilter').value;
             const nfFilterSelected = (typeof getNfFilterSelected === 'function') ? getNfFilterSelected() : [];
+            const entregaFilterSelected = (typeof getEntregaFilterSelected === 'function') ? getEntregaFilterSelected() : [];
             var fc = window.columnFilters['filterColCliente']; var filtroCliente = (fc != null ? fc : (document.getElementById('filterColCliente') && document.getElementById('filterColCliente').value) || '').toString().toLowerCase();
             var fp = window.columnFilters['filterColProjeto']; var filtroProjeto = (fp != null ? fp : (document.getElementById('filterColProjeto') && document.getElementById('filterColProjeto').value) || '').toString().toLowerCase();
             var fd = window.columnFilters['filterColDescricao']; var filtroDescricao = (fd != null ? fd : (document.getElementById('filterColDescricao') && document.getElementById('filterColDescricao').value) || '').toString().toLowerCase();
@@ -1318,9 +1338,23 @@
                     }
                 }
 
+                // RF005: filtro de data de entrega — só aplicado a pedidos finalizados
+                const ehPedidoFinalizado = p.STATUS_ORCAMENTO === 'Convertido em Pedido' && p.STATUS_PEDIDO === 'Finalizado';
+                const entregaPreenchida = !!(p.dataEntregaReal && String(p.dataEntregaReal).trim() !== '');
+                let matchEntrega = true;
+                if (entregaFilterSelected.length > 0) {
+                    if (!ehPedidoFinalizado) {
+                        matchEntrega = false;
+                    } else {
+                        matchEntrega =
+                            (entregaPreenchida && entregaFilterSelected.indexOf('com') >= 0) ||
+                            (!entregaPreenchida && entregaFilterSelected.indexOf('sem') >= 0);
+                    }
+                }
+
                 return matchSearch && matchStatusOrc && matchStatusPed &&
                     matchColCliente && matchColProjeto && matchColDescricao && matchColValor && matchColProcessos &&
-                    matchColPrazoProposta && matchColPrazoEntrega && matchColObs && matchNF;
+                    matchColPrazoProposta && matchColPrazoEntrega && matchColObs && matchNF && matchEntrega;
             });
 
             console.log('renderTable: filtered.length=', filtered.length);
@@ -1391,6 +1425,14 @@
                 const nfBtnTitle = !exigeNF ? '' : (nfPreenchida ? ('NF preenchida (' + nfValor + ')') : 'Informar NF (pendente)');
                 const nfBtnTexto = !exigeNF ? 'NF' : (nfPreenchida ? 'NF ✔' : 'NF ?');
 
+                // RF005: botão de data de entrega — só exibido para pedidos finalizados
+                const ehPedidoFinalizado = projeto.STATUS_ORCAMENTO === 'Convertido em Pedido' && projeto.STATUS_PEDIDO === 'Finalizado';
+                const entregaVal = (projeto.dataEntregaReal != null && String(projeto.dataEntregaReal).trim() !== '') ? String(projeto.dataEntregaReal).trim() : '';
+                const entregaPreenchida = !!entregaVal;
+                const entregaBtnCor = entregaPreenchida ? '#16a34a' : '#f59e0b';
+                const entregaBtnTitle = entregaPreenchida ? ('Entrega: ' + entregaVal) : 'Informar data de entrega (pendente)';
+                const entregaBtnTexto = entregaPreenchida ? '📦 ✔' : '📦 ?';
+
                 html += `
           <tr data-linha="${linha}">
             <td>${projeto.CLIENTE || ''}</td>
@@ -1431,6 +1473,7 @@
             </td>
             <td class="actions-cell">
               <button type="button" class="btn btn-small" style="background:${nfBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="abrirInformarNFSeExige(${linha})" title="${nfBtnTitle || ''}">${nfBtnTexto}</button>
+              ${ehPedidoFinalizado ? `<button type="button" class="btn btn-small" style="background:${entregaBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="informarDataEntrega(${linha})" title="${esc(entregaBtnTitle)}">${entregaBtnTexto}</button>` : ''}
               <div class="actions-dropdown">
                 <button type="button" class="btn btn-small actions-trigger" onclick="toggleActionsMenu(event, ${linha})" title="Ações">⋮</button>
                 <div class="actions-menu" id="actionsMenu-${linha}">
@@ -1710,6 +1753,29 @@
                 .informarValorNFProjeto(linha, valorTrim);
         }
 
+        // RF005: Informar data de entrega real (pedidos finalizados)
+        function informarDataEntrega(linha) {
+            const projeto = projetos.find(p => p._linhaPlanilha == linha);
+            const valorAtual = (projeto && projeto.dataEntregaReal) ? String(projeto.dataEntregaReal) : '';
+            const valor = prompt('Informe a data de entrega (ex: 15/03/2026):', valorAtual);
+            if (valor === null) return;
+            const valorTrim = (valor || '').trim();
+            if (!valorTrim) {
+                alert('Informe a data de entrega.');
+                return;
+            }
+            google.script.run
+                .withSuccessHandler(function () {
+                    lastEntregaInformada = { linha: linha, valor: valorTrim };
+                    alert('Data de entrega registrada com sucesso.');
+                    loadProjetos();
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao informar data de entrega: ' + (error.message || error));
+                })
+                .informarDataEntregaProjeto(linha, valorTrim);
+        }
+
         // Editar projeto (abre modal de edição)
         function editProjeto(linha) {
             // Busca o projeto correspondente
@@ -1948,6 +2014,16 @@
             return arr;
         }
 
+        // RF005: retorna os valores selecionados no filtro de data de entrega
+        function getEntregaFilterSelected() {
+            var cbs = document.querySelectorAll('.filter-entrega-cb:checked');
+            var arr = [];
+            for (var i = 0; i < cbs.length; i++) {
+                arr.push((cbs[i].value || '').trim());
+            }
+            return arr;
+        }
+
         /** Converte string em formato BR (R$ 1.234,56 ou 1.234,56) ou número (1234.56) para número com 2 casas decimais. */
         function parseCurrencyBr(str) {
             if (str === '' || str == null) return null;
@@ -2001,6 +2077,8 @@
         document.getElementById('statusPedFilter').addEventListener('change', renderTable);
         var nfFilterGroup = document.getElementById('nfFilterGroup');
         if (nfFilterGroup) nfFilterGroup.addEventListener('change', renderTable);
+        var entregaFilterGroup = document.getElementById('entregaFilterGroup');
+        if (entregaFilterGroup) entregaFilterGroup.addEventListener('change', renderTable);
 
         // Filtros por coluna: delegar input/change no container para não perder referência ao re-render
         document.getElementById('tableContainer').addEventListener('input', function (e) {

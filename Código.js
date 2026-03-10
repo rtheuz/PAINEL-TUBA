@@ -1781,18 +1781,24 @@ function gerarPdfOrcamento(
     if (apenasPreview) return { html: htmlContent };
 
     const blob = Utilities.newBlob(htmlContent, "text/html", "orcamento.html");
-    const nomeArquivoPdf = "Proposta_" + numeroProposta + ".pdf";
+    // RF004: inclui número sequencial no nome do arquivo (ex: Proposta_260310aMS_1705.pdf)
+    const seqSuffix = (numeroSequencial != null && String(numeroSequencial).trim() !== "" && String(numeroSequencial) !== "—") ? "_" + String(numeroSequencial).trim() : "";
+    const nomeArquivoPdf = "Proposta_" + numeroProposta + seqSuffix + ".pdf";
     const pdf = blob.getAs("application/pdf").setName(nomeArquivoPdf);
 
     let file;
     if (sobrescreverVersao) {
       // Sobrescrever: move o antigo para lixeira e cria novo (setContent corrompe PDF)
-      const arquivos = comSubFolder.getFilesByName(nomeArquivoPdf);
-      if (arquivos.hasNext()) {
-        const arquivoAntigo = arquivos.next();
-        arquivoAntigo.setTrashed(true);
-        Logger.log("📄 Arquivo antigo movido para lixeira: " + nomeArquivoPdf);
-      }
+      // Tenta encontrar pelo nome atual e também pelo formato antigo (sem sufixo sequencial)
+      const nomeSemSeq = "Proposta_" + numeroProposta + ".pdf";
+      [nomeArquivoPdf, nomeSemSeq].forEach(function(nome) {
+        var arqs = comSubFolder.getFilesByName(nome);
+        while (arqs.hasNext()) {
+          var arq = arqs.next();
+          arq.setTrashed(true);
+          Logger.log("📄 Arquivo antigo movido para lixeira: " + nome);
+        }
+      });
       file = comSubFolder.createFile(pdf);
       Logger.log("📄 PDF sobrescrito (novo arquivo): " + nomeArquivoPdf);
     } else {
@@ -1800,6 +1806,18 @@ function gerarPdfOrcamento(
     }
 
     const memoriaUrl = null; // Memória de Cálculo é gerada separadamente pelo botão "Salvar Memória de Cálculo"
+
+    // RF001: salvar referência do projeto base em 01_IN quando duplicando
+    if (!sobrescreverVersao && dadosFormularioCompleto && dadosFormularioCompleto.projetoBase && pasta) {
+      try {
+        const inFolder = getOrCreateSubFolder(pasta, "01_IN");
+        const refContent = "Projeto criado a partir de: " + dadosFormularioCompleto.projetoBase;
+        const refBlob = Utilities.newBlob(refContent, "text/plain", "origem_" + dadosFormularioCompleto.projetoBase + ".txt");
+        inFolder.createFile(refBlob);
+      } catch (eRef) {
+        Logger.log("Aviso RF001: não foi possível salvar referência do projeto base em 01_IN: " + (eRef.message || eRef));
+      }
+    }
 
     var urlPdfRetorno = file.getUrl();
     try {
@@ -2427,8 +2445,11 @@ function salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf) {
   <h2>Memória de Cálculo</h2>
   <p>Projeto: ${codigoProjeto || "—"} | Data: ${formatarDataBrasil(new Date())}</p>`;
   memorias.forEach(function (m, idx) {
-    html += `<div class="titulo">Memória ${idx + 1}</div><table><tbody>`;
+    var tituloMemoria = "Memória " + (idx + 1);
+    if (m.prdCodigo) tituloMemoria += " — " + m.prdCodigo;
+    html += `<div class="titulo">${tituloMemoria}</div><table><tbody>`;
     const linhas = [
+      ["Produto (PRD)", m.prdCodigo || "—"],
       ["Material", m.material],
       ["Comprimento da chapa (mm)", formatarNum(m.comprimento)],
       ["Largura da chapa (mm)", formatarNum(m.largura)],
@@ -2505,8 +2526,8 @@ function salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf) {
         pasta = criarOuUsarPastaProjeto(codigoBase, "", codigoBase, dataProj, false);
       }
       const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
-      const comSubFolder = getOrCreateSubFolder(workFolder, "COM");
-      pasta = comSubFolder;
+      // RF003: salva em "Memoria de Calculo" dentro de 02_WORK (não mais em COM)
+      pasta = getOrCreateSubFolder(workFolder, "Memoria de Calculo");
     } catch (e) {
       Logger.log("Aviso ao obter pasta do projeto para memória: " + e.message);
       pasta = null;
@@ -2521,7 +2542,7 @@ function salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf) {
   if (!sheetMemoria) {
     sheetMemoria = ss.insertSheet("memoria de calculo");
   }
-  const headers = ["Data", "Projeto", "Material", "Compr. chapa (mm)", "Larg. chapa (mm)", "Espessura (mm)", "Densidade", "Custo", "Mark Up (%)", "Preço venda mat (R$/kg)", "Peso chapa (kg)", "Descrição peça", "Medidas da peça", "Nº peças/chapa", "Nº peças lote", "Preço material lote (R$)", "Preço material unit. (R$)", "Preço corte lote (R$)", "Preço corte unit. (R$)", "Preço dobra lote (R$)", "Preço dobra unit. (R$)", "Preço adic. lote (R$)", "Preço adic. unit. (R$)", "Outros custos (R$)", "Preço final unitário (R$)", "Preço final lote (R$)", "Target unitário (R$)", "Target lote (R$)", "Diferença (R$)"];
+  const headers = ["Data", "Projeto", "PRD", "Material", "Compr. chapa (mm)", "Larg. chapa (mm)", "Espessura (mm)", "Densidade", "Custo", "Mark Up (%)", "Preço venda mat (R$/kg)", "Peso chapa (kg)", "Descrição peça", "Medidas da peça", "Nº peças/chapa", "Nº peças lote", "Preço material lote (R$)", "Preço material unit. (R$)", "Preço corte lote (R$)", "Preço corte unit. (R$)", "Preço dobra lote (R$)", "Preço dobra unit. (R$)", "Preço adic. lote (R$)", "Preço adic. unit. (R$)", "Outros custos (R$)", "Preço final unitário (R$)", "Preço final lote (R$)", "Target unitário (R$)", "Target lote (R$)", "Diferença (R$)"];
   if (sheetMemoria.getLastRow() === 0) {
     sheetMemoria.appendRow(headers);
   }
@@ -2534,6 +2555,7 @@ function salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf) {
     sheetMemoria.appendRow([
       dataBrasil,
       codigoProjeto || "",
+      m.prdCodigo || "",
       m.material || "",
       m.comprimento != null ? m.comprimento : "",
       m.largura != null ? m.largura : "",
@@ -4280,6 +4302,8 @@ function getProjetos() {
             const obs = parsed.dados.observacoes;
             obj.temNotaFiscal = !!obs.temNotaFiscal;
             obj.valorNF = obs.valorNF != null && obs.valorNF !== "" ? String(obs.valorNF).trim() : "";
+            // RF005: extrai data de entrega real (registrada via informarDataEntregaProjeto)
+            obj.dataEntregaReal = obs.dataEntregaReal != null && obs.dataEntregaReal !== "" ? String(obs.dataEntregaReal).trim() : "";
           }
         } catch (e) { /* ignora */ }
       }
@@ -5480,6 +5504,50 @@ function informarValorNFProjeto(linha, valorNF) {
   } catch (e) {
     Logger.log("informarValorNFProjeto error: " + e.message);
     throw new Error(e.message || "Erro ao informar valor da NF");
+  }
+}
+
+/**
+ * RF005: Informa a data de entrega real para um projeto finalizado.
+ * Atualiza JSON_DADOS na aba Projetos e sincroniza com a aba Pedidos (coluna DATA_ENTREGA).
+ * @param {number} linha - Linha na aba Projetos
+ * @param {string} dataEntrega - Data de entrega no formato dd/MM/yyyy
+ */
+function informarDataEntregaProjeto(linha, dataEntrega) {
+  try {
+    linha = Number(linha);
+    if (!linha || linha < 2) throw new Error("Linha inválida.");
+    var sheetProj = ss.getSheetByName("Projetos");
+    if (!sheetProj || sheetProj.getLastRow() < linha) throw new Error("Projeto não encontrado.");
+    var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+    var idxJson = headers.indexOf("JSON_DADOS");
+    var idxProjeto = headers.indexOf("PROJETO");
+    if (idxJson < 0 || idxProjeto < 0) throw new Error("Estrutura da planilha Projetos não encontrada.");
+    var row = sheetProj.getRange(linha, 1, 1, headers.length).getValues()[0];
+    var codigoProjeto = (row[idxProjeto] || "").toString().trim();
+    if (!codigoProjeto) throw new Error("Código do projeto não encontrado.");
+    var jsonStr = row[idxJson];
+    var parsed = jsonStr ? (function () { try { return JSON.parse(jsonStr); } catch (e) { return null; } })() : null;
+    if (!parsed || !parsed.dados) parsed = { dados: {} };
+    if (!parsed.dados.observacoes) parsed.dados.observacoes = {};
+    parsed.dados.observacoes.dataEntregaReal = dataEntrega == null ? "" : String(dataEntrega).trim();
+    var newJson = JSON.stringify(parsed);
+    sheetProj.getRange(linha, idxJson + 1).setValue(newJson);
+    // Sincroniza com aba Pedidos
+    var obj = {};
+    headers.forEach(function (h, i) { obj[h] = row[i]; });
+    obj["JSON_DADOS"] = newJson;
+    var dataComp = (obj["DATA_COMPETENCIA"] || obj["DATA COMPETÊNCIA"] || obj.DATA || "").toString().trim();
+    atualizarPedidoNaPlanilha(codigoProjeto, { DATA_ENTREGA: parsed.dados.observacoes.dataEntregaReal }, {
+      CLIENTE: obj.CLIENTE,
+      "VALOR TOTAL": obj["VALOR TOTAL"],
+      _dataCompetencia: dataComp,
+      _linhaPlanilha: linha
+    });
+    return { success: true };
+  } catch (e) {
+    Logger.log("informarDataEntregaProjeto error: " + e.message);
+    throw new Error(e.message || "Erro ao informar data de entrega");
   }
 }
 

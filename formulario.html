@@ -492,22 +492,6 @@
             </div>
         </div>
 
-        <!-- MEMÓRIA DE CÁLCULO -->
-        <div class="section" id="memoriaCalculoSection">
-            <div class="section-header">
-                <div>
-                    <h3>Memória de Cálculo</h3>
-                    <small>Gerar memória de cálculo com informações da peça<br>
-                        *Salve em PDF na pasta do projeto</small>
-                </div>
-                <div>
-                    <button type="button" onclick="addMemoriaCalculo()">+ Adicionar Memória de Cálculo</button>
-                    <button type="button" class="secondary" onclick="salvarMemoriaCalculo()" style="margin-left:8px;">💾 Salvar Memória de Cálculo (PDF + Planilha)</button>
-                </div>
-            </div>
-            <div id="memoriasContainer"></div>
-        </div>
-
         <!-- PRODUTOS CADASTRADOS -->
         <div class="section" id="produtosCadastradosSection">
             <div class="section-header">
@@ -520,6 +504,22 @@
                 </div>
             </div>
             <div id="produtosCadastradosContainer"></div>
+        </div>
+
+        <!-- MEMÓRIA DE CÁLCULO -->
+        <div class="section" id="memoriaCalculoSection">
+            <div class="section-header">
+                <div>
+                    <h3>Memória de Cálculo</h3>
+                    <small>Gerar memória de cálculo com informações da peça. Cada memória pode ser associada a um produto (PRD).<br>
+                        *Salva em PDF na pasta do projeto (02_WORK/Memoria de Calculo)</small>
+                </div>
+                <div>
+                    <button type="button" onclick="addMemoriaCalculo()">+ Adicionar Memória de Cálculo</button>
+                    <button type="button" class="secondary" onclick="salvarMemoriaCalculo()" style="margin-left:8px;">💾 Salvar Memória de Cálculo (PDF + Planilha)</button>
+                </div>
+            </div>
+            <div id="memoriasContainer"></div>
         </div>
 
         <!-- PROCESSOS ADICIONAIS DO PEDIDO -->
@@ -677,12 +677,13 @@
                 <span style="font-weight:600; color:#333;">Gerar PDF:</span>
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                     <input type="radio" name="modoVersaoPdf" value="nova">
-                    <span>Gerar nova versão</span>
+                    <span>Duplicar projeto</span>
                 </label>
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
                     <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked>
                     <span>Atualizar versão atual</span>
                 </label>
+                <small id="descricaoDuplicar" style="display:none; color:#666; font-style:italic; margin-left:4px;">Duplicar este projeto (Cria um novo projeto a partir desse)</small>
             </div>
             <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
                 <button type="button" onclick="limparFormularioCompleto()" style="background:#c53838; color:white;">🗑️ Limpar Tudo</button>
@@ -1358,6 +1359,16 @@
             document.getElementById(id).addEventListener("input", function() { atualizarCamposProjeto(); });
         });
         document.getElementById("projetoIndice").addEventListener("input", function() {
+            // RF002: se houver um projeto carregado e o índice for alterado, passa para modo de novo projeto.
+            // linhaOrcamentoCarregado = null → salvar/gerar PDF cria um novo projeto em vez de atualizar o original.
+            // projetoBaseParaDuplicar é mantido intencionalmente: quando o usuário gerar PDF com modo "nova",
+            // o backend usará esse valor para salvar a referência de origem em 01_IN do novo projeto.
+            if (linhaOrcamentoCarregado != null) {
+                linhaOrcamentoCarregado = null;
+                numeroSequencialCarregado = null;
+                const infoDiv = document.getElementById("orcamentoCarregadoInfo");
+                if (infoDiv) infoDiv.classList.add("hidden");
+            }
             atualizarCamposProjeto(true);
         });
         // Não chama atualizarCamposProjeto() aqui: as iniciais vêm do getUsuarioLogadoPorToken (assíncrono).
@@ -1463,6 +1474,12 @@
             div.id = "memoria" + memoriaCount;
             div.innerHTML = `
     <div class="titulo">Memória de Cálculo</div>
+    <div class="row" style="margin-bottom:6px;">
+      <div class="col" style="flex:1;">
+        <label>Produto associado (PRD):</label>
+        <input type="text" class="memPrdCodigo" placeholder="Ex: PRD00001 (opcional)">
+      </div>
+    </div>
     <div class="row">
       <div class="col" style="flex:2;">
         <label>Material:</label>
@@ -1957,6 +1974,7 @@
                 const precoDobraUnit = numPecasLote > 0 ? precoDobraTotal / numPecasLote : 0;
                 const precoAdicionaisUnitVal = numPecasLote > 0 ? precoAdicionais / numPecasLote : 0;
                 formData.memoriasCalculo.push({
+                    prdCodigo: (mDiv.querySelector(".memPrdCodigo")?.value || "").trim(),
                     material: mDiv.querySelector(".memMaterial")?.value || "",
                     comprimento: compMm,
                     largura: largMm,
@@ -2123,6 +2141,9 @@
                 addMemoriaCalculo();
                 const mDiv = document.querySelector("#memoriasContainer .memoria-calc:first-child");
                 if (!mDiv) return;
+                // RF003: restaura código PRD associado
+                var elPrd = mDiv.querySelector(".memPrdCodigo");
+                if (elPrd) elPrd.value = memData.prdCodigo || "";
                 mDiv.querySelector(".memMaterial").value = memData.material || "";
                 mDiv.querySelector(".memComprimento").value = memData.comprimento != null ? memData.comprimento : "";
                 mDiv.querySelector(".memLargura").value = memData.largura != null ? memData.largura : "";
@@ -2340,6 +2361,7 @@
         function limparEstadoRascunho() {
             linhaOrcamentoCarregado = null;
             numeroSequencialCarregado = null;
+            projetoBaseParaDuplicar = null;
             document.getElementById("rascunhoBusca").value = "";
             document.getElementById("rascunhoBusca").style.background = "";
             document.getElementById("rascunhoSelectKey").value = "";
@@ -2459,6 +2481,16 @@
         let linhaOrcamentoCarregado = null;
         // Número sequencial do orçamento carregado (preservado ao sobrescrever)
         let numeroSequencialCarregado = null;
+        // Código do projeto base (quando duplicando a partir de um orçamento carregado)
+        let projetoBaseParaDuplicar = null;
+
+        // Mostra/oculta a descrição do modo "Duplicar projeto"
+        document.querySelectorAll('input[name="modoVersaoPdf"]').forEach(function(radio) {
+            radio.addEventListener("change", function() {
+                var desc = document.getElementById("descricaoDuplicar");
+                if (desc) desc.style.display = this.value === "nova" ? "inline" : "none";
+            });
+        });
 
         // Função de carregar orçamento (rascunho ou enviado) - chama o Apps Script
         function carregarRascunhoSelecionado() {
@@ -2507,6 +2539,8 @@
                     const dadosValidos = dados || {};
 
                     linhaOrcamentoCarregado = key; // Armazena a linha/key do orçamento carregado
+                    // Salva o código do projeto base para uso ao duplicar (RF001/RF002)
+                    projetoBaseParaDuplicar = (orcamentoSelecionado && orcamentoSelecionado.nome) ? orcamentoSelecionado.nome : key;
                     preencherFormulario(dadosValidos);
                     
                     // Mostra informações do orçamento carregado
@@ -2762,6 +2796,11 @@
             // --- coletar TODOS os dados do formulário para salvar junto com o orçamento ---
             const dadosFormularioCompleto = coletarDadosFormulario();
 
+            // RF001: ao duplicar (modo "nova") com projeto carregado, passa o código base para salvar em 01_IN
+            if (!sobrescreverVersao && projetoBaseParaDuplicar) {
+                dadosFormularioCompleto.projetoBase = projetoBaseParaDuplicar;
+            }
+
             // NOVO: Preparar informações de pagamento para gerar tabela de parcelas
             const infoPagamento = {
                 texto: dadosColetados.observacoes.pagamento || "",
@@ -2844,7 +2883,12 @@
                 return;
             }
             const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || (dados.projeto && (dados.projeto.data || "") + (dados.projeto.indice || "") + (dados.projeto.iniciais || "")) || "";
-            const nomePdf = "Memoria de Calculo - " + (codigoProjeto || "Sem projeto");
+            // RF003: inclui PRD codes no nome do PDF se houver
+            const prdCodes = memorias.map(m => m.prdCodigo).filter(Boolean);
+            const nomePartes = ["Memoria de Calculo"];
+            if (prdCodes.length > 0) nomePartes.push(prdCodes.join("_"));
+            nomePartes.push(codigoProjeto || "Sem projeto");
+            const nomePdf = nomePartes.join(" - ");
             const btn = document.querySelector('button[onclick="salvarMemoriaCalculo()"]');
             if (btn) { btn.disabled = true; btn.textContent = "Salvando..."; }
             google.script.run
