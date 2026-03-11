@@ -2312,6 +2312,32 @@ function gerarPdfOrdemCompra(linhaOuKey, itensComValor, fornecedor) {
   }
 }
 
+function findRowByColumnValue(sheet, colHeader, value) {
+  if (!sheet || !colHeader) return null;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var colIndex = _findHeaderIndex(headers, colHeader);
+  if (colIndex === -1 && typeof PROJETOS_HEADER_SINONIMOS !== "undefined" && PROJETOS_HEADER_SINONIMOS[colHeader]) {
+    var syn = PROJETOS_HEADER_SINONIMOS[colHeader];
+    for (var si = 0; si < syn.length; si++) {
+      colIndex = _findHeaderIndex(headers, syn[si]);
+      if (colIndex >= 0) break;
+    }
+  }
+  if (colIndex === -1) return null;
+  // lê somente a coluna necessária (row, col, numRows, numCols)
+  const numRows = lastRow - 1;
+  const values = sheet.getRange(2, colIndex + 1, numRows, 1).getValues();
+  const valueStr = String(value || "").trim();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0] || "").trim() === valueStr) {
+      return i + 2; // retorna linha real (considerando header)
+    }
+  }
+  return null;
+}
+
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
 function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, urlPdf, urlMemoria, chapas, observacoes, produtosCadastrados, dadosFormularioCompleto, isPedido) {
   // Calcula a união dos processos de todos os itens (produtos cadastrados)
