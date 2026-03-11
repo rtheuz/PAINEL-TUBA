@@ -382,6 +382,10 @@
                     </div>
                     <button type="button" class="secondary muted-btn" onclick="limparFormularioCompleto()" style="padding: 4px 10px; font-size: 12px;">✨ Novo Orçamento</button>
                 </div>
+                <div id="versaoPickerContainer" style="display:none; margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0; font-size:13px;">
+                    <label for="versaoPicker" style="color:#555; font-weight:600;">📌 Versão da Proposta:</label>
+                    <select id="versaoPicker" onchange="carregarVersaoSelecionada()" aria-label="Selecionar versão da proposta" style="margin-left:6px; padding:3px 8px; border-radius:4px; border:1px solid #ccc; font-size:13px;"></select>
+                </div>
             </div>
         </div>
 
@@ -1791,9 +1795,11 @@
             atualizarCamposProjeto(true);
 
             // RF001: Armazenar valores originais dos campos do projeto ao carregar
-            _originalProjetoData = projetoData;
-            _originalProjetoIndice = projetoIndice;
-            _originalProjetoIniciais = projetoIniciais;
+            if (!_isFillFromVersion) {
+                _originalProjetoData = projetoData;
+                _originalProjetoIndice = projetoIndice;
+                _originalProjetoIniciais = projetoIniciais;
+            }
             // Ocultar banner (limpar estado anterior)
             var banner = document.getElementById("bannerNovoProjeto");
             if (banner) banner.style.display = "none";
@@ -1923,7 +1929,61 @@
                 });
             }
 
+            // ── Seletor de versões: mostrar quando o projeto possui propostas _v2, _v3… ──
+            if (!_isFillFromVersion) {
+                _dadosRootCarregado = safeData;
+                const versoes = Array.isArray(safeData.versoes) ? safeData.versoes : [];
+                const versaoPicker = document.getElementById("versaoPicker");
+                const versaoContainer = document.getElementById("versaoPickerContainer");
+                if (versaoPicker && versaoContainer) {
+                    if (versoes.length > 0) {
+                        let opcoesHtml = '<option value="' + VERSAO_BASE_KEY + '">v1 - original</option>';
+                        versoes.forEach(function(v) {
+                            var match = (v.codigo || "").match(/_v(\d+)$/);
+                            var sufixo = match ? "v" + match[1] : (v.codigo || "versão");
+                            var dataStr = v.dataSalvo ? new Date(v.dataSalvo).toLocaleDateString('pt-BR') : "";
+                            opcoesHtml += '<option value="' + (v.codigo || '') + '">' + sufixo + (dataStr ? " — " + dataStr : "") + '</option>';
+                        });
+                        versaoPicker.innerHTML = opcoesHtml;
+                        versaoContainer.style.display = "block";
+                        // Carrega automaticamente a versão mais recente
+                        var ultimaVersao = versoes[versoes.length - 1];
+                        if (ultimaVersao && ultimaVersao.dados) {
+                            versaoPicker.value = ultimaVersao.codigo;
+                            _isFillFromVersion = true;
+                            preencherFormulario(Object.assign({}, ultimaVersao.dados, { numeroSequencial: ultimaVersao.numeroSequencial }));
+                            _isFillFromVersion = false;
+                        }
+                    } else {
+                        versaoPicker.innerHTML = '<option value="' + VERSAO_BASE_KEY + '">v1 - original</option>';
+                        versaoPicker.value = VERSAO_BASE_KEY;
+                        versaoContainer.style.display = "none";
+                    }
+                }
+            }
+
             // Não mostra mais o alert aqui, será mostrado na função carregarRascunhoSelecionado após verificar o status
+        }
+
+        // Carrega os dados de uma versão específica quando o usuário altera o seletor
+        function carregarVersaoSelecionada() {
+            var versaoPicker = document.getElementById("versaoPicker");
+            if (!versaoPicker || !_dadosRootCarregado) return;
+            var selectedCodigo = versaoPicker.value;
+            var dadosParaCarregar;
+            if (selectedCodigo === VERSAO_BASE_KEY) {
+                // v1: dados do projeto base (sem versoes para evitar reconfigurar o picker)
+                dadosParaCarregar = Object.assign({}, _dadosRootCarregado);
+                dadosParaCarregar.versoes = [];
+            } else {
+                var versoes = _dadosRootCarregado.versoes || [];
+                var versao = versoes.find(function(v) { return v.codigo === selectedCodigo; });
+                if (!versao) return;
+                dadosParaCarregar = Object.assign({}, versao.dados || {}, { numeroSequencial: versao.numeroSequencial });
+            }
+            _isFillFromVersion = true;
+            preencherFormulario(dadosParaCarregar);
+            _isFillFromVersion = false;
         }
 
         // Variável global para armazenar todos os orçamentos
@@ -2010,10 +2070,14 @@
         function limparEstadoRascunho() {
             linhaOrcamentoCarregado = null;
             numeroSequencialCarregado = null;
+            _dadosRootCarregado = null;
+            _isFillFromVersion = false;
             document.getElementById("rascunhoBusca").value = "";
             document.getElementById("rascunhoBusca").style.background = "";
             document.getElementById("rascunhoSelectKey").value = "";
             document.getElementById("orcamentoCarregadoInfo").classList.add("hidden");
+            var versaoContainer = document.getElementById("versaoPickerContainer");
+            if (versaoContainer) versaoContainer.style.display = "none";
             atualizarDatalistRascunhos("");
         }
 
@@ -2135,6 +2199,12 @@
         let linhaOrcamentoCarregado = null;
         // Número sequencial do orçamento carregado (preservado ao sobrescrever)
         let numeroSequencialCarregado = null;
+        // Root JSON_DADOS (com versoes[]) do projeto atualmente carregado
+        let _dadosRootCarregado = null;
+        // Flag: true enquanto preencherFormulario está sendo chamado recursivamente para uma versão específica
+        let _isFillFromVersion = false;
+        // Valor especial para representar a versão base (v1) no seletor de versões
+        const VERSAO_BASE_KEY = "__base__";
 
         // Função de carregar orçamento (rascunho ou enviado) - chama o Apps Script
         function carregarRascunhoSelecionado() {
@@ -2443,7 +2513,7 @@
                         btn.textContent = textoOriginalBtn;
                         return;
                     }
-                } else if (linhaOrcamentoCarregado) {
+                } else if (linhaOrcamentoCarregado && sobrescreverVersao) {
                     if (!confirm("Você está SOBRESCREVENDO o projeto existente (código: " + codigoAtual + ").\n\nDeseja continuar?")) {
                         btn.disabled = false;
                         btn.textContent = textoOriginalBtn;

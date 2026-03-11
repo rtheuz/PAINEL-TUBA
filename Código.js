@@ -2380,6 +2380,50 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
+    // ── Proposta versionada (_v2, _v3…): armazenar na linha base sem criar nova linha ──
+    if (codigoProjeto && /_v\d+$/.test(codigoProjeto)) {
+      const sheetProj = ss.getSheetByName("Projetos");
+      if (sheetProj) {
+        const codigoBase = codigoProjeto.replace(/_v\d+$/, "");
+        let linhaBase = 0;
+        const linhaProjetoForm = (dadosFormularioCompleto && dadosFormularioCompleto.linhaProjeto != null) ? parseInt(dadosFormularioCompleto.linhaProjeto, 10) : NaN;
+        if (!isNaN(linhaProjetoForm) && linhaProjetoForm >= 2 && linhaProjetoForm <= sheetProj.getLastRow()) {
+          const hdrs = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+          const idxP = _findHeaderIndexProjetos(hdrs, "PROJETO");
+          if (idxP >= 0 && String(sheetProj.getRange(linhaProjetoForm, idxP + 1).getValue() || "").trim() === codigoBase) {
+            linhaBase = linhaProjetoForm;
+          }
+        }
+        if (!linhaBase) linhaBase = findRowByColumnValue(sheetProj, "PROJETO", codigoBase) || 0;
+        if (linhaBase) {
+          const hdrs = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+          const idxJson = _findHeaderIndex(hdrs, "JSON_DADOS");
+          const idxLink = _findHeaderIndex(hdrs, "LINK DO PDF");
+          if (idxJson >= 0) {
+            let jsonData = {};
+            try { jsonData = JSON.parse(String(sheetProj.getRange(linhaBase, idxJson + 1).getValue() || "{}")); } catch (e) { jsonData = {}; }
+            // Preserva URL do PDF base se ainda não registrado
+            if (!jsonData.urlPdf && idxLink >= 0) {
+              jsonData.urlPdf = String(sheetProj.getRange(linhaBase, idxLink + 1).getValue() || "");
+            }
+            if (!Array.isArray(jsonData.versoes)) jsonData.versoes = [];
+            const numSeqV = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial != null) ? dadosFormularioCompleto.numeroSequencial : null;
+            const dadosV = dadosFormularioCompleto ? JSON.parse(JSON.stringify(dadosFormularioCompleto)) : {};
+            if (dadosV.observacoes) dadosV.observacoes.projeto = codigoProjeto;
+            const novaEntrada = { codigo: codigoProjeto, dataSalvo: new Date().toISOString(), numeroSequencial: numSeqV, urlPdf: urlPdf || "", dados: dadosV };
+            const existIdx = jsonData.versoes.findIndex(function(v) { return v.codigo === codigoProjeto; });
+            if (existIdx >= 0) { jsonData.versoes[existIdx] = novaEntrada; } else { jsonData.versoes.push(novaEntrada); }
+            jsonData.nome = codigoBase;
+            sheetProj.getRange(linhaBase, idxJson + 1).setValue(JSON.stringify(jsonData));
+            if (idxLink >= 0 && urlPdf) sheetProj.getRange(linhaBase, idxLink + 1).setValue(urlPdf);
+            Logger.log("✅ Versão " + codigoProjeto + " armazenada em JSON_DADOS linha " + linhaBase + " (sem nova linha).");
+            return;
+          }
+        }
+        Logger.log("Aviso registrarOrcamento: versão '" + codigoProjeto + "' – linha base não encontrada, criando nova linha.");
+      }
+    }
+
     // Extrai numeroSequencial de dadosFormularioCompleto se disponível
     const numeroSequencial = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial) || null;
     
@@ -6011,6 +6055,11 @@ function carregarRascunho(linhaOuKey) {
         // Incluir numeroSequencial nos dados retornados
         const dadosRetorno = dadosParsed.dados;
         dadosRetorno.numeroSequencial = dadosParsed.numeroSequencial || null;
+        // Repassa versoes e urlPdf para o frontend (seletor de versões)
+        if (Array.isArray(dadosParsed.versoes) && dadosParsed.versoes.length > 0) {
+          dadosRetorno.versoes = dadosParsed.versoes;
+        }
+        if (dadosParsed.urlPdf) dadosRetorno.urlPdf = dadosParsed.urlPdf;
         // Planilha é fonte da verdade para DESCRIÇÃO, CLIENTE, PROJETO e OBSERVAÇÕES (Kanban/Projetos)
         if (dadosRetorno.observacoes == null) dadosRetorno.observacoes = {};
         const descricaoPlanilha = (idxDescricaoCol >= 0 && rowData[idxDescricaoCol] != null && String(rowData[idxDescricaoCol]).trim() !== "") ? String(rowData[idxDescricaoCol]).trim() : "";
