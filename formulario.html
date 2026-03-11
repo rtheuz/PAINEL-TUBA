@@ -394,6 +394,11 @@
                 </div>
             </div>
 
+            <!-- RF001: Banner de novo projeto -->
+            <div id="bannerNovoProjeto" style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:10px 14px; margin-bottom:10px; color:#856404;">
+                ⚠️ <strong>Você está criando um NOVO projeto.</strong> O projeto original será mantido.
+            </div>
+
             <div class="row">
                 <div class="col">
                     <label>Data (ANO + MES + DIA):</label>
@@ -460,12 +465,17 @@
                     </datalist>
                 </div>
                 <div class="col">
-                    <label>CPF/CNPJ:</label>
-                    <input type="text" id="clienteCpf">
+                    <label>Nome Abreviado: <span style="color:#e53935;">*</span></label>
+                    <input type="text" id="clienteNomeAbreviado" placeholder="Ex: SILVA MET" style="font-weight:600;" maxlength="20">
+                    <small style="color:#666;">Usado no nome da pasta do projeto</small>
                 </div>
             </div>
 
             <div class="row" style="margin-top:8px;">
+                <div class="col">
+                    <label>CPF/CNPJ:</label>
+                    <input type="text" id="clienteCpf">
+                </div>
                 <div class="col">
                     <label>Endereço:</label>
                     <input type="text" id="clienteEndereco">
@@ -492,21 +502,7 @@
             </div>
         </div>
 
-        <!-- MEMÓRIA DE CÁLCULO -->
-        <div class="section" id="memoriaCalculoSection">
-            <div class="section-header">
-                <div>
-                    <h3>Memória de Cálculo</h3>
-                    <small>Gerar memória de cálculo com informações da peça<br>
-                        *Salve em PDF na pasta do projeto</small>
-                </div>
-                <div>
-                    <button type="button" onclick="addMemoriaCalculo()">+ Adicionar Memória de Cálculo</button>
-                    <button type="button" class="secondary" onclick="salvarMemoriaCalculo()" style="margin-left:8px;">💾 Salvar Memória de Cálculo (PDF + Planilha)</button>
-                </div>
-            </div>
-            <div id="memoriasContainer"></div>
-        </div>
+        <!-- PRODUTOS CADASTRADOS section follows -->
 
         <!-- PRODUTOS CADASTRADOS -->
         <div class="section" id="produtosCadastradosSection">
@@ -617,12 +613,10 @@
                     <h3>Arquivos do Cliente</h3>
                     <small>Envie arquivos do cliente / Crie a pasta 01_IN</small>
                 </div>
-                <!-- ## DESATIVADOS, MUDAREMOS A LÓGICA
-                 <div>
-                    <button type="button" id="btnCriarPasta" class="secondary" onclick="criarPastaOrcamento()">Criar/Confirmar Pasta do Orçamento</button>
-                    <button type="button" id="btnAbrirPasta" class="secondary" onclick="abrirPastaOrcamento()">Abrir Pasta</button>
+                <div>
+                    <button type="button" id="btnCriarPasta01IN" class="secondary" onclick="criarPasta01INAction()">📁 Criar pasta 01_IN</button>
+                    <button type="button" id="btnAbrirPasta01IN" class="secondary" onclick="abrirPasta01INAction()">🔗 Abrir pasta 01_IN</button>
                 </div>
-                -->
             </div>
 
             <div class="row">
@@ -689,7 +683,7 @@
                 <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked hidden aria-hidden="true">
                 <label style="display:inline; align-items:center; gap:20px; cursor:pointer; font-size: 15px;">
                     <input type="checkbox" id="modoVersaoPdfNova">
-                    <span>Gerar como v2, v3...</span>
+                    <span>Gerar nova proposta</span>
                 </label>
                  
         </div>
@@ -698,6 +692,14 @@
     <script>
         const token = "<?= token ?>"; // token deve ser strings
         var linhaUrlInicial = "<?= (typeof linhaUrlInicial !== 'undefined' && linhaUrlInicial != null) ? String(linhaUrlInicial) : '' ?>"; // linha passada pela URL (servidor define linhaUrlInicial no case 'formulario')
+
+        // RF001: Variáveis para armazenar valores originais dos campos do projeto ao carregar
+        var _originalProjetoData = null;
+        var _originalProjetoIndice = null;
+        var _originalProjetoIniciais = null;
+
+        // RF002: Nomes dos processos (mapeamento sigla → nome completo)
+        var _NOMES_PROCESSOS = { MP: "Matéria Prima", CL: "Corte Laser", D: "Dobra", S: "Solda", Pin: "Pintura", CAD: "Desenvolvimento CAD", ACB: "Acabamento" };
 
         if (token) {
             google.script.run
@@ -843,12 +845,14 @@
         function preencherDadosCliente(c) {
             if (c) {
                 document.getElementById("clienteNome").value = c.nome;
+                document.getElementById("clienteNomeAbreviado").value = c.nomeAbreviado || "";
                 document.getElementById("clienteCpf").value = c.cpf || "";
                 document.getElementById("clienteEndereco").value = c.endereco || "";
                 document.getElementById("clienteTelefone").value = c.telefone || "";
                 document.getElementById("clienteEmail").value = c.email || "";
             } else {
                 document.getElementById("clienteNome").value = "";
+                document.getElementById("clienteNomeAbreviado").value = "";
                 document.getElementById("clienteCpf").value = "";
                 document.getElementById("clienteEndereco").value = "";
                 document.getElementById("clienteTelefone").value = "";
@@ -981,6 +985,8 @@
                             <label class="proc-item" style="display:inline-block; margin-right:12px; margin-bottom:4px;"><input type="checkbox" class="produtoProcesso" value="Pin"> Pin - Pintura</label>
                             <label class="proc-item" style="display:inline-block; margin-right:12px; margin-bottom:4px;"><input type="checkbox" class="produtoProcesso" value="CAD"> CAD - Desenvolvimento CAD</label>
                             <label class="proc-item" style="display:inline-block; margin-right:12px; margin-bottom:4px;"><input type="checkbox" class="produtoProcesso" value="ACB"> ACB - Acabamento</label>
+                            <!-- RF002: Campos de descrição por processo (gerados dinamicamente) -->
+                            <div class="produtoDescricoesProcessos" style="margin-top:10px;"></div>
                         </div>
                     </div>
                 </div>
@@ -1021,6 +1027,32 @@
                     btnProcessos.textContent = visivel ? "Adicionar Processos" : "Ocultar Processos";
                 });
             }
+
+            // RF002: Atualizar campos de descrição por processo ao marcar/desmarcar checkbox
+            function atualizarDescricoesProcessos() {
+                var container = div.querySelector(".produtoDescricoesProcessos");
+                if (!container) return;
+                var checkeds = Array.from(div.querySelectorAll(".produtoProcesso:checked")).map(function(cb) { return cb.value; });
+                // Remover campos de processos desmarcados
+                Array.from(container.querySelectorAll(".desc-proc-row")).forEach(function(row) {
+                    if (checkeds.indexOf(row.dataset.sigla) < 0) row.remove();
+                });
+                // Adicionar campos para novos processos marcados
+                checkeds.forEach(function(sigla) {
+                    if (!container.querySelector('.desc-proc-row[data-sigla="' + sigla + '"]')) {
+                        var row = document.createElement("div");
+                        row.className = "desc-proc-row";
+                        row.dataset.sigla = sigla;
+                        row.style.cssText = "display:flex; align-items:center; gap:8px; margin-bottom:6px;";
+                        row.innerHTML = '<label style="min-width:160px; font-size:13px; color:#333;"><strong>' + sigla + '</strong> - ' + (_NOMES_PROCESSOS[sigla] || sigla) + ':</label>'
+                            + '<input type="text" class="desc-proc-input" placeholder="Ex: 2h, 3 chapas 1000x500..." style="flex:1; padding:4px 8px; border:1px solid #90caf9; border-radius:4px;">';
+                        container.appendChild(row);
+                    }
+                });
+            }
+            div.querySelectorAll(".produtoProcesso").forEach(function(cb) {
+                cb.addEventListener("change", atualizarDescricoesProcessos);
+            });
 
             // Campo de busca integrado que filtra produtos por código ou descrição
             const buscaInput = div.querySelector(".produtoBusca");
@@ -1304,6 +1336,16 @@
                     if (cb.value) processos.push(cb.value);
                 });
 
+                // RF002: Coletar descrições por processo
+                const descricoesProcessos = {};
+                div.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                    var sigla = row.dataset.sigla;
+                    var input = row.querySelector(".desc-proc-input");
+                    if (sigla && input && input.value.trim()) {
+                        descricoesProcessos[sigla] = input.value.trim();
+                    }
+                });
+
                 produtos.push({
                     codigo: codigo || "",
                     descricao: descricao,
@@ -1312,7 +1354,8 @@
                     precoUnitario: precoUnitario,
                     quantidade: quantidade,
                     precoTotal: precoTotal,
-                    processos: processos
+                    processos: processos,
+                    descricoesProcessos: descricoesProcessos
                 });
             });
             return produtos;
@@ -1368,13 +1411,94 @@
         }
 
         ["projetoData", "projetoIniciais"].forEach(id => {
-            document.getElementById(id).addEventListener("input", function() { atualizarCamposProjeto(); });
+            document.getElementById(id).addEventListener("input", function() { atualizarCamposProjeto(); verificarMudancaCampoProjeto(); });
         });
         document.getElementById("projetoIndice").addEventListener("input", function() {
             atualizarCamposProjeto(true);
+            verificarMudancaCampoProjeto();
         });
         // Não chama atualizarCamposProjeto() aqui: as iniciais vêm do getUsuarioLogadoPorToken (assíncrono).
         // A atualização é feita no callback do token (sucesso ou falha) ou no setTimeout quando não há token.
+
+        // RF001: Detectar mudança em campos do projeto (Data, Índice, Iniciais) ao comparar com originais
+        function verificarMudancaCampoProjeto() {
+            if (_originalProjetoData === null && _originalProjetoIndice === null && _originalProjetoIniciais === null) return;
+            var data = document.getElementById("projetoData").value.trim();
+            var indice = document.getElementById("projetoIndice").value.trim();
+            var iniciais = document.getElementById("projetoIniciais").value.trim();
+            var banner = document.getElementById("bannerNovoProjeto");
+            if (!banner) return;
+            var mudou = (data !== _originalProjetoData) || (indice !== _originalProjetoIndice) || (iniciais !== _originalProjetoIniciais);
+            banner.style.display = mudou ? "block" : "none";
+        }
+
+        // RF006: Criar pasta 01_IN dentro da pasta do projeto
+        function criarPasta01INAction() {
+            var btn = document.getElementById('btnCriarPasta01IN');
+            var originalText = btn ? btn.textContent : "📁 Criar pasta 01_IN";
+            var data = document.getElementById("projetoData").value.trim();
+            var indice = document.getElementById("projetoIndice").value.trim();
+            var iniciais = document.getElementById("projetoIniciais").value.trim();
+            var codigoProjeto = data + indice + iniciais;
+            var descricao = document.getElementById("obsDescricao").value.trim();
+            var nomeCliente = document.getElementById("clienteNome").value || "";
+            var nomeAbreviado = document.getElementById("clienteNomeAbreviado").value || "";
+
+            if (!data || !indice || !iniciais) {
+                alert("Preencha Data, Índice e Iniciais antes de criar a pasta.");
+                return;
+            }
+            if (!descricao) {
+                alert("A Descrição do Projeto é obrigatória para criar a pasta.");
+                document.getElementById("obsDescricao").focus();
+                return;
+            }
+
+            if (btn) { btn.disabled = true; btn.textContent = "Criando..."; }
+            google.script.run
+                .withSuccessHandler(function(info) {
+                    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                    var msg = "Pasta 01_IN criada com sucesso!";
+                    if (info && info.inFolderUrl) msg += "\n\n" + info.inFolderUrl;
+                    alert(msg);
+                })
+                .withFailureHandler(function(err) {
+                    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                    alert("Erro ao criar pasta 01_IN:\n" + (err && err.message ? err.message : err));
+                })
+                .criarPasta01IN(codigoProjeto, descricao, data, nomeCliente, nomeAbreviado);
+        }
+
+        // RF006: Abrir pasta 01_IN no Google Drive
+        function abrirPasta01INAction() {
+            var btn = document.getElementById('btnAbrirPasta01IN');
+            var originalText = btn ? btn.textContent : "🔗 Abrir pasta 01_IN";
+            var data = document.getElementById("projetoData").value.trim();
+            var indice = document.getElementById("projetoIndice").value.trim();
+            var iniciais = document.getElementById("projetoIniciais").value.trim();
+            var codigoProjeto = data + indice + iniciais;
+
+            if (!data || !indice || !iniciais) {
+                alert("Preencha Data, Índice e Iniciais antes de abrir a pasta.");
+                return;
+            }
+
+            if (btn) { btn.disabled = true; btn.textContent = "Buscando..."; }
+            google.script.run
+                .withSuccessHandler(function(info) {
+                    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                    if (info && info.inFolderUrl) {
+                        window.open(info.inFolderUrl, "_blank");
+                    } else {
+                        alert("Pasta 01_IN não encontrada. Crie-a primeiro.");
+                    }
+                })
+                .withFailureHandler(function(err) {
+                    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+                    alert("Erro ao abrir pasta 01_IN:\n" + (err && err.message ? err.message : err));
+                })
+                .abrirPasta01IN(codigoProjeto, data);
+        }
 
         // Cria/garante a pasta do orçamento (inclusive para rascunhos) usando a mesma lógica do PDF
         function criarPastaOrcamento() {
@@ -1390,6 +1514,7 @@
             const codigoProjeto = data + indice + iniciais;
             const descricao = document.getElementById("obsDescricao").value.trim();
             const nomeCliente = document.getElementById("clienteNome").value || "";
+            const nomeAbreviado = document.getElementById("clienteNomeAbreviado").value || "";
 
             if (!data || !indice || !iniciais) {
                 alert("Preencha Data, Índice e Iniciais antes de criar a pasta do orçamento.");
@@ -1398,7 +1523,6 @@
             
             if (!descricao) {
                 alert("A Descrição do Projeto é obrigatória para criar a pasta do orçamento.");
-                // Foca no campo de descrição
                 document.getElementById("obsDescricao").focus();
                 return;
             }
@@ -1422,7 +1546,7 @@
                     btn.textContent = originalText;
                     alert("Erro ao criar/obter pasta do orçamento:\n" + (err && err.message ? err.message : err));
                 })
-                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, /* isPedido */ false);
+                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, /* isPedido */ false, nomeAbreviado);
         }
 
         // Abre diretamente a pasta do orçamento no Drive (SEM criar - apenas busca pastas existentes)
@@ -1466,336 +1590,6 @@
                 .buscarPastaOrcamento(codigoProjeto, data);
         }
 
-        /* ---------- MEMÓRIA DE CÁLCULO ---------- */
-        let memoriaCount = 0;
-
-        function addMemoriaCalculo() {
-            memoriaCount++;
-            const div = document.createElement("div");
-            div.className = "memoria-calc";
-            div.id = "memoria" + memoriaCount;
-            div.innerHTML = `
-    <div class="titulo">Memória de Cálculo</div>
-    <div class="row">
-      <div class="col" style="flex:2;">
-        <label>Material:</label>
-        <input type="text" class="memMaterial" placeholder="Ex: Aço Carbono, Inox 304">
-      </div>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div class="col"><label>Comprimento da chapa (mm):</label><input type="number" step="any" class="memComprimento" placeholder="0"></div>
-      <div class="col"><label>Largura da chapa (mm):</label><input type="number" step="any" class="memLargura" placeholder="0"></div>
-      <div class="col"><label>Espessura (mm):</label><input type="number" step="any" class="memEspessura" placeholder="0"></div>
-      <div class="col"><label>Densidade (kg/m³):</label><input type="number" step="any" class="memDensidade" placeholder="0"></div>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div class="col"><label>Custo (R$/kg):</label><input type="number" step="any" class="memCusto" placeholder="0"></div>
-      <div class="col"><label>Mark Up (%):</label><input type="number" step="any" class="memMarkUp" placeholder="0"></div>
-      <div class="col"><label>Preço de venda do material (R$/kg):</label><input type="text" class="memPrecoVendaMaterial calc-readonly" readonly placeholder="Calculado"></div>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div class="col" style="flex:2;"><label>Descrição da peça:</label><input type="text" class="memDescricaoPeca" placeholder="Descrição opcional"></div>
-      <div class="col"><label>Nº Peças por Chapa:</label><input type="number" class="memNumPecasChapa" placeholder="0"></div>
-      <div class="col"><label>Nº Peças Lote:</label><input type="number" class="memNumPecasLote" placeholder="0"></div>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div class="col" style="flex:2;"><label>Medidas da Peça:</label><input type="text" class="memMedidasPeca" placeholder="Ex: 100x50 mm"></div>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div class="col"><label>Peso da chapa (kg):</label><input type="text" class="memPesoChapa calc-readonly" readonly></div>
-      <div class="col"><label>Preço material – Lote (R$):</label><input type="text" class="memPrecoMaterialLote calc-readonly" readonly></div>
-      <div class="col"><label>Preço material – Unit. (R$):</label><input type="text" class="memPrecoMaterialUnit calc-readonly" readonly style="font-size:0.95em;"></div>
-    </div>
-    <div style="margin-top:12px;" class="inline">
-      <label>Possui corte:</label><input type="checkbox" class="memTemCorte">
-      <div class="memCorteFields hidden" style="margin-left:12px;">
-        <label>Tempo de corte (s):</label><input type="number" class="memTempoCorte" placeholder="0">
-        <label>Tempo de setup (min):</label><input type="number" step="any" class="memTempoSetupCorte" placeholder="0">
-        <label>Preço hora máquina corte (R$/h):</label><input type="number" step="any" class="memPrecoHoraCorte" placeholder="0">
-        <span class="memPrecoCorteTotal calc-readonly" style="margin-left:8px;"></span>
-        <span class="memPrecoCorteUnit calc-readonly" style="margin-left:6px; font-size:0.9em; color:#666;"></span>
-      </div>
-    </div>
-    <div style="margin-top:8px;" class="inline">
-      <label>Possui dobra:</label><input type="checkbox" class="memTemDobra">
-      <div class="memDobraFields hidden" style="margin-left:12px;">
-        <label>Quantidade de dobras:</label><input type="number" class="memNumDobras" placeholder="0" min="0">
-        <label>Tempo por dobra (s):</label><input type="number" class="memTempoDobra" placeholder="0">
-        <label>Tempo de setup (min):</label><input type="number" step="any" class="memTempoSetupDobra" placeholder="0">
-        <label>Preço hora máquina dobra (R$/h):</label><input type="number" step="any" class="memPrecoHoraDobra" placeholder="0">
-        <span class="memPrecoDobraTotal calc-readonly" style="margin-left:8px;"></span>
-        <span class="memPrecoDobraUnit calc-readonly" style="margin-left:6px; font-size:0.9em; color:#666;"></span>
-      </div>
-    </div>
-    <div style="margin-top:8px;" class="inline">
-      <label>Processos externos / adicionais:</label><input type="checkbox" class="memTemAdicionais">
-      <div class="memAdicionaisContainer hidden" style="margin-left:12px;">
-        <div class="memAdicionaisList"></div>
-        <button type="button" class="secondary btnAddAdicionalMemoria" style="margin-top:6px;">+ Adicionar valor</button>
-      </div>
-    </div>
-    <div style="margin-top:8px;" class="inline">
-      <label>Outros custos:</label><input type="checkbox" class="memTemOutrosCustos">
-      <div class="memOutrosCustosContainer hidden" style="margin-left:12px;">
-        <small style="color:#666;">Valores únicos, não multiplicam pelo lote.</small>
-        <div class="memOutrosCustosList" style="margin-top:6px;"></div>
-        <button type="button" class="secondary btnAddOutroCustoMemoria" style="margin-top:6px;">+ Adicionar valor</button>
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px;">
-      <div class="col"><label>Preço processos externos/adicionais – Lote (R$):</label><input type="text" class="memPrecoAdicionais calc-readonly" readonly></div>
-      <div class="col"><label>Preço processos externos/adicionais – Unit. (R$):</label><input type="text" class="memPrecoAdicionaisUnit calc-readonly" readonly style="font-size:0.95em;"></div>
-      <div class="col"><label>Outros custos (R$):</label><input type="text" class="memOutrosCustosExibicao calc-readonly" readonly></div>
-    </div>
-    <div class="row" style="margin-top:10px; padding:10px; background:#e8f5e9; border-radius:8px; border:1px solid #4caf50;">
-      <div class="col"><label style="font-weight:700; color:#2e7d32;">Preço final unitário (R$):</label><input type="text" class="memPrecoFinalUnit calc-readonly" readonly style="font-weight:700;"></div>
-      <div class="col"><label style="font-weight:700; color:#2e7d32;">Preço final lote (R$):</label><input type="text" class="memPrecoFinal calc-readonly" readonly style="font-weight:700; font-size:1.1em;"></div>
-    </div>
-    <div class="row" style="margin-top:14px;">
-      <div class="col"><label>Target Cliente – Unitário (R$):</label><input type="number" step="any" class="memTargetUnit" placeholder="Preço por peça que o cliente deseja"></div>
-      <div class="col"><label>Target Cliente – Total lote (R$):</label><input type="number" step="any" class="memTargetLote" placeholder="Preço total que o cliente deseja"></div>
-    </div>
-    <small style="color:#666; display:block; margin-top:4px;">Preencha um dos dois: o outro é calculado automaticamente (unitário × quantidade do lote).</small>
-    <div class="memTargetResultado hidden" style="margin-top:10px; padding:10px; border-radius:8px; border:1px solid #ff9800; background:#fff3e0;">
-      <div class="memTargetDiferenca" style="font-weight:600; margin-bottom:6px;"></div>
-      <div class="memTargetSugestoes" style="font-size:12px; color:#333; line-height:1.5;"></div>
-    </div>
-    <div class="controls" style="margin-top:12px;">
-      <button type="button" class="secondary" onclick="removeElement('${div.id}')">Remover Memória</button>
-    </div>
-  `;
-            const container = document.getElementById("memoriasContainer");
-            if (container.firstChild) {
-                container.insertBefore(div, container.firstChild);
-            } else {
-                container.appendChild(div);
-            }
-
-            // Toggles
-            const temCorte = div.querySelector(".memTemCorte");
-            const corteFields = div.querySelector(".memCorteFields");
-            temCorte.addEventListener("change", () => {
-                corteFields.classList.toggle("hidden", !temCorte.checked);
-                calcularMemoriaCalculo(div);
-            });
-            const temDobra = div.querySelector(".memTemDobra");
-            const dobraFields = div.querySelector(".memDobraFields");
-            temDobra.addEventListener("change", () => {
-                dobraFields.classList.toggle("hidden", !temDobra.checked);
-                calcularMemoriaCalculo(div);
-            });
-            const temAdicionais = div.querySelector(".memTemAdicionais");
-            const adicionaisContainer = div.querySelector(".memAdicionaisContainer");
-            temAdicionais.addEventListener("change", () => {
-                adicionaisContainer.classList.toggle("hidden", !temAdicionais.checked);
-                calcularMemoriaCalculo(div);
-            });
-            const temOutrosCustos = div.querySelector(".memTemOutrosCustos");
-            const outrosCustosContainer = div.querySelector(".memOutrosCustosContainer");
-            temOutrosCustos.addEventListener("change", () => {
-                outrosCustosContainer.classList.toggle("hidden", !temOutrosCustos.checked);
-                calcularMemoriaCalculo(div);
-            });
-
-            div.querySelector(".btnAddAdicionalMemoria").addEventListener("click", () => addProcessoAdicionalMemoria(div.querySelector(".memAdicionaisList")));
-            div.querySelector(".btnAddOutroCustoMemoria").addEventListener("click", () => addOutroCustoMemoria(div.querySelector(".memOutrosCustosList")));
-
-            ["memCusto", "memMarkUp", "memComprimento", "memLargura", "memEspessura", "memDensidade", "memNumPecasChapa", "memNumPecasLote",
-             "memTempoCorte", "memTempoSetupCorte", "memPrecoHoraCorte", "memNumDobras", "memTempoDobra", "memTempoSetupDobra", "memPrecoHoraDobra"].forEach(cls => {
-                const el = div.querySelector("." + cls);
-                if (el) { el.addEventListener("input", () => calcularMemoriaCalculo(div)); el.addEventListener("change", () => calcularMemoriaCalculo(div)); }
-            });
-            var elTargetLote = div.querySelector(".memTargetLote");
-            var elTargetUnit = div.querySelector(".memTargetUnit");
-            if (elTargetLote) {
-                elTargetLote.addEventListener("input", function() {
-                    var qtd = parseFloat(div.querySelector(".memNumPecasLote").value) || 0;
-                    var v = parseFloat(this.value) || 0;
-                    if (qtd > 0 && elTargetUnit) elTargetUnit.value = (v / qtd).toFixed(2);
-                    calcularMemoriaCalculo(div);
-                });
-                elTargetLote.addEventListener("change", function() {
-                    var qtd = parseFloat(div.querySelector(".memNumPecasLote").value) || 0;
-                    var v = parseFloat(this.value) || 0;
-                    if (qtd > 0 && elTargetUnit) elTargetUnit.value = (v / qtd).toFixed(2);
-                    calcularMemoriaCalculo(div);
-                });
-            }
-            if (elTargetUnit) {
-                elTargetUnit.addEventListener("input", function() {
-                    var qtd = parseFloat(div.querySelector(".memNumPecasLote").value) || 0;
-                    var v = parseFloat(this.value) || 0;
-                    if (qtd > 0 && elTargetLote) elTargetLote.value = (v * qtd).toFixed(2);
-                    calcularMemoriaCalculo(div);
-                });
-                elTargetUnit.addEventListener("change", function() {
-                    var qtd = parseFloat(div.querySelector(".memNumPecasLote").value) || 0;
-                    var v = parseFloat(this.value) || 0;
-                    if (qtd > 0 && elTargetLote) elTargetLote.value = (v * qtd).toFixed(2);
-                    calcularMemoriaCalculo(div);
-                });
-            }
-            calcularMemoriaCalculo(div);
-        }
-
-        function formatarMoedaBR(valor) {
-            if (valor === null || valor === undefined || isNaN(valor)) return "R$ 0,00";
-            const n = Number(valor);
-            return "R$ " + n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        }
-        function formatarMoedaBRZeroVazio(valor) {
-            if (valor === null || valor === undefined || isNaN(valor) || Number(valor) === 0) return "";
-            return formatarMoedaBR(valor);
-        }
-
-        function calcularMemoriaCalculo(div) {
-            const compMm = parseFloat(div.querySelector(".memComprimento").value) || 0;
-            const largMm = parseFloat(div.querySelector(".memLargura").value) || 0;
-            const compMetros = compMm / 1000;
-            const esp = parseFloat(div.querySelector(".memEspessura").value) || 0;
-            const dens = parseFloat(div.querySelector(".memDensidade").value) || 0;
-            const custo = parseFloat(div.querySelector(".memCusto").value) || 0;
-            const markUp = parseFloat(div.querySelector(".memMarkUp").value) || 0;
-            const numPecasChapa = parseFloat(div.querySelector(".memNumPecasChapa").value) || 0;
-            const numPecasLote = parseFloat(div.querySelector(".memNumPecasLote").value) || 0;
-
-            const precoVendaMaterial = custo * (1 + markUp / 100);
-            div.querySelector(".memPrecoVendaMaterial").value = numPecasChapa > 0 || compMm || largMm || esp || dens ? formatarMoedaBR(precoVendaMaterial) : "";
-
-            const pesoChapa = compMetros * largMm * (esp / 1000) * dens;
-            div.querySelector(".memPesoChapa").value = pesoChapa > 0 ? pesoChapa.toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : "";
-
-            const pesoPeca = numPecasChapa > 0 ? pesoChapa / numPecasChapa : 0;
-            const precoMaterialLote = pesoPeca * precoVendaMaterial * numPecasLote;
-            const precoMaterialUnit = numPecasLote > 0 ? precoMaterialLote / numPecasLote : 0;
-            div.querySelector(".memPrecoMaterialLote").value = precoMaterialLote > 0 ? formatarMoedaBR(precoMaterialLote) : "";
-            var elMatUnit = div.querySelector(".memPrecoMaterialUnit");
-            if (elMatUnit) elMatUnit.value = precoMaterialUnit > 0 ? formatarMoedaBR(precoMaterialUnit) : "";
-
-            // Setup em minutos: converter para segundos (min * 60) para o cálculo em horas
-            let precoCorteTotal = 0;
-            if (div.querySelector(".memTemCorte").checked) {
-                const tempoCorteSec = parseFloat(div.querySelector(".memTempoCorte").value) || 0;
-                const setupCorteMin = parseFloat(div.querySelector(".memTempoSetupCorte").value) || 0;
-                const tempoTotalSec = tempoCorteSec + (setupCorteMin * 60);
-                const pH = parseFloat(div.querySelector(".memPrecoHoraCorte").value) || 0;
-                precoCorteTotal = (tempoTotalSec / 3600) * pH * numPecasLote;
-            }
-            const precoCorteUnit = numPecasLote > 0 ? precoCorteTotal / numPecasLote : 0;
-            div.querySelector(".memPrecoCorteTotal").textContent = precoCorteTotal > 0 ? "Total corte: " + formatarMoedaBR(precoCorteTotal) : "";
-            var elCorteUnit = div.querySelector(".memPrecoCorteUnit");
-            if (elCorteUnit) elCorteUnit.textContent = precoCorteTotal > 0 ? "(unit. " + formatarMoedaBR(precoCorteUnit) + ")" : "";
-
-            let precoDobraTotal = 0;
-            if (div.querySelector(".memTemDobra").checked) {
-                const numDobras = parseFloat(div.querySelector(".memNumDobras").value) || 0;
-                const tempoPorDobraSec = parseFloat(div.querySelector(".memTempoDobra").value) || 0;
-                const setupDobraMin = parseFloat(div.querySelector(".memTempoSetupDobra").value) || 0;
-                const tempoTotalSec = (numDobras * tempoPorDobraSec) + (setupDobraMin * 60);
-                const pH = parseFloat(div.querySelector(".memPrecoHoraDobra").value) || 0;
-                precoDobraTotal = (tempoTotalSec / 3600) * pH * numPecasLote;
-            }
-            const precoDobraUnit = numPecasLote > 0 ? precoDobraTotal / numPecasLote : 0;
-            div.querySelector(".memPrecoDobraTotal").textContent = precoDobraTotal > 0 ? "Total dobra: " + formatarMoedaBR(precoDobraTotal) : "";
-            var elDobraUnit = div.querySelector(".memPrecoDobraUnit");
-            if (elDobraUnit) elDobraUnit.textContent = precoDobraTotal > 0 ? "(unit. " + formatarMoedaBR(precoDobraUnit) + ")" : "";
-
-            // Processos externos/adicionais: soma dos valores × quantidade do lote
-            let somaAdicionaisUnit = 0;
-            div.querySelectorAll(".memAdicionalValor").forEach(inp => { somaAdicionaisUnit += parseFloat(inp.value) || 0; });
-            const precoAdicionais = somaAdicionaisUnit * numPecasLote;
-            const precoAdicionaisUnit = somaAdicionaisUnit; // já é por peça
-            div.querySelector(".memPrecoAdicionais").value = precoAdicionais > 0 ? formatarMoedaBR(precoAdicionais) : "";
-            var elAdicUnit = div.querySelector(".memPrecoAdicionaisUnit");
-            if (elAdicUnit) elAdicUnit.value = precoAdicionaisUnit > 0 ? formatarMoedaBR(precoAdicionaisUnit) : "";
-
-            let outrosCustos = 0;
-            div.querySelectorAll(".memOutroCustoValor").forEach(inp => { outrosCustos += parseFloat(inp.value) || 0; });
-            const outrosExib = div.querySelector(".memOutrosCustosExibicao");
-            if (outrosExib) outrosExib.value = outrosCustos !== 0 ? formatarMoedaBR(outrosCustos) : "";
-
-            const precoFinalLote = precoMaterialLote + precoCorteTotal + precoDobraTotal + precoAdicionais + outrosCustos;
-            const precoFinalUnit = numPecasLote > 0 ? precoFinalLote / numPecasLote : 0;
-            div.querySelector(".memPrecoFinal").value = formatarMoedaBR(precoFinalLote);
-            div.querySelector(".memPrecoFinalUnit").value = formatarMoedaBR(precoFinalUnit);
-
-            var targetLote = parseFloat(div.querySelector(".memTargetLote")?.value) || 0;
-            var targetUnit = parseFloat(div.querySelector(".memTargetUnit")?.value) || 0;
-            if (targetLote <= 0 && targetUnit > 0 && numPecasLote > 0) targetLote = targetUnit * numPecasLote;
-            if (targetUnit <= 0 && targetLote > 0 && numPecasLote > 0) targetUnit = targetLote / numPecasLote;
-            var targetCliente = targetLote > 0 ? targetLote : (targetUnit > 0 ? targetUnit * numPecasLote : 0);
-            var boxTarget = div.querySelector(".memTargetResultado");
-            var lblDiferenca = div.querySelector(".memTargetDiferenca");
-            var lblSugestoes = div.querySelector(".memTargetSugestoes");
-            if (boxTarget && lblDiferenca && lblSugestoes) {
-                if (targetCliente <= 0) {
-                    boxTarget.classList.add("hidden");
-                } else {
-                    boxTarget.classList.remove("hidden");
-                    var dif = precoFinalLote - targetCliente;
-                    var pctSobreCalculado = precoFinalLote > 0 ? (dif / precoFinalLote) * 100 : 0;
-                    var pctSobreTarget = targetCliente > 0 ? (dif / targetCliente) * 100 : 0;
-                    if (dif > 0) {
-                        boxTarget.style.background = "#fff3e0";
-                        boxTarget.style.borderColor = "#ff9800";
-                        lblDiferenca.style.color = "";
-                        lblSugestoes.style.color = "";
-                        lblDiferenca.textContent = "Pre\u00e7o calculado est\u00e1 " + formatarMoedaBR(dif) + " acima do target (" + pctSobreCalculado.toFixed(1) + "% do pre\u00e7o calculado).";
-                        var sugestoes = [];
-                        if (precoMaterialLote > 0 && precoMaterialLote >= dif * 0.1) {
-                            var redMarkUp = precoFinalLote > 0 ? (dif / precoMaterialLote) * (markUp || 0) : 0;
-                            if (redMarkUp > 0.1) sugestoes.push("Reduzir Mark Up em aproximadamente " + redMarkUp.toFixed(1) + " pontos percentuais (atual: " + (markUp || 0) + "%).");
-                            var redCusto = pesoPeca * numPecasLote > 0 ? dif / (pesoPeca * numPecasLote) : 0;
-                            if (redCusto > 0.01) sugestoes.push("Reduzir Custo (R$/kg) em aproximadamente " + formatarMoedaBR(redCusto) + " (atual: " + formatarMoedaBR(custo) + ").");
-                        }
-                        if (precoCorteTotal > 0 && precoCorteTotal >= dif * 0.1)
-                            sugestoes.push("Reduzir pre\u00e7o/hora m\u00e1quina de corte.");
-                        if (precoDobraTotal > 0 && precoDobraTotal >= dif * 0.1)
-                            sugestoes.push("Reduzir pre\u00e7o/hora m\u00e1quina de dobra.");
-                        if (precoAdicionais > 0 && precoAdicionais >= dif * 0.1)
-                            sugestoes.push("Reduzir valores dos processos externos/adicionais.");
-                        if (outrosCustos > 0 && outrosCustos >= dif * 0.1)
-                            sugestoes.push("Reduzir outros custos.");
-                        lblSugestoes.innerHTML = sugestoes.length ? "<strong>Sugest\u00f5es para atingir o target (apenas itens negoci\u00e1veis):</strong><br>" + sugestoes.map(function(s){ return "\u2022 " + s; }).join("<br>") : "Ajuste itens negoci\u00e1veis: mark up, custo do material (R$/kg), pre\u00e7o/hora das m\u00e1quinas, processos externos ou outros custos.";
-                    } else {
-                        boxTarget.style.background = "#e8f5e9";
-                        boxTarget.style.borderColor = "#2e7d32";
-                        lblDiferenca.textContent = dif === 0 ? "Pre\u00e7o calculado igual ao target do cliente." : "Pre\u00e7o calculado dentro do target (" + formatarMoedaBR(-dif) + " abaixo do valor informado).";
-                        lblDiferenca.style.color = "#1b5e20";
-                        lblSugestoes.textContent = "Target atingido.";
-                        lblSugestoes.style.color = "#2e7d32";
-                    }
-                }
-            }
-        }
-
-        function addProcessoAdicionalMemoria(container) {
-            const div = document.createElement("div");
-            div.className = "row";
-            div.style.marginBottom = "6px";
-            div.innerHTML = `
-      <div class="col"><label>Descrição:</label><input type="text" class="memAdicionalDesc" placeholder="Ex: Pintura"></div>
-      <div class="col"><label>Valor (R$):</label><input type="number" step="any" class="memAdicionalValor" placeholder="0"></div>
-      <div class="col" style="flex:0 0 auto;"><button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover</button></div>
-    `;
-            container.appendChild(div);
-            const memoriaDiv = container.closest(".memoria-calc");
-            div.querySelector(".memAdicionalValor").addEventListener("input", () => calcularMemoriaCalculo(memoriaDiv));
-        }
-
-        function addOutroCustoMemoria(container) {
-            const div = document.createElement("div");
-            div.className = "row";
-            div.style.marginBottom = "6px";
-            div.innerHTML = `
-      <div class="col"><label>Descrição:</label><input type="text" class="memOutroCustoDesc" placeholder="Ex: Frete, embalagem"></div>
-      <div class="col"><label>Valor (R$):</label><input type="number" step="any" class="memOutroCustoValor" placeholder="0"></div>
-      <div class="col" style="flex:0 0 auto;"><button type="button" onclick="removeElement(this.parentElement.parentElement)">Remover</button></div>
-    `;
-            container.appendChild(div);
-            const memoriaDiv = container.closest(".memoria-calc");
-            div.querySelector(".memOutroCustoValor").addEventListener("input", () => calcularMemoriaCalculo(memoriaDiv));
-        }
 
         function toggleProcessoPedidoCampos(procDiv) {
             const tipo = (procDiv.querySelector(".procPedidoTipo") || {}).value;
@@ -1901,6 +1695,7 @@
             formData.cliente = {
                 select: clienteNomeVal,
                 nome: clienteNomeVal,
+                nomeAbreviado: (document.getElementById("clienteNomeAbreviado").value || "").trim(),
                 cpf: document.getElementById("clienteCpf").value,
                 endereco: document.getElementById("clienteEndereco").value,
                 telefone: document.getElementById("clienteTelefone").value,
@@ -1909,109 +1704,7 @@
                 data: document.getElementById("clienteData").value
             };
 
-            // 3. Memórias de Cálculo (não entram no total do orçamento; salvas separadamente em PDF e aba "memoria de calculo")
-            formData.memoriasCalculo = [];
-            document.querySelectorAll(".memoria-calc").forEach(mDiv => {
-                const custo = parseFloat(mDiv.querySelector(".memCusto")?.value) || 0;
-                const markUp = parseFloat(mDiv.querySelector(".memMarkUp")?.value) || 0;
-                const compMm = parseFloat(mDiv.querySelector(".memComprimento")?.value) || 0;
-                const largMm = parseFloat(mDiv.querySelector(".memLargura")?.value) || 0;
-                const compMetros = compMm / 1000;
-                const esp = parseFloat(mDiv.querySelector(".memEspessura")?.value) || 0;
-                const dens = parseFloat(mDiv.querySelector(".memDensidade")?.value) || 0;
-                const numPecasChapa = parseFloat(mDiv.querySelector(".memNumPecasChapa")?.value) || 0;
-                const numPecasLote = parseFloat(mDiv.querySelector(".memNumPecasLote")?.value) || 0;
-                const precoVendaMaterial = custo * (1 + markUp / 100);
-                const pesoChapa = compMetros * largMm * (esp / 1000) * dens;
-                const pesoPeca = numPecasChapa > 0 ? pesoChapa / numPecasChapa : 0;
-                const precoMaterialLote = pesoPeca * precoVendaMaterial * numPecasLote;
-                let precoCorteTotal = 0;
-                if (mDiv.querySelector(".memTemCorte")?.checked) {
-                    const tempoCorteSec = parseFloat(mDiv.querySelector(".memTempoCorte")?.value) || 0;
-                    const setupCorteMin = parseFloat(mDiv.querySelector(".memTempoSetupCorte")?.value) || 0;
-                    const tempoTotalSec = tempoCorteSec + (setupCorteMin * 60);
-                    const pH = parseFloat(mDiv.querySelector(".memPrecoHoraCorte")?.value) || 0;
-                    precoCorteTotal = (tempoTotalSec / 3600) * pH * numPecasLote;
-                }
-                let precoDobraTotal = 0;
-                if (mDiv.querySelector(".memTemDobra")?.checked) {
-                    const numDobras = parseFloat(mDiv.querySelector(".memNumDobras")?.value) || 0;
-                    const tempoPorDobraSec = parseFloat(mDiv.querySelector(".memTempoDobra")?.value) || 0;
-                    const setupDobraMin = parseFloat(mDiv.querySelector(".memTempoSetupDobra")?.value) || 0;
-                    const tempoTotalSec = (numDobras * tempoPorDobraSec) + (setupDobraMin * 60);
-                    const pH = parseFloat(mDiv.querySelector(".memPrecoHoraDobra")?.value) || 0;
-                    precoDobraTotal = (tempoTotalSec / 3600) * pH * numPecasLote;
-                }
-                let somaAdicionaisUnit = 0;
-                mDiv.querySelectorAll(".memAdicionalValor").forEach(inp => { somaAdicionaisUnit += parseFloat(inp.value) || 0; });
-                const precoAdicionais = somaAdicionaisUnit * numPecasLote;
-                const outrosCustosList = [];
-                mDiv.querySelectorAll(".memOutrosCustosList .row").forEach(row => {
-                    const desc = row.querySelector(".memOutroCustoDesc")?.value || "";
-                    const val = parseFloat(row.querySelector(".memOutroCustoValor")?.value) || 0;
-                    if (desc || val) outrosCustosList.push({ descricao: desc, valor: val });
-                });
-                const precoOutrosCustos = outrosCustosList.reduce((s, o) => s + (o.valor || 0), 0);
-                const precoFinalLote = precoMaterialLote + precoCorteTotal + precoDobraTotal + precoAdicionais + precoOutrosCustos;
-                const precoFinalUnit = numPecasLote > 0 ? precoFinalLote / numPecasLote : 0;
-                const targetLote = parseFloat(mDiv.querySelector(".memTargetLote")?.value) || 0;
-                const targetUnit = parseFloat(mDiv.querySelector(".memTargetUnit")?.value) || 0;
-                const targetCliente = targetLote > 0 ? targetLote : (targetUnit > 0 && numPecasLote > 0 ? targetUnit * numPecasLote : 0);
-                const diferencaTarget = targetCliente > 0 ? precoFinalLote - targetCliente : null;
-                const percentualTarget = precoFinalLote > 0 && targetCliente > 0 ? (diferencaTarget / precoFinalLote) * 100 : null;
-                const adicionais = [];
-                mDiv.querySelectorAll(".memAdicionaisList .row").forEach(row => {
-                    const desc = row.querySelector(".memAdicionalDesc")?.value || "";
-                    const val = parseFloat(row.querySelector(".memAdicionalValor")?.value) || 0;
-                    if (desc || val) adicionais.push({ descricao: desc, valor: val });
-                });
-                const precoMaterialUnit = numPecasLote > 0 ? precoMaterialLote / numPecasLote : 0;
-                const precoCorteUnit = numPecasLote > 0 ? precoCorteTotal / numPecasLote : 0;
-                const precoDobraUnit = numPecasLote > 0 ? precoDobraTotal / numPecasLote : 0;
-                const precoAdicionaisUnitVal = numPecasLote > 0 ? precoAdicionais / numPecasLote : 0;
-                formData.memoriasCalculo.push({
-                    material: mDiv.querySelector(".memMaterial")?.value || "",
-                    comprimento: compMm,
-                    largura: largMm,
-                    espessura: esp,
-                    densidade: dens,
-                    custo: custo,
-                    markUp: markUp,
-                    precoVendaMaterial: precoVendaMaterial,
-                    pesoChapa: pesoChapa,
-                    descricaoPeca: mDiv.querySelector(".memDescricaoPeca")?.value || "",
-                    medidasPeca: mDiv.querySelector(".memMedidasPeca")?.value || "",
-                    numPecasChapa: numPecasChapa,
-                    numPecasLote: numPecasLote,
-                    precoMaterialLote: precoMaterialLote,
-                    precoMaterialUnit: precoMaterialUnit,
-                    temCorte: mDiv.querySelector(".memTemCorte")?.checked || false,
-                    tempoCorte: parseFloat(mDiv.querySelector(".memTempoCorte")?.value) || 0,
-                    tempoSetupCorteMin: parseFloat(mDiv.querySelector(".memTempoSetupCorte")?.value) || 0,
-                    precoHoraCorte: parseFloat(mDiv.querySelector(".memPrecoHoraCorte")?.value) || 0,
-                    precoCorteTotal: precoCorteTotal,
-                    precoCorteUnit: precoCorteUnit,
-                    temDobra: mDiv.querySelector(".memTemDobra")?.checked || false,
-                    numDobras: parseFloat(mDiv.querySelector(".memNumDobras")?.value) || 0,
-                    tempoDobra: parseFloat(mDiv.querySelector(".memTempoDobra")?.value) || 0,
-                    tempoSetupDobraMin: parseFloat(mDiv.querySelector(".memTempoSetupDobra")?.value) || 0,
-                    precoHoraDobra: parseFloat(mDiv.querySelector(".memPrecoHoraDobra")?.value) || 0,
-                    precoDobraTotal: precoDobraTotal,
-                    precoDobraUnit: precoDobraUnit,
-                    adicionais: adicionais,
-                    precoAdicionais: precoAdicionais,
-                    precoAdicionaisUnit: precoAdicionaisUnitVal,
-                    outrosCustos: outrosCustosList,
-                    precoOutrosCustos: precoOutrosCustos,
-                    precoFinalLote: precoFinalLote,
-                    precoFinalUnit: precoFinalUnit,
-                    targetLote: targetLote || null,
-                    targetUnit: targetUnit || null,
-                    targetCliente: targetCliente || null,
-                    diferencaTarget: diferencaTarget,
-                    percentualTarget: percentualTarget
-                });
-            });
+            // 3. (Memória de Cálculo removida - RF002)
             formData.chapas = [];
 
             // 4. Processos do Pedido (descontos e custos extras)
@@ -2073,7 +1766,6 @@
             const projeto = safeData.projeto || {};
             const cliente = safeData.cliente || {};
             const observacoes = safeData.observacoes || {};
-            const memoriasCalculo = Array.isArray(safeData.memoriasCalculo) ? safeData.memoriasCalculo : [];
             const processosPedido = Array.isArray(safeData.processosPedido) ? safeData.processosPedido : [];
 
             // 1. Projeto - extrai data/indice/iniciais do código (suporta _v2, _v3)
@@ -2098,6 +1790,14 @@
             document.getElementById("projetoIniciais").value = projetoIniciais;
             atualizarCamposProjeto(true);
 
+            // RF001: Armazenar valores originais dos campos do projeto ao carregar
+            _originalProjetoData = projetoData;
+            _originalProjetoIndice = projetoIndice;
+            _originalProjetoIniciais = projetoIniciais;
+            // Ocultar banner (limpar estado anterior)
+            var banner = document.getElementById("bannerNovoProjeto");
+            if (banner) banner.style.display = "none";
+
             // 2. Cliente (campo único: nome = busca ou novo)
             document.getElementById("clienteNome").value = cliente.nome || "";
             const clienteExistente = listaClientes.find(c => c.nome === (cliente.nome || "").trim());
@@ -2107,6 +1807,7 @@
             } else {
                 document.getElementById("clienteNome").style.background = "";
             }
+            document.getElementById("clienteNomeAbreviado").value = cliente.nomeAbreviado || (clienteExistente && clienteExistente.nomeAbreviado) || "";
             document.getElementById("clienteCpf").value = cliente.cpf || "";
             document.getElementById("clienteEndereco").value = cliente.endereco || "";
             document.getElementById("clienteTelefone").value = cliente.telefone || "";
@@ -2128,75 +1829,8 @@
             document.getElementById("obsProcessos").value = observacoes.processos || "";
             document.getElementById("obsTemNotaFiscal").checked = !!observacoes.temNotaFiscal;
 
-            // 4. Memórias de Cálculo (limpar e recriar)
-            document.getElementById("memoriasContainer").innerHTML = "";
+            // 4. (Memória de Cálculo removida - RF002) Limpar container de processos
             document.getElementById("processosPedidoContainer").innerHTML = "";
-
-            (memoriasCalculo || []).forEach(memData => {
-                addMemoriaCalculo();
-                const mDiv = document.querySelector("#memoriasContainer .memoria-calc:first-child");
-                if (!mDiv) return;
-                mDiv.querySelector(".memMaterial").value = memData.material || "";
-                mDiv.querySelector(".memComprimento").value = memData.comprimento != null ? memData.comprimento : "";
-                mDiv.querySelector(".memLargura").value = memData.largura != null ? memData.largura : "";
-                mDiv.querySelector(".memEspessura").value = memData.espessura != null ? memData.espessura : "";
-                mDiv.querySelector(".memDensidade").value = memData.densidade != null ? memData.densidade : "";
-                mDiv.querySelector(".memCusto").value = memData.custo != null ? memData.custo : "";
-                mDiv.querySelector(".memMarkUp").value = memData.markUp != null ? memData.markUp : "";
-                mDiv.querySelector(".memDescricaoPeca").value = memData.descricaoPeca || "";
-                var elMedidas = mDiv.querySelector(".memMedidasPeca");
-                if (elMedidas) elMedidas.value = memData.medidasPeca || "";
-                mDiv.querySelector(".memNumPecasChapa").value = memData.numPecasChapa != null ? memData.numPecasChapa : "";
-                mDiv.querySelector(".memNumPecasLote").value = memData.numPecasLote != null ? memData.numPecasLote : "";
-                mDiv.querySelector(".memTemCorte").checked = !!memData.temCorte;
-                mDiv.querySelector(".memTemCorte").dispatchEvent(new Event("change"));
-                mDiv.querySelector(".memTempoCorte").value = memData.tempoCorte != null ? memData.tempoCorte : "";
-                mDiv.querySelector(".memTempoSetupCorte").value = (memData.tempoSetupCorteMin != null ? memData.tempoSetupCorteMin : memData.tempoSetupCorte) != null ? (memData.tempoSetupCorteMin != null ? memData.tempoSetupCorteMin : memData.tempoSetupCorte) : "";
-                mDiv.querySelector(".memPrecoHoraCorte").value = memData.precoHoraCorte != null ? memData.precoHoraCorte : "";
-                mDiv.querySelector(".memTemDobra").checked = !!memData.temDobra;
-                mDiv.querySelector(".memTemDobra").dispatchEvent(new Event("change"));
-                mDiv.querySelector(".memNumDobras").value = memData.numDobras != null ? memData.numDobras : "";
-                mDiv.querySelector(".memTempoDobra").value = memData.tempoDobra != null ? memData.tempoDobra : "";
-                mDiv.querySelector(".memTempoSetupDobra").value = (memData.tempoSetupDobraMin != null ? memData.tempoSetupDobraMin : memData.tempoSetupDobra) != null ? (memData.tempoSetupDobraMin != null ? memData.tempoSetupDobraMin : memData.tempoSetupDobra) : "";
-                mDiv.querySelector(".memPrecoHoraDobra").value = memData.precoHoraDobra != null ? memData.precoHoraDobra : "";
-                const adicionais = memData.adicionais || [];
-                if (adicionais.length > 0) {
-                    mDiv.querySelector(".memTemAdicionais").checked = true;
-                    mDiv.querySelector(".memTemAdicionais").dispatchEvent(new Event("change"));
-                    const list = mDiv.querySelector(".memAdicionaisList");
-                    list.innerHTML = "";
-                    adicionais.forEach(ad => {
-                        addProcessoAdicionalMemoria(list);
-                        const row = list.querySelector(".row:last-child");
-                        if (row) {
-                            row.querySelector(".memAdicionalDesc").value = ad.descricao || "";
-                            row.querySelector(".memAdicionalValor").value = ad.valor != null ? ad.valor : "";
-                        }
-                    });
-                }
-                const outrosCustosData = memData.outrosCustos || [];
-                if (Array.isArray(outrosCustosData) && outrosCustosData.length > 0) {
-                    mDiv.querySelector(".memTemOutrosCustos").checked = true;
-                    mDiv.querySelector(".memTemOutrosCustos").dispatchEvent(new Event("change"));
-                    const listOutros = mDiv.querySelector(".memOutrosCustosList");
-                    listOutros.innerHTML = "";
-                    outrosCustosData.forEach(oc => {
-                        addOutroCustoMemoria(listOutros);
-                        const row = listOutros.querySelector(".row:last-child");
-                        if (row) {
-                            row.querySelector(".memOutroCustoDesc").value = oc.descricao || "";
-                            row.querySelector(".memOutroCustoValor").value = oc.valor != null ? oc.valor : "";
-                        }
-                    });
-                }
-                var tl = memData.targetLote != null && memData.targetLote !== "" ? memData.targetLote : (memData.targetCliente != null && memData.targetCliente !== "" ? memData.targetCliente : "");
-                var tu = memData.targetUnit != null && memData.targetUnit !== "" ? memData.targetUnit : "";
-                if (tl !== "" && tu === "" && memData.numPecasLote > 0) tu = (parseFloat(tl) / memData.numPecasLote).toFixed(2);
-                if (tu !== "" && tl === "" && memData.numPecasLote > 0) tl = (parseFloat(tu) * memData.numPecasLote).toFixed(2);
-                var elTL = mDiv.querySelector(".memTargetLote"); var elTU = mDiv.querySelector(".memTargetUnit");
-                if (elTL) elTL.value = tl; if (elTU) elTU.value = tu;
-                calcularMemoriaCalculo(mDiv);
-            });
 
             // 5. Processos do Pedido (nova estrutura: tipo, descricao, percentual/valorFixo; compatível com formato antigo)
             processosPedido.forEach(procData => {
@@ -2261,6 +1895,29 @@
                     if (processos.length > 0 && boxProcessos && btnProcessos) {
                         boxProcessos.style.display = "block";
                         btnProcessos.textContent = "Ocultar Processos";
+                    }
+                    // RF002: Atualizar campos de descrição e preencher valores salvos
+                    var descContnr = prodDiv.querySelector(".produtoDescricoesProcessos");
+                    if (descContnr) {
+                        // Dispara a atualização para criar os campos de descrição
+                        processos.forEach(function(sigla) {
+                            if (!descContnr.querySelector('.desc-proc-row[data-sigla="' + sigla + '"]')) {
+                                var row = document.createElement("div");
+                                row.className = "desc-proc-row";
+                                row.dataset.sigla = sigla;
+                                row.style.cssText = "display:flex; align-items:center; gap:8px; margin-bottom:6px;";
+                                row.innerHTML = '<label style="min-width:160px; font-size:13px; color:#333;"><strong>' + sigla + '</strong> - ' + (_NOMES_PROCESSOS[sigla] || sigla) + ':</label>'
+                                    + '<input type="text" class="desc-proc-input" placeholder="Ex: 2h, 3 chapas 1000x500..." style="flex:1; padding:4px 8px; border:1px solid #90caf9; border-radius:4px;">';
+                                descContnr.appendChild(row);
+                            }
+                        });
+                        // Preencher descrições salvas
+                        var descs = prodData.descricoesProcessos || {};
+                        descContnr.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                            var sigla = row.dataset.sigla;
+                            var input = row.querySelector(".desc-proc-input");
+                            if (sigla && input && descs[sigla]) input.value = descs[sigla];
+                        });
                     }
                     calcularTotalProduto(prodDiv);
                 });
@@ -2432,6 +2089,12 @@
             if (!confirm("Deseja limpar todos os dados e iniciar um novo orçamento?")) return;
             
             limparEstadoRascunho();
+            // RF001: Reset variáveis originais do projeto
+            _originalProjetoData = null;
+            _originalProjetoIndice = null;
+            _originalProjetoIniciais = null;
+            var bannerReset = document.getElementById("bannerNovoProjeto");
+            if (bannerReset) bannerReset.style.display = "none";
             
             const today = new Date();
             document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
@@ -2442,6 +2105,7 @@
             
             document.getElementById("clienteNome").value = "";
             document.getElementById("clienteNome").style.background = "";
+            document.getElementById("clienteNomeAbreviado").value = "";
             document.getElementById("clienteCpf").value = "";
             document.getElementById("clienteEndereco").value = "";
             document.getElementById("clienteTelefone").value = "";
@@ -2449,7 +2113,6 @@
             document.getElementById("clienteResponsavel").value = "";
             document.getElementById("clienteData").value = today.toISOString().slice(0, 10);
             
-            document.getElementById("memoriasContainer").innerHTML = "";
             document.getElementById("produtosCadastradosContainer").innerHTML = "";
             document.getElementById("processosPedidoContainer").innerHTML = "";
             
@@ -2585,8 +2248,22 @@
                 return;
             }
             if (!validarDescricaoSemCOTPED(dados.observacoes.descricao)) return;
-            if (!confirm("Salvar este projeto como PEDIDO?\n\nSerá gerada a proposta comercial em PDF e o projeto será registrado já como \"Convertido em Pedido\".")) {
-                return;
+
+            // RF001: Failsafe - verificar se está criando novo projeto ou sobrescrevendo existente
+            if (_originalProjetoData !== null) {
+                var projetoDataAtual = (dados.projeto.data || "").trim();
+                var projetoIndiceAtual = (dados.projeto.indice || "").trim();
+                var projetoIniciaisAtual = (dados.projeto.iniciais || "").trim();
+                var mudouIdentificador = (projetoDataAtual !== _originalProjetoData) || (projetoIndiceAtual !== _originalProjetoIndice) || (projetoIniciaisAtual !== _originalProjetoIniciais);
+                if (mudouIdentificador) {
+                    if (!confirm("⚠️ Você está criando um NOVO projeto (código: " + codigoProjeto + ") a partir de um projeto existente.\nO projeto original será mantido.\n\nSalvar como PEDIDO?")) return;
+                } else if (linhaOrcamentoCarregado) {
+                    if (!confirm("Você está SOBRESCREVENDO o projeto existente (código: " + codigoProjeto + ").\n\nSalvar como PEDIDO?")) return;
+                } else {
+                    if (!confirm("Salvar este projeto como PEDIDO?\n\nSerá gerada a proposta comercial em PDF e o projeto será registrado já como \"Convertido em Pedido\".")) return;
+                }
+            } else {
+                if (!confirm("Salvar este projeto como PEDIDO?\n\nSerá gerada a proposta comercial em PDF e o projeto será registrado já como \"Convertido em Pedido\".")) return;
             }
             // Usa a mesma lógica de calcular(), gerando o PDF com status "convertido em pedido"
             calcular(true);
@@ -2706,6 +2383,7 @@
             // --- CLIENTE ---
             const cliente = {
                 nome: dadosColetados.cliente.nome,
+                nomeAbreviado: dadosColetados.cliente.nomeAbreviado || "",
                 cpf: dadosColetados.cliente.cpf,
                 endereco: dadosColetados.cliente.endereco,
                 telefone: dadosColetados.cliente.telefone,
@@ -2750,6 +2428,28 @@
                 btn.disabled = false;
                 btn.textContent = textoOriginalBtn;
                 return;
+            }
+
+            // RF001: Failsafe - verificar se está criando novo projeto ou sobrescrevendo existente
+            if (!apenasPreview && _originalProjetoData !== null) {
+                var projetoDataAtual = document.getElementById("projetoData").value.trim();
+                var projetoIndiceAtual = document.getElementById("projetoIndice").value.trim();
+                var projetoIniciaisAtual = document.getElementById("projetoIniciais").value.trim();
+                var codigoAtual = projetoDataAtual + projetoIndiceAtual + projetoIniciaisAtual;
+                var mudouIdentificador = (projetoDataAtual !== _originalProjetoData) || (projetoIndiceAtual !== _originalProjetoIndice) || (projetoIniciaisAtual !== _originalProjetoIniciais);
+                if (mudouIdentificador) {
+                    if (!confirm("⚠️ Você está criando um NOVO projeto (código: " + codigoAtual + ").\nO projeto original será mantido.\n\nDeseja continuar?")) {
+                        btn.disabled = false;
+                        btn.textContent = textoOriginalBtn;
+                        return;
+                    }
+                } else if (linhaOrcamentoCarregado) {
+                    if (!confirm("Você está SOBRESCREVENDO o projeto existente (código: " + codigoAtual + ").\n\nDeseja continuar?")) {
+                        btn.disabled = false;
+                        btn.textContent = textoOriginalBtn;
+                        return;
+                    }
+                }
             }
 
             const observacoes = {
@@ -2848,31 +2548,6 @@
                     resetarBotao();
                 })
                 .gerarPdfOrcamento.apply(google.script.run, argsPdf);
-        }
-        function salvarMemoriaCalculo() {
-            const dados = coletarDadosFormulario();
-            const memorias = dados.memoriasCalculo || [];
-            if (memorias.length === 0) {
-                alert("Adicione pelo menos uma Memória de Cálculo e preencha os dados antes de salvar.");
-                return;
-            }
-            const codigoProjeto = (dados.observacoes && dados.observacoes.projeto) || (dados.projeto && (dados.projeto.data || "") + (dados.projeto.indice || "") + (dados.projeto.iniciais || "")) || "";
-            const nomePdf = "Memoria de Calculo - " + (codigoProjeto || "Sem projeto");
-            const btn = document.querySelector('button[onclick="salvarMemoriaCalculo()"]');
-            if (btn) { btn.disabled = true; btn.textContent = "Salvando..."; }
-            google.script.run
-                .withSuccessHandler(function (result) {
-                    if (btn) { btn.disabled = false; btn.textContent = "💾 Salvar Memória de Cálculo (PDF + Planilha)"; }
-                    if (result && result.url) {
-                        alert("Memória de Cálculo salva com sucesso!\n\nPDF: " + result.url);
-                        if (result.url) window.open(result.url, "_blank");
-                    }
-                })
-                .withFailureHandler(function (err) {
-                    if (btn) { btn.disabled = false; btn.textContent = "💾 Salvar Memória de Cálculo (PDF + Planilha)"; }
-                    alert("Erro ao salvar Memória de Cálculo:\n" + (err && err.message ? err.message : err));
-                })
-                .salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf);
         }
 
         var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
@@ -3122,7 +2797,7 @@
         const observerConfig = { childList: true, subtree: true };
 
         // Observer para container de memórias de cálculo (preview não usa; mantido para consistência)
-        const memoriasContainer = document.getElementById("memoriasContainer");
+        const memoriasContainer = null; // RF002: memoriasContainer removido
         if (memoriasContainer) {
             const memoriasObserver = new MutationObserver(function() { atualizarPreviewDebounced(); });
             memoriasObserver.observe(memoriasContainer, observerConfig);

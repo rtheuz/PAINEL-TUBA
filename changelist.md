@@ -1,15 +1,93 @@
-Você é um engenheiro de software **especializado em arquitetura e otimização de Google Apps Script**.
-sua tarefa é fazer as mudanças no meu código, analisando as alterações necessárias para implementar tudo descrito:
+## Changelog
 
-[RF001] Permtir, ao carregar um projeto no formulário.html, ao mudar o indice de "Informações do projeto", criar um novo projeto a partir daquele. Notificar o usuário que ele está criando um novo projeto caso mude algum dado em informações de projeto (Data, indice, iniciais). Ou seja, posso carregar um projeto e usar ele como base para criar um novo, salvar o que foi usado como base em 01_IN.
- * NÂO FAZER: Nunca mudar o número de projeto de um projeto existente. Qualquer informação que constitue o código do projeto for mudada cria um novo projeto.
- * FAZER: Adicionar failsafe antes de enviar e salvar as informações do projeto, informando que está criando um novo projeto ou informando que está sobrescrevendo um existente e perguntando se realmente deseja salvar.
+### Implementação de RF001-RF007
 
-[RF002] Apagar toda a lógica de memoria de calculo do formulario e codigo, a memoria de calculo passara a ser:
-    - no formulario.html, ao "+ Adicionar produto" e "Adicionar processos", abrir um campo de descrição para cada processo selecionado, as informações preenchidas serão usadas para a ordem de produção, memoria de calculo e para a Relação de Produtos (cadastro do item).
+**Data:** 2026-03-11
 
-[RF003] Salvar o orçamento / Proposta comercial também com o número sequencial (Ex: Proposta_260310aMS_1705).
+---
 
-[RF004] Adicionar um botão de para fornecer a data de entrega na coluna de ações em projetos.html (funcionamento similar ao da NF), fora do menu, onde ao pressionar e preencher a data de entrega, passa esses dados para a aba / página de pedidos. Apenas projetos convertidos em pedido devem conter esse botão, deve ser permitido filtrar entre os preenchidos e os a preencher igual ao filtro para as NF's.
+### [RF001] Criar novo projeto a partir de projeto carregado
 
-[RF005] O botão de "Gerar como v2, v3..." deve ser "Gerar nova proposta" e não cria uma pasta nova de projeto, apenas salva o orçamento na mesma pasta atual do projeto como v2, v3... (ex: Proposta_260310aMS_1705_v2, Proposta_260310aMS_1705_v3...). Permitir, ao carregar o projeto, visualizar e alterar as diferentes versões da proposat caso existam. Caso o checkbox não esteja selecionado, continua salvando o orçamento sobrescrevendo o atual, e sem mudar o numero sequencial e o nome do arquivo.
+**Arquivos:** `formulario.html`
+
+- Adicionadas variáveis globais `_originalProjetoData`, `_originalProjetoIndice`, `_originalProjetoIniciais`
+- Em `preencherFormulario()`: ao carregar um projeto, os valores originais são armazenados e o banner de aviso é ocultado
+- Adicionados listeners nos campos `projetoData`, `projetoIndice`, `projetoIniciais` que chamam `verificarMudancaCampoProjeto()` a cada input
+- `verificarMudancaCampoProjeto()`: exibe banner `#bannerNovoProjeto` quando algum campo mudou em relação ao original
+- Em `calcular()` e `salvarComoPedido()`: failsafe com `confirm()` antes de gerar PDF — informa se está criando novo projeto ou sobrescrevendo existente
+- Banner HTML adicionado na seção "Informações do Projeto"
+
+---
+
+### [RF002] Refatorar memória de cálculo
+
+**Arquivos:** `formulario.html`, `Código.js`
+
+**Removido:**
+- Seção HTML `#memoriaCalculoSection` completa
+- Funções JS: `addMemoriaCalculo()`, `calcularMemoriaCalculo()`, `addProcessoAdicionalMemoria()`, `addOutroCustoMemoria()`, `salvarMemoriaCalculo()` (frontend)
+- Coleta de `formData.memoriasCalculo` em `coletarDadosFormulario()`
+- Preenchimento de memórias em `preencherFormulario()`
+- Funções backend: `gerarPdfMemoriaCalculo()` e `salvarMemoriaCalculo()` (backend)
+
+**Adicionado:**
+- Em `addProdutoCadastrado()`: campo `div.produtoDescricoesProcessos` dentro da caixa de processos
+- Função `atualizarDescricoesProcessos()` — cria/remove campos de texto para cada processo marcado/desmarcado
+- Listeners nos checkboxes de processo chamam `atualizarDescricoesProcessos()`
+- `coletarProdutosCadastrados()` agora inclui campo `descricoesProcessos` (objeto `{sigla: texto}`)
+- `preencherFormulario()` preenche os campos de descrição ao carregar um projeto
+- `gerarPdfOrdemProducao()` (backend): exibe descrições por processo abaixo da descrição do item
+
+---
+
+### [RF003] Número sequencial no nome do arquivo da proposta
+
+**Arquivo:** `Código.js`
+
+- `gerarPdfOrcamento()`: nome do arquivo mudado para `Proposta_codigoBase_numeroSequencial[_vN].pdf`
+- Exemplo: `Proposta_260310aMS_1705.pdf`, v2: `Proposta_260310aMS_1705_v2.pdf`
+- `detectarProximaVersao()`: atualizado para reconhecer formatos antigo e novo
+
+---
+
+### [RF004] Botão de Data de Entrega em projetos.html
+
+**Arquivos:** `projetos.html`, `Código.js`
+
+- Botão 📦 adicionado na coluna de ações, visível apenas para projetos "Convertido em Pedido"
+- Amarelo se pendente, verde se preenchida; `informarDataEntrega(linha)` via prompt
+- Filtro "Entrega preenchida / Entrega a preencher" adicionado ao lado do filtro de NF
+- Nova função backend `informarDataEntregaProjeto(linha, dataEntrega)`
+- `getProjetos()`: extrai `dataEntrega` do `JSON_DADOS`
+
+---
+
+### [RF005] "Gerar nova proposta"
+
+**Arquivo:** `formulario.html`
+
+- Label renomeado de "Gerar como v2, v3..." para "Gerar nova proposta"
+- Sem pasta nova; salva com sufixo _v2, _v3 na mesma pasta atual
+- Nome do arquivo inclui número sequencial (RF003)
+
+---
+
+### [RF006] Botões "Criar pasta 01_IN" e "Abrir pasta 01_IN"
+
+**Arquivos:** `formulario.html`, `Código.js`
+
+- Botões reativados: "📁 Criar pasta 01_IN" e "🔗 Abrir pasta 01_IN"
+- `criarPasta01INAction()` / `abrirPasta01INAction()` no frontend
+- Novas funções backend: `criarPasta01IN()` e `abrirPasta01IN()`
+
+---
+
+### [RF007] Campo "Nome Abreviado" do cliente
+
+**Arquivos:** `formulario.html`, `projetos.html`, `Código.js`
+
+- Campo `#clienteNomeAbreviado` no formulário; campo no modal "Novo Projeto Rápido"
+- `getTodosClientes()`: inclui `nomeAbreviado: dados[i][5]`
+- `salvarClienteSeNovo()`: salva na 6ª coluna; atualiza se estava vazio
+- `gerarNomePasta()`: usa nome abreviado quando fornecido (fallback para nome completo)
+- Todas as funções de criação de pasta recebem e passam `nomeAbreviado`
