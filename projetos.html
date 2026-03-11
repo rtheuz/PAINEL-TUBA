@@ -813,6 +813,10 @@
                                 placeholder="Selecione ou digite um novo cliente">
                         </div>
                         <div class="form-group" style="flex:1; min-width:140px;">
+                            <label>Nome Abreviado * <small style="color:#666;">(para pasta)</small></label>
+                            <input type="text" id="rapidoClienteNomeAbreviado" placeholder="Ex: SILVA MET" maxlength="20">
+                        </div>
+                        <div class="form-group" style="flex:1; min-width:140px;">
                             <label>CPF/CNPJ</label>
                             <input type="text" id="rapidoClienteCpf" placeholder="CPF ou CNPJ">
                         </div>
@@ -1089,6 +1093,20 @@
                             </label>
                         </div>
                     </div>
+                    <!-- RF004: Filtro de Data de Entrega -->
+                    <div class="filter-group filter-status-multi">
+                        <label>Entrega</label>
+                        <div class="filter-checkboxes" id="entregaFilterGroup">
+                            <label class="filter-check-label">
+                                <input type="checkbox" class="filter-entrega-cb" value="com">
+                                Entrega preenchida
+                            </label>
+                            <label class="filter-check-label">
+                                <input type="checkbox" class="filter-entrega-cb" value="sem">
+                                Entrega a preencher
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="tableContainer">
@@ -1184,6 +1202,7 @@
         // Preenche CPF, endereço, telefone, email no modal rápido quando seleciona um cliente existente
         function preencherDadosClienteRapido(cliente) {
             if (!cliente) return;
+            document.getElementById('rapidoClienteNomeAbreviado').value = cliente.nomeAbreviado || '';
             document.getElementById('rapidoClienteCpf').value = cliente.cpf || '';
             document.getElementById('rapidoClienteEndereco').value = cliente.endereco || '';
             document.getElementById('rapidoClienteTelefone').value = cliente.telefone || '';
@@ -1270,6 +1289,7 @@
             const statusOrc = document.getElementById('statusOrcFilter').value;
             const statusPed = document.getElementById('statusPedFilter').value;
             const nfFilterSelected = (typeof getNfFilterSelected === 'function') ? getNfFilterSelected() : [];
+            const entregaFilterSelected = Array.from(document.querySelectorAll('.filter-entrega-cb:checked')).map(cb => cb.value);
             var fc = window.columnFilters['filterColCliente']; var filtroCliente = (fc != null ? fc : (document.getElementById('filterColCliente') && document.getElementById('filterColCliente').value) || '').toString().toLowerCase();
             var fp = window.columnFilters['filterColProjeto']; var filtroProjeto = (fp != null ? fp : (document.getElementById('filterColProjeto') && document.getElementById('filterColProjeto').value) || '').toString().toLowerCase();
             var fd = window.columnFilters['filterColDescricao']; var filtroDescricao = (fd != null ? fd : (document.getElementById('filterColDescricao') && document.getElementById('filterColDescricao').value) || '').toString().toLowerCase();
@@ -1318,9 +1338,23 @@
                     }
                 }
 
+                // RF004: Filtro de Data de Entrega
+                const dataEntregaFilter = (p.dataEntrega != null && String(p.dataEntrega).trim() !== '') ? String(p.dataEntrega).trim() : '';
+                const isConvertidoFilter = p.STATUS_ORCAMENTO === 'Convertido em Pedido';
+                let matchEntrega = true;
+                if (entregaFilterSelected.length > 0) {
+                    if (!isConvertidoFilter) {
+                        matchEntrega = false;
+                    } else {
+                        matchEntrega =
+                            (dataEntregaFilter && entregaFilterSelected.indexOf('com') >= 0) ||
+                            (!dataEntregaFilter && entregaFilterSelected.indexOf('sem') >= 0);
+                    }
+                }
+
                 return matchSearch && matchStatusOrc && matchStatusPed &&
                     matchColCliente && matchColProjeto && matchColDescricao && matchColValor && matchColProcessos &&
-                    matchColPrazoProposta && matchColPrazoEntrega && matchColObs && matchNF;
+                    matchColPrazoProposta && matchColPrazoEntrega && matchColObs && matchNF && matchEntrega;
             });
 
             console.log('renderTable: filtered.length=', filtered.length);
@@ -1391,6 +1425,14 @@
                 const nfBtnTitle = !exigeNF ? '' : (nfPreenchida ? ('NF preenchida (' + nfValor + ')') : 'Informar NF (pendente)');
                 const nfBtnTexto = !exigeNF ? 'NF' : (nfPreenchida ? 'NF ✔' : 'NF ?');
 
+                // RF004: Botão de Data de Entrega (apenas para pedidos)
+                const isConvertido = projeto.STATUS_ORCAMENTO === 'Convertido em Pedido';
+                const dataEntregaVal = (projeto.dataEntrega != null && String(projeto.dataEntrega).trim() !== '') ? String(projeto.dataEntrega).trim() : '';
+                const entregaBtnCor = dataEntregaVal ? '#16a34a' : '#f59e0b';
+                const entregaBtnTitle = dataEntregaVal ? ('Entrega: ' + dataEntregaVal) : 'Informar data de entrega';
+                const entregaBtnTexto = dataEntregaVal ? '📦✔' : '📦?';
+                const entregaBtnHtml = isConvertido ? `<button type="button" class="btn btn-small" style="background:${entregaBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="informarDataEntrega(${linha})" title="${entregaBtnTitle}">${entregaBtnTexto}</button>` : '';
+
                 html += `
           <tr data-linha="${linha}">
             <td>${projeto.CLIENTE || ''}</td>
@@ -1431,6 +1473,7 @@
             </td>
             <td class="actions-cell">
               <button type="button" class="btn btn-small" style="background:${nfBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="abrirInformarNFSeExige(${linha})" title="${nfBtnTitle || ''}">${nfBtnTexto}</button>
+              ${entregaBtnHtml}
               <div class="actions-dropdown">
                 <button type="button" class="btn btn-small actions-trigger" onclick="toggleActionsMenu(event, ${linha})" title="Ações">⋮</button>
                 <div class="actions-menu" id="actionsMenu-${linha}">
@@ -1708,6 +1751,29 @@
                     alert('Erro ao informar NF: ' + (error.message || error));
                 })
                 .informarValorNFProjeto(linha, valorTrim);
+        }
+
+        // RF004: Informar data de entrega de um pedido
+        function informarDataEntrega(linha) {
+            const projeto = projetos.find(p => p._linhaPlanilha == linha);
+            const valorAtual = (projeto && projeto.dataEntrega) ? String(projeto.dataEntrega) : '';
+            const valor = prompt('Informe a data de entrega (ex: 26/04/2026 ou 2026-04-26):', valorAtual);
+            if (valor === null) return;
+            const valorTrim = (valor || '').trim();
+            if (!valorTrim) {
+                alert('Informe a data de entrega.');
+                return;
+            }
+            google.script.run
+                .withSuccessHandler(function () {
+                    if (projeto) projeto.dataEntrega = valorTrim;
+                    alert('Data de entrega registrada com sucesso.');
+                    loadProjetos();
+                })
+                .withFailureHandler(function (error) {
+                    alert('Erro ao informar data de entrega: ' + (error.message || error));
+                })
+                .informarDataEntregaProjeto(linha, valorTrim);
         }
 
         // Editar projeto (abre modal de edição)
@@ -2001,6 +2067,9 @@
         document.getElementById('statusPedFilter').addEventListener('change', renderTable);
         var nfFilterGroup = document.getElementById('nfFilterGroup');
         if (nfFilterGroup) nfFilterGroup.addEventListener('change', renderTable);
+        // RF004: Event listener para filtro de entrega
+        var entregaFilterGroup = document.getElementById('entregaFilterGroup');
+        if (entregaFilterGroup) entregaFilterGroup.addEventListener('change', renderTable);
 
         // Filtros por coluna: delegar input/change no container para não perder referência ao re-render
         document.getElementById('tableContainer').addEventListener('input', function (e) {
@@ -2052,6 +2121,7 @@
             document.getElementById('novoProjetoRapidoModal').classList.add('active');
             document.getElementById('rapidoCliente').value = '';
             document.getElementById('rapidoCliente').style.background = '';
+            document.getElementById('rapidoClienteNomeAbreviado').value = '';
             document.getElementById('rapidoClienteCpf').value = '';
             document.getElementById('rapidoClienteEndereco').value = '';
             document.getElementById('rapidoClienteTelefone').value = '';
@@ -2131,6 +2201,7 @@
             };
             var clienteObj = {
                 nome: cliente,
+                nomeAbreviado: (document.getElementById('rapidoClienteNomeAbreviado').value || '').trim(),
                 cpf: (document.getElementById('rapidoClienteCpf').value || '').trim(),
                 endereco: (document.getElementById('rapidoClienteEndereco').value || '').trim(),
                 telefone: (document.getElementById('rapidoClienteTelefone').value || '').trim(),
@@ -2141,7 +2212,7 @@
                 nome: projetoNum,
                 dataSalvo: new Date().toISOString(),
                 dados: {
-                    cliente: { nome: clienteObj.nome, cpf: clienteObj.cpf, endereco: clienteObj.endereco, telefone: clienteObj.telefone, email: clienteObj.email, responsavel: clienteObj.responsavel },
+                    cliente: { nome: clienteObj.nome, nomeAbreviado: clienteObj.nomeAbreviado, cpf: clienteObj.cpf, endereco: clienteObj.endereco, telefone: clienteObj.telefone, email: clienteObj.email, responsavel: clienteObj.responsavel },
                     observacoes: dadosObservacoes,
                     chapas: [],
                     processosPedido: [],

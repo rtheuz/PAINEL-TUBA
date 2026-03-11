@@ -621,7 +621,8 @@ function getTodosClientes() {
       cpf: dados[i][1],
       endereco: dados[i][2],
       telefone: dados[i][3],
-      email: dados[i][4]
+      email: dados[i][4],
+      nomeAbreviado: dados[i][5] || ""
     });
   }
   return clientes;
@@ -630,9 +631,15 @@ function getTodosClientes() {
 function salvarClienteSeNovo(cliente) {
   const dados = SHEET_CLIENTES.getDataRange().getValues();
   for (let i = 1; i < dados.length; i++) {
-    if (dados[i][0].toString().trim().toLowerCase() === cliente.nome.trim().toLowerCase()) return;
+    if (dados[i][0].toString().trim().toLowerCase() === cliente.nome.trim().toLowerCase()) {
+      // Atualiza nomeAbreviado se ainda não estiver preenchido
+      if (cliente.nomeAbreviado && !dados[i][5]) {
+        SHEET_CLIENTES.getRange(i + 1, 6).setValue(cliente.nomeAbreviado);
+      }
+      return;
+    }
   }
-  SHEET_CLIENTES.appendRow([cliente.nome, cliente.cpf, cliente.endereco, cliente.telefone, cliente.email]);
+  SHEET_CLIENTES.appendRow([cliente.nome, cliente.cpf, cliente.endereco, cliente.telefone, cliente.email, cliente.nomeAbreviado || ""]);
 }
 
 // ========================= FORNECEDORES (mesma estrutura de clientes: nome, cpf, endereco, telefone, email) =========================
@@ -701,14 +708,16 @@ function limparNomePasta(texto) {
 /**
  * Gera o nome formatado da pasta
  * @param {string} codigoProjeto - Código do projeto (ex: "260202aBR")
- * @param {string} nomeCliente - Nome do cliente
+ * @param {string} nomeCliente - Nome do cliente (completo ou abreviado)
  * @param {string} descricao - Descrição do projeto
  * @param {boolean} isPedido - Se true, usa prefixo PED; se false, usa COT
- * @returns {string} - Nome formatado (ex: "260202aBR COT CLIENTE - DESCRICAO")
+ * @param {string} [nomeAbreviado] - Nome abreviado do cliente (se fornecido, prevalece sobre nomeCliente)
+ * @returns {string} - Nome formatado (ex: "260202aBR COT ABREV - DESCRICAO")
  */
-function gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido) {
+function gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido, nomeAbreviado) {
   const prefixo = isPedido ? "PED" : "COT";
-  const clienteLimpo = limparNomePasta(nomeCliente || "");
+  const nomeParaPasta = (nomeAbreviado && String(nomeAbreviado).trim()) ? nomeAbreviado : nomeCliente;
+  const clienteLimpo = limparNomePasta(nomeParaPasta || "");
   const descricaoLimpa = limparNomePasta(descricao || "");
   
   let nomeFinal = codigoProjeto + " " + prefixo;
@@ -901,9 +910,10 @@ function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descr
  * @param {string} descricao - Descrição do projeto
  * @param {string} data - Data no formato YYMMDD
  * @param {boolean} isPedido - Se true, usa prefixo PED; se false, usa COT
+ * @param {string} [nomeAbreviado] - Nome abreviado do cliente (opcional)
  * @returns {Folder} - Pasta do projeto
  */
-function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, isPedido) {
+function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, isPedido, nomeAbreviado) {
   Logger.log("📁 criarOuUsarPastaProjeto - Código: " + codigoProjeto + ", isPedido: " + isPedido);
   
   // Valida descrição obrigatória
@@ -917,7 +927,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
   if (pastaInfo) {
     Logger.log("✅ Usando pasta existente: " + pastaInfo.pasta.getName());
     // Pasta existe - atualiza o nome se necessário
-    const nomeDesejado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
+    const nomeDesejado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido, nomeAbreviado);
     
     // Se mudou de COT para PED, atualiza
     if (isPedido && pastaInfo.tipo === "COT") {
@@ -927,7 +937,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
     // Se o nome mudou (cliente ou descrição), atualiza mantendo o tipo atual
     else if (!isPedido || pastaInfo.tipo === "PED") {
       const tipoAtual = isPedido ? "PED" : pastaInfo.tipo;
-      const nomeAtualizado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, tipoAtual === "PED");
+      const nomeAtualizado = gerarNomePasta(codigoProjeto, nomeCliente, descricao, tipoAtual === "PED", nomeAbreviado);
       if (pastaInfo.pasta.getName() !== nomeAtualizado) {
         pastaInfo.pasta.setName(nomeAtualizado);
         Logger.log("📝 Pasta atualizada: " + nomeAtualizado);
@@ -965,7 +975,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
   const diaFolder = getOrCreateSubFolder(mesFolder, data);
   const projFolder = getOrCreateSubFolder(diaFolder, "PROJ");
   
-  const nomePasta = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido);
+  const nomePasta = gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido, nomeAbreviado);
   const novaPasta = projFolder.createFolder(nomePasta);
   Logger.log("✅ Nova pasta criada: " + nomePasta);
   
@@ -1034,7 +1044,7 @@ function detectarProximaVersao(codigoProjeto, data) {
         const comFolders = workFolder.getFoldersByName("COM");
         if (comFolders.hasNext()) {
           const comFolder = comFolders.next();
-          const arquivos = comFolder.getFiles();
+            const arquivos = comFolder.getFiles();
           const prefixo = "Proposta_" + codigoProjeto;
             const versoesEncontradas = [];
             
@@ -1042,14 +1052,26 @@ function detectarProximaVersao(codigoProjeto, data) {
               const arquivo = arquivos.next();
               const nomeArquivo = arquivo.getName();
               if (nomeArquivo.startsWith(prefixo) && nomeArquivo.endsWith(".pdf")) {
-                // Verifica se é exatamente "Proposta_<codigo>.pdf" (sem sufixo de versão)
+                // Formato antigo: "Proposta_<codigo>.pdf" (sem sufixo de versão)
                 if (nomeArquivo === prefixo + ".pdf") {
                   versoesEncontradas.push(1); // Sem sufixo = v1
                 } else {
-                  // Extrai a versão do nome: Proposta_260202cBR_v2.pdf -> "v2"
-                  const match = nomeArquivo.match(new RegExp(prefixo + "_v(\\d+)\\.pdf"));
-                  if (match && match[1]) {
-                    versoesEncontradas.push(parseInt(match[1], 10));
+                  // Formato antigo: Proposta_260202cBR_v2.pdf -> "v2"
+                  const matchOld = nomeArquivo.match(new RegExp(prefixo + "_v(\\d+)\\.pdf"));
+                  if (matchOld && matchOld[1]) {
+                    versoesEncontradas.push(parseInt(matchOld[1], 10));
+                  } else {
+                    // Formato novo: Proposta_260202cBR_1705.pdf (seq, sem versão) → v1
+                    const matchNewBase = nomeArquivo.match(new RegExp(prefixo + "_\\d+\\.pdf"));
+                    if (matchNewBase) {
+                      versoesEncontradas.push(1);
+                    } else {
+                      // Formato novo: Proposta_260202cBR_1705_v2.pdf → v2
+                      const matchNew = nomeArquivo.match(new RegExp(prefixo + "_\\d+_v(\\d+)\\.pdf"));
+                      if (matchNew && matchNew[1]) {
+                        versoesEncontradas.push(parseInt(matchNew[1], 10));
+                      }
+                    }
                   }
                 }
               }
@@ -1189,8 +1211,8 @@ function detectarProximoIndice(data, iniciais) {
 // Cria (ou retorna) a pasta do orçamento SEM criar a subpasta 01_IN.
 // A subpasta 01_IN só será criada quando arquivos forem enviados.
 // Usa a mesma lógica de criação de pasta utilizada no gerarPdfOrcamento.
-// Modificado para aceitar nomeCliente e isPedido
-function criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, isPedido) {
+// Modificado para aceitar nomeCliente, isPedido e nomeAbreviado
+function criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, isPedido, nomeAbreviado) {
   if (!codigoProjeto || !data) {
     throw new Error("Dados do projeto incompletos para criar a pasta (código ou data ausentes).");
   }
@@ -1204,7 +1226,8 @@ function criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, isPedi
     nomeCliente || "",
     descricao,
     data,
-    isPedido || false
+    isPedido || false,
+    nomeAbreviado || ""
   );
 
   return {
@@ -1212,6 +1235,50 @@ function criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, isPedi
     pastaNome: pastaProjeto.getName(),
     pastaUrl: pastaProjeto.getUrl()
   };
+}
+
+// Cria a pasta 01_IN dentro da pasta do projeto (ou cria a pasta do projeto se não existir).
+// Retorna a URL da pasta 01_IN.
+function criarPasta01IN(codigoProjeto, descricao, data, nomeCliente, nomeAbreviado) {
+  if (!codigoProjeto || !data) {
+    throw new Error("Dados do projeto incompletos (código ou data ausentes).");
+  }
+  if (!descricao || descricao.trim() === "") {
+    throw new Error("Descrição do projeto é obrigatória para criar a pasta.");
+  }
+  const pastaProjeto = criarOuUsarPastaProjeto(
+    codigoProjeto,
+    nomeCliente || "",
+    descricao,
+    data,
+    false,
+    nomeAbreviado || ""
+  );
+  const inFolder = getOrCreateSubFolder(pastaProjeto, "01_IN");
+  return {
+    pastaId: pastaProjeto.getId(),
+    pastaNome: pastaProjeto.getName(),
+    pastaUrl: pastaProjeto.getUrl(),
+    inFolderId: inFolder.getId(),
+    inFolderUrl: inFolder.getUrl()
+  };
+}
+
+// Busca a pasta 01_IN do projeto e retorna sua URL. Lança erro se não existir.
+function abrirPasta01IN(codigoProjeto, data) {
+  if (!codigoProjeto || !data) {
+    throw new Error("Dados do projeto incompletos (código ou data ausentes).");
+  }
+  const pastaInfo = detectarPastaExistente(codigoProjeto, data);
+  if (!pastaInfo) {
+    throw new Error("Pasta do projeto não encontrada. Crie a pasta 01_IN primeiro.");
+  }
+  const inFolders = pastaInfo.pasta.getFoldersByName("01_IN");
+  if (!inFolders.hasNext()) {
+    throw new Error("Pasta 01_IN não encontrada. Clique em 'Criar pasta 01_IN' primeiro.");
+  }
+  const inFolder = inFolders.next();
+  return { inFolderUrl: inFolder.getUrl(), inFolderId: inFolder.getId() };
 }
 
 // Busca apenas a pasta do orçamento SEM criar (retorna erro se não existir)
@@ -1466,7 +1533,8 @@ function gerarPdfOrcamento(
           quantidade: qtd,
           precoUnitario: precoUnit,
           precoTotal: precoTotal,
-          processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : []
+          processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : [],
+          descricoesProcessos: prod.descricoesProcessos && typeof prod.descricoesProcessos === 'object' ? prod.descricoesProcessos : {}
         });
       });
     }
@@ -1479,10 +1547,11 @@ function gerarPdfOrcamento(
     var pasta, workFolder, comSubFolder;
     if (!apenasPreview) {
       const nomeCliente = cliente.nome || "";
+      const nomeAbreviado = (dadosFormularioCompleto && dadosFormularioCompleto.cliente && dadosFormularioCompleto.cliente.nomeAbreviado) || "";
       const descricaoPasta = observacoes.descricao || nomePasta || codigoBase;
-      pasta = criarOuUsarPastaProjeto(codigoBase, nomeCliente, descricaoPasta, dataProjeto, isPedido || false);
+      pasta = criarOuUsarPastaProjeto(codigoBase, nomeCliente, descricaoPasta, dataProjeto, isPedido || false, nomeAbreviado);
       if (isPedido && pasta && pasta.getName().indexOf(" PED ") === -1) {
-        const nomePED = gerarNomePasta(codigoBase, nomeCliente, descricaoPasta, true);
+        const nomePED = gerarNomePasta(codigoBase, nomeCliente, descricaoPasta, true, nomeAbreviado);
         pasta.setName(nomePED);
         Logger.log("📁 Pasta garantida com prefixo PED: " + nomePED);
       }
@@ -1781,7 +1850,7 @@ function gerarPdfOrcamento(
     if (apenasPreview) return { html: htmlContent };
 
     const blob = Utilities.newBlob(htmlContent, "text/html", "orcamento.html");
-    const nomeArquivoPdf = "Proposta_" + numeroProposta + ".pdf";
+    const nomeArquivoPdf = "Proposta_" + codigoBase + "_" + numeroSequencial + versaoFinal + ".pdf";
     const pdf = blob.getAs("application/pdf").setName(nomeArquivoPdf);
 
     let file;
@@ -1847,7 +1916,8 @@ function gerarPdfOrdemProducao(linhaOuKey) {
           quantidade: prod.quantidade || 0,
           precoUnitario: 0,
           precoTotal: 0,
-          processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : []
+          processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : [],
+          descricoesProcessos: prod.descricoesProcessos && typeof prod.descricoesProcessos === 'object' ? prod.descricoesProcessos : {}
         });
       });
     }
@@ -1907,10 +1977,20 @@ function gerarPdfOrdemProducao(linhaOuKey) {
         // Ordem de Produção: marca X automaticamente se o item tiver o processo
         return '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:center; font-size:8pt;">' + (temProcessoOp(p, sigla) ? "X" : "") + '</td>';
       }).join("");
+      // Descrições por processo
+      var descProcsHtml = "";
+      if (p.processos && p.processos.length > 0 && p.descricoesProcessos) {
+        var descItems = p.processos.filter(function(s) { return p.descricoesProcessos[s]; }).map(function(sigla) {
+          return '<span style="font-size:7pt; color:#555;"><b>' + esc(sigla) + ':</b> ' + esc(p.descricoesProcessos[sigla]) + '</span>';
+        });
+        if (descItems.length > 0) {
+          descProcsHtml = '<br><div style="margin-top:2px;">' + descItems.join(' | ') + '</div>';
+        }
+      }
       return ''
         + '<tr>'
         + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; font-size:8pt;">' + esc(p.codigo || "") + '</td>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; font-size:8pt;">' + esc(p.descricao || "") + '</td>'
+        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; font-size:8pt;">' + esc(p.descricao || "") + descProcsHtml + '</td>'
         + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:center; font-size:8pt;">' + esc(p.quantidade || 0) + '</td>'
         + cellsProc
         + '</tr>';
@@ -2232,141 +2312,6 @@ function gerarPdfOrdemCompra(linhaOuKey, itensComValor, fornecedor) {
   }
 }
 
-/* ======= gerarPdfMemoriaCalculo corrigido: lê linha de referência APÓS flush ======= */
-function gerarPdfMemoriaCalculo(chapas, cliente, codigoProjeto, pastaDestino, nomePdfOrcamento, produtosCadastrados) {
-  function formatarNumero(v) {
-    if (v === null || v === undefined || v === "") return "";
-    const n = Number(v);
-    if (isNaN(n)) return String(v);
-    return Number.isInteger(n) ? n.toString() : n.toFixed(2).replace(".", ",");
-  }
-
-  let htmlMemoria = `
-
-  <html>
-  <head>
-  <style>
-  @page { size: A4; margin: 1mm; }
-  body { font-family: Arial; margin: 0; font-size: 10pt; color: #333; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 9pt; }
-  th, td { border: 1px solid #999; padding: 4px; text-align: center; }
-  th { background-color: #eee; }
-  .titulo-material { font-weight: bold; font-size: 11pt; margin-top: 20px; }
-  .subtitulo-peca { margin-left: 20px; font-weight: bold; font-size: 10pt; margin-bottom: 5px; }
-  .titulo-produtos-cadastrados { font-weight: bold; font-size: 12pt; margin-top: 30px; margin-bottom: 10px; background-color: #f0f0f0; padding: 8px; }
-  .produto-cadastrado-item { margin-left: 20px; font-size: 10pt; margin-bottom: 8px; }
-  </style>
-  </head>
-  <body>
-  <h2>Memória de Cálculo - ${nomePdfOrcamento}</h2>`;
-
-  const capturaCols = 18; // O..AD
-
-  chapas.forEach(chapa => {
-    const mat = MATERIAIS[chapa.material];
-    if (!mat) return;
-
-    htmlMemoria += `<div class="titulo-material">MATERIAL: ${chapa.material} - Chapa: ${chapa.comprimento}x${chapa.largura}x${chapa.espessura}</div><br>`;
-
-    chapa.pecas.forEach(peca => {
-      let processosHtml = "";
-      if (peca.processos && peca.processos.length > 0) {
-        peca.processos.forEach(processo => {
-          const descricaoProcesso = processo.descproc || "-";
-          const precoProcesso = formatarNumero(processo.precoProc || 0);
-
-          processosHtml += `<span class="processo-item">&nbsp;&nbsp;&nbsp;&nbsp;- ${descricaoProcesso}: R$ ${precoProcesso}</span><br>`;
-        });
-      } else {
-        processosHtml = "Nenhum processo adicional.";
-      }
-      htmlMemoria += `<div class="subtitulo-peca">
-    Descrição: ${peca.descricao}<br>
-    Dimensões: ${peca.comprimento}x${peca.largura}<br> 
-    Quantidade do Lote: ${peca.numPecasLote}<br>
-    Peças por Chapa: ${peca.numPecasChapa}<br>
-    Informações de Processos Adicionais:<br>${processosHtml}<br>
-    Totais Adicionais da Peça: R$ ${formatarNumero(peca.adicionaisTotal || 0)}
-  </div><br>`;
-
-      // Preenche inputs e força recálculo
-      try {
-        _preencherInputsCalcParaPeca(mat, chapa, peca);
-      } catch (e) {
-        Logger.log("Erro preencher inputs (memoria): " + e);
-      }
-      SpreadsheetApp.flush();
-
-      // Lê a linha de referência O:AD PARA A LINHA ATUAL (após flush)
-      let linhaRef = [];
-      try {
-        linhaRef = SHEET_CALC.getRange(mat.linhaChapa, 15, 1, capturaCols).getValues()[0];
-      } catch (e) {
-        linhaRef = new Array(capturaCols).fill("");
-      }
-
-      htmlMemoria += `<table>
-    <tr>
-      <th>Preço Kg / Material</th><th>Peso Peça / Chapa</th><th>Peso Lote</th><th>Preço Material Lote</th>
-      <th>Nº Trocas Chapa</th><th>Tempo Corte (h)</th><th>Tempo Setup (min)</th>
-      <th>Tempo Corte + Setup (h)</th><th>Hora Corte (R$/h)</th><th>Corte Lote (R$)</th><th>Nº Dobras</th>
-      <th>Tempo de cada dobra (s)</th><th>Nº Troca de peças</th><th>Total Dobra (h)</th>
-      <th>Hora Dobra (R$)</th><th>Total Dobra (R$)</th><th>Preço Unit (R$)</th><th>Preço Total (R$)</th>
-    </tr>
-    <tr>
-      ${linhaRef.map(formatarNumero).map(v => `<td>${v}</td>`).join("")}
-    </tr>
-  </table>`;
-    });
-  });
-
-  // Adiciona seção de produtos cadastrados se houver
-  if (produtosCadastrados && Array.isArray(produtosCadastrados) && produtosCadastrados.length > 0) {
-    htmlMemoria += `<div class="titulo-produtos-cadastrados">PRODUTOS CADASTRADOS</div>`;
-
-    htmlMemoria += `<table>
-      <tr>
-        <th>Código</th>
-        <th>Descrição</th>
-        <th>NCM</th>
-        <th>Unidade</th>
-        <th>Quantidade</th>
-        <th>Preço Unitário (R$)</th>
-        <th>Preço Total (R$)</th>
-      </tr>`;
-
-    produtosCadastrados.forEach(produto => {
-      htmlMemoria += `<tr>
-        <td>${produto.codigo || "-"}</td>
-        <td>${produto.descricao || "-"}</td>
-        <td>${produto.ncm || "-"}</td>
-        <td>${produto.unidade || "UN"}</td>
-        <td>${formatarNumero(produto.quantidade || 0)}</td>
-        <td>${formatarNumero(produto.precoUnitario || 0)}</td>
-        <td>${formatarNumero(produto.precoTotal || 0)}</td>
-      </tr>`;
-    });
-
-    htmlMemoria += `</table><br>`;
-
-    // Calcula total dos produtos cadastrados
-    const totalProdutosCadastrados = produtosCadastrados.reduce((sum, p) => {
-      return sum + (parseFloat(p.precoTotal) || 0);
-    }, 0);
-
-    htmlMemoria += `<div class="produto-cadastrado-item">
-      <strong>Total de Produtos Cadastrados: R$ ${formatarNumero(totalProdutosCadastrados)}</strong>
-    </div><br>`;
-  }
-
-  htmlMemoria += `</body></html>`;
-
-  const blobMemoria = Utilities.newBlob(htmlMemoria, "text/html", "memoria.html");
-  const pdfMemoria = blobMemoria.getAs("application/pdf").setName("Memoria de Cálculo - " + nomePdfOrcamento);
-  const file = pastaDestino.createFile(pdfMemoria);
-  return { url: file.getUrl(), nome: file.getName() };
-}
-
 function findRowByColumnValue(sheet, colHeader, value) {
   if (!sheet || !colHeader) return null;
   const lastRow = sheet.getLastRow();
@@ -2391,179 +2336,6 @@ function findRowByColumnValue(sheet, colHeader, value) {
     }
   }
   return null;
-}
-
-/**
- * Salva Memória de Cálculo: gera PDF com descrição de cada campo e valor e grava na aba "memoria de calculo".
- * @param {Array} memorias - Array de objetos com os dados de cada memória (material, comprimento, etc.)
- * @param {string} codigoProjeto - Código do projeto (opcional)
- * @param {string} nomePdf - Nome do PDF
- * @returns {{ url: string, nome: string }}
- */
-function salvarMemoriaCalculo(memorias, codigoProjeto, nomePdf) {
-  if (!memorias || !Array.isArray(memorias) || memorias.length === 0) {
-    throw new Error("Nenhuma memória de cálculo para salvar.");
-  }
-  const formatarNum = function (v) {
-    if (v === null || v === undefined || v === "") return "";
-    const n = Number(v);
-    if (isNaN(n)) return String(v);
-    return Number.isInteger(n) ? n.toString() : n.toFixed(2).replace(".", ",");
-  };
-  const formatarMoedaBR = function (v) {
-    if (v === null || v === undefined || v === "") return "R$ 0,00";
-    const n = Number(v);
-    if (isNaN(n)) return "R$ 0,00";
-    return "R$ " + n.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  };
-  let html = `
-  <html><head><meta charset="utf-8"><style>
-  body{font-family:Arial;margin:12px;font-size:10pt;color:#333;}
-  table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:9pt;}
-  th,td{border:1px solid #999;padding:6px;text-align:left;}
-  th{background:#eee;}
-  .titulo{font-weight:bold;font-size:12pt;margin-top:24px;}
-  </style></head><body>
-  <h2>Memória de Cálculo</h2>
-  <p>Projeto: ${codigoProjeto || "—"} | Data: ${formatarDataBrasil(new Date())}</p>`;
-  memorias.forEach(function (m, idx) {
-    html += `<div class="titulo">Memória ${idx + 1}</div><table><tbody>`;
-    const linhas = [
-      ["Material", m.material],
-      ["Comprimento da chapa (mm)", formatarNum(m.comprimento)],
-      ["Largura da chapa (mm)", formatarNum(m.largura)],
-      ["Espessura (mm)", formatarNum(m.espessura)],
-      ["Densidade (kg/m³)", formatarNum(m.densidade)],
-      ["Custo (R$/kg)", formatarMoedaBR(m.custo)],
-      ["Mark Up (%)", formatarNum(m.markUp)],
-      ["Preço de venda do material (R$/kg)", formatarMoedaBR(m.precoVendaMaterial)],
-      ["Peso da chapa (kg)", formatarNum(m.pesoChapa)],
-      ["Descrição da peça", m.descricaoPeca || "—"],
-      ["Medidas da peça", m.medidasPeca || "—"],
-      ["Nº Peças/Chapa", formatarNum(m.numPecasChapa)],
-      ["Nº Peças Lote", formatarNum(m.numPecasLote)],
-      ["Preço material – Lote (R$)", formatarMoedaBR(m.precoMaterialLote)],
-      ["Preço material – Unit. (R$)", formatarMoedaBR(m.precoMaterialUnit != null ? m.precoMaterialUnit : "")],
-      ["Possui corte", m.temCorte ? "Sim" : "Não"],
-      ["Tempo de corte (s)", formatarNum(m.tempoCorte)],
-      ["Tempo de setup corte (min)", formatarNum(m.tempoSetupCorteMin != null ? m.tempoSetupCorteMin : m.tempoSetupCorte)],
-      ["Preço hora máquina corte (R$/h)", formatarMoedaBR(m.precoHoraCorte)],
-      ["Preço corte – Lote (R$)", formatarMoedaBR(m.precoCorteTotal)],
-      ["Preço corte – Unit. (R$)", formatarMoedaBR(m.precoCorteUnit != null ? m.precoCorteUnit : "")],
-      ["Possui dobra", m.temDobra ? "Sim" : "Não"],
-      ["Quantidade de dobras", formatarNum(m.numDobras != null ? m.numDobras : "")],
-      ["Tempo por dobra (s)", formatarNum(m.tempoDobra)],
-      ["Tempo de setup dobra (min)", formatarNum(m.tempoSetupDobraMin != null ? m.tempoSetupDobraMin : m.tempoSetupDobra)],
-      ["Preço hora máquina dobra (R$/h)", formatarMoedaBR(m.precoHoraDobra)],
-      ["Preço dobra – Lote (R$)", formatarMoedaBR(m.precoDobraTotal)],
-      ["Preço dobra – Unit. (R$)", formatarMoedaBR(m.precoDobraUnit != null ? m.precoDobraUnit : "")],
-      ["Preço processos externos/adicionais – Lote (R$)", formatarMoedaBR(m.precoAdicionais)],
-      ["Preço processos externos/adicionais – Unit. (R$)", formatarMoedaBR(m.precoAdicionaisUnit != null ? m.precoAdicionaisUnit : "")],
-      ["Outros custos – total (R$) – valores únicos", formatarMoedaBR(m.precoOutrosCustos != null ? m.precoOutrosCustos : (m.outrosCustos != null && !Array.isArray(m.outrosCustos) ? m.outrosCustos : 0))]
-    ];
-    linhas.forEach(function (par) {
-      html += "<tr><th>" + par[0] + "</th><td>" + (par[1] !== undefined && par[1] !== null ? String(par[1]) : "—") + "</td></tr>";
-    });
-    if (m.adicionais && m.adicionais.length > 0) {
-      m.adicionais.forEach(function (ad) {
-        html += "<tr><th>Processo externo/adicional: " + (ad.descricao || "—") + "</th><td>" + formatarMoedaBR(ad.valor) + "</td></tr>";
-      });
-    }
-    if (m.outrosCustos && Array.isArray(m.outrosCustos) && m.outrosCustos.length > 0) {
-      m.outrosCustos.forEach(function (oc) {
-        html += "<tr><th>Outro custo: " + (oc.descricao || "—") + "</th><td>" + formatarMoedaBR(oc.valor != null ? oc.valor : 0) + "</td></tr>";
-      });
-    }
-    var precoFinalLote = m.precoFinalLote != null ? Number(m.precoFinalLote) : (m.precoFinal != null ? Number(m.precoFinal) : 0);
-    var precoFinalUnit = m.precoFinalUnit != null ? Number(m.precoFinalUnit) : 0;
-    html += "<tr style=\"background:#e8f5e9; font-weight:bold;\"><th style=\"font-weight:bold;\">Preço final – Unitário (R$)</th><td style=\"font-weight:bold;\">" + formatarMoedaBR(precoFinalUnit) + "</td></tr>";
-    html += "<tr style=\"background:#e8f5e9; font-weight:bold;\"><th style=\"font-weight:bold;\">Preço final – Lote (R$)</th><td style=\"font-weight:bold;\">" + formatarMoedaBR(precoFinalLote) + "</td></tr>";
-    var targetLote = m.targetLote != null && m.targetLote > 0 ? Number(m.targetLote) : (m.targetCliente != null && m.targetCliente > 0 ? Number(m.targetCliente) : 0);
-    var targetUnit = m.targetUnit != null && m.targetUnit > 0 ? Number(m.targetUnit) : 0;
-    if (targetLote > 0 || targetUnit > 0) {
-      if (targetLote > 0) html += "<tr><th>Target Cliente – Lote (R$)</th><td>" + formatarMoedaBR(targetLote) + "</td></tr>";
-      if (targetUnit > 0) html += "<tr><th>Target Cliente – Unitário (R$)</th><td>" + formatarMoedaBR(targetUnit) + "</td></tr>";
-      var targetVal = targetLote > 0 ? targetLote : (m.numPecasLote > 0 ? targetUnit * m.numPecasLote : 0);
-      var dif = precoFinalLote - targetVal;
-      var pct = precoFinalLote > 0 ? (dif / precoFinalLote) * 100 : 0;
-      html += "<tr><th>Diferença (preço calculado − target)</th><td>" + formatarMoedaBR(dif) + " (" + (dif >= 0 ? "+" : "") + pct.toFixed(1) + "%)</td></tr>";
-    }
-    html += "</tbody></table>";
-  });
-  html += "</body></html>";
-  const blob = Utilities.newBlob(html, "text/html", "memoria.html");
-  const pdf = blob.getAs("application/pdf").setName((nomePdf || "Memoria de Calculo") + ".pdf");
-  let pasta = null;
-  if (codigoProjeto && codigoProjeto.length >= 6) {
-    try {
-      const codigoBase = String(codigoProjeto).replace(/_v\d+$/, "");
-      const dataProj = codigoProjeto.substring(0, 6);
-      const pastaInfo = detectarPastaExistente(codigoBase, dataProj);
-      if (pastaInfo && pastaInfo.pasta) {
-        pasta = pastaInfo.pasta;
-      } else {
-        pasta = criarOuUsarPastaProjeto(codigoBase, "", codigoBase, dataProj, false);
-      }
-      const workFolder = getOrCreateSubFolder(pasta, "02_WORK");
-      const comSubFolder = getOrCreateSubFolder(workFolder, "COM");
-      pasta = comSubFolder;
-    } catch (e) {
-      Logger.log("Aviso ao obter pasta do projeto para memória: " + e.message);
-      pasta = null;
-    }
-  }
-  if (!pasta) {
-    pasta = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
-  }
-  const file = pasta.createFile(pdf);
-  // Planilha: aba "memoria de calculo"
-  let sheetMemoria = ss.getSheetByName("memoria de calculo");
-  if (!sheetMemoria) {
-    sheetMemoria = ss.insertSheet("memoria de calculo");
-  }
-  const headers = ["Data", "Projeto", "Material", "Compr. chapa (mm)", "Larg. chapa (mm)", "Espessura (mm)", "Densidade", "Custo", "Mark Up (%)", "Preço venda mat (R$/kg)", "Peso chapa (kg)", "Descrição peça", "Medidas da peça", "Nº peças/chapa", "Nº peças lote", "Preço material lote (R$)", "Preço material unit. (R$)", "Preço corte lote (R$)", "Preço corte unit. (R$)", "Preço dobra lote (R$)", "Preço dobra unit. (R$)", "Preço adic. lote (R$)", "Preço adic. unit. (R$)", "Outros custos (R$)", "Preço final unitário (R$)", "Preço final lote (R$)", "Target unitário (R$)", "Target lote (R$)", "Diferença (R$)"];
-  if (sheetMemoria.getLastRow() === 0) {
-    sheetMemoria.appendRow(headers);
-  }
-  const dataBrasil = formatarDataBrasil(new Date());
-  memorias.forEach(function (m) {
-    var precoFinalLote = m.precoFinalLote != null ? m.precoFinalLote : (m.precoFinal != null ? m.precoFinal : "");
-    var precoFinalUnit = m.precoFinalUnit != null ? m.precoFinalUnit : "";
-    var targetLote = m.targetLote != null ? m.targetLote : (m.targetCliente != null ? m.targetCliente : "");
-    var targetUnit = m.targetUnit != null ? m.targetUnit : "";
-    sheetMemoria.appendRow([
-      dataBrasil,
-      codigoProjeto || "",
-      m.material || "",
-      m.comprimento != null ? m.comprimento : "",
-      m.largura != null ? m.largura : "",
-      m.espessura != null ? m.espessura : "",
-      m.densidade != null ? m.densidade : "",
-      m.custo != null ? m.custo : "",
-      m.markUp != null ? m.markUp : "",
-      m.precoVendaMaterial != null ? m.precoVendaMaterial : "",
-      m.pesoChapa != null ? m.pesoChapa : "",
-      m.descricaoPeca || "",
-      m.medidasPeca || "",
-      m.numPecasChapa != null ? m.numPecasChapa : "",
-      m.numPecasLote != null ? m.numPecasLote : "",
-      m.precoMaterialLote != null ? m.precoMaterialLote : "",
-      m.precoMaterialUnit != null ? m.precoMaterialUnit : "",
-      m.precoCorteTotal != null ? m.precoCorteTotal : "",
-      m.precoCorteUnit != null ? m.precoCorteUnit : "",
-      m.precoDobraTotal != null ? m.precoDobraTotal : "",
-      m.precoDobraUnit != null ? m.precoDobraUnit : "",
-      m.precoAdicionais != null ? m.precoAdicionais : "",
-      m.precoAdicionaisUnit != null ? m.precoAdicionaisUnit : "",
-      m.precoOutrosCustos != null ? m.precoOutrosCustos : "",
-      precoFinalUnit,
-      precoFinalLote,
-      targetUnit,
-      targetLote,
-      m.diferencaTarget != null ? m.diferencaTarget : ""
-    ]);
-  });
-  return { url: file.getUrl(), nome: file.getName() };
 }
 
 // ----------------- MODIFICAÇÃO: registrarOrcamento -----------------
@@ -2608,6 +2380,50 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
+    // ── Proposta versionada (_v2, _v3…): armazenar na linha base sem criar nova linha ──
+    if (codigoProjeto && /_v\d+$/.test(codigoProjeto)) {
+      const sheetProj = ss.getSheetByName("Projetos");
+      if (sheetProj) {
+        const codigoBase = codigoProjeto.replace(/_v\d+$/, "");
+        let linhaBase = 0;
+        const linhaProjetoForm = (dadosFormularioCompleto && dadosFormularioCompleto.linhaProjeto != null) ? parseInt(dadosFormularioCompleto.linhaProjeto, 10) : NaN;
+        if (!isNaN(linhaProjetoForm) && linhaProjetoForm >= 2 && linhaProjetoForm <= sheetProj.getLastRow()) {
+          const hdrs = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+          const idxP = _findHeaderIndexProjetos(hdrs, "PROJETO");
+          if (idxP >= 0 && String(sheetProj.getRange(linhaProjetoForm, idxP + 1).getValue() || "").trim() === codigoBase) {
+            linhaBase = linhaProjetoForm;
+          }
+        }
+        if (!linhaBase) linhaBase = findRowByColumnValue(sheetProj, "PROJETO", codigoBase) || 0;
+        if (linhaBase) {
+          const hdrs = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+          const idxJson = _findHeaderIndex(hdrs, "JSON_DADOS");
+          const idxLink = _findHeaderIndex(hdrs, "LINK DO PDF");
+          if (idxJson >= 0) {
+            let jsonData = {};
+            try { jsonData = JSON.parse(String(sheetProj.getRange(linhaBase, idxJson + 1).getValue() || "{}")); } catch (e) { jsonData = {}; }
+            // Preserva URL do PDF base se ainda não registrado
+            if (!jsonData.urlPdf && idxLink >= 0) {
+              jsonData.urlPdf = String(sheetProj.getRange(linhaBase, idxLink + 1).getValue() || "");
+            }
+            if (!Array.isArray(jsonData.versoes)) jsonData.versoes = [];
+            const numSeqV = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial != null) ? dadosFormularioCompleto.numeroSequencial : null;
+            const dadosV = dadosFormularioCompleto ? JSON.parse(JSON.stringify(dadosFormularioCompleto)) : {};
+            if (dadosV.observacoes) dadosV.observacoes.projeto = codigoProjeto;
+            const novaEntrada = { codigo: codigoProjeto, dataSalvo: new Date().toISOString(), numeroSequencial: numSeqV, urlPdf: urlPdf || "", dados: dadosV };
+            const existIdx = jsonData.versoes.findIndex(function(v) { return v.codigo === codigoProjeto; });
+            if (existIdx >= 0) { jsonData.versoes[existIdx] = novaEntrada; } else { jsonData.versoes.push(novaEntrada); }
+            jsonData.nome = codigoBase;
+            sheetProj.getRange(linhaBase, idxJson + 1).setValue(JSON.stringify(jsonData));
+            if (idxLink >= 0 && urlPdf) sheetProj.getRange(linhaBase, idxLink + 1).setValue(urlPdf);
+            Logger.log("✅ Versão " + codigoProjeto + " armazenada em JSON_DADOS linha " + linhaBase + " (sem nova linha).");
+            return;
+          }
+        }
+        Logger.log("Aviso registrarOrcamento: versão '" + codigoProjeto + "' – linha base não encontrada, criando nova linha.");
+      }
+    }
+
     // Extrai numeroSequencial de dadosFormularioCompleto se disponível
     const numeroSequencial = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial) || null;
     
@@ -4288,7 +4104,7 @@ function getProjetos() {
         obj[h] = value;
       });
       obj["_linhaPlanilha"] = index + 2;
-      // Extrai temNotaFiscal e valorNF do JSON_DADOS para exibição (botão NF, Kanban)
+      // Extrai temNotaFiscal, valorNF e dataEntrega do JSON_DADOS para exibição (botão NF, botão Entrega)
       const jsonDados = obj["JSON_DADOS"];
       if (jsonDados && typeof jsonDados === "string") {
         try {
@@ -4297,6 +4113,7 @@ function getProjetos() {
             const obs = parsed.dados.observacoes;
             obj.temNotaFiscal = !!obs.temNotaFiscal;
             obj.valorNF = obs.valorNF != null && obs.valorNF !== "" ? String(obs.valorNF).trim() : "";
+            obj.dataEntrega = obs.dataEntrega != null && obs.dataEntrega !== "" ? String(obs.dataEntrega).trim() : "";
           }
         } catch (e) { /* ignora */ }
       }
@@ -5503,6 +5320,49 @@ function informarValorNFProjeto(linha, valorNF) {
 }
 
 /**
+ * Informa a data de entrega de um projeto/pedido e sincroniza com a aba de Pedidos.
+ * @param {number} linha - Linha na aba Projetos
+ * @param {string} dataEntrega - Data de entrega (string)
+ * @returns {{ success: boolean }}
+ */
+function informarDataEntregaProjeto(linha, dataEntrega) {
+  try {
+    linha = Number(linha);
+    if (!linha || linha < 2) throw new Error("Linha inválida.");
+    var sheetProj = ss.getSheetByName("Projetos");
+    if (!sheetProj || sheetProj.getLastRow() < linha) throw new Error("Projeto não encontrado.");
+    var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+    var idxJson = headers.indexOf("JSON_DADOS");
+    var idxProjeto = headers.indexOf("PROJETO");
+    if (idxJson < 0 || idxProjeto < 0) throw new Error("Estrutura da planilha Projetos não encontrada.");
+    var row = sheetProj.getRange(linha, 1, linha, headers.length).getValues()[0];
+    var codigoProjeto = (row[idxProjeto] || "").toString().trim();
+    if (!codigoProjeto) throw new Error("Código do projeto não encontrado.");
+    var jsonStr = row[idxJson];
+    var parsed = jsonStr ? (function () { try { return JSON.parse(jsonStr); } catch (e) { return null; } })() : null;
+    if (!parsed || !parsed.dados) parsed = { dados: {} };
+    if (!parsed.dados.observacoes) parsed.dados.observacoes = {};
+    parsed.dados.observacoes.dataEntrega = dataEntrega == null ? "" : String(dataEntrega).trim();
+    var newJson = JSON.stringify(parsed);
+    sheetProj.getRange(linha, idxJson + 1).setValue(newJson);
+    var obj = {};
+    headers.forEach(function (h, i) { obj[h] = row[i]; });
+    obj["JSON_DADOS"] = newJson;
+    var dataComp = (obj["DATA_COMPETENCIA"] || obj["DATA COMPETÊNCIA"] || obj.DATA || "").toString().trim();
+    atualizarPedidoNaPlanilha(codigoProjeto, { DATA_ENTREGA: parsed.dados.observacoes.dataEntrega }, {
+      CLIENTE: obj.CLIENTE,
+      "VALOR TOTAL": obj["VALOR TOTAL"],
+      _dataCompetencia: dataComp,
+      _linhaPlanilha: linha
+    });
+    return { success: true };
+  } catch (e) {
+    Logger.log("informarDataEntregaProjeto error: " + e.message);
+    throw new Error(e.message || "Erro ao informar data de entrega");
+  }
+}
+
+/**
  * Adiciona um novo projeto na planilha (usado quando projeto já virou pedido externamente)
  * @param {Object} projeto - Objeto com os dados do projeto
  */
@@ -5835,7 +5695,8 @@ function salvarRascunho(nomeRascunho, dados) {
       try {
         // Extrai componentes do código YYMMDD + índice + iniciais
         const dataProj = codigoProjeto.substring(0, 6); // YYMMDD
-        criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, false);
+        const nomeAbreviado = (dados.cliente && dados.cliente.nomeAbreviado) || "";
+        criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, false, nomeAbreviado);
       } catch (e) {
         Logger.log("Aviso ao criar pasta para rascunho: " + e.message);
       }
@@ -5965,7 +5826,8 @@ function atualizarRascunho(linhaOuKey, dados) {
     if (codigoProjeto) {
       try {
         const dataProj = codigoProjeto.substring(0, 6); // YYMMDD
-        criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, false);
+        const nomeAbreviado = (dados.cliente && dados.cliente.nomeAbreviado) || "";
+        criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, false, nomeAbreviado);
       } catch (e) {
         Logger.log("Aviso ao criar pasta para atualização de rascunho: " + e.message);
       }
@@ -6074,7 +5936,8 @@ function salvarComoPedido(dados) {
     // Cria pasta com prefixo PED (isPedido=true)
     try {
       const dataProj = codigoProjeto.substring(0, 6);
-      criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, true);
+      const nomeAbreviado = (cliente.nomeAbreviado || "").trim();
+      criarPastaOrcamento(codigoProjeto, descricao, dataProj, clienteNome, true, nomeAbreviado);
     } catch (e) {
       Logger.log("Aviso ao criar pasta como pedido: " + e.message);
     }
@@ -6192,6 +6055,11 @@ function carregarRascunho(linhaOuKey) {
         // Incluir numeroSequencial nos dados retornados
         const dadosRetorno = dadosParsed.dados;
         dadosRetorno.numeroSequencial = dadosParsed.numeroSequencial || null;
+        // Repassa versoes e urlPdf para o frontend (seletor de versões)
+        if (Array.isArray(dadosParsed.versoes) && dadosParsed.versoes.length > 0) {
+          dadosRetorno.versoes = dadosParsed.versoes;
+        }
+        if (dadosParsed.urlPdf) dadosRetorno.urlPdf = dadosParsed.urlPdf;
         // Planilha é fonte da verdade para DESCRIÇÃO, CLIENTE, PROJETO e OBSERVAÇÕES (Kanban/Projetos)
         if (dadosRetorno.observacoes == null) dadosRetorno.observacoes = {};
         const descricaoPlanilha = (idxDescricaoCol >= 0 && rowData[idxDescricaoCol] != null && String(rowData[idxDescricaoCol]).trim() !== "") ? String(rowData[idxDescricaoCol]).trim() : "";
