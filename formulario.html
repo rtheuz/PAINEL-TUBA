@@ -671,33 +671,30 @@
                 </div>
             </div>
         </div>
-
         <div class="form-actions-wrap" style="display:flex; gap:12px; align-items:center; margin-bottom:40px; flex-wrap:wrap; flex-direction:column; align-items:flex-start;">
-            <div class="form-actions-options" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:8px; margin-bottom:8px;">
-                <span style="font-weight:600; color:#333;">Gerar PDF:</span>
-                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                    <input type="radio" name="modoVersaoPdf" value="nova">
-                    <span>Gerar nova versão</span>
-                </label>
-                <label style="display:flex; align-items:center; gap:6px; cursor:pointer;">
-                    <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked>
-                    <span>Atualizar versão atual</span>
-                </label>
+            <div class="form-actions-options" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:8px; margin-bottom:8px;"> 
             </div>
             <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
-                <button type="button" onclick="limparFormularioCompleto()" style="background:#c53838; color:white;">🗑️ Limpar Tudo</button>
-                <button type="button" onclick="salvarOrcamento()" style="background:#3d68f7; color:white;">💾 Salvar / Atualizar</button>
-                <button type="button" id="btnPreviewPdf" onclick="calcular(false, true)" style="background:#3d68f7; color:white;">👁 Ver Prévia do PDF</button>
+                <button type="button" onclick="limparFormularioCompleto()" style="background:#c22121; color:white;">🗑️ Limpar Formulário</button>
+                <button type="button" onclick="salvarOrcamento()" style="background:#464ec4; color:white;">💾 Salvar</button>
+                <button type="button" id="btnPreviewPdf" onclick="calcular(false, true)" style="background:#464ec4; color:white;">👁 Ver Prévia do PDF</button>
                 
-            </div><br>
+            </div>
+            <span style="font-weight:600; color:#333;">Gerar PDF:</span>
+            <small>⚠️ Se o projeto já estiver como "pedido" não clicar em "Converter em Pedido"</small>
             <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
-                <button type="button" id="btnGerar" onclick="calcular()" style="background:#108a008e; color:white;">Finalizar Orçamento / Gerar PDF</button>
-                <button type="button" onclick="salvarComoPedido()" style="background:#108a008e; color:white;">Converter em pedido / Gerar PDF</button>
-                </div>  
+                <button type="button" id="btnGerar" onclick="calcular()" style="background:#00575a; color:white;">📄 Finalizar e Gerar Proposta</button>
+                <button type="button" onclick="salvarComoPedido()" style="background:#00575a; color:white;">📄 Finalizar e Converter em Pedido</button>
+                </div>
+                <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked hidden aria-hidden="true">
+                <label style="display:inline; align-items:center; gap:20px; cursor:pointer; font-size: 15px;">
+                    <input type="checkbox" id="modoVersaoPdfNova">
+                    <span>Gerar como v2, v3...</span>
+                </label>
+                 
         </div>
         </form>
     </div>
-
     <script>
         const token = "<?= token ?>"; // token deve ser strings
         var linhaUrlInicial = "<?= (typeof linhaUrlInicial !== 'undefined' && linhaUrlInicial != null) ? String(linhaUrlInicial) : '' ?>"; // linha passada pela URL (servidor define linhaUrlInicial no case 'formulario')
@@ -755,6 +752,22 @@
             }
             return true;
         }
+
+        function sincronizarModoVersaoPdf() {
+            const modoVersaoNova = document.getElementById("modoVersaoPdfNova");
+            const modoSobrescrever = document.querySelector('input[name="modoVersaoPdf"][value="sobrescrever"]');
+            if (!modoVersaoNova || !modoSobrescrever) return;
+
+            function atualizarMarcacaoModoVersao() {
+                // Se gerar nova versão está marcado, desmarca sobrescrever para evitar override.
+                modoSobrescrever.checked = !modoVersaoNova.checked;
+            }
+
+            modoVersaoNova.addEventListener("change", atualizarMarcacaoModoVersao);
+            atualizarMarcacaoModoVersao();
+        }
+
+        sincronizarModoVersaoPdf();
 
         /* ---------- INICIALIZAÇÃO ---------- */
 
@@ -2716,8 +2729,8 @@
             }
             
             // Modo: nova versão (_v2, _v3) ou sobrescrever a atual
-            const modoVersao = document.querySelector('input[name="modoVersaoPdf"]:checked');
-            const sobrescreverVersao = modoVersao && modoVersao.value === "sobrescrever";
+            const modoVersaoNova = document.getElementById("modoVersaoPdfNova");
+            const sobrescreverVersao = !(modoVersaoNova && modoVersaoNova.checked);
             // Versão atual (para sobrescrever): do obsProjeto se carregamos um orçamento com _v2
             const obsProjetoVal = document.getElementById("obsProjeto").value.trim();
             const versaoAtual = obsProjetoVal.match(/_v(\d+)$/) ? "_v" + obsProjetoVal.match(/_v(\d+)$/)[1] : "";
