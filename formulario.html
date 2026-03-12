@@ -72,7 +72,7 @@
             flex-wrap: wrap;
         }
 
-        .row + .row {
+        .row+.row {
             margin-top: 12px;
         }
 
@@ -163,7 +163,11 @@
             background: #fafcff;
             margin-bottom: 10px;
         }
-        .memoria-calc .calc-readonly { background: #e8f5e9; font-weight: 600; }
+
+        .memoria-calc .calc-readonly {
+            background: #e8f5e9;
+            font-weight: 600;
+        }
 
         .titulo {
             font-weight: 700;
@@ -214,7 +218,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* responsive — tablet */
@@ -222,6 +228,7 @@
             .row {
                 flex-direction: column;
             }
+
             .col {
                 min-width: 0;
             }
@@ -231,43 +238,54 @@
         @media (max-width: 480px) {
             body {
                 margin: 8px;
-                padding-top: 48px; /* espaço para o botão Voltar fixo */
+                padding-top: 48px;
+                /* espaço para o botão Voltar fixo */
                 padding-bottom: env(safe-area-inset-bottom);
             }
+
             .container {
                 padding: 0 4px;
             }
+
             h1 {
                 font-size: 1.35rem;
                 margin-bottom: 12px;
             }
+
             .section {
                 padding: 14px 12px;
                 margin-bottom: 14px;
                 border-radius: 10px;
             }
+
             .section-header {
                 flex-direction: column;
                 gap: 6px;
                 margin-bottom: 12px;
             }
+
             .section-header h3 {
                 font-size: 1rem;
             }
+
             .section small,
             .note {
                 font-size: 11px;
             }
+
             .row {
                 gap: 10px;
             }
-            .row + .row {
+
+            .row+.row {
                 margin-top: 10px;
             }
+
             label {
                 font-size: 11px;
                 margin-bottom: 4px;
             }
+
             /* inputs/select/textarea: min 44px altura e 16px fonte (evita zoom no iOS) */
             input[type="text"],
             input[type="date"],
@@ -280,9 +298,11 @@
                 font-size: 16px;
                 min-height: 44px;
             }
+
             textarea {
                 min-height: 80px;
             }
+
             /* botões maiores para toque */
             button,
             .btn {
@@ -290,23 +310,28 @@
                 padding: 12px 16px;
                 font-size: 15px;
             }
+
             /* área de ações (Gerar PDF, etc.) */
             .form-actions-wrap {
                 padding: 12px 0;
             }
+
             .form-actions-options {
                 flex-direction: column !important;
                 align-items: flex-start !important;
             }
+
             .form-actions-buttons {
                 flex-direction: column !important;
                 width: 100%;
                 gap: 10px !important;
             }
+
             .form-actions-buttons button {
                 width: 100%;
                 justify-content: center;
             }
+
             /* cards (memória, chapa, etc.) */
             .memoria-calc,
             .chapa,
@@ -314,18 +339,22 @@
             .processo {
                 padding: 12px;
             }
+
             .controls {
                 flex-direction: column;
             }
+
             .controls button {
                 width: 100%;
             }
+
             /* checkbox/radio maiores */
             input[type="checkbox"],
             input[type="radio"] {
                 width: 20px;
                 height: 20px;
             }
+
             .inline label {
                 font-size: 14px;
             }
@@ -339,7 +368,7 @@
             z-index: 100;
             min-height: 40px;
             padding: 10px 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
     </style>
 </head>
@@ -350,347 +379,376 @@
 <body>
     <div class="container">
         <form id="mainForm" onsubmit="event.preventDefault(); return false;">
-        <h1>Novo Projeto</h1>
+            <h1>Novo Projeto</h1>
 
-        <!-- BUSCAR ORÇAMENTO EXISTENTE -->
-        <div class="section" id="buscarOrcamentoSection" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 2px solid #ffc107;">
-            <div class="section-header">
-                <div>
-                    <h3 style="color: #f57c00;">🔍 Carregar Orçamento / Projeto existente</h3>
-                    <small>Busque e carregue um orçamento / projeto existente para editar ou visualizar</small>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col" style="flex: 2;">
-                    <label>Buscar por código do projeto, cliente ou descrição:</label>
-                    <input type="text" id="rascunhoBusca" placeholder="Digite para buscar orçamentos..." 
-                           list="rascunhosList" autocomplete="off" 
-                           style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-weight:600;">
-                    <datalist id="rascunhosList"></datalist>
-                    <input type="hidden" id="rascunhoSelectKey" value="">
-                </div>
-                <div class="col" style="flex: 0 0 auto; display: flex; align-items: flex-end; gap: 8px;">
-                    <button type="button" id="btnCarregarRascunho" class="secondary" onclick="carregarRascunhoSelecionado()">📂 Carregar</button>
-                    <button type="button" id="btnDeletarRascunho" class="secondary muted-btn" onclick="deletarRascunhoSelecionado()">Deletar</button>
-                </div>
-            </div>
-            <div id="orcamentoCarregadoInfo" class="hidden" style="margin-top: 12px; padding: 10px; background: #fff; border-radius: 8px; border-left: 4px solid #1a73e8;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+            <!-- BUSCAR ORÇAMENTO EXISTENTE -->
+            <div class="section" id="buscarOrcamentoSection"
+                style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border: 2px solid #ffc107;">
+                <div class="section-header">
                     <div>
-                        <strong id="orcamentoCarregadoNome" style="color: #1565c0;"></strong>
-                        <span id="orcamentoCarregadoStatus" style="margin-left: 8px; padding: 2px 8px; border-radius: 4px; font-size: 11px;"></span>
-                    </div>
-                    <button type="button" class="secondary muted-btn" onclick="limparFormularioCompleto()" style="padding: 4px 10px; font-size: 12px;">✨ Novo Orçamento</button>
-                </div>
-                <div id="versaoPickerContainer" style="display:none; margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0; font-size:13px;">
-                    <label for="versaoPicker" style="color:#555; font-weight:600;">📌 Versão da Proposta:</label>
-                    <select id="versaoPicker" onchange="carregarVersaoSelecionada()" aria-label="Selecionar versão da proposta" style="margin-left:6px; padding:3px 8px; border-radius:4px; border:1px solid #ccc; font-size:13px;"></select>
-                </div>
-            </div>
-        </div>
-
-        <!-- INFORMAÇÕES DO PROJETO -->
-        <div class="section" id="projetoSection">
-            <div class="section-header">
-                <div>
-                    <h3>Informações do Projeto</h3>
-                    <small>Preencha os dados do código do projeto.</small>
-                </div>
-            </div>
-
-            <!-- RF001: Banner de novo projeto -->
-            <div id="bannerNovoProjeto" style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:10px 14px; margin-bottom:10px; color:#856404;">
-                ⚠️ <strong>Você está criando um NOVO projeto.</strong> O projeto original será mantido.
-            </div>
-
-            <div class="row">
-                <div class="col">
-                    <label>Data (ANO + MES + DIA):</label>
-                    <input type="text" id="projetoData">
-                </div>
-                <div class="col">
-                    <label>Índice:</label>
-                    <input type="text" id="projetoIndice" value="a">
-                </div>
-                <div class="col">
-                    <label>Iniciais:</label>
-                    <input type="text" id="projetoIniciais" value="">
-                </div>
-                <div class="col">
-                    <label>Projeto (código):</label>
-                    <input type="text" id="obsProjeto" readonly>
-                </div>
-            </div>
-            <div class="row" style="margin-top:8px;">
-                <div class="col" style="flex: 2;">
-                    <label>Descrição do Orçamento/Projeto: <span style="color:red;" aria-hidden="true">*</span></label>
-                    <input type="text" id="obsDescricao" placeholder="Descrição breve do que será orçado, usado para nome da pasta" required aria-required="true">
-                    <small class="note" style="display:block; margin-top:4px;">Não use as palavras COT ou PED na descrição (reservadas pelo sistema).</small>
-                </div>
-            </div>
-            <div class="row" style="margin-top:8px;">
-                <div class="col" style="flex: 2;">
-                    <label>Processos</label>
-                    <input type="text" id="obsProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
-                    <small class="note" style="display:block; margin-top:4px;">Usado na página Projetos e no Kanban (tempos por processo).</small>
-                </div>
-            </div>
-            <div style="margin-top:12px;">
-                <label>Observações Internas:</label>
-                <textarea id="obsKanban" rows="3" placeholder="Observações salvas na página Projetos e no Kanban"></textarea>
-                <small class="note" style="display:block; margin-top:4px;">Estas observações aparecem na página Projetos e no Kanban.</small>
-            </div>
-            <div class="row" style="margin-top:12px;">
-                <div class="col">
-                    <label class="inline" style="margin-bottom:0;">
-                        <input type="checkbox" id="obsTemNotaFiscal" style="margin-right:8px;">
-                        <span>Projeto exige Nota Fiscal</span>
-                    </label>
-                    <small class="note" style="display:block; margin-top:4px;">Você poderá informar o valor da NF na página Projetos.</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- CLIENTE -->
-        <div class="section" id="clienteSection">
-            <div class="section-header">
-                <div>
-                    <h3>Cliente</h3>
-                    <small>Busque um cliente existente ou digite o nome para cadastrar um novo</small>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col" style="flex: 2;">
-                    <label>Cliente:</label>
-                    <input type="text" id="clienteNome" placeholder="Busque um cliente existente ou digite o nome para cadastrar um novo" list="clientesList" autocomplete="off" style="font-weight:600;">
-                    <datalist id="clientesList">
-                        <!-- Será preenchido dinamicamente -->
-                    </datalist>
-                </div>
-                <div class="col">
-                    <label>Nome Abreviado: <span style="color:#e53935;">*</span></label>
-                    <input type="text" id="clienteNomeAbreviado" placeholder="Ex: SILVA MET" style="font-weight:600;" maxlength="20">
-                    <small style="color:#666;">Usado no nome da pasta do projeto</small>
-                </div>
-            </div>
-
-            <div class="row" style="margin-top:8px;">
-                <div class="col">
-                    <label>CPF/CNPJ:</label>
-                    <input type="text" id="clienteCpf">
-                </div>
-                <div class="col">
-                    <label>Endereço:</label>
-                    <input type="text" id="clienteEndereco">
-                </div>
-                <div class="col">
-                    <label>Telefone:</label>
-                    <input type="text" id="clienteTelefone">
-                </div>
-                <div class="col">
-                    <label>Email:</label>
-                    <input type="text" id="clienteEmail">
-                </div>
-            </div>
-
-            <div class="row" style="margin-top:8px;">
-                <div class="col">
-                    <label>Cliente Responsável:</label>
-                    <input type="text" id="clienteResponsavel">
-                </div>
-                <div class="col">
-                    <label>Data:</label>
-                    <input type="date" id="clienteData">
-                </div>
-            </div>
-        </div>
-
-        <!-- PRODUTOS CADASTRADOS section follows -->
-
-        <!-- PRODUTOS CADASTRADOS -->
-        <div class="section" id="produtosCadastradosSection">
-            <div class="section-header">
-                <div>
-                    <h3>Adicionar itens</h3>
-                    <small>Adicione produtos cadastrados ou crie novos produtos</small>
-                </div>
-                <div>
-                    <button type="button" onclick="addProdutoCadastrado()">+ Adicionar Produto</button>
-                </div>
-            </div>
-            <div id="produtosCadastradosContainer"></div>
-        </div>
-
-        <!-- PROCESSOS ADICIONAIS DO PEDIDO -->
-        <div class="section" id="processosPedidoSection">
-            <div class="section-header">
-                <div>
-                    <h3>Descontos / custos extras</h3>
-                    <small>Adicione descontos ou custos extras que englobam todo o pedido (frete, embalagem...)</small>
-                </div>
-                <div>
-                    <button type="button" onclick="addProcessoPedido()">+ Adicionar</button>
-                </div>
-            </div>
-            <div id="processosPedidoContainer"></div>
-        </div>
-
-
-        <!-- INFORMAÇÕES DA PROPOSTA -->
-        <div class="section" id="observacoesSection">
-            <div class="section-header">
-                <div>
-                    <h3>Informações da Proposta</h3>
-                    <small>Informações aparecem no pdf da proposta</small>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col">
-                    <label>Prazo da Proposta:</label>
-                    <input type="date" id="obsPrazoProposta" title="Exibido na coluna Processo de orçamento do Kanban">
-                    <small class="note">Usado no Kanban (coluna Processo de orçamento)</small>
-                </div>
-                <div class="col">
-                    <label>Prazo de entrega:</label>
-                    <input type="date" id="obsPrazo">
-                </div>
-            </div>
-            <div class="row">
-                <div class="col">
-                    <label>Vendedor:</label>
-                    <input type="text" id="obsVendedor" placeholder="Nome do vendedor">
-                </div>
-            </div>
-
-            <div class="row" style="margin-top: 8px;">
-                <div class="col">
-                    <label>Condições do material:</label>
-                    <select id="obsMaterialCond">
-                        <option value="">Selecione</option>
-                        <option selected value="Incluso">Incluso</option>
-                        <option value="Não incluso">Não incluso</option>
-                    </select>
-                </div>
-                <div class="col">
-                    <label>Transporte:</label>
-                    <select id="obsTransporte">
-                        <option value="">Selecione</option>
-                        <option value="Incluso">Incluso</option>
-                        <option value="Não incluso">Não incluso</option>
-                    </select>
-                </div>
-                <div class="col">
-                    <label>Pagamento (dias para vencimento das parcelas):</label>
-                    <input 
-                        type="text" 
-                        id="obsPagamento" 
-                        list="pagamentoList" 
-                        autocomplete="off"
-                        placeholder="Ex: 30 / 60 / 150"
-                        style="font-weight:600;">
-                    <datalist id="pagamentoList">
-                        <option selected value="À vista">
-                        <option value="30 dias">
-                        <option value="30 / 60">
-                        <option value="30 / 45">
-                        <option value="30 / 45 / 60">
-                        <option value="30 / 60 / 90">
-                        <option value="30 / 60 / 90 / 120">
-                    </datalist>
-                    <small style="color:#666;">Digite cada parcela separados. Exemplo: "30 / 45 / 60" para 3 parcelas</small>
-                </div>
-            </div>
-
-            <div style="margin-top:8px;">
-                <label>Observações para o cliente:</label>
-                <textarea id="obsAdicional" rows="4" placeholder="Texto que aparece no PDF do orçamento enviado ao cliente"></textarea>
-                <small class="note" style="display:block; margin-top:4px;">Estas observações só aparecem no PDF; não vão para Projetos nem Kanban.</small>
-            </div>
-        </div>
-
-        <!-- ARQUIVOS DO CLIENTE -->
-        <div class="section" id="arquivosSection">
-            <div class="section-header">
-                <div>
-                    <h3>Arquivos do Cliente</h3>
-                    <small>Envie arquivos do cliente / Crie a pasta 01_IN</small>
-                </div>
-                <div>
-                    <button type="button" id="btnCriarPasta01IN" class="secondary" onclick="criarPasta01INAction()">📁 Criar pasta 01_IN</button>
-                    <button type="button" id="btnAbrirPasta01IN" class="secondary" onclick="abrirPasta01INAction()">🔗 Abrir pasta 01_IN</button>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col">
-                    <label>Arquivos do cliente (salvos em 01_IN):</label>
-                    <input type="file" id="arquivosCliente" name="arquivosCliente" multiple>
-                    <!-- Campos hidden para passar dados do projeto junto com o formulário -->
-                    <input type="hidden" id="hiddenCodigoProjeto" name="codigoProjeto" value="">
-                    <input type="hidden" id="hiddenNomePasta" name="nomePasta" value="">
-                    <input type="hidden" id="hiddenDataProjeto" name="dataProjeto" value="">
-                </div>
-            </div>
-
-            <div class="row" style="margin-top:8px;">
-                <div class="col">
-                    <button type="button" id="btnEnviarArquivos" class="secondary" onclick="criarPastaOuEnviarArquivos()">Criar pasta / Enviar Arquivos</button>
-                    <div id="arquivosStatus" class="note"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PREVIEW DO ORÇAMENTO -->
-        <div class="section" id="previewSection" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #4caf50;">
-            <div class="section-header">
-                <div>
-                    <h3 style="color: #2e7d32;">💰 Preview do Orçamento</h3>
-                    <small id="previewStatus" style="color: #666;">Preencha os dados para ver o preview</small>
-                </div>
-                <div id="previewLoading" class="hidden" style="display: flex; align-items: center; gap: 8px;">
-                    <div class="spinner"></div>
-                    <span style="color: #666;">Calculando...</span>
-                </div>
-            </div>
-            
-            <div id="previewContent">
-                <div class="row" style="margin-top: 12px;">
-                    <div class="col">
-                        <div id="previewDetalhamento" style="font-size: 13px; color: #555;"></div>
+                        <h3 style="color: #f57c00;">🔍 Carregar Orçamento / Projeto existente</h3>
+                        <small>Busque e carregue um orçamento / projeto existente para editar ou visualizar</small>
                     </div>
                 </div>
-                <div style="margin-top: 16px; padding: 16px; background: #fff; border-radius: 8px; border-left: 4px solid #4caf50;">
+                <div class="row">
+                    <div class="col" style="flex: 2;">
+                        <label>Buscar por código do projeto, cliente ou descrição:</label>
+                        <input type="text" id="rascunhoBusca" placeholder="Digite para buscar orçamentos..."
+                            list="rascunhosList" autocomplete="off"
+                            style="padding: 10px; border-radius: 6px; border: 1px solid #ddd; font-weight:600;">
+                        <datalist id="rascunhosList"></datalist>
+                        <input type="hidden" id="rascunhoSelectKey" value="">
+                    </div>
+                    <div class="col" style="flex: 0 0 auto; display: flex; align-items: flex-end; gap: 8px;">
+                        <button type="button" id="btnCarregarRascunho" class="secondary"
+                            onclick="carregarRascunhoSelecionado()">📂 Carregar</button>
+                        <button type="button" id="btnDeletarRascunho" class="secondary muted-btn"
+                            onclick="deletarRascunhoSelecionado()">Deletar</button>
+                    </div>
+                </div>
+                <div id="orcamentoCarregadoInfo" class="hidden"
+                    style="margin-top: 12px; padding: 10px; background: #fff; border-radius: 8px; border-left: 4px solid #1a73e8;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 18px; font-weight: 600; color: #2e7d32;">TOTAL ESTIMADO:</span>
-                        <span id="previewTotal" style="font-size: 28px; font-weight: 700; color: #2e7d32;">R$ 0,00</span>
+                        <div>
+                            <strong id="orcamentoCarregadoNome" style="color: #1565c0;"></strong>
+                            <span id="orcamentoCarregadoStatus"
+                                style="margin-left: 8px; padding: 2px 8px; border-radius: 4px; font-size: 11px;"></span>
+                        </div>
+                        <button type="button" class="secondary muted-btn" onclick="limparFormularioCompleto()"
+                            style="padding: 4px 10px; font-size: 12px;">✨ Novo Orçamento</button>
+                    </div>
+                    <div id="versaoPickerContainer"
+                        style="display:none; margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0; font-size:13px;">
+                        <label for="versaoPicker" style="color:#555; font-weight:600;">📌 Versão da Proposta:</label>
+                        <select id="versaoPicker" onchange="carregarVersaoSelecionada()"
+                            aria-label="Selecionar versão da proposta"
+                            style="margin-left:6px; padding:3px 8px; border-radius:4px; border:1px solid #ccc; font-size:13px;"></select>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="form-actions-wrap" style="display:flex; gap:12px; align-items:center; margin-bottom:40px; flex-wrap:wrap; flex-direction:column; align-items:flex-start;">
-            <div class="form-actions-options" style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:8px; margin-bottom:8px;"> 
-            </div>
-            <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
-                <button type="button" onclick="limparFormularioCompleto()" style="background:#c22121; color:white;">🗑️ Limpar Formulário</button>
-                <button type="button" onclick="salvarOrcamento()" style="background:#464ec4; color:white;">💾 Salvar</button>
-                <button type="button" id="btnPreviewPdf" onclick="calcular(false, true)" style="background:#464ec4; color:white;">👁 Ver Prévia do PDF</button>
-                
-            </div>
-            <span style="font-weight:600; color:#333;">Gerar PDF:</span>
-            <small>⚠️ Se o projeto já estiver como "pedido" não clicar em "Converter em Pedido"</small>
-            <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
-                <button type="button" id="btnGerar" onclick="calcular()" style="background:#00575a; color:white;">📄 Finalizar e Gerar Proposta</button>
-                <button type="button" onclick="salvarComoPedido()" style="background:#00575a; color:white;">📄 Finalizar e Converter em Pedido</button>
+
+            <!-- INFORMAÇÕES DO PROJETO -->
+            <div class="section" id="projetoSection">
+                <div class="section-header">
+                    <div>
+                        <h3>Informações do Projeto</h3>
+                        <small>Preencha os dados do código do projeto.</small>
+                    </div>
                 </div>
+
+                <!-- RF001: Banner de novo projeto -->
+                <div id="bannerNovoProjeto"
+                    style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:10px 14px; margin-bottom:10px; color:#856404;">
+                    ⚠️ <strong>Você está criando um NOVO projeto.</strong> O projeto original será mantido.
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <label>Data (ANO + MES + DIA):</label>
+                        <input type="text" id="projetoData">
+                    </div>
+                    <div class="col">
+                        <label>Índice:</label>
+                        <input type="text" id="projetoIndice" value="a">
+                    </div>
+                    <div class="col">
+                        <label>Iniciais:</label>
+                        <input type="text" id="projetoIniciais" value="">
+                    </div>
+                    <div class="col">
+                        <label>Projeto (código):</label>
+                        <input type="text" id="obsProjeto" readonly>
+                    </div>
+                </div>
+                <div class="row" style="margin-top:8px;">
+                    <div class="col" style="flex: 2;">
+                        <label>Descrição do Orçamento/Projeto: <span style="color:red;"
+                                aria-hidden="true">*</span></label>
+                        <input type="text" id="obsDescricao"
+                            placeholder="Descrição breve do que será orçado, usado para nome da pasta" required
+                            aria-required="true">
+                        <small class="note" style="display:block; margin-top:4px;">Não use as palavras COT ou PED na
+                            descrição (reservadas pelo sistema).</small>
+                    </div>
+                </div>
+                <div class="row" style="margin-top:8px;">
+                    <div class="col" style="flex: 2;">
+                        <label>Processos</label>
+                        <input type="text" style="background-color: #6666664f;" id="obsProcessos" readonly>
+                    </div>
+                </div>
+                <div style="margin-top:12px;">
+                    <label>Observações Internas:</label>
+                    <textarea id="obsKanban" rows="3"s
+                        placeholder="Observações salvas na página Projetos e no Kanban"></textarea>
+                    <small class="note" style="display:block; margin-top:4px;">Estas observações aparecem na página
+                        Projetos e no Kanban.</small>
+                </div>
+                <div class="row" style="margin-top:12px;">
+                    <div class="col">
+                        <label class="inline" style="margin-bottom:0;">
+                            <input type="checkbox" id="obsTemNotaFiscal" style="margin-right:8px;">
+                            <span>Projeto exige Nota Fiscal</span>
+                        </label>
+                        <small class="note" style="display:block; margin-top:4px;">Você poderá informar o valor da NF na
+                            página Projetos.</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLIENTE -->
+            <div class="section" id="clienteSection">
+                <div class="section-header">
+                    <div>
+                        <h3>Cliente</h3>
+                        <small>Busque um cliente existente ou digite o nome para cadastrar um novo</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col" style="flex: 2;">
+                        <label>Cliente:</label>
+                        <input type="text" id="clienteNome"
+                            placeholder="Busque um cliente existente ou digite o nome para cadastrar um novo"
+                            list="clientesList" autocomplete="off" style="font-weight:600;">
+                        <datalist id="clientesList">
+                            <!-- Será preenchido dinamicamente -->
+                        </datalist>
+                    </div>
+                    <div class="col">
+                        <label>Nome Abreviado: <span style="color:#e53935;">*</span></label>
+                        <input type="text" id="clienteNomeAbreviado" placeholder="Ex: SILVA MET"
+                            style="font-weight:600;" maxlength="20">
+                        <small style="color:#666;">Usado no nome da pasta do projeto</small>
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:8px;">
+                    <div class="col">
+                        <label>CPF/CNPJ:</label>
+                        <input type="text" id="clienteCpf">
+                    </div>
+                    <div class="col">
+                        <label>Endereço:</label>
+                        <input type="text" id="clienteEndereco">
+                    </div>
+                    <div class="col">
+                        <label>Telefone:</label>
+                        <input type="text" id="clienteTelefone">
+                    </div>
+                    <div class="col">
+                        <label>Email:</label>
+                        <input type="text" id="clienteEmail">
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:8px;">
+                    <div class="col">
+                        <label>Cliente Responsável:</label>
+                        <input type="text" id="clienteResponsavel">
+                    </div>
+                    <div class="col">
+                        <label>Data:</label>
+                        <input type="date" id="clienteData">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRODUTOS CADASTRADOS section follows -->
+
+            <!-- PRODUTOS CADASTRADOS -->
+            <div class="section" id="produtosCadastradosSection">
+                <div class="section-header">
+                    <div>
+                        <h3>Adicionar itens</h3>
+                        <small>Adicione produtos cadastrados ou crie novos produtos</small>
+                    </div>
+                    <div>
+                        <button type="button" onclick="addProdutoCadastrado()">+ Adicionar Produto</button>
+                    </div>
+                </div>
+                <div id="produtosCadastradosContainer"></div>
+            </div>
+
+            <!-- PROCESSOS ADICIONAIS DO PEDIDO -->
+            <div class="section" id="processosPedidoSection">
+                <div class="section-header">
+                    <div>
+                        <h3>Descontos / custos extras</h3>
+                        <small>Adicione descontos ou custos extras que englobam todo o pedido (frete,
+                            embalagem...)</small>
+                    </div>
+                    <div>
+                        <button type="button" onclick="addProcessoPedido()">+ Adicionar</button>
+                    </div>
+                </div>
+                <div id="processosPedidoContainer"></div>
+            </div>
+
+
+            <!-- INFORMAÇÕES DA PROPOSTA -->
+            <div class="section" id="observacoesSection">
+                <div class="section-header">
+                    <div>
+                        <h3>Informações da Proposta</h3>
+                        <small>Informações aparecem no pdf da proposta</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <label>Prazo da Proposta:</label>
+                        <input type="date" id="obsPrazoProposta"
+                            title="Exibido na coluna Processo de orçamento do Kanban">
+                        <small class="note">Usado no Kanban (coluna Processo de orçamento)</small>
+                    </div>
+                    <div class="col">
+                        <label>Prazo de entrega:</label>
+                        <input type="date" id="obsPrazo">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <label>Vendedor:</label>
+                        <input type="text" id="obsVendedor" placeholder="Nome do vendedor">
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top: 8px;">
+                    <div class="col">
+                        <label>Condições do material:</label>
+                        <select id="obsMaterialCond">
+                            <option value="">Selecione</option>
+                            <option selected value="Incluso">Incluso</option>
+                            <option value="Não incluso">Não incluso</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label>Transporte:</label>
+                        <select id="obsTransporte">
+                            <option value="">Selecione</option>
+                            <option value="Incluso">Incluso</option>
+                            <option value="Não incluso">Não incluso</option>
+                        </select>
+                    </div>
+                    <div class="col">
+                        <label>Pagamento (dias para vencimento das parcelas):</label>
+                        <input type="text" id="obsPagamento" list="pagamentoList" autocomplete="off"
+                            placeholder="Ex: 30 / 60 / 150" style="font-weight:600;">
+                        <datalist id="pagamentoList">
+                            <option selected value="À vista">
+                            <option value="30 dias">
+                            <option value="30 / 60">
+                            <option value="30 / 45">
+                            <option value="30 / 45 / 60">
+                            <option value="30 / 60 / 90">
+                            <option value="30 / 60 / 90 / 120">
+                        </datalist>
+                        <small style="color:#666;">Digite cada parcela separados. Exemplo: "30 / 45 / 60" para 3
+                            parcelas</small>
+                    </div>
+                </div>
+
+                <div style="margin-top:8px;">
+                    <label>Observações para o cliente:</label>
+                    <textarea id="obsAdicional" rows="4"
+                        placeholder="Texto que aparece no PDF do orçamento enviado ao cliente"></textarea>
+                    <small class="note" style="display:block; margin-top:4px;">Estas observações só aparecem no PDF; não
+                        vão para Projetos nem Kanban.</small>
+                </div>
+            </div>
+
+            <!-- ARQUIVOS DO CLIENTE -->
+            <div class="section" id="arquivosSection">
+                <div class="section-header">
+                    <div>
+                        <h3>Arquivos do Cliente</h3>
+                        <small>Envie arquivos do cliente / Crie a pasta 01_IN</small>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col">
+                        <label>Arquivos do cliente (salvos em 01_IN):</label>
+                        <input type="file" id="arquivosCliente" name="arquivosCliente" multiple>
+                        <!-- Campos hidden para passar dados do projeto junto com o formulário -->
+                        <input type="hidden" id="hiddenCodigoProjeto" name="codigoProjeto" value="">
+                        <input type="hidden" id="hiddenNomePasta" name="nomePasta" value="">
+                        <input type="hidden" id="hiddenDataProjeto" name="dataProjeto" value="">
+                    </div>
+                </div>
+
+                <div class="row" style="margin-top:8px;">
+                    <div class="col">
+                        <button type="button" id="btnEnviarArquivos" class="secondary" onclick="EnviarArquivos()">Enviar
+                            Arquivos</button>
+                        <button type="button" id="btnCriarPasta01IN" class="secondary"
+                            onclick="criarPasta01INAction()">📁 Criar pasta 01_IN</button>
+                        <button type="button" id="btnAbrirPasta01IN" class="secondary"
+                            onclick="abrirPasta01INAction()">🔗 Abrir pasta 01_IN</button>
+                        <div id="arquivosStatus" class="note"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PREVIEW DO ORÇAMENTO -->
+            <div class="section" id="previewSection"
+                style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border: 2px solid #4caf50;">
+                <div class="section-header">
+                    <div>
+                        <h3 style="color: #2e7d32;">💰 Preview do Orçamento</h3>
+                        <small id="previewStatus" style="color: #666;">Preencha os dados para ver o preview</small>
+                    </div>
+                    <div id="previewLoading" class="hidden" style="display: flex; align-items: center; gap: 8px;">
+                        <div class="spinner"></div>
+                        <span style="color: #666;">Calculando...</span>
+                    </div>
+                </div>
+
+                <div id="previewContent">
+                    <div class="row" style="margin-top: 12px;">
+                        <div class="col">
+                            <div id="previewDetalhamento" style="font-size: 13px; color: #555;"></div>
+                        </div>
+                    </div>
+                    <div
+                        style="margin-top: 16px; padding: 16px; background: #fff; border-radius: 8px; border-left: 4px solid #4caf50;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 18px; font-weight: 600; color: #2e7d32;">TOTAL ESTIMADO:</span>
+                            <span id="previewTotal" style="font-size: 28px; font-weight: 700; color: #2e7d32;">R$
+                                0,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="form-actions-wrap"
+                style="display:flex; gap:12px; align-items:center; margin-bottom:40px; flex-wrap:wrap; flex-direction:column; align-items:flex-start;">
+                <div class="form-actions-options"
+                    style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; padding:12px; background:#f8f9fa; border-radius:8px; margin-bottom:8px;">
+                </div>
+                <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
+                    <button type="button" onclick="limparFormularioCompleto()"
+                        style="background:#831414; color:white;">🗑️ Limpar Formulário</button>
+                    <button type="button" onclick="salvarOrcamento()" style="background:#354b75; color:white;">💾
+                        Salvar</button>
+                    <button type="button" id="btnPreviewPdf" onclick="calcular(false, true)"
+                        style="background:#354b75; color:white;">👁 Ver Prévia do PDF</button>
+                    <button type="button" id="btnGerar" onclick="calcular()" style="background:#59963d; color:white;">📄
+                        Finalizar e Gerar Proposta</button>
+                </div>
+
                 <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked hidden aria-hidden="true">
-                <label style="display:inline; align-items:center; gap:20px; cursor:pointer; font-size: 15px;">
-                    <input type="checkbox" id="modoVersaoPdfNova">
-                    <span>Gerar nova proposta</span>
-                </label>
-                 
-        </div>
+                <div>
+                    <label style="display:inline; align-items:center; gap: 25px; cursor:pointer; font-size: 15px;">
+
+                        <input type="checkbox" id="modoVersaoPdfNova">
+                        <span style="font-size:20px;">Gerar como nova proposta (v2, v3...)</span>
+                    </label>
+                </div>
+                <small style="font-size:15px; text-align:center; color:rgb(233, 171, 0);">⚠️ Gera apenas novas versões
+                    de proposta para o mesmo projeto, salva na mesma pasta.</small>
+
+            </div>
         </form>
     </div>
     <script>
@@ -1036,13 +1094,13 @@
             function atualizarDescricoesProcessos() {
                 var container = div.querySelector(".produtoDescricoesProcessos");
                 if (!container) return;
-                var checkeds = Array.from(div.querySelectorAll(".produtoProcesso:checked")).map(function(cb) { return cb.value; });
+                var checkeds = Array.from(div.querySelectorAll(".produtoProcesso:checked")).map(function (cb) { return cb.value; });
                 // Remover campos de processos desmarcados
-                Array.from(container.querySelectorAll(".desc-proc-row")).forEach(function(row) {
+                Array.from(container.querySelectorAll(".desc-proc-row")).forEach(function (row) {
                     if (checkeds.indexOf(row.dataset.sigla) < 0) row.remove();
                 });
                 // Adicionar campos para novos processos marcados
-                checkeds.forEach(function(sigla) {
+                checkeds.forEach(function (sigla) {
                     if (!container.querySelector('.desc-proc-row[data-sigla="' + sigla + '"]')) {
                         var row = document.createElement("div");
                         row.className = "desc-proc-row";
@@ -1054,7 +1112,7 @@
                     }
                 });
             }
-            div.querySelectorAll(".produtoProcesso").forEach(function(cb) {
+            div.querySelectorAll(".produtoProcesso").forEach(function (cb) {
                 cb.addEventListener("change", atualizarDescricoesProcessos);
             });
 
@@ -1077,21 +1135,21 @@
                 const termoLower = termo.toLowerCase();
                 // Divide o termo em palavras (separadas por espaços)
                 const palavras = termoLower.trim().split(/\s+/).filter(p => p.length > 0);
-                
+
                 const produtosFiltrados = produtosCatalogo.filter((p, idx) => {
                     const codigo = String(p.codigo || '').toLowerCase();
                     const descricao = String(p.descricao || '').toLowerCase();
                     const familia = String(p.familia || '').toLowerCase();
                     const textoCompleto = `${codigo} ${descricao} ${familia}`;
-                    
+
                     // Se não há palavras, retorna todos
                     if (palavras.length === 0) return true;
-                    
+
                     // Se há apenas uma palavra, busca simples (compatibilidade)
                     if (palavras.length === 1) {
                         return codigo.includes(palavras[0]) || descricao.includes(palavras[0]) || familia.includes(palavras[0]);
                     }
-                    
+
                     // Se há múltiplas palavras, todas devem aparecer no texto completo (em qualquer ordem)
                     return palavras.every(palavra => textoCompleto.includes(palavra));
                 });
@@ -1223,7 +1281,7 @@
 
         function preencherDadosProdutoPorIndex(div, idx) {
             const hiddenCodigo = div.querySelector(".produtoCodigo");
-            
+
             if (idx === "" || idx === null || idx === undefined || idx < 0 || idx >= produtosCatalogo.length) {
                 if (hiddenCodigo) hiddenCodigo.value = "";
                 div.querySelector(".produtoDescricao").value = "";
@@ -1323,7 +1381,7 @@
             document.querySelectorAll(".produto-cadastrado").forEach(div => {
                 const codigo = div.querySelector(".produtoCodigo").value;
                 const descricao = div.querySelector(".produtoDescricao").value;
-                
+
                 // Pula apenas se não tem nem código nem descrição
                 if (!codigo && !descricao) return;
 
@@ -1342,7 +1400,7 @@
 
                 // RF002: Coletar descrições por processo
                 const descricoesProcessos = {};
-                div.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                div.querySelectorAll(".desc-proc-row").forEach(function (row) {
                     var sigla = row.dataset.sigla;
                     var input = row.querySelector(".desc-proc-input");
                     if (sigla && input && input.value.trim()) {
@@ -1415,9 +1473,9 @@
         }
 
         ["projetoData", "projetoIniciais"].forEach(id => {
-            document.getElementById(id).addEventListener("input", function() { atualizarCamposProjeto(); verificarMudancaCampoProjeto(); });
+            document.getElementById(id).addEventListener("input", function () { atualizarCamposProjeto(); verificarMudancaCampoProjeto(); });
         });
-        document.getElementById("projetoIndice").addEventListener("input", function() {
+        document.getElementById("projetoIndice").addEventListener("input", function () {
             atualizarCamposProjeto(true);
             verificarMudancaCampoProjeto();
         });
@@ -1460,13 +1518,13 @@
 
             if (btn) { btn.disabled = true; btn.textContent = "Criando..."; }
             google.script.run
-                .withSuccessHandler(function(info) {
+                .withSuccessHandler(function (info) {
                     if (btn) { btn.disabled = false; btn.textContent = originalText; }
                     var msg = "Pasta 01_IN criada com sucesso!";
                     if (info && info.inFolderUrl) msg += "\n\n" + info.inFolderUrl;
                     alert(msg);
                 })
-                .withFailureHandler(function(err) {
+                .withFailureHandler(function (err) {
                     if (btn) { btn.disabled = false; btn.textContent = originalText; }
                     alert("Erro ao criar pasta 01_IN:\n" + (err && err.message ? err.message : err));
                 })
@@ -1489,7 +1547,7 @@
 
             if (btn) { btn.disabled = true; btn.textContent = "Buscando..."; }
             google.script.run
-                .withSuccessHandler(function(info) {
+                .withSuccessHandler(function (info) {
                     if (btn) { btn.disabled = false; btn.textContent = originalText; }
                     if (info && info.inFolderUrl) {
                         window.open(info.inFolderUrl, "_blank");
@@ -1497,7 +1555,7 @@
                         alert("Pasta 01_IN não encontrada. Crie-a primeiro.");
                     }
                 })
-                .withFailureHandler(function(err) {
+                .withFailureHandler(function (err) {
                     if (btn) { btn.disabled = false; btn.textContent = originalText; }
                     alert("Erro ao abrir pasta 01_IN:\n" + (err && err.message ? err.message : err));
                 })
@@ -1524,7 +1582,7 @@
                 alert("Preencha Data, Índice e Iniciais antes de criar a pasta do orçamento.");
                 return;
             }
-            
+
             if (!descricao) {
                 alert("A Descrição do Projeto é obrigatória para criar a pasta do orçamento.");
                 document.getElementById("obsDescricao").focus();
@@ -1588,8 +1646,8 @@
                 .withFailureHandler(function (err) {
                     btn.disabled = originalDisabled;
                     btn.textContent = originalText;
-                    alert("Erro ao abrir pasta do orçamento:\n" + (err && err.message ? err.message : err) + 
-                          "\n\nDica: Crie a pasta primeiro usando o botão 'Criar/Confirmar Pasta do Orçamento'.");
+                    alert("Erro ao abrir pasta do orçamento:\n" + (err && err.message ? err.message : err) +
+                        "\n\nDica: Crie a pasta primeiro usando o botão 'Criar/Confirmar Pasta do Orçamento'.");
                 })
                 .buscarPastaOrcamento(codigoProjeto, data);
         }
@@ -1906,7 +1964,7 @@
                     var descContnr = prodDiv.querySelector(".produtoDescricoesProcessos");
                     if (descContnr) {
                         // Dispara a atualização para criar os campos de descrição
-                        processos.forEach(function(sigla) {
+                        processos.forEach(function (sigla) {
                             if (!descContnr.querySelector('.desc-proc-row[data-sigla="' + sigla + '"]')) {
                                 var row = document.createElement("div");
                                 row.className = "desc-proc-row";
@@ -1919,7 +1977,7 @@
                         });
                         // Preencher descrições salvas
                         var descs = prodData.descricoesProcessos || {};
-                        descContnr.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                        descContnr.querySelectorAll(".desc-proc-row").forEach(function (row) {
                             var sigla = row.dataset.sigla;
                             var input = row.querySelector(".desc-proc-input");
                             if (sigla && input && descs[sigla]) input.value = descs[sigla];
@@ -1938,7 +1996,7 @@
                 if (versaoPicker && versaoContainer) {
                     if (versoes.length > 0) {
                         let opcoesHtml = '<option value="' + VERSAO_BASE_KEY + '">v1 - original</option>';
-                        versoes.forEach(function(v) {
+                        versoes.forEach(function (v) {
                             var match = (v.codigo || "").match(/_v(\d+)$/);
                             var sufixo = match ? "v" + match[1] : (v.codigo || "versão");
                             var dataStr = v.dataSalvo ? new Date(v.dataSalvo).toLocaleDateString('pt-BR') : "";
@@ -1977,7 +2035,7 @@
                 dadosParaCarregar.versoes = [];
             } else {
                 var versoes = _dadosRootCarregado.versoes || [];
-                var versao = versoes.find(function(v) { return v.codigo === selectedCodigo; });
+                var versao = versoes.find(function (v) { return v.codigo === selectedCodigo; });
                 if (!versao) return;
                 dadosParaCarregar = Object.assign({}, versao.dados || {}, { numeroSequencial: versao.numeroSequencial });
             }
@@ -2085,7 +2143,7 @@
         function salvarOrcamento() {
             const btn = document.querySelector('button[onclick="salvarOrcamento()"]');
             if (!btn) return;
-            
+
             const originalText = btn.textContent;
             const originalDisabled = btn.disabled;
 
@@ -2095,7 +2153,7 @@
                 alert("Por favor, preencha os dados do projeto (Data, Índice, Iniciais) para gerar o código do projeto.");
                 return;
             }
-            
+
             // Valida descrição obrigatória
             const descricao = document.getElementById("obsDescricao").value.trim();
             if (!descricao) {
@@ -2107,11 +2165,11 @@
 
             btn.disabled = true;
             const dados = coletarDadosFormulario();
-            
+
             // Se já tem um orçamento carregado, atualiza ele
             if (linhaOrcamentoCarregado) {
                 btn.textContent = "Atualizando...";
-                
+
                 google.script.run
                     .withSuccessHandler(function () {
                         btn.disabled = originalDisabled;
@@ -2128,10 +2186,10 @@
             } else {
                 // Se não tem orçamento carregado, salva como novo rascunho
                 btn.textContent = "Salvando...";
-                
+
                 // Usa o código do projeto como nome interno (a exibição na lista é gerada pelo backend)
                 const nomeRascunho = codigoProjeto;
-                
+
                 google.script.run
                     .withSuccessHandler(function () {
                         btn.disabled = originalDisabled;
@@ -2151,7 +2209,7 @@
         // Função para limpar formulário e iniciar novo orçamento
         function limparFormularioCompleto() {
             if (!confirm("Deseja limpar todos os dados e iniciar um novo orçamento?")) return;
-            
+
             limparEstadoRascunho();
             // RF001: Reset variáveis originais do projeto
             _originalProjetoData = null;
@@ -2159,14 +2217,14 @@
             _originalProjetoIniciais = null;
             var bannerReset = document.getElementById("bannerNovoProjeto");
             if (bannerReset) bannerReset.style.display = "none";
-            
+
             const today = new Date();
             document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
                 String(today.getMonth() + 1).padStart(2, '0') +
                 String(today.getDate()).padStart(2, '0');
             document.getElementById("projetoIndice").value = "";
             // Campo projetoPasta removido
-            
+
             document.getElementById("clienteNome").value = "";
             document.getElementById("clienteNome").style.background = "";
             document.getElementById("clienteNomeAbreviado").value = "";
@@ -2176,10 +2234,10 @@
             document.getElementById("clienteEmail").value = "";
             document.getElementById("clienteResponsavel").value = "";
             document.getElementById("clienteData").value = today.toISOString().slice(0, 10);
-            
+
             document.getElementById("produtosCadastradosContainer").innerHTML = "";
             document.getElementById("processosPedidoContainer").innerHTML = "";
-            
+
             document.getElementById("obsDescricao").value = "";
             document.getElementById("obsPrazoProposta").value = "";
             document.getElementById("obsPrazo").value = "";
@@ -2189,7 +2247,7 @@
             document.getElementById("obsAdicional").value = "";
             document.getElementById("obsKanban").value = "";
             document.getElementById("obsTemNotaFiscal").checked = false;
-            
+
             if (typeof atualizarCamposProjeto === 'function') {
                 atualizarCamposProjeto();
             }
@@ -2218,7 +2276,7 @@
 
             // Se não tem chave no hidden, tenta encontrar pelo nome digitado
             if (!key && valorBusca) {
-                orcamentoSelecionado = listaOrcamentosCompleta.find(r => 
+                orcamentoSelecionado = listaOrcamentosCompleta.find(r =>
                     r.nome.toLowerCase() === valorBusca.toLowerCase()
                 );
                 if (orcamentoSelecionado) {
@@ -2254,15 +2312,15 @@
 
                     linhaOrcamentoCarregado = key; // Armazena a linha/key do orçamento carregado
                     preencherFormulario(dadosValidos);
-                    
+
                     // Mostra informações do orçamento carregado
                     const infoDiv = document.getElementById("orcamentoCarregadoInfo");
                     const nomeSpan = document.getElementById("orcamentoCarregadoNome");
                     const statusSpan = document.getElementById("orcamentoCarregadoStatus");
-                    
+
                     if (orcamentoSelecionado) {
                         nomeSpan.textContent = orcamentoSelecionado.nome || "Orçamento carregado";
-                        
+
                         // Define cor e texto do status
                         const status = orcamentoSelecionado.status || "rascunho";
                         if (status === "Rascunho") {
@@ -2282,10 +2340,10 @@
                             statusSpan.style.background = "#f5f5f5";
                             statusSpan.style.color = "#666";
                         }
-                        
+
                         infoDiv.classList.remove("hidden");
                     }
-                    
+
                     alert("Orçamento carregado com sucesso!");
                 })
                 .withFailureHandler(function (err) {
@@ -2351,7 +2409,7 @@
 
             // Se não tem chave no hidden, tenta encontrar pelo nome digitado
             if (!key && valorBusca) {
-                const orcamentoEncontrado = listaOrcamentosCompleta.find(r => 
+                const orcamentoEncontrado = listaOrcamentosCompleta.find(r =>
                     r.nome.toLowerCase() === valorBusca.toLowerCase()
                 );
                 if (orcamentoEncontrado) {
@@ -2467,7 +2525,7 @@
             const iniciais = dadosColetados.projeto.iniciais;
             // Código completo: do obsProjeto (pode ter _v2) ou montado de data+indice+iniciais
             const codigoProjetoCompleto = (dadosColetados.observacoes.projeto || "").trim() || (data + indice + iniciais);
-            
+
             // Validações antes de gerar PDF
             if (!data || !indice || !iniciais) {
                 alert("Preencha Data, Índice e Iniciais do projeto.");
@@ -2475,14 +2533,14 @@
                 btn.textContent = textoOriginalBtn;
                 return;
             }
-            
+
             // Modo: nova versão (_v2, _v3) ou sobrescrever a atual
             const modoVersaoNova = document.getElementById("modoVersaoPdfNova");
             const sobrescreverVersao = !(modoVersaoNova && modoVersaoNova.checked);
             // Versão atual (para sobrescrever): do obsProjeto se carregamos um orçamento com _v2
             const obsProjetoVal = document.getElementById("obsProjeto").value.trim();
             const versaoAtual = obsProjetoVal.match(/_v(\d+)$/) ? "_v" + obsProjetoVal.match(/_v(\d+)$/)[1] : "";
-            
+
             // Validação: Descrição obrigatória
             const descricao = dadosColetados.observacoes.descricao || "";
             if (!descricao || descricao.trim() === "") {
@@ -2633,10 +2691,10 @@
 
         // ---------- INICIAL (Alterado para incluir carregamento de rascunhos) ----------
         // Aguarda o DOM estar pronto antes de adicionar event listeners
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             inicializarBuscaOrcamentos();
         });
-        
+
         // Se o DOM já estiver carregado, inicializa imediatamente
         if (document.readyState === "loading") {
             document.addEventListener("DOMContentLoaded", inicializarBuscaOrcamentos);
@@ -2792,7 +2850,7 @@
 
                 // Verifica se há dados para calcular (apenas produtos e processos do pedido)
                 const temDados = dados.produtosCadastrados.length > 0 || dados.processosPedido.length > 0;
-                
+
                 if (!temDados) {
                     document.getElementById("previewStatus").textContent = "Preencha os dados para ver o preview";
                     document.getElementById("previewTotal").textContent = "R$ 0,00";
@@ -2806,10 +2864,10 @@
 
                 // Chama o servidor para calcular
                 google.script.run
-                    .withSuccessHandler(function(resultado) {
+                    .withSuccessHandler(function (resultado) {
                         // Esconde loading
                         document.getElementById("previewLoading").classList.add("hidden");
-                        
+
                         if (resultado.erro) {
                             document.getElementById("previewStatus").textContent = "Erro ao calcular: " + resultado.erro;
                             return;
@@ -2818,13 +2876,13 @@
                         // Atualiza status
                         const agora = new Date();
                         document.getElementById("previewStatus").textContent = "Atualizado às " + agora.toLocaleTimeString('pt-BR');
-                        
+
                         // Atualiza total
                         document.getElementById("previewTotal").textContent = formatarReais(resultado.total);
 
                         // Atualiza detalhamento
                         let detalhamentoHtml = "";
-                        
+
                         // Agrupa por tipo (apenas produtos e processos do pedido)
                         const produtos = resultado.detalhamento.filter(d => d.tipo === 'produto');
                         const processos = resultado.detalhamento.filter(d => d.tipo === 'processo');
@@ -2847,7 +2905,7 @@
 
                         document.getElementById("previewDetalhamento").innerHTML = detalhamentoHtml;
                     })
-                    .withFailureHandler(function(erro) {
+                    .withFailureHandler(function (erro) {
                         document.getElementById("previewLoading").classList.add("hidden");
                         document.getElementById("previewStatus").textContent = "Erro ao calcular preview";
                         console.error("Erro ao calcular preview:", erro);
@@ -2869,12 +2927,12 @@
         // Observer para container de memórias de cálculo (preview não usa; mantido para consistência)
         const memoriasContainer = null; // RF002: memoriasContainer removido
         if (memoriasContainer) {
-            const memoriasObserver = new MutationObserver(function() { atualizarPreviewDebounced(); });
+            const memoriasObserver = new MutationObserver(function () { atualizarPreviewDebounced(); });
             memoriasObserver.observe(memoriasContainer, observerConfig);
         }
 
         // Observer para container de produtos
-        const produtosObserver = new MutationObserver(function(mutations) {
+        const produtosObserver = new MutationObserver(function (mutations) {
             atualizarPreviewDebounced();
         });
 
@@ -2884,7 +2942,7 @@
         }
 
         // Observer para container de processos do pedido
-        const processosObserver = new MutationObserver(function(mutations) {
+        const processosObserver = new MutationObserver(function (mutations) {
             atualizarPreviewDebounced();
         });
 
@@ -2894,11 +2952,11 @@
         }
 
         // Event listeners para campos numéricos e de preço (com delegação de eventos)
-        document.addEventListener('input', function(e) {
+        document.addEventListener('input', function (e) {
             const target = e.target;
-            
+
             // Verifica se é um campo numérico relevante
-            if (target.type === 'number' || 
+            if (target.type === 'number' ||
                 target.classList.contains('produtoPrecoUnit') ||
                 target.classList.contains('produtoQuantidade') ||
                 target.classList.contains('memComprimento') ||
@@ -2920,19 +2978,19 @@
         });
 
         // Event listeners para checkboxes que afetam cálculos
-        document.addEventListener('change', function(e) {
+        document.addEventListener('change', function (e) {
             const target = e.target;
-            
-            if (target.type === 'checkbox' && 
+
+            if (target.type === 'checkbox' &&
                 (target.classList.contains('memTemCorte') ||
-                 target.classList.contains('memTemDobra') ||
-                 target.classList.contains('memTemAdicionais'))) {
+                    target.classList.contains('memTemDobra') ||
+                    target.classList.contains('memTemAdicionais'))) {
                 atualizarPreviewDebounced();
             }
         });
 
         // Atualiza preview inicial (após um pequeno delay para garantir que tudo carregou)
-        setTimeout(function() {
+        setTimeout(function () {
             atualizarPreview();
         }, 1000);
 
@@ -2941,7 +2999,7 @@
         /* ========================================================= */
 
         // Um botão só: se tem arquivos carregados → cria a pasta e envia; se não tem → apenas cria a pasta.
-        function criarPastaOuEnviarArquivos() {
+        function EnviarArquivos() {
             const inputArquivos = document.getElementById("arquivosCliente");
             const statusEl = document.getElementById("arquivosStatus");
             const btnSubmit = document.getElementById("btnEnviarArquivos");
