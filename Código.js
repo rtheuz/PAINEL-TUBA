@@ -382,11 +382,44 @@ function _formatBrCurrency(n) {
 // Formata data BR (dd/mm/yyyy)
 function formatarDataBrasil(date) {
   if (!date) return "";
-  const d = new Date(date);
-  const dia = String(d.getUTCDate()).padStart(2, "0");
-  const mes = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const ano = d.getUTCFullYear();
-  return `${dia}/${mes}/${ano}`;
+
+  // Se já for Date válido
+  if (date instanceof Date && !isNaN(date.getTime())) {
+    const dia = String(date.getUTCDate()).padStart(2, "0");
+    const mes = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const ano = date.getUTCFullYear();
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  const tz = Session.getScriptTimeZone() || "America/Sao_Paulo";
+  let d = null;
+
+  // Número: possível serial do Sheets
+  if (typeof date === "number" && !isNaN(date)) {
+    try {
+      const ms = (date - 25569) * 86400 * 1000;
+      d = new Date(ms);
+    } catch (e) {
+      d = null;
+    }
+  } else if (typeof date === "string") {
+    const s = date.trim();
+    // dd/mm/aaaa
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [diaStr, mesStr, anoStr] = s.split("/");
+      d = new Date(parseInt(anoStr, 10), parseInt(mesStr, 10) - 1, parseInt(diaStr, 10));
+    } else {
+      const parsed = Date.parse(s);
+      if (!isNaN(parsed)) d = new Date(parsed);
+    }
+  }
+
+  if (d && !isNaN(d.getTime())) {
+    return Utilities.formatDate(d, tz, "dd/MM/yyyy");
+  }
+
+  // Fallback: devolve string original (evita NaN/NaN/NaN no PDF)
+  return String(date);
 }
 
 // ========================= PREVIEW DE ORÇAMENTO =========================
@@ -709,9 +742,10 @@ function renomearPastaProjeto(codigoProjeto, data, cliente, descricao, isPedido)
  * @param {string} data - Data no formato YYMMDD
  * @param {string} nomeCliente - Nome do cliente
  * @param {string} descricao - Descrição do projeto
+ * @param {string} [nomeAbreviado] - Nome abreviado do cliente (opcional, prevalece sobre nomeCliente)
  * @returns {boolean} - True se renomeou com sucesso, false caso contrário
  */
-function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descricao) {
+function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descricao, nomeAbreviado) {
   try {
     Logger.log("🔄 Iniciando conversão de COT para PED: " + codigoProjeto);
     
@@ -726,8 +760,8 @@ function atualizarPrefixoPastaParaPedido(codigoProjeto, data, nomeCliente, descr
       return true; // Já está como PED
     }
     
-    // Renomeia para PED
-    const novoNome = gerarNomePasta(codigoProjeto, nomeCliente, descricao, true);
+    // Renomeia para PED, preservando nome abreviado quando disponível
+    const novoNome = gerarNomePasta(codigoProjeto, nomeCliente, descricao, true, nomeAbreviado);
     pastaInfo.pasta.setName(novoNome);
     Logger.log("✅ Pasta convertida de COT para PED: " + novoNome);
     return true;
@@ -2062,7 +2096,27 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   // Extrai descrição e prazo das observações
   const descricao = (observacoes && observacoes.descricao) || "";
-  const prazo = (observacoes && observacoes.prazo) || "";
+  const prazoOriginal = (observacoes && observacoes.prazo) || "";
+
+  // Prazo calculado em formato de data para Kanban (quando preenchido em dias)
+  let prazoParaPlanilha = prazoOriginal;
+  try {
+    if (isPedido && prazoOriginal) {
+      const s = String(prazoOriginal).trim();
+      const mDias = s.match(/(\d+)\s*dias?/i);
+      if (mDias && !/\/\d{2}\/\d{4}/.test(s)) {
+        const qtdDias = parseInt(mDias[1], 10);
+        if (!isNaN(qtdDias)) {
+          const tz = ss.getSpreadsheetTimeZone ? ss.getSpreadsheetTimeZone() : Session.getScriptTimeZone();
+          const base = new Date();
+          base.setDate(base.getDate() + qtdDias);
+          prazoParaPlanilha = Utilities.formatDate(base, tz || "America/Sao_Paulo", "yyyy-MM-dd");
+        }
+      }
+    }
+  } catch (ePrazo) {
+    Logger.log("Aviso registrarOrcamento: falha ao calcular prazo em dias: " + (ePrazo && ePrazo.message ? ePrazo.message : ePrazo));
+  }
 
   // Atribui PRD apenas a produtos cadastrados (chapas/peças não são mais usados no orçamento)
   chapas = chapas || [];
@@ -2136,6 +2190,36 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     dadosParaJson.observacoes.projeto = codigoProjeto; // Garante PROJETO com versão (_v2) no JSON
     
     const agora = new Date();
+
+    // Data do último orçamento (usada no modal de Informações do Pedido)
+    try {
+      const agoraIso = agora.toISOString();
+      dadosParaJson.observacoes.dataUltimoOrcamento = agoraIso;
+      if (!dadosParaJson.infoPedido) dadosParaJson.infoPedido = {};
+      if (!dadosParaJson.infoPedido.dataUltimoOrcamento) {
+        dadosParaJson.infoPedido.dataUltimoOrcamento = agoraIso;
+      }
+    } catch (eDataUlt) {
+      Logger.log("Aviso registrarOrcamento: falha ao registrar dataUltimoOrcamento: " + (eDataUlt && eDataUlt.message ? eDataUlt.message : eDataUlt));
+    }
+
+    // Descrições consolidadas dos processos do pedido (para campo 'Descrições dos processos')
+    try {
+      let descProc = "";
+      if (dadosParaJson.processosPedido && Array.isArray(dadosParaJson.processosPedido)) {
+        descProc = dadosParaJson.processosPedido
+          .map(function (p) { return (p && p.descricao) ? String(p.descricao).trim() : ""; })
+          .filter(function (s) { return s && s.length > 0; })
+          .join(" / ");
+      }
+      if (!dadosParaJson.infoPedido) dadosParaJson.infoPedido = dadosParaJson.infoPedido || {};
+      if (descProc && !dadosParaJson.infoPedido.descricoesProcessos) {
+        dadosParaJson.infoPedido.descricoesProcessos = descProc;
+      }
+    } catch (eDescProc) {
+      Logger.log("Aviso registrarOrcamento: falha ao montar descricoesProcessos: " + (eDescProc && eDescProc.message ? eDescProc.message : eDescProc));
+    }
+
     const dadosJson = JSON.stringify({
       nome: codigoProjeto,
       dataSalvo: agora.toISOString(),
@@ -2180,7 +2264,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       "LINK DA MEMÓRIA DE CÁLCULO": urlMemoria || "",
       "STATUS_ORCAMENTO": statusOrcamento,
       "STATUS_PEDIDO": statusPedidoInicial,
-      "PRAZO": prazo,
+      "PRAZO": prazoParaPlanilha,
       "PRAZO_PROPOSTA": prazoProposta,
       "OBSERVAÇÕES": observacoesKanban,
       "JSON_DADOS": dadosJson
@@ -2246,18 +2330,19 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       }
     }
 
-    // Quando salvou como pedido: renomear pasta COT→PED e sincronizar aba Pedidos
-    if (isPedido && sheetProj && (codigoProjeto || "").length >= 6) {
-      try {
-        const codigoBase = String(codigoProjeto).replace(/_v\d+$/, "").trim();
-        const dataProj = codigoBase.substring(0, 6);
-        atualizarPrefixoPastaParaPedido(codigoBase, dataProj, cliente.nome || "", descricao);
-      } catch (ePasta) {
-        Logger.log("Aviso ao renomear pasta COT→PED em registrarOrcamento: " + (ePasta && ePasta.message));
+      // Quando salvou como pedido: renomear pasta COT→PED e sincronizar aba Pedidos
+      if (isPedido && sheetProj && (codigoProjeto || "").length >= 6) {
+        try {
+          const codigoBase = String(codigoProjeto).replace(/_v\d+$/, "").trim();
+          const dataProj = codigoBase.substring(0, 6);
+          const nomeAbrev = (dadosFormularioCompleto && dadosFormularioCompleto.cliente && dadosFormularioCompleto.cliente.nomeAbreviado) || "";
+          atualizarPrefixoPastaParaPedido(codigoBase, dataProj, cliente.nome || "", descricao, nomeAbrev);
+        } catch (ePasta) {
+          Logger.log("Aviso ao renomear pasta COT→PED em registrarOrcamento: " + (ePasta && ePasta.message));
+        }
+        const linhaPedido = linhaExistente || (targetSheet ? targetSheet.getLastRow() : 0);
+        if (linhaPedido >= 2) ensurePedidoRow(linhaPedido);
       }
-      const linhaPedido = linhaExistente || (targetSheet ? targetSheet.getLastRow() : 0);
-      if (linhaPedido >= 2) ensurePedidoRow(linhaPedido);
-    }
 
     // Insere os produtos cadastrados na "Relação de produtos" apenas quando é projeto NOVO.
     // Ao editar e gerar PDF de projeto existente, não reinsere (evita timeout: cada inserirProdutoNaRelacao lê a planilha inteira).
@@ -2271,7 +2356,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
             ncm: prod.ncm || "",
             preco: Number(prod.precoUnitario) || 0,
             unidade: prod.unidade || "UN",
-            caracteristicas: "",
+            caracteristicas: (prod.descricoesProcessos && typeof prod.descricoesProcessos === "object") ? JSON.stringify(prod.descricoesProcessos) : "",
             projeto: codigoProjeto || "",
             cliente: cliente.nome || "",
             processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : []
@@ -2313,7 +2398,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
           "LINK DA MEMÓRIA DE CÁLCULO": urlMemoria || "",
           "STATUS_ORCAMENTO": "Rascunho",
           "STATUS_PEDIDO": "",
-          "PRAZO": prazo,
+          "PRAZO": prazoParaPlanilha,
           "PRAZO_PROPOSTA": prazoPropostaFallback,
           "OBSERVAÇÕES": observacoesKanbanFallback,
           "JSON_DADOS": dadosJson
@@ -2335,7 +2420,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
               ncm: prod.ncm || "",
               preco: Number(prod.precoUnitario) || 0,
               unidade: prod.unidade || "UN",
-              caracteristicas: "",
+              caracteristicas: (prod.descricoesProcessos && typeof prod.descricoesProcessos === "object") ? JSON.stringify(prod.descricoesProcessos) : "",
               projeto: codigoProjeto || "",
               cliente: cliente.nome || ""
             });
@@ -5230,6 +5315,23 @@ function getProdutos() {
 
         obj[h] = valor;
       });
+
+      // Se a coluna "Características" contiver um JSON com descrições de processos, expõe em descricoesProcessos
+      try {
+        const carac = obj["Características"];
+        if (carac && typeof carac === "string") {
+          const trimmed = carac.trim();
+          if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && typeof parsed === "object") {
+              obj.descricoesProcessos = parsed;
+            }
+          }
+        }
+      } catch (eCarac) {
+        Logger.log("Aviso getProdutos: falha ao interpretar Características como descricoesProcessos: " + (eCarac && eCarac.message ? eCarac.message : eCarac));
+      }
+
       obj["_linhaPlanilha"] = index + 2;
       return obj;
     });
@@ -5318,8 +5420,8 @@ function atualizarStatusKanban(cliente, projeto, novoStatus) {
               let parsed = (jsonCell && typeof jsonCell === "string") ? (function () { try { return JSON.parse(jsonCell); } catch (e) { return null; } })() : null;
               if (!parsed || typeof parsed !== "object") parsed = { dados: {} };
               if (!parsed.dados) parsed.dados = {};
-              if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
-              const info = parsed.dados.infoPedido;
+                if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
+                const info = parsed.dados.infoPedido;
               if (!info.statusDates) info.statusDates = {};
 
               if (!info.dataVirouPedido && statusAntigo === "" && statusPedidoFinal && statusPedidoFinal !== "-") {

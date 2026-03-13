@@ -148,6 +148,7 @@
             color: white;
             box-shadow: 0 4px 12px rgba(14, 165, 255, 0.3);
         }
+
         .card {
             width: 100%;
             min-width: 1100px;
@@ -575,11 +576,13 @@
             box-sizing: border-box;
             text-align: left;
         }
+
         .form-group .checkbox-row input[type="checkbox"] {
             margin: 0 6px 0 0;
             vertical-align: middle;
             width: auto;
         }
+
         .form-group .checkbox-row label {
             display: inline !important;
             margin: 0 !important;
@@ -590,6 +593,7 @@
             cursor: pointer;
             vertical-align: middle;
         }
+
         .form-group .helper-text {
             font-size: 12px;
             color: var(--muted);
@@ -670,6 +674,7 @@
             position: relative;
             display: inline-block;
         }
+
         .actions-trigger {
             width: 36px;
             min-width: 36px;
@@ -686,9 +691,11 @@
             cursor: pointer;
             line-height: 1;
         }
+
         .actions-trigger:hover {
             opacity: 0.95;
         }
+
         .actions-menu {
             display: none;
             position: absolute;
@@ -698,15 +705,17 @@
             min-width: 200px;
             background: white;
             border-radius: 10px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
             border: 1px solid #e5e7eb;
             z-index: 100;
             overflow: hidden;
             padding: 6px 0;
         }
+
         .actions-menu.show {
             display: block;
         }
+
         .actions-menu button {
             display: block;
             width: 100%;
@@ -720,12 +729,15 @@
             color: #0f172a;
             white-space: nowrap;
         }
+
         .actions-menu button:hover {
             background: #f1f5f9;
         }
+
         .actions-menu button.danger {
             color: var(--danger);
         }
+
         .actions-menu button.danger:hover {
             background: #fef2f2;
         }
@@ -736,12 +748,14 @@
             max-height: 90vh;
             overflow-y: auto;
         }
+
         .info-pedido-subtitle {
             margin: 0 0 8px 0;
             font-size: 13px;
             color: var(--muted);
             font-weight: 600;
         }
+
         .info-pedido-hint {
             margin: 0 0 16px 0;
             padding: 8px 12px;
@@ -751,23 +765,28 @@
             color: #1e40af;
             border-left: 3px solid var(--accent);
         }
+
         .info-pedido-section {
             margin: 20px 0 0 0;
             padding-bottom: 16px;
             border-bottom: 2px solid #e5e7eb;
         }
+
         .info-pedido-section:first-of-type {
             margin-top: 0;
         }
+
         .info-pedido-section:last-of-type {
             border-bottom: 0;
         }
+
         .info-pedido-section-title {
             margin: 0 0 12px 0;
             font-size: 14px;
             color: #1e40af;
             font-weight: 600;
         }
+
         .info-pedido-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -815,7 +834,7 @@
                 </div>
                 <form id="novoProjetoRapidoForm" onsubmit="salvarNovoProjetoRapido(event)">
 
-                  <div style="margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
+                    <div style="margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
                         <h3 style="margin: 0 0 4px 0; font-size: 14px; color: #1e40af;">Informações do Projeto</h3>
                     </div>
 
@@ -848,9 +867,11 @@
                         </div>
                     </div>
 
-                    <br><div style="margin: 16px 0 8px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
+                    <br>
+                    <div style="margin: 16px 0 8px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
                         <h3 style="margin: 0 0 4px 0; font-size: 14px; color: #1e40af;">Informações do Cliente</h3>
-                        <small style="color: var(--muted);">Busque um cliente existente ou digite o nome para cadastrar um novo</small>
+                        <small style="color: var(--muted);">Busque um cliente existente ou digite o nome para cadastrar
+                            um novo</small>
                     </div>
                     <div class="row" style="display:flex; gap:12px; flex-wrap:wrap;">
                         <div class="form-group" style="flex:2; min-width:180px;">
@@ -860,7 +881,8 @@
                         </div>
                         <div class="form-group" style="flex:1; min-width:140px;">
                             <label>Nome Abreviado * <small style="color:#666;">(para pasta)</small></label>
-                            <input type="text" id="rapidoClienteNomeAbreviado" placeholder="Ex: SILVA MET" maxlength="20">
+                            <input type="text" id="rapidoClienteNomeAbreviado" placeholder="Ex: SILVA MET"
+                                maxlength="20">
                         </div>
                         <div class="form-group" style="flex:1; min-width:140px;">
                             <label>CPF/CNPJ</label>
@@ -890,7 +912,8 @@
 
 
 
-                    <br><div style="margin: 16px 0 8px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
+                    <br>
+                    <div style="margin: 16px 0 8px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
                         <h3 style="margin: 0 0 4px 0; font-size: 14px; color: #1e40af;">Informações da Proposta</h3>
                     </div>
                     <div class="row" style="display:flex; gap:12px; flex-wrap:wrap;">
@@ -1043,7 +1066,8 @@
                 <form id="infoPedidoForm" onsubmit="saveInfoPedido(event)">
                     <input type="hidden" id="infoPedidoLinha">
                     <p id="infoPedidoTitulo" class="info-pedido-subtitle"></p>
-                    <p class="form-hint info-pedido-hint">Alterações aqui têm prioridade e atualizam a planilha (Projetos e Pedidos).</p>
+                    <p class="form-hint info-pedido-hint">Alterações aqui têm prioridade e atualizam a planilha
+                        (Projetos e Pedidos).</p>
 
                     <div class="info-pedido-section">
                         <h3 class="info-pedido-section-title">Datas principais</h3>
@@ -1089,13 +1113,15 @@
                         </div>
                         <div class="form-group">
                             <label>Descrições dos processos</label>
-                            <textarea id="infoDescricoesProcessos" rows="3" placeholder="Detalhes por processo, se necessário"></textarea>
+                            <textarea id="infoDescricoesProcessos" rows="3"
+                                placeholder="Detalhes por processo, se necessário"></textarea>
                         </div>
                     </div>
 
                     <div class="info-pedido-section">
                         <h3 class="info-pedido-section-title">Datas por etapa (Preparação, Corte, Dobra, etc.)</h3>
-                        <p class="form-hint">Preenchidas automaticamente ao mover no Kanban; podem ser editadas aqui.</p>
+                        <p class="form-hint">Preenchidas automaticamente ao mover no Kanban; podem ser editadas aqui.
+                        </p>
                         <div class="info-pedido-grid">
                             <div class="form-group">
                                 <label>Preparação (MP / CAD / CAM)</label>
@@ -1254,11 +1280,11 @@
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
 
         // --- Cached stable DOM references (elements that persist across table re-renders) ---
-        var _elSearchInput       = document.getElementById('searchInput');
-        var _elStatusOrcFilter   = document.getElementById('statusOrcFilter');
-        var _elStatusPedFilter   = document.getElementById('statusPedFilter');
-        var _elTableContainer    = document.getElementById('tableContainer');
-        var _elNfFilterGroup     = document.getElementById('nfFilterGroup');
+        var _elSearchInput = document.getElementById('searchInput');
+        var _elStatusOrcFilter = document.getElementById('statusOrcFilter');
+        var _elStatusPedFilter = document.getElementById('statusPedFilter');
+        var _elTableContainer = document.getElementById('tableContainer');
+        var _elNfFilterGroup = document.getElementById('nfFilterGroup');
 
         // Debounce utility — delays fn execution until ms milliseconds after the last call
         function debounce(fn, ms) {
@@ -1317,27 +1343,27 @@
         function getRpf() {
             if (!_rpf) {
                 _rpf = {
-                    modal:               document.getElementById('novoProjetoRapidoModal'),
-                    cliente:             document.getElementById('rapidoCliente'),
-                    clienteNomeAbreviado:document.getElementById('rapidoClienteNomeAbreviado'),
-                    clienteCpf:          document.getElementById('rapidoClienteCpf'),
-                    clienteEndereco:     document.getElementById('rapidoClienteEndereco'),
-                    clienteTelefone:     document.getElementById('rapidoClienteTelefone'),
-                    clienteEmail:        document.getElementById('rapidoClienteEmail'),
-                    projeto:             document.getElementById('rapidoProjeto'),
-                    descricao:           document.getElementById('rapidoDescricao'),
-                    responsavel:         document.getElementById('rapidoResponsavel'),
-                    processos:           document.getElementById('rapidoProcessos'),
-                    prazoProposta:       document.getElementById('rapidoPrazoProposta'),
-                    prazoEntrega:        document.getElementById('rapidoPrazoEntrega'),
-                    vendedor:            document.getElementById('rapidoVendedor'),
-                    materialCond:        document.getElementById('rapidoMaterialCond'),
-                    pagamento:           document.getElementById('rapidoPagamento'),
-                    obsCliente:          document.getElementById('rapidoObsCliente'),
-                    obsInternas:         document.getElementById('rapidoObsInternas'),
-                    temNotaFiscal:       document.getElementById('rapidoTemNotaFiscal'),
-                    arquivos:            document.getElementById('rapidoArquivos'),
-                    btnSalvar:           document.getElementById('rapidoBtnSalvar')
+                    modal: document.getElementById('novoProjetoRapidoModal'),
+                    cliente: document.getElementById('rapidoCliente'),
+                    clienteNomeAbreviado: document.getElementById('rapidoClienteNomeAbreviado'),
+                    clienteCpf: document.getElementById('rapidoClienteCpf'),
+                    clienteEndereco: document.getElementById('rapidoClienteEndereco'),
+                    clienteTelefone: document.getElementById('rapidoClienteTelefone'),
+                    clienteEmail: document.getElementById('rapidoClienteEmail'),
+                    projeto: document.getElementById('rapidoProjeto'),
+                    descricao: document.getElementById('rapidoDescricao'),
+                    responsavel: document.getElementById('rapidoResponsavel'),
+                    processos: document.getElementById('rapidoProcessos'),
+                    prazoProposta: document.getElementById('rapidoPrazoProposta'),
+                    prazoEntrega: document.getElementById('rapidoPrazoEntrega'),
+                    vendedor: document.getElementById('rapidoVendedor'),
+                    materialCond: document.getElementById('rapidoMaterialCond'),
+                    pagamento: document.getElementById('rapidoPagamento'),
+                    obsCliente: document.getElementById('rapidoObsCliente'),
+                    obsInternas: document.getElementById('rapidoObsInternas'),
+                    temNotaFiscal: document.getElementById('rapidoTemNotaFiscal'),
+                    arquivos: document.getElementById('rapidoArquivos'),
+                    btnSalvar: document.getElementById('rapidoBtnSalvar')
                 };
             }
             return _rpf;
@@ -1375,10 +1401,10 @@
             if (!cliente) return;
             var f = getRpf();
             f.clienteNomeAbreviado.value = cliente.nomeAbreviado || '';
-            f.clienteCpf.value           = cliente.cpf || '';
-            f.clienteEndereco.value      = cliente.endereco || '';
-            f.clienteTelefone.value      = cliente.telefone || '';
-            f.clienteEmail.value         = cliente.email || '';
+            f.clienteCpf.value = cliente.cpf || '';
+            f.clienteEndereco.value = cliente.endereco || '';
+            f.clienteTelefone.value = cliente.telefone || '';
+            f.clienteEmail.value = cliente.email || '';
         }
 
         // Configura preenchimento automático do cliente no modal Novo Projeto
@@ -1563,8 +1589,8 @@
           <tr>
             <td colspan="14" style="text-align:center; padding:32px 12px; color:var(--muted);">
               ${projetos.length === 0
-                    ? 'Nenhum projeto encontrado. Certifique-se de que a migração foi executada.'
-                    : 'Nenhum projeto corresponde aos filtros digitados.'}
+                        ? 'Nenhum projeto encontrado. Certifique-se de que a migração foi executada.'
+                        : 'Nenhum projeto corresponde aos filtros digitados.'}
             </td>
           </tr>
         `;
@@ -1974,10 +2000,71 @@
             document.getElementById('editProjectModal').classList.remove('active');
         }
 
+        function formatarMoedaBr(value) {
+            if (value === null || value === undefined || value === '') return '';
+
+            // se já estiver no formato BR (1.234,56) apenas retorna
+            if (typeof value === 'string' && /^\d{1,3}(\.\d{3})*,\d{2}$/.test(value)) {
+                return value;
+            }
+
+            var num;
+
+            if (typeof value === 'number') {
+                num = value;
+            } else {
+                var s = String(value).trim();
+
+                // converte formato BR para número
+                if (s.includes(',')) {
+                    s = s.replace(/\./g, '').replace(',', '.');
+                }
+
+                num = parseFloat(s);
+            }
+
+            if (isNaN(num)) return value;
+
+            return num.toLocaleString('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Normaliza valor em formato BR para string numérica com ponto decimal (para salvar na planilha)
+        function normalizarValorMoedaParaSalvar(value) {
+            if (!value) return '';
+            var s = String(value).trim();
+            if (!s) return '';
+            s = s.replace(/[^\d,.-]/g, '');
+            s = s.replace(/\./g, '').replace(',', '.');
+            var num = parseFloat(s);
+            if (isNaN(num)) return String(value);
+            return num.toFixed(2);
+        }
+
         function openInfoPedido(linha) {
             var modal = document.getElementById('infoPedidoModal');
             var tituloEl = document.getElementById('infoPedidoTitulo');
             document.getElementById('infoPedidoLinha').value = linha;
+
+            // Limpa campos para evitar mostrar dados do último projeto aberto
+            document.getElementById('infoDataCriacao').value = '';
+            document.getElementById('infoDataUltimoOrcamento').value = '';
+            document.getElementById('infoDataVirouPedido').value = '';
+            document.getElementById('infoDataFimProducao').value = '';
+            document.getElementById('infoDataEntrega').value = '';
+            document.getElementById('infoNotaFiscal').value = '';
+            document.getElementById('infoValorPedido').value = '';
+            document.getElementById('infoCliente').value = '';
+            document.getElementById('infoProcessos').value = '';
+            document.getElementById('infoDescricoesProcessos').value = '';
+            document.getElementById('infoDataPrep').value = '';
+            document.getElementById('infoDataCorte').value = '';
+            document.getElementById('infoDataDobra').value = '';
+            document.getElementById('infoDataAdicionais').value = '';
+            document.getElementById('infoDataEnvioColeta').value = '';
+
             tituloEl.textContent = 'Carregando informações do pedido...';
             modal.classList.add('active');
 
@@ -1991,7 +2078,7 @@
                     document.getElementById('infoDataFimProducao').value = data.dataFimProducao || '';
                     document.getElementById('infoDataEntrega').value = data.dataEntrega || '';
                     document.getElementById('infoNotaFiscal').value = data.notaFiscal || '';
-                    document.getElementById('infoValorPedido').value = data.valorPedido || '';
+                    document.getElementById('infoValorPedido').value = formatarMoedaBr(data.valorPedido || '');
                     document.getElementById('infoCliente').value = data.cliente || '';
                     document.getElementById('infoProcessos').value = data.processos || '';
                     document.getElementById('infoDescricoesProcessos').value = data.descricoesProcessos || '';
@@ -2020,6 +2107,15 @@
                 alert('Linha do projeto inválida.');
                 return;
             }
+
+            var btnSalvar = event.submitter || document.querySelector('#infoPedidoForm button[type="submit"]');
+            var originalText = btnSalvar ? btnSalvar.textContent : '';
+            var originalDisabled = btnSalvar ? btnSalvar.disabled : false;
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+                btnSalvar.textContent = 'Salvando...';
+            }
+
             var info = {
                 dataCriacao: (document.getElementById('infoDataCriacao').value || '').trim(),
                 dataUltimoOrcamento: (document.getElementById('infoDataUltimoOrcamento').value || '').trim(),
@@ -2027,7 +2123,7 @@
                 dataFimProducao: (document.getElementById('infoDataFimProducao').value || '').trim(),
                 dataEntrega: (document.getElementById('infoDataEntrega').value || '').trim(),
                 notaFiscal: (document.getElementById('infoNotaFiscal').value || '').trim(),
-                valorPedido: (document.getElementById('infoValorPedido').value || '').trim(),
+                valorPedido: normalizarValorMoedaParaSalvar((document.getElementById('infoValorPedido').value || '').trim()),
                 cliente: (document.getElementById('infoCliente').value || '').trim(),
                 processos: (document.getElementById('infoProcessos').value || '').trim(),
                 descricoesProcessos: (document.getElementById('infoDescricoesProcessos').value || '').trim(),
@@ -2041,11 +2137,19 @@
             };
             google.script.run
                 .withSuccessHandler(function () {
+                    if (btnSalvar) {
+                        btnSalvar.disabled = originalDisabled;
+                        btnSalvar.textContent = originalText;
+                    }
                     closeInfoPedidoModal();
                     loadProjetos();
                     alert('Informações do pedido salvas com sucesso.');
                 })
                 .withFailureHandler(function (err) {
+                    if (btnSalvar) {
+                        btnSalvar.disabled = originalDisabled;
+                        btnSalvar.textContent = originalText;
+                    }
                     alert('Erro ao salvar informações do pedido: ' + (err.message || err));
                 })
                 .salvarInfoPedido(linha, info);
