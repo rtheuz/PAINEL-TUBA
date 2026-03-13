@@ -144,7 +144,7 @@
         .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
         .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
         .loading { text-align: center; padding: 40px; color: var(--muted); }
-        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+        .spinner { border: 3px solid #f3f4f6; border-top: 3px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; will-change: transform; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
@@ -325,6 +325,45 @@
         var sortKey = '';
         var sortDir = 1; // 1 asc, -1 desc
         var editHistoricoPagamentos = []; // lista de { data, valor, parcela } no modal de edição
+
+        // Utility: debounce function to limit rapid-fire handler calls
+        function debounce(fn, delay) {
+            var t; return function() { clearTimeout(t); t = setTimeout(fn, delay); };
+        }
+
+        // Cached DOM references (populated on DOMContentLoaded / at script init)
+        var _el = {};
+        function _initElCache() {
+            _el.tableContainer   = document.getElementById('tableContainer');
+            _el.searchInput      = document.getElementById('searchInput');
+            _el.mesFilter        = document.getElementById('mesFilter');
+            _el.statusFilter     = document.getElementById('statusPagFilterGroup');
+            _el.editModal        = document.getElementById('editPedidoModal');
+            _el.editLinha        = document.getElementById('editLinha');
+            _el.editCliente      = document.getElementById('editCliente');
+            _el.editProjeto      = document.getElementById('editProjeto');
+            _el.editNumSeq       = document.getElementById('editNumeroSequencial');
+            _el.editNF           = document.getElementById('editNotaFiscal');
+            _el.editDataComp     = document.getElementById('editDataCompetencia');
+            _el.editCond         = document.getElementById('editCondicoesPagamento');
+            _el.editDataEntrega  = document.getElementById('editDataEntrega');
+            _el.editDataVenc     = document.getElementById('editDataVencimento');
+            _el.editStatusPag    = document.getElementById('editStatusPagamento');
+            _el.editValorTotal   = document.getElementById('editValorTotal');
+            _el.editValorPago    = document.getElementById('editValorPago');
+            _el.editValorRestante = document.getElementById('editValorRestante');
+            _el.editHistList     = document.getElementById('editHistoricoPagamentosList');
+            _el.editPagData      = document.getElementById('editPagamentoData');
+            _el.editPagValor     = document.getElementById('editPagamentoValor');
+            _el.editObs          = document.getElementById('editObs');
+        }
+        // Init cache as soon as the DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', _initElCache);
+        } else {
+            _initElCache();
+        }
+
 
         function voltarPagina() {
             if (!token) { alert("Token não encontrado. Recarregue a página."); return; }
@@ -1053,7 +1092,7 @@
         var statusFilterGroup = document.getElementById('statusPagFilterGroup');
         if (statusFilterGroup) statusFilterGroup.addEventListener('change', renderTable);
         var elSearch = document.getElementById('searchInput');
-        if (elSearch) elSearch.addEventListener('input', renderTable);
+        if (elSearch) elSearch.addEventListener('input', debounce(renderTable, 200));
         var elMes = document.getElementById('mesFilter');
         if (elMes) elMes.addEventListener('change', renderTable);
 

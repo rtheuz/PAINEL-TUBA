@@ -96,7 +96,8 @@
       border-radius: 50%;
       margin-left: 8px;
       vertical-align: middle;
-      animation: pulse 2.5s infinite
+      animation: pulse 2.5s infinite;
+      will-change: transform, opacity;
     }
 
     @keyframes pulse {
@@ -289,7 +290,8 @@
 
     /* efeito ao pairar */
     .card:hover {
-      transform: translateY(-3px)
+      transform: translateY(-3px);
+      will-change: transform;
     }
 
     /* estilo do card enquanto arrastado (mantive) */
@@ -302,6 +304,7 @@
       width: clamp(200px, 28vw, 360px);
       max-width: calc(100% - 36px);
       box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+      will-change: transform, opacity;
     }
 
     /* placeholder */
@@ -664,6 +667,15 @@
     let executionTimers = {}; // Armazena intervalos dos timers
     let hasActiveTimers = false; // Flag para saber se há timers ativos
 
+    // Cached DOM references — populated once at load time
+    const DOM = {};
+    function initDOMCache() {
+      DOM.kanban          = document.getElementById('kanban');
+      DOM.tvClock         = document.getElementById('tv-clock');
+      DOM.lastUpdate      = document.getElementById('last-update');
+      DOM.processCountMenu = document.getElementById('process-count-menu');
+    }
+
 
     /* ====== Funções de Iniciar/Finalizar ====== */
     function handleStartFinish(event, cardElement, columnName) {
@@ -829,9 +841,9 @@
     ];
 
     function updateProcessCountMenu(data) {
-      const menu = document.getElementById('process-count-menu');
+      const menu = DOM.processCountMenu || document.getElementById('process-count-menu');
       if (!menu) return;
-      menu.innerHTML = '';
+      const frag = document.createDocumentFragment();
       COLUNAS_KANBAN.forEach(col => {
         const items = data[col.key] || [];
         const count = Array.isArray(items) ? items.length : 0;
@@ -839,7 +851,7 @@
         item.className = 'process-count-item';
         item.setAttribute('role', 'status');
         item.innerHTML = `<span>${col.label}</span><span class="count">${count}</span>`;
-        menu.appendChild(item);
+        frag.appendChild(item);
       });
       // Fazer NF: mesmo critério "NF ?" de projetos.html — convertidos em pedido, exige NF e ainda não preenchido (vazio ou "SN")
       let countFazerNF = 0;
@@ -859,7 +871,9 @@
       nfItem.className = 'process-count-item';
       nfItem.setAttribute('role', 'status');
       nfItem.innerHTML = `<span>Fazer NF</span><span class="count">${countFazerNF}</span>`;
-      menu.appendChild(nfItem);
+      frag.appendChild(nfItem);
+      menu.innerHTML = '';
+      menu.appendChild(frag);
     }
 
     /* ====== Utils ====== */
@@ -1115,7 +1129,7 @@
         cardsComTimerAtivo.add(key); // key é "cliente|projeto"
       });
 
-      const container = document.getElementById('kanban');
+      const container = DOM.kanban || document.getElementById('kanban');
       
       // Se há timers ativos, fazemos update incremental em vez de limpar tudo
       const updateIncremental = hasActiveTimers && container.children.length > 0;
@@ -1193,11 +1207,12 @@
             }
           });
         } else {
-          list.innerHTML = '';
+          const frag = document.createDocumentFragment();
           (items || []).forEach(card => {
-            const cardEl = createCardElement(card, col);
-            list.appendChild(cardEl);
+            frag.appendChild(createCardElement(card, col));
           });
+          list.innerHTML = '';
+          list.appendChild(frag);
         }
         
         if (!updateIncremental) {
@@ -1214,7 +1229,7 @@
     /* ====== Load data + merge orders (Apps Script integration if available) ====== */
     function loadKanban() {
       lastLoad = new Date();
-      document.getElementById('last-update').textContent = formatDateTime(lastLoad);
+      DOM.lastUpdate.textContent = formatDateTime(lastLoad);
 
       if (window.google && google.script && google.script.run) {
         if (typeof google.script.run.getKanbanDataWithOrders === 'function') {
@@ -1243,20 +1258,22 @@
     }
 
     /* ====== Clock, Heartbeat, WakeLock (sem logs) ====== */
-    function startClock() { setInterval(() => { document.getElementById('tv-clock').textContent = new Date().toLocaleTimeString(); }, 1000); }
+    function startClock() { setInterval(() => { DOM.tvClock.textContent = new Date().toLocaleTimeString(); }, 1000); }
 
 
     /* ====== Drag & Drop improvements (robust, no logs) ====== */
     const DRAG_THRESHOLD = 8;
     const LONGPRESS_TIMEOUT = 500;
 
+    let _dragDelegateAttached = false;
+
     function attachPointerHandlers() {
-      document.querySelectorAll('.card').forEach(card => {
-        card.onpointerdown = null;
-        card.removeEventListener('pointerdown', onPointerDownStarter);
-        card.addEventListener('pointerdown', onPointerDownStarter);
-      });
+      if (_dragDelegateAttached) return;
+      const board = DOM.kanban || document.getElementById('kanban');
+      if (!board) return;
+      board.addEventListener('pointerdown', onPointerDownStarter);
       document.addEventListener('dragstart', e => e.preventDefault());
+      _dragDelegateAttached = true;
     }
 
     function onPointerDownStarter(ev) {
@@ -1268,7 +1285,9 @@
         return; // Permite que o botão processe o clique normalmente
       }
       
-      const card = ev.currentTarget;
+      // Support both direct attachment and event delegation
+      const card = target.closest('.card');
+      if (!card) return;
       if (pendingDrag && pendingDrag.startElement) cleanupPendingDrag();
       const rect = card.getBoundingClientRect();
       const startX = ev.clientX; const startY = ev.clientY;
@@ -1450,6 +1469,7 @@
     /* ====== Safe initialization (run after load) ====== */
     window.addEventListener('load', () => {
       try {
+        initDOMCache();
         startClock();
         loadKanban();
         

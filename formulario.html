@@ -598,13 +598,15 @@
                 <div class="row">
                     <div class="col">
                         <label>Prazo da Proposta:</label>
-                        <input type="date" id="obsPrazoProposta"
-                            title="Exibido na coluna Processo de orçamento do Kanban">
+                        <input type="text" id="obsPrazoProposta"
+                            title="Exibido na coluna Processo de orçamento do Kanban"
+                            placeholder="Data ou texto (ex: 15 dias)">
                         <small class="note">Usado no Kanban (coluna Processo de orçamento)</small>
                     </div>
                     <div class="col">
                         <label>Prazo de entrega:</label>
-                        <input type="date" id="obsPrazo">
+                        <input type="text" id="obsPrazo"
+                            placeholder="Data ou texto (ex: 9 dias a partir do pedido)">
                     </div>
                 </div>
                 <div class="row">
@@ -728,13 +730,13 @@
                 </div>
                 <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
                     <button type="button" onclick="limparFormularioCompleto()"
-                        style="background:#831414; color:white;">🗑️ Limpar Formulário</button>
-                    <button type="button" onclick="salvarOrcamento()" style="background:#354b75; color:white;">💾
-                        Salvar</button>
+                        style="background:#af1f1f; color:white;">🗑️ Limpar Formulário</button>
                     <button type="button" id="btnPreviewPdf" onclick="calcular(false, true)"
-                        style="background:#354b75; color:white;">👁 Ver Prévia do PDF</button>
+                        style="background:#4e818a; color:white;">👁 Ver Prévia do PDF</button>
+                        <button type="button" onclick="salvarOrcamento()" style="background:#59963d; color:white;">💾
+                        Salvar</button>
                     <button type="button" id="btnGerar" onclick="calcular()" style="background:#59963d; color:white;">📄
-                        Finalizar e Gerar Proposta</button>
+                        Gerar PDF</button>
                 </div>
 
                 <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked hidden aria-hidden="true">

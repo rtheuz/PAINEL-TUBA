@@ -123,6 +123,7 @@
             font-size: 14px;
             transition: all 0.2s ease;
             white-space: nowrap;
+            will-change: transform;
         }
 
         .btn:active {
@@ -439,6 +440,7 @@
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 0 auto 16px;
+            will-change: transform;
         }
 
         @keyframes spin {
@@ -727,6 +729,50 @@
         .actions-menu button.danger:hover {
             background: #fef2f2;
         }
+
+        /* Modal Informações do Pedido */
+        .info-pedido-modal-content {
+            max-width: 720px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .info-pedido-subtitle {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: var(--muted);
+            font-weight: 600;
+        }
+        .info-pedido-hint {
+            margin: 0 0 16px 0;
+            padding: 8px 12px;
+            background: #eff6ff;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #1e40af;
+            border-left: 3px solid var(--accent);
+        }
+        .info-pedido-section {
+            margin: 20px 0 0 0;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .info-pedido-section:first-of-type {
+            margin-top: 0;
+        }
+        .info-pedido-section:last-of-type {
+            border-bottom: 0;
+        }
+        .info-pedido-section-title {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: #1e40af;
+            font-weight: 600;
+        }
+        .info-pedido-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px 20px;
+        }
     </style>
 </head>
 
@@ -987,6 +1033,101 @@
             </div>
         </div>
 
+        <!-- Modal Informações do Pedido (fonte primária: alterações aqui atualizam Projetos e Pedidos) -->
+        <div id="infoPedidoModal" class="modal">
+            <div class="modal-content info-pedido-modal-content">
+                <div class="modal-header">
+                    <h2>Informações do Pedido</h2>
+                    <button class="modal-close" onclick="closeInfoPedidoModal()">×</button>
+                </div>
+                <form id="infoPedidoForm" onsubmit="saveInfoPedido(event)">
+                    <input type="hidden" id="infoPedidoLinha">
+                    <p id="infoPedidoTitulo" class="info-pedido-subtitle"></p>
+                    <p class="form-hint info-pedido-hint">Alterações aqui têm prioridade e atualizam a planilha (Projetos e Pedidos).</p>
+
+                    <div class="info-pedido-section">
+                        <h3 class="info-pedido-section-title">Datas principais</h3>
+                        <div class="form-group">
+                            <label>Data de criação do projeto</label>
+                            <input type="text" id="infoDataCriacao" placeholder="dd/mm/aaaa" />
+                        </div>
+                        <div class="form-group">
+                            <label>Data do último orçamento gerado</label>
+                            <input type="text" id="infoDataUltimoOrcamento" placeholder="dd/mm/aaaa" />
+                        </div>
+                        <div class="form-group">
+                            <label>Data em que virou pedido</label>
+                            <input type="text" id="infoDataVirouPedido" placeholder="dd/mm/aaaa" />
+                        </div>
+                        <div class="form-group">
+                            <label>Data fim da produção (Envio / Coleta)</label>
+                            <input type="text" id="infoDataFimProducao" placeholder="dd/mm/aaaa" />
+                        </div>
+                        <div class="form-group">
+                            <label>Data de entrega (status Finalizado)</label>
+                            <input type="text" id="infoDataEntrega" placeholder="dd/mm/aaaa" />
+                        </div>
+                    </div>
+
+                    <div class="info-pedido-section">
+                        <h3 class="info-pedido-section-title">Dados do pedido</h3>
+                        <div class="form-group">
+                            <label>Nota fiscal (NF)</label>
+                            <input type="text" id="infoNotaFiscal" placeholder="Ex: 12345" />
+                        </div>
+                        <div class="form-group">
+                            <label>Valor do pedido (R$)</label>
+                            <input type="text" id="infoValorPedido" placeholder="Ex: 1.500,00" />
+                        </div>
+                        <div class="form-group">
+                            <label>Cliente</label>
+                            <input type="text" id="infoCliente" placeholder="Nome do cliente" />
+                        </div>
+                        <div class="form-group">
+                            <label>Processos</label>
+                            <input type="text" id="infoProcessos" placeholder="Ex: Corte / Dobra / Adicionais" />
+                        </div>
+                        <div class="form-group">
+                            <label>Descrições dos processos</label>
+                            <textarea id="infoDescricoesProcessos" rows="3" placeholder="Detalhes por processo, se necessário"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="info-pedido-section">
+                        <h3 class="info-pedido-section-title">Datas por etapa (Preparação, Corte, Dobra, etc.)</h3>
+                        <p class="form-hint">Preenchidas automaticamente ao mover no Kanban; podem ser editadas aqui.</p>
+                        <div class="info-pedido-grid">
+                            <div class="form-group">
+                                <label>Preparação (MP / CAD / CAM)</label>
+                                <input type="text" id="infoDataPrep" placeholder="dd/mm/aaaa" />
+                            </div>
+                            <div class="form-group">
+                                <label>Corte</label>
+                                <input type="text" id="infoDataCorte" placeholder="dd/mm/aaaa" />
+                            </div>
+                            <div class="form-group">
+                                <label>Dobra</label>
+                                <input type="text" id="infoDataDobra" placeholder="dd/mm/aaaa" />
+                            </div>
+                            <div class="form-group">
+                                <label>Adicionais</label>
+                                <input type="text" id="infoDataAdicionais" placeholder="dd/mm/aaaa" />
+                            </div>
+                            <div class="form-group">
+                                <label>Envio / Coleta</label>
+                                <input type="text" id="infoDataEnvioColeta" placeholder="dd/mm/aaaa" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-cancel" onclick="closeInfoPedidoModal()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar informações</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- Modal Ordem de Compra -->
         <div id="ordemCompraModal" class="modal">
             <div class="modal-content" style="max-width: 800px;">
@@ -1093,20 +1234,6 @@
                             </label>
                         </div>
                     </div>
-                    <!-- RF004: Filtro de Data de Entrega -->
-                    <div class="filter-group filter-status-multi">
-                        <label>Entrega</label>
-                        <div class="filter-checkboxes" id="entregaFilterGroup">
-                            <label class="filter-check-label">
-                                <input type="checkbox" class="filter-entrega-cb" value="com">
-                                Entrega preenchida
-                            </label>
-                            <label class="filter-check-label">
-                                <input type="checkbox" class="filter-entrega-cb" value="sem">
-                                Entrega a preencher
-                            </label>
-                        </div>
-                    </div>
                 </div>
 
                 <div id="tableContainer">
@@ -1125,6 +1252,19 @@
         var lastNFInformada = null; // para repassar valor NF após salvar e recarregar
         var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+
+        // --- Cached stable DOM references (elements that persist across table re-renders) ---
+        var _elSearchInput       = document.getElementById('searchInput');
+        var _elStatusOrcFilter   = document.getElementById('statusOrcFilter');
+        var _elStatusPedFilter   = document.getElementById('statusPedFilter');
+        var _elTableContainer    = document.getElementById('tableContainer');
+        var _elNfFilterGroup     = document.getElementById('nfFilterGroup');
+
+        // Debounce utility — delays fn execution until ms milliseconds after the last call
+        function debounce(fn, ms) {
+            var t;
+            return function () { clearTimeout(t); t = setTimeout(fn, ms); };
+        }
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
         function voltarPagina() {
             if (!token) {
@@ -1172,6 +1312,37 @@
         // Lista completa de clientes (para preencher CPF, endereço, email ao selecionar)
         var listaClientes = [];
 
+        // Lazy cache for the Novo Projeto Rápido modal form fields
+        var _rpf = null;
+        function getRpf() {
+            if (!_rpf) {
+                _rpf = {
+                    modal:               document.getElementById('novoProjetoRapidoModal'),
+                    cliente:             document.getElementById('rapidoCliente'),
+                    clienteNomeAbreviado:document.getElementById('rapidoClienteNomeAbreviado'),
+                    clienteCpf:          document.getElementById('rapidoClienteCpf'),
+                    clienteEndereco:     document.getElementById('rapidoClienteEndereco'),
+                    clienteTelefone:     document.getElementById('rapidoClienteTelefone'),
+                    clienteEmail:        document.getElementById('rapidoClienteEmail'),
+                    projeto:             document.getElementById('rapidoProjeto'),
+                    descricao:           document.getElementById('rapidoDescricao'),
+                    responsavel:         document.getElementById('rapidoResponsavel'),
+                    processos:           document.getElementById('rapidoProcessos'),
+                    prazoProposta:       document.getElementById('rapidoPrazoProposta'),
+                    prazoEntrega:        document.getElementById('rapidoPrazoEntrega'),
+                    vendedor:            document.getElementById('rapidoVendedor'),
+                    materialCond:        document.getElementById('rapidoMaterialCond'),
+                    pagamento:           document.getElementById('rapidoPagamento'),
+                    obsCliente:          document.getElementById('rapidoObsCliente'),
+                    obsInternas:         document.getElementById('rapidoObsInternas'),
+                    temNotaFiscal:       document.getElementById('rapidoTemNotaFiscal'),
+                    arquivos:            document.getElementById('rapidoArquivos'),
+                    btnSalvar:           document.getElementById('rapidoBtnSalvar')
+                };
+            }
+            return _rpf;
+        }
+
         // Carrega a lista de clientes
         function loadClientes() {
             try {
@@ -1202,16 +1373,17 @@
         // Preenche CPF, endereço, telefone, email no modal rápido quando seleciona um cliente existente
         function preencherDadosClienteRapido(cliente) {
             if (!cliente) return;
-            document.getElementById('rapidoClienteNomeAbreviado').value = cliente.nomeAbreviado || '';
-            document.getElementById('rapidoClienteCpf').value = cliente.cpf || '';
-            document.getElementById('rapidoClienteEndereco').value = cliente.endereco || '';
-            document.getElementById('rapidoClienteTelefone').value = cliente.telefone || '';
-            document.getElementById('rapidoClienteEmail').value = cliente.email || '';
+            var f = getRpf();
+            f.clienteNomeAbreviado.value = cliente.nomeAbreviado || '';
+            f.clienteCpf.value           = cliente.cpf || '';
+            f.clienteEndereco.value      = cliente.endereco || '';
+            f.clienteTelefone.value      = cliente.telefone || '';
+            f.clienteEmail.value         = cliente.email || '';
         }
 
         // Configura preenchimento automático do cliente no modal Novo Projeto
         function setupRapidoClienteAutocomplete() {
-            var inp = document.getElementById('rapidoCliente');
+            var inp = getRpf().cliente;
             if (!inp) return;
             inp.addEventListener('input', function () {
                 var val = (this.value || '').trim();
@@ -1266,7 +1438,7 @@
                     })
                     .withFailureHandler(function (error) {
                         console.error('getProjetos failure:', error);
-                        document.getElementById('tableContainer').innerHTML = `
+                        _elTableContainer.innerHTML = `
               <div class="empty-state">
                 <div class="empty-state-icon">⚠️</div>
                 <div>Erro ao carregar projetos: ${error.message || error}</div>
@@ -1285,11 +1457,10 @@
         // Renderiza a tabela
         function renderTable() {
             console.log('renderTable: projetos.length=', projetos.length);
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusOrc = document.getElementById('statusOrcFilter').value;
-            const statusPed = document.getElementById('statusPedFilter').value;
+            const searchTerm = _elSearchInput.value.toLowerCase();
+            const statusOrc = _elStatusOrcFilter.value;
+            const statusPed = _elStatusPedFilter.value;
             const nfFilterSelected = (typeof getNfFilterSelected === 'function') ? getNfFilterSelected() : [];
-            const entregaFilterSelected = Array.from(document.querySelectorAll('.filter-entrega-cb:checked')).map(cb => cb.value);
             var fc = window.columnFilters['filterColCliente']; var filtroCliente = (fc != null ? fc : (document.getElementById('filterColCliente') && document.getElementById('filterColCliente').value) || '').toString().toLowerCase();
             var fp = window.columnFilters['filterColProjeto']; var filtroProjeto = (fp != null ? fp : (document.getElementById('filterColProjeto') && document.getElementById('filterColProjeto').value) || '').toString().toLowerCase();
             var fd = window.columnFilters['filterColDescricao']; var filtroDescricao = (fd != null ? fd : (document.getElementById('filterColDescricao') && document.getElementById('filterColDescricao').value) || '').toString().toLowerCase();
@@ -1338,23 +1509,9 @@
                     }
                 }
 
-                // RF004: Filtro de Data de Entrega
-                const dataEntregaFilter = (p.dataEntrega != null && String(p.dataEntrega).trim() !== '') ? String(p.dataEntrega).trim() : '';
-                const isConvertidoFilter = p.STATUS_ORCAMENTO === 'Convertido em Pedido';
-                let matchEntrega = true;
-                if (entregaFilterSelected.length > 0) {
-                    if (!isConvertidoFilter) {
-                        matchEntrega = false;
-                    } else {
-                        matchEntrega =
-                            (dataEntregaFilter && entregaFilterSelected.indexOf('com') >= 0) ||
-                            (!dataEntregaFilter && entregaFilterSelected.indexOf('sem') >= 0);
-                    }
-                }
-
                 return matchSearch && matchStatusOrc && matchStatusPed &&
                     matchColCliente && matchColProjeto && matchColDescricao && matchColValor && matchColProcessos &&
-                    matchColPrazoProposta && matchColPrazoEntrega && matchColObs && matchNF && matchEntrega;
+                    matchColPrazoProposta && matchColPrazoEntrega && matchColObs && matchNF;
             });
 
             console.log('renderTable: filtered.length=', filtered.length);
@@ -1425,13 +1582,7 @@
                 const nfBtnTitle = !exigeNF ? '' : (nfPreenchida ? ('NF preenchida (' + nfValor + ')') : 'Informar NF (pendente)');
                 const nfBtnTexto = !exigeNF ? 'NF' : (nfPreenchida ? 'NF ✔' : 'NF ?');
 
-                // RF004: Botão de Data de Entrega (apenas para pedidos)
                 const isConvertido = projeto.STATUS_ORCAMENTO === 'Convertido em Pedido';
-                const dataEntregaVal = (projeto.dataEntrega != null && String(projeto.dataEntrega).trim() !== '') ? String(projeto.dataEntrega).trim() : '';
-                const entregaBtnCor = dataEntregaVal ? '#16a34a' : '#f59e0b';
-                const entregaBtnTitle = dataEntregaVal ? ('Entrega: ' + dataEntregaVal) : 'Informar data de entrega';
-                const entregaBtnTexto = dataEntregaVal ? '📦✔' : '📦?';
-                const entregaBtnHtml = isConvertido ? `<button type="button" class="btn btn-small" style="background:${entregaBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="informarDataEntrega(${linha})" title="${entregaBtnTitle}">${entregaBtnTexto}</button>` : '';
 
                 html += `
           <tr data-linha="${linha}">
@@ -1473,7 +1624,6 @@
             </td>
             <td class="actions-cell">
               <button type="button" class="btn btn-small" style="background:${nfBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="abrirInformarNFSeExige(${linha})" title="${nfBtnTitle || ''}">${nfBtnTexto}</button>
-              ${entregaBtnHtml}
               <div class="actions-dropdown">
                 <button type="button" class="btn btn-small actions-trigger" onclick="toggleActionsMenu(event, ${linha})" title="Ações">⋮</button>
                 <div class="actions-menu" id="actionsMenu-${linha}">
@@ -1481,6 +1631,7 @@
                   <button type="button" onclick="fecharActionsMenu(); abrirFormularioComProjeto(${linha})">📝 Editar Orçamento</button>
                   <button type="button" onclick="fecharActionsMenu(); gerarOrdemProducao(${linha})">📋 Ordem de Produção</button>
                   <button type="button" onclick="fecharActionsMenu(); openOrdemCompra(${linha})">🛒 Ordem de Compra</button>
+                  ${isConvertido ? `<button type="button" onclick="fecharActionsMenu(); openInfoPedido(${linha})">ℹ️ Informações do pedido</button>` : ''}
                   <button type="button" class="danger" onclick="fecharActionsMenu(); deleteProjeto(${linha})">🗑️ Excluir</button>
                 </div>
               </div>
@@ -1495,7 +1646,7 @@
         </div>
       `;
 
-            document.getElementById('tableContainer').innerHTML = html;
+            _elTableContainer.innerHTML = html;
         }
 
         // Atualizar status
@@ -1589,6 +1740,7 @@
                         document.getElementById('ordemCompraEmpty').style.display = 'block';
                         document.querySelector('#ordemCompraModal .table-wrapper').style.display = 'none';
                     } else {
+                        var ocFrag = document.createDocumentFragment();
                         ordemCompraItens.forEach(function (item, idx) {
                             var tr = document.createElement('tr');
                             tr.innerHTML =
@@ -1598,8 +1750,9 @@
                                 '<td style="text-align:center"><input type="number" class="oc-qtd" data-idx="' + idx + '" value="' + (item.quantidade != null ? item.quantidade : '') + '" min="0" step="1" style="width:70px; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px; text-align:center;"></td>' +
                                 '<td><input type="text" class="oc-valor" data-idx="' + idx + '" placeholder="0,00" inputmode="decimal" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px;"></td>' +
                                 '<td><label><input type="radio" name="oc-tipo-' + idx + '" value="unit" checked> Unit.</label> <label><input type="radio" name="oc-tipo-' + idx + '" value="total"> Total</label></td>';
-                            document.getElementById('ordemCompraLista').appendChild(tr);
+                            ocFrag.appendChild(tr);
                         });
+                        document.getElementById('ordemCompraLista').appendChild(ocFrag);
                     }
                     document.getElementById('ordemCompraBtnGerar').disabled = false;
                 })
@@ -1753,29 +1906,6 @@
                 .informarValorNFProjeto(linha, valorTrim);
         }
 
-        // RF004: Informar data de entrega de um pedido
-        function informarDataEntrega(linha) {
-            const projeto = projetos.find(p => p._linhaPlanilha == linha);
-            const valorAtual = (projeto && projeto.dataEntrega) ? String(projeto.dataEntrega) : '';
-            const valor = prompt('Informe a data de entrega (ex: 26/04/2026 ou 2026-04-26):', valorAtual);
-            if (valor === null) return;
-            const valorTrim = (valor || '').trim();
-            if (!valorTrim) {
-                alert('Informe a data de entrega.');
-                return;
-            }
-            google.script.run
-                .withSuccessHandler(function () {
-                    if (projeto) projeto.dataEntrega = valorTrim;
-                    alert('Data de entrega registrada com sucesso.');
-                    loadProjetos();
-                })
-                .withFailureHandler(function (error) {
-                    alert('Erro ao informar data de entrega: ' + (error.message || error));
-                })
-                .informarDataEntregaProjeto(linha, valorTrim);
-        }
-
         // Editar projeto (abre modal de edição)
         function editProjeto(linha) {
             // Busca o projeto correspondente
@@ -1842,6 +1972,83 @@
 
         function closeEditProjectModal() {
             document.getElementById('editProjectModal').classList.remove('active');
+        }
+
+        function openInfoPedido(linha) {
+            var modal = document.getElementById('infoPedidoModal');
+            var tituloEl = document.getElementById('infoPedidoTitulo');
+            document.getElementById('infoPedidoLinha').value = linha;
+            tituloEl.textContent = 'Carregando informações do pedido...';
+            modal.classList.add('active');
+
+            google.script.run
+                .withSuccessHandler(function (data) {
+                    if (!data) data = {};
+                    tituloEl.textContent = (data.projeto || '') + ' — ' + (data.cliente || '');
+                    document.getElementById('infoDataCriacao').value = data.dataCriacao || '';
+                    document.getElementById('infoDataUltimoOrcamento').value = data.dataUltimoOrcamento || '';
+                    document.getElementById('infoDataVirouPedido').value = data.dataVirouPedido || '';
+                    document.getElementById('infoDataFimProducao').value = data.dataFimProducao || '';
+                    document.getElementById('infoDataEntrega').value = data.dataEntrega || '';
+                    document.getElementById('infoNotaFiscal').value = data.notaFiscal || '';
+                    document.getElementById('infoValorPedido').value = data.valorPedido || '';
+                    document.getElementById('infoCliente').value = data.cliente || '';
+                    document.getElementById('infoProcessos').value = data.processos || '';
+                    document.getElementById('infoDescricoesProcessos').value = data.descricoesProcessos || '';
+                    var sd = data.statusDates || {};
+                    document.getElementById('infoDataPrep').value = sd.preparacao || '';
+                    document.getElementById('infoDataCorte').value = sd.corte || '';
+                    document.getElementById('infoDataDobra').value = sd.dobra || '';
+                    document.getElementById('infoDataAdicionais').value = sd.adicionais || '';
+                    document.getElementById('infoDataEnvioColeta').value = sd.envioColeta || '';
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao carregar informações do pedido: ' + (err.message || err));
+                    closeInfoPedidoModal();
+                })
+                .getInfoPedido(linha);
+        }
+
+        function closeInfoPedidoModal() {
+            document.getElementById('infoPedidoModal').classList.remove('active');
+        }
+
+        function saveInfoPedido(event) {
+            event.preventDefault();
+            var linha = parseInt(document.getElementById('infoPedidoLinha').value, 10);
+            if (!linha || linha < 2) {
+                alert('Linha do projeto inválida.');
+                return;
+            }
+            var info = {
+                dataCriacao: (document.getElementById('infoDataCriacao').value || '').trim(),
+                dataUltimoOrcamento: (document.getElementById('infoDataUltimoOrcamento').value || '').trim(),
+                dataVirouPedido: (document.getElementById('infoDataVirouPedido').value || '').trim(),
+                dataFimProducao: (document.getElementById('infoDataFimProducao').value || '').trim(),
+                dataEntrega: (document.getElementById('infoDataEntrega').value || '').trim(),
+                notaFiscal: (document.getElementById('infoNotaFiscal').value || '').trim(),
+                valorPedido: (document.getElementById('infoValorPedido').value || '').trim(),
+                cliente: (document.getElementById('infoCliente').value || '').trim(),
+                processos: (document.getElementById('infoProcessos').value || '').trim(),
+                descricoesProcessos: (document.getElementById('infoDescricoesProcessos').value || '').trim(),
+                statusDates: {
+                    preparacao: (document.getElementById('infoDataPrep').value || '').trim(),
+                    corte: (document.getElementById('infoDataCorte').value || '').trim(),
+                    dobra: (document.getElementById('infoDataDobra').value || '').trim(),
+                    adicionais: (document.getElementById('infoDataAdicionais').value || '').trim(),
+                    envioColeta: (document.getElementById('infoDataEnvioColeta').value || '').trim()
+                }
+            };
+            google.script.run
+                .withSuccessHandler(function () {
+                    closeInfoPedidoModal();
+                    loadProjetos();
+                    alert('Informações do pedido salvas com sucesso.');
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao salvar informações do pedido: ' + (err.message || err));
+                })
+                .salvarInfoPedido(linha, info);
         }
 
         function toggleEditStatusPedido() {
@@ -2062,17 +2269,13 @@
         }
 
         // Event listeners para filtros
-        document.getElementById('searchInput').addEventListener('input', renderTable);
-        document.getElementById('statusOrcFilter').addEventListener('change', renderTable);
-        document.getElementById('statusPedFilter').addEventListener('change', renderTable);
-        var nfFilterGroup = document.getElementById('nfFilterGroup');
-        if (nfFilterGroup) nfFilterGroup.addEventListener('change', renderTable);
-        // RF004: Event listener para filtro de entrega
-        var entregaFilterGroup = document.getElementById('entregaFilterGroup');
-        if (entregaFilterGroup) entregaFilterGroup.addEventListener('change', renderTable);
+        _elSearchInput.addEventListener('input', debounce(renderTable, 200));
+        _elStatusOrcFilter.addEventListener('change', renderTable);
+        _elStatusPedFilter.addEventListener('change', renderTable);
+        if (_elNfFilterGroup) _elNfFilterGroup.addEventListener('change', renderTable);
 
         // Filtros por coluna: delegar input/change no container para não perder referência ao re-render
-        document.getElementById('tableContainer').addEventListener('input', function (e) {
+        _elTableContainer.addEventListener('input', function (e) {
             if (e.target.id && e.target.id.startsWith('filterCol')) {
                 var id = e.target.id;
                 window.columnFilters[id] = e.target.value;
@@ -2087,7 +2290,7 @@
                 }
             }
         });
-        document.getElementById('tableContainer').addEventListener('change', function (e) {
+        _elTableContainer.addEventListener('change', function (e) {
             if (e.target.id && e.target.id.startsWith('filterCol')) {
                 var id = e.target.id;
                 window.columnFilters[id] = e.target.value;
@@ -2118,61 +2321,63 @@
             return String(d.getFullYear()).slice(2) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
         }
         function openNovoProjetoRapidoModal() {
-            document.getElementById('novoProjetoRapidoModal').classList.add('active');
-            document.getElementById('rapidoCliente').value = '';
-            document.getElementById('rapidoCliente').style.background = '';
-            document.getElementById('rapidoClienteNomeAbreviado').value = '';
-            document.getElementById('rapidoClienteCpf').value = '';
-            document.getElementById('rapidoClienteEndereco').value = '';
-            document.getElementById('rapidoClienteTelefone').value = '';
-            document.getElementById('rapidoClienteEmail').value = '';
-            document.getElementById('rapidoProjeto').value = '...';
-            document.getElementById('rapidoDescricao').value = '';
-            document.getElementById('rapidoResponsavel').value = '';
-            document.getElementById('rapidoProcessos').value = '';
-            document.getElementById('rapidoPrazoProposta').value = '';
-            document.getElementById('rapidoPrazoEntrega').value = '';
-            document.getElementById('rapidoVendedor').value = ''; // será preenchido com o nome do usuário logado
-            document.getElementById('rapidoMaterialCond').value = 'Incluso';
-            document.getElementById('rapidoPagamento').value = '';
-            document.getElementById('rapidoObsCliente').value = '';
-            document.getElementById('rapidoObsInternas').value = '';
-            document.getElementById('rapidoTemNotaFiscal').checked = false;
-            document.getElementById('rapidoArquivos').value = '';
+            var f = getRpf();
+            f.modal.classList.add('active');
+            f.cliente.value = '';
+            f.cliente.style.background = '';
+            f.clienteNomeAbreviado.value = '';
+            f.clienteCpf.value = '';
+            f.clienteEndereco.value = '';
+            f.clienteTelefone.value = '';
+            f.clienteEmail.value = '';
+            f.projeto.value = '...';
+            f.descricao.value = '';
+            f.responsavel.value = '';
+            f.processos.value = '';
+            f.prazoProposta.value = '';
+            f.prazoEntrega.value = '';
+            f.vendedor.value = ''; // será preenchido com o nome do usuário logado
+            f.materialCond.value = 'Incluso';
+            f.pagamento.value = '';
+            f.obsCliente.value = '';
+            f.obsInternas.value = '';
+            f.temNotaFiscal.checked = false;
+            f.arquivos.value = '';
             var dataYYMMDD = dataHojeYYMMDD();
             google.script.run
                 .withSuccessHandler(function (user) {
                     var iniciais = (user && user.iniciais) ? user.iniciais.trim() : '';
                     if (user && user.usuario) {
-                        document.getElementById('rapidoVendedor').value = user.usuario;
+                        f.vendedor.value = user.usuario;
                     }
                     if (!iniciais) {
-                        document.getElementById('rapidoProjeto').value = dataYYMMDD + 'a??';
+                        f.projeto.value = dataYYMMDD + 'a??';
                         return;
                     }
                     google.script.run
                         .withSuccessHandler(function (proximoIndice) {
                             var indice = proximoIndice || 'a';
-                            document.getElementById('rapidoProjeto').value = dataYYMMDD + indice + iniciais;
+                            f.projeto.value = dataYYMMDD + indice + iniciais;
                         })
                         .withFailureHandler(function () {
-                            document.getElementById('rapidoProjeto').value = dataYYMMDD + 'a' + iniciais;
+                            f.projeto.value = dataYYMMDD + 'a' + iniciais;
                         })
                         .detectarProximoIndice(dataYYMMDD, iniciais);
                 })
                 .withFailureHandler(function () {
-                    document.getElementById('rapidoProjeto').value = dataYYMMDD + 'a??';
+                    f.projeto.value = dataYYMMDD + 'a??';
                 })
                 .getUsuarioLogadoPorToken(token);
         }
         function closeNovoProjetoRapidoModal() {
-            document.getElementById('novoProjetoRapidoModal').classList.remove('active');
+            getRpf().modal.classList.remove('active');
         }
         function salvarNovoProjetoRapido(event) {
             event.preventDefault();
-            var cliente = (document.getElementById('rapidoCliente').value || '').trim();
-            var projetoNum = (document.getElementById('rapidoProjeto').value || '').trim();
-            var descricao = (document.getElementById('rapidoDescricao').value || '').trim();
+            var f = getRpf();
+            var cliente = (f.cliente.value || '').trim();
+            var projetoNum = (f.projeto.value || '').trim();
+            var descricao = (f.descricao.value || '').trim();
             if (!cliente || !descricao) {
                 alert('Preencha Cliente e Descrição.');
                 return;
@@ -2185,28 +2390,28 @@
                 alert('A descrição não pode conter COT ou PED (reservadas pelo sistema).');
                 return;
             }
-            var obsInternas = (document.getElementById('rapidoObsInternas').value || '').trim();
-            var obsCliente = (document.getElementById('rapidoObsCliente').value || '').trim();
+            var obsInternas = (f.obsInternas.value || '').trim();
+            var obsCliente = (f.obsCliente.value || '').trim();
             var dadosObservacoes = {
-                prazoProposta: (document.getElementById('rapidoPrazoProposta').value || '').trim(),
-                prazo: (document.getElementById('rapidoPrazoEntrega').value || '').trim(),
-                vendedor: (document.getElementById('rapidoVendedor').value || '').trim(),
-                materialCond: (document.getElementById('rapidoMaterialCond').value || '').trim(),
-                pagamento: (document.getElementById('rapidoPagamento').value || '').trim(),
+                prazoProposta: (f.prazoProposta.value || '').trim(),
+                prazo: (f.prazoEntrega.value || '').trim(),
+                vendedor: (f.vendedor.value || '').trim(),
+                materialCond: (f.materialCond.value || '').trim(),
+                pagamento: (f.pagamento.value || '').trim(),
                 adicional: obsCliente,
                 observacoesKanban: obsInternas,
                 projeto: projetoNum,
                 descricao: descricao,
-                temNotaFiscal: document.getElementById('rapidoTemNotaFiscal').checked
+                temNotaFiscal: f.temNotaFiscal.checked
             };
             var clienteObj = {
                 nome: cliente,
-                nomeAbreviado: (document.getElementById('rapidoClienteNomeAbreviado').value || '').trim(),
-                cpf: (document.getElementById('rapidoClienteCpf').value || '').trim(),
-                endereco: (document.getElementById('rapidoClienteEndereco').value || '').trim(),
-                telefone: (document.getElementById('rapidoClienteTelefone').value || '').trim(),
-                email: (document.getElementById('rapidoClienteEmail').value || '').trim(),
-                responsavel: (document.getElementById('rapidoResponsavel').value || '').trim()
+                nomeAbreviado: (f.clienteNomeAbreviado.value || '').trim(),
+                cpf: (f.clienteCpf.value || '').trim(),
+                endereco: (f.clienteEndereco.value || '').trim(),
+                telefone: (f.clienteTelefone.value || '').trim(),
+                email: (f.clienteEmail.value || '').trim(),
+                responsavel: (f.responsavel.value || '').trim()
             };
             var dadosJson = JSON.stringify({
                 nome: projetoNum,
@@ -2223,10 +2428,10 @@
                 CLIENTE: cliente,
                 PROJETO: projetoNum,
                 'DESCRIÇÃO': descricao,
-                'RESPONSÁVEL CLIENTE': (document.getElementById('rapidoResponsavel').value || '').trim(),
+                'RESPONSÁVEL CLIENTE': (f.responsavel.value || '').trim(),
                 'VALOR TOTAL': '',
                 DATA: dataHojeBr(),
-                PROCESSOS: (document.getElementById('rapidoProcessos').value || '').trim(),
+                PROCESSOS: (f.processos.value || '').trim(),
                 'LINK DO PDF': '',
                 'LINK DA MEMÓRIA DE CÁLCULO': '',
                 PRAZO_PROPOSTA: dadosObservacoes.prazoProposta,
@@ -2236,7 +2441,7 @@
                 STATUS_PEDIDO: '',
                 JSON_DADOS: dadosJson
             };
-            var btn = document.getElementById('rapidoBtnSalvar');
+            var btn = f.btnSalvar;
             btn.disabled = true;
             btn.textContent = 'Criando...';
             // Cadastra cliente novo na planilha de clientes (cpf, endereço, telefone, email) antes de criar o projeto
