@@ -850,28 +850,25 @@
 
                     <div class="form-group">
                         <label>Processos</label>
-                        <input type="text" id="rapidoProcessos" placeholder="Ex: Corte: 2h, Dobra: 1h">
+                        <input type="text" id="rapidoProcessos" placeholder="Ex: CL - Corte laser, D - Dobra...">
                     </div>
 
                     <div class="form-group">
                         <label>Observações internas</label>
                         <textarea id="rapidoObsInternas" rows="3"
                             placeholder="Observações salvas na página Projetos e no Kanban"></textarea>
-                        <p class="helper-text">Estas observações aparecem na página Projetos e no Kanban.</p>
                     </div>
 
                     <div class="form-group">
                         <div class="checkbox-row">
                             <input type="checkbox" id="rapidoTemNotaFiscal">
-                            <label for="rapidoTemNotaFiscal">Projeto exige Nota Fiscal</label>
+                            <label for="rapidoTemNotaFiscal">Projeto exige RF</label>
                         </div>
                     </div>
 
                     <br>
                     <div style="margin: 16px 0 8px 0; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb;">
                         <h3 style="margin: 0 0 4px 0; font-size: 14px; color: #1e40af;">Informações do Cliente</h3>
-                        <small style="color: var(--muted);">Busque um cliente existente ou digite o nome para cadastrar
-                            um novo</small>
                     </div>
                     <div class="row" style="display:flex; gap:12px; flex-wrap:wrap;">
                         <div class="form-group" style="flex:2; min-width:180px;">
@@ -880,7 +877,7 @@
                                 placeholder="Selecione ou digite um novo cliente">
                         </div>
                         <div class="form-group" style="flex:1; min-width:140px;">
-                            <label>Nome Abreviado * <small style="color:#666;">(para pasta)</small></label>
+                            <label>Nome Abreviado *</label>
                             <input type="text" id="rapidoClienteNomeAbreviado" placeholder="Ex: SILVA MET"
                                 maxlength="20">
                         </div>
@@ -1056,6 +1053,64 @@
             </div>
         </div>
 
+        <!-- Modal: confirmar versão do orçamento que virou pedido (RF005) -->
+        <div id="versaoPedidoModal" class="modal">
+            <div class="modal-content" style="max-width:560px;">
+                <div class="modal-header">
+                    <h2>Confirmar versão que virou pedido</h2>
+                    <button class="modal-close" onclick="closeVersaoPedidoModal()">×</button>
+                </div>
+
+                <div class="modal-body" style="padding:14px 18px 18px;">
+                    <p style="margin:0 0 10px 0; color:#374151; font-size:13px;">
+                        Ao converter para pedido, é necessário confirmar qual versão do orçamento gerou o PDF <b>Pedido_...</b>.
+                    </p>
+
+                    <input type="hidden" id="versaoPedidoLinha" value="">
+
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label>Selecione a versão do orçamento</label>
+                        <select id="versaoPedidoSelect" style="width:100%; padding:10px; border-radius:8px; border:1px solid #e5e7eb;"></select>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-cancel" onclick="closeVersaoPedidoModal()">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="confirmarVersaoPedido()">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: comprovante de entrega (RF006/RF007) -->
+        <div id="comprovanteEntregaModal" class="modal">
+            <div class="modal-content" style="max-width:560px;">
+                <div class="modal-header">
+                    <h2>Comprovante de entrega</h2>
+                    <button class="modal-close" onclick="closeComprovanteEntregaModal()">×</button>
+                </div>
+
+                <div class="modal-body" style="padding:14px 18px 18px;">
+                    <input type="hidden" id="comprovanteEntregaLinha" value="">
+
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label>Envie o documento</label>
+                        <input type="file" id="comprovanteEntregaArquivo" />
+                        <small style="display:block; margin-top:6px; color:#6b7280;">PDF/Imagem recomendados.</small>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label>Documento atual</label>
+                        <div id="comprovanteEntregaAtual" style="font-size:13px; color:#374151;"></div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-cancel" onclick="closeComprovanteEntregaModal()">Cancelar</button>
+                        <button type="button" class="btn btn-primary" onclick="enviarComprovanteEntrega()">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal Informações do Pedido (fonte primária: alterações aqui atualizam Projetos e Pedidos) -->
         <div id="infoPedidoModal" class="modal">
             <div class="modal-content info-pedido-modal-content">
@@ -1096,7 +1151,7 @@
                     <div class="info-pedido-section">
                         <h3 class="info-pedido-section-title">Dados do pedido</h3>
                         <div class="form-group">
-                            <label>Nota fiscal (NF)</label>
+                            <label>Recibo fiscal (RF)</label>
                             <input type="text" id="infoNotaFiscal" placeholder="Ex: 12345" />
                         </div>
                         <div class="form-group">
@@ -1188,19 +1243,18 @@
                                 placeholder="Email"></div>
                     </div>
                 </div>
-                <p style="margin: 0 0 12px 0; font-size: 12px;">Marque os itens que terão ordem de compra e informe o
-                    valor <strong>unitário</strong> ou <strong>total</strong> (ex.: preço de pintura por item). Apenas
-                    itens com valor entram no PDF.</p>
+                <p style="margin: 0 0 12px 0; font-size: 12px;">Selecione os processos de cada item. Digite preço <strong>unitário</strong> ou <strong>total</strong> — o outro campo é calculado automaticamente. Apenas linhas marcadas entram no PDF.</p>
                 <div class="table-wrapper" style="min-width: auto; max-height: 50vh; overflow: auto;">
                     <table style="font-size: 12px;">
                         <thead>
                             <tr>
-                                <th style="width: 40px;">Incluir</th>
+                                <th style="width: 30px;">✓</th>
                                 <th>Código</th>
                                 <th>Descrição</th>
-                                <th style="text-align: center; width: 80px;">Qtd</th>
-                                <th style="width: 120px;">Valor (R$)</th>
-                                <th style="width: 140px;">Tipo</th>
+                                <th style="text-align:center; width:60px;">Qtd</th>
+                                <th style="width:100px;">Processo</th>
+                                <th style="width:90px;">Unit. (R$)</th>
+                                <th style="width:90px;">Total (R$)</th>
                             </tr>
                         </thead>
                         <tbody id="ordemCompraLista"></tbody>
@@ -1248,15 +1302,15 @@
                         </select>
                     </div>
                     <div class="filter-group filter-status-multi">
-                        <label>Nota Fiscal</label>
+                        <label>Filtro por RF</label>
                         <div class="filter-checkboxes" id="nfFilterGroup">
                             <label class="filter-check-label">
                                 <input type="checkbox" class="filter-nf-cb" value="com">
-                                NF Feita
+                                RF Feito
                             </label>
                             <label class="filter-check-label">
                                 <input type="checkbox" class="filter-nf-cb" value="sem">
-                                NF a fazer
+                                RF a fazer
                             </label>
                         </div>
                     </div>
@@ -1605,8 +1659,8 @@
                 const nfPreenchida = !!nfValor && nfValor.toUpperCase() !== 'SN';
                 const exigeNF = !!projeto.temNotaFiscal;
                 const nfBtnCor = !exigeNF ? '#ef4444' : (nfPreenchida ? '#16a34a' : '#f59e0b');
-                const nfBtnTitle = !exigeNF ? '' : (nfPreenchida ? ('NF preenchida (' + nfValor + ')') : 'Informar NF (pendente)');
-                const nfBtnTexto = !exigeNF ? 'NF' : (nfPreenchida ? 'NF ✔' : 'NF ?');
+                const nfBtnTitle = !exigeNF ? '' : (nfPreenchida ? ('RF preenchida (' + nfValor + ')') : 'Informar RF (pendente)');
+                const nfBtnTexto = !exigeNF ? 'RF' : (nfPreenchida ? 'RF ✔' : 'RF ?');
 
                 const isConvertido = projeto.STATUS_ORCAMENTO === 'Convertido em Pedido';
 
@@ -1650,6 +1704,7 @@
             </td>
             <td class="actions-cell">
               <button type="button" class="btn btn-small" style="background:${nfBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="abrirInformarNFSeExige(${linha})" title="${nfBtnTitle || ''}">${nfBtnTexto}</button>
+              <button type="button" class="btn btn-small" style="background:#6d4c41; color:white; min-width:36px; margin-right:4px;" onclick="abrirComprovanteEntrega(${linha})" title="Adicionar comprovante de entrega">📦</button>
               <div class="actions-dropdown">
                 <button type="button" class="btn btn-small actions-trigger" onclick="toggleActionsMenu(event, ${linha})" title="Ações">⋮</button>
                 <div class="actions-menu" id="actionsMenu-${linha}">
@@ -1658,6 +1713,7 @@
                   <button type="button" onclick="fecharActionsMenu(); gerarOrdemProducao(${linha})">📋 Ordem de Produção</button>
                   <button type="button" onclick="fecharActionsMenu(); openOrdemCompra(${linha})">🛒 Ordem de Compra</button>
                   ${isConvertido ? `<button type="button" onclick="fecharActionsMenu(); openInfoPedido(${linha})">ℹ️ Informações do pedido</button>` : ''}
+                  ${isConvertido ? `<button type="button" onclick="fecharActionsMenu(); gerarRelatorioProjeto(${linha})">🧾 Gerar Relatório do projeto</button>` : ''}
                   <button type="button" class="danger" onclick="fecharActionsMenu(); deleteProjeto(${linha})">🗑️ Excluir</button>
                 </div>
               </div>
@@ -1675,6 +1731,75 @@
             _elTableContainer.innerHTML = html;
         }
 
+        // RF005: Modal para confirmar qual versão do orçamento virou pedido
+        function openVersaoPedidoModal(linha) {
+            const modal = document.getElementById('versaoPedidoModal');
+            const select = document.getElementById('versaoPedidoSelect');
+            const inputLinha = document.getElementById('versaoPedidoLinha');
+
+            if (!modal || !select || !inputLinha) return;
+
+            inputLinha.value = linha;
+            select.innerHTML = '<option value="">Carregando versões...</option>';
+            modal.classList.add('active');
+
+            google.script.run
+                .withSuccessHandler(function (data) {
+                    const versoes = (data && data.versoes) ? data.versoes : [];
+                    if (versoes.length === 0) {
+                        select.innerHTML = '<option value="">Nenhuma versão encontrada</option>';
+                        return;
+                    }
+                    select.innerHTML = versoes.map(v =>
+                        '<option value="' + (v.codigoVersao || '') + '">' + (v.label || v.codigoVersao) + '</option>'
+                    ).join('');
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao carregar versões do orçamento: ' + (err && err.message ? err.message : err));
+                    closeVersaoPedidoModal();
+                    loadProjetos();
+                })
+                .getVersoesParaPedido(linha);
+        }
+
+        function closeVersaoPedidoModal() {
+            const modal = document.getElementById('versaoPedidoModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function confirmarVersaoPedido() {
+            const linha = document.getElementById('versaoPedidoLinha') ? parseInt(document.getElementById('versaoPedidoLinha').value, 10) : NaN;
+            const select = document.getElementById('versaoPedidoSelect');
+            const codigoVersao = select ? select.value : '';
+            if (!linha || linha < 2) {
+                alert('Linha do projeto inválida.');
+                return;
+            }
+            if (!codigoVersao) {
+                alert('Selecione uma versão.');
+                return;
+            }
+
+            // Desabilita para evitar clique duplo
+            const btn = document.querySelector('#versaoPedidoModal .btn.btn-primary');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Confirmando...';
+            }
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    closeVersaoPedidoModal();
+                    loadProjetos();
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao converter projeto para pedido: ' + (err && err.message ? err.message : err));
+                    closeVersaoPedidoModal();
+                    loadProjetos();
+                })
+                .converterProjetoParaPedido(linha, codigoVersao);
+        }
+
         // Atualizar status
         function updateStatus(select) {
             const linha = select.dataset.linha;
@@ -1682,19 +1807,14 @@
             const value = select.value;
             const ehConversaoPelaColuna = (field === 'STATUS_ORCAMENTO' && value === 'Convertido em Pedido');
 
+            // RF005: converter em pedido depende da versão escolhida
+            if (ehConversaoPelaColuna) {
+                openVersaoPedidoModal(linha);
+                return;
+            }
+
             google.script.run
                 .withSuccessHandler(function () {
-                    // Se converteu em pedido pela coluna: habilita status pedido, pré-seleciona Preparação e dispara alerta
-                    if (ehConversaoPelaColuna) {
-                        const row = select.closest('tr');
-                        const statusPedSelect = row.querySelector('[data-field="STATUS_PEDIDO"]');
-                        if (statusPedSelect) {
-                            statusPedSelect.disabled = false;
-                            statusPedSelect.value = 'Processo de Preparação MP / CAD / CAM';
-                            updateStatus(statusPedSelect);
-                        }
-                        alert('Projeto convertido em pedido.\n\nStatus do pedido definido como Preparação MP/CAD/CAM (você pode alterar).\nPasta no Drive renomeada de COT para PED.');
-                    }
                     loadProjetos();
                 })
                 .withFailureHandler(function (error) {
@@ -1721,6 +1841,10 @@
         let ordemCompraLinha = null;
         let ordemCompraItens = [];
         let ordemCompraFornecedores = [];
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
 
         function openOrdemCompra(linha) {
             ordemCompraLinha = linha;
@@ -1767,18 +1891,88 @@
                         document.querySelector('#ordemCompraModal .table-wrapper').style.display = 'none';
                     } else {
                         var ocFrag = document.createDocumentFragment();
-                        ordemCompraItens.forEach(function (item, idx) {
-                            var tr = document.createElement('tr');
-                            tr.innerHTML =
-                                '<td><input type="checkbox" class="oc-incluir" data-idx="' + idx + '"></td>' +
-                                '<td>' + (item.codigo || '') + '</td>' +
-                                '<td>' + (item.descricao || '') + '</td>' +
-                                '<td style="text-align:center"><input type="number" class="oc-qtd" data-idx="' + idx + '" value="' + (item.quantidade != null ? item.quantidade : '') + '" min="0" step="1" style="width:70px; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px; text-align:center;"></td>' +
-                                '<td><input type="text" class="oc-valor" data-idx="' + idx + '" placeholder="0,00" inputmode="decimal" style="width:100%; padding:6px 8px; border:1px solid #e2e8f0; border-radius:6px;"></td>' +
-                                '<td><label><input type="radio" name="oc-tipo-' + idx + '" value="unit" checked> Unit.</label> <label><input type="radio" name="oc-tipo-' + idx + '" value="total"> Total</label></td>';
-                            ocFrag.appendChild(tr);
+                        var rowIdx = 0;
+                        ordemCompraItens.forEach(function (item, itemIdx) {
+                            // PRD separator row between items
+                            if (itemIdx > 0) {
+                                var sepTr = document.createElement('tr');
+                                sepTr.innerHTML = '<td colspan="7" style="background:#e8eaf6; padding:3px 8px; font-size:11px; color:#3949ab; font-weight:600; border-top:2px solid #c5cae9;">─── ' + escapeHtml(item.codigo || '') + ' — ' + escapeHtml(item.descricao || '') + '</td>';
+                                ocFrag.appendChild(sepTr);
+                            }
+                            var processos = (item.processos && item.processos.length > 0) ? item.processos : [''];
+                            processos.forEach(function (proc, procIdx) {
+                                var precoSugerido = '';
+                                if (proc && item.precosProcessos && item.precosProcessos[proc] != null && item.precosProcessos[proc] !== '') {
+                                    precoSugerido = Number(item.precosProcessos[proc]).toFixed(2);
+                                }
+                                var isFirst = procIdx === 0;
+                                var tr = document.createElement('tr');
+                                tr.dataset.itemIdx = itemIdx;
+                                tr.dataset.rowIdx = rowIdx;
+                                tr.dataset.proc = proc || '';
+                                var qtdCell = isFirst
+                                    ? '<td style="text-align:center" rowspan="' + processos.length + '"><input type="number" class="oc-qtd" data-item-idx="' + itemIdx + '" value="' + (item.quantidade != null ? item.quantidade : '') + '" min="0" step="0.01" style="width:55px; padding:3px 5px; border:1px solid #e2e8f0; border-radius:6px; text-align:center;"></td>'
+                                    : '';
+                                var totalSugerido = (precoSugerido && item.quantidade) ? (Number(precoSugerido) * Number(item.quantidade)).toFixed(2) : '';
+                                var procNomeCompleto = (proc && item.nomesProcessosCustom && item.nomesProcessosCustom[proc]) ? item.nomesProcessosCustom[proc] : '';
+                                var procBadge;
+                                if (proc) {
+                                    var badgeTip = escapeHtml(procNomeCompleto || proc);
+                                    var badgeLabel = escapeHtml(proc);
+                                    var badgeSuffix = procNomeCompleto ? ' <span style="font-weight:normal; color:#5c6bc0; font-size:10px;">— ' + escapeHtml(procNomeCompleto) + '</span>' : '';
+                                    procBadge = '<span style="background:#e3f2fd; color:#1565c0; padding:2px 5px; border-radius:4px; font-size:11px;" title="' + badgeTip + '">' + badgeLabel + badgeSuffix + '</span>';
+                                } else {
+                                    procBadge = '<span style="color:#999; font-size:11px;">—</span>';
+                                }
+                                tr.innerHTML =
+                                    '<td style="text-align:center"><input type="checkbox" class="oc-incluir" data-row-idx="' + rowIdx + '" data-item-idx="' + itemIdx + '" data-proc="' + (proc || '') + '"></td>' +
+                                    (isFirst ? '<td rowspan="' + processos.length + '" style="font-size:11px;">' + escapeHtml(item.codigo || '') + '</td>' : '') +
+                                    (isFirst ? '<td rowspan="' + processos.length + '" style="max-width:160px; font-size:11px;">' + escapeHtml(item.descricao || '') + '</td>' : '') +
+                                    qtdCell +
+                                    '<td style="padding:3px 4px;">' + procBadge + '</td>' +
+                                    '<td><input type="number" step="0.01" min="0" class="oc-unit" data-row-idx="' + rowIdx + '" placeholder="unit." inputmode="decimal" value="' + precoSugerido + '" style="width:100%; padding:3px 6px; border:1px solid #e2e8f0; border-radius:6px;"></td>' +
+                                    '<td><input type="number" step="0.01" min="0" class="oc-total" data-row-idx="' + rowIdx + '" placeholder="total" inputmode="decimal" value="' + totalSugerido + '" style="width:100%; padding:3px 6px; border:1px solid #c8e6c9; border-radius:6px; background:#f9fff9;"></td>';
+                                ocFrag.appendChild(tr);
+
+                                // Setup unit↔total auto-calc
+                                (function(capturedTr, capturedItemIdx) {
+                                    var unitInput = capturedTr.querySelector('.oc-unit');
+                                    var totalInput = capturedTr.querySelector('.oc-total');
+                                    function getOcQtd() {
+                                        // Lazy cache: find the qtd input once it's in the DOM
+                                        var qtdEl = document.querySelector('.oc-qtd[data-item-idx="' + capturedItemIdx + '"]');
+                                        return qtdEl ? (parseFloat(qtdEl.value) || 1) : 1;
+                                    }
+                                    unitInput.addEventListener('input', function() {
+                                        var u = parseFloat(unitInput.value);
+                                        totalInput.value = (!isNaN(u) && u >= 0) ? (u * getOcQtd()).toFixed(2) : '';
+                                    });
+                                    totalInput.addEventListener('input', function() {
+                                        var t = parseFloat(totalInput.value);
+                                        var q = getOcQtd();
+                                        unitInput.value = (!isNaN(t) && t >= 0 && q > 0) ? (t / q).toFixed(2) : '';
+                                    });
+                                })(tr, itemIdx);
+
+                                rowIdx++;
+                            });
                         });
                         document.getElementById('ordemCompraLista').appendChild(ocFrag);
+
+                        // When qty changes, recalc all rows for that item
+                        document.getElementById('ordemCompraLista').querySelectorAll('.oc-qtd').forEach(function(qtdEl) {
+                            var iIdx = parseInt(qtdEl.dataset.itemIdx, 10);
+                            qtdEl.addEventListener('input', function() {
+                                var q = parseFloat(qtdEl.value) || 1;
+                                document.getElementById('ordemCompraLista').querySelectorAll('tr[data-item-idx="' + iIdx + '"] .oc-unit').forEach(function(unitInput) {
+                                    var u = parseFloat(unitInput.value);
+                                    var totalInput = document.querySelector('.oc-total[data-row-idx="' + unitInput.dataset.rowIdx + '"]');
+                                    if (totalInput && !isNaN(u) && u >= 0) {
+                                        totalInput.value = (u * q).toFixed(2);
+                                    }
+                                });
+                            });
+                        });
                     }
                     document.getElementById('ordemCompraBtnGerar').disabled = false;
                 })
@@ -1826,23 +2020,39 @@
                 return;
             }
             var itensComValor = [];
-            ordemCompraItens.forEach(function (item, idx) {
-                var inputValor = document.querySelector('.oc-valor[data-idx="' + idx + '"]');
-                var radios = document.querySelectorAll('input[name="oc-tipo-' + idx + '"]');
-                var isUnit = true;
-                if (radios.length >= 2) isUnit = radios[0].checked;
-                var raw = (inputValor && inputValor.value) ? String(inputValor.value).trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.') : '';
-                var num = raw ? parseFloat(raw) : NaN;
-                if (isNaN(num) || num <= 0) return;
-                var inputQtd = document.querySelector('.oc-qtd[data-idx="' + idx + '"]');
+            document.querySelectorAll('#ordemCompraLista .oc-incluir:checked').forEach(function(cb) {
+                var itemIdx = parseInt(cb.dataset.itemIdx, 10);
+                var rowIdx = cb.dataset.rowIdx;
+                var proc = cb.dataset.proc || '';
+                if (isNaN(itemIdx) || itemIdx < 0 || itemIdx >= ordemCompraItens.length) return;
+                var item = ordemCompraItens[itemIdx];
+                var inputQtd = document.querySelector('.oc-qtd[data-item-idx="' + itemIdx + '"]');
                 var qtd = (inputQtd && inputQtd.value !== '') ? parseFloat(inputQtd.value) : item.quantidade;
                 if (isNaN(qtd) || qtd <= 0) qtd = item.quantidade || 0;
+                // Try unit input first (new), fall back to legacy oc-valor
+                var unitInput = document.querySelector('.oc-unit[data-row-idx="' + rowIdx + '"]');
+                var totalInput = document.querySelector('.oc-total[data-row-idx="' + rowIdx + '"]');
+                var valorUnit = NaN;
+                if (unitInput && unitInput.value.trim()) {
+                    valorUnit = parseFloat(String(unitInput.value).replace(',', '.'));
+                } else if (totalInput && totalInput.value.trim()) {
+                    var tot = parseFloat(String(totalInput.value).replace(',', '.'));
+                    if (!isNaN(tot) && qtd > 0) valorUnit = tot / qtd;
+                } else {
+                    // legacy fallback
+                    var legacyInput = document.querySelector('.oc-valor[data-row-idx="' + rowIdx + '"]');
+                    if (legacyInput && legacyInput.value.trim()) {
+                        valorUnit = parseFloat(String(legacyInput.value).replace(',', '.'));
+                    }
+                }
+                if (isNaN(valorUnit) || valorUnit <= 0) return;
                 itensComValor.push({
                     codigo: item.codigo,
                     descricao: item.descricao,
                     quantidade: qtd,
-                    valorUnitario: isUnit ? num : undefined,
-                    valorTotal: isUnit ? undefined : num
+                    processo: proc || undefined,
+                    processoNomeCompleto: (item.nomesProcessosCustom && proc && item.nomesProcessosCustom[proc]) ? item.nomesProcessosCustom[proc] : undefined,
+                    valorUnitario: valorUnit
                 });
             });
             if (itensComValor.length === 0) {
@@ -1903,6 +2113,24 @@
                 .gerarPdfOrdemProducao(linha);
         }
 
+        // RF008: gerar relatório do projeto (documento na pasta do projeto)
+        function gerarRelatorioProjeto(linha) {
+            if (!confirm('Gerar Relatório do projeto?')) return;
+            google.script.run
+                .withSuccessHandler(function (res) {
+                    res = res || {};
+                    const url = res.url || '';
+                    alert('Relatório gerado com sucesso.');
+                    if (url) window.open(url, '_blank');
+                    loadProjetos();
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao gerar relatório: ' + (err && err.message ? err.message : err));
+                    loadProjetos();
+                })
+                .gerarRelatorioProjeto(linha);
+        }
+
         // Só abre o fluxo de informar NF se o projeto exige NF (evita modal nos que não exigem; em pedidos já usa SN quando não tem NF)
         function abrirInformarNFSeExige(linha) {
             var p = projetos.find(function (proj) { return proj._linhaPlanilha == linha; });
@@ -1913,23 +2141,110 @@
         function informarNF(linha) {
             const projeto = projetos.find(p => p._linhaPlanilha == linha);
             const valorAtual = (projeto && projeto.valorNF) ? String(projeto.valorNF) : '';
-            const valor = prompt('Informe o número da Nota Fiscal (ex: 4866):', valorAtual);
+            const valor = prompt('Informe o número da RF (ex: 4866):', valorAtual);
             if (valor === null) return;
             const valorTrim = (valor || '').trim();
             if (!valorTrim) {
-                alert('Informe o número da NF.');
+                alert('Informe o número da RF.');
                 return;
             }
             google.script.run
                 .withSuccessHandler(function () {
                     lastNFInformada = { linha: linha, valor: valorTrim };
-                    alert('Número da NF registrado. A página de Pedidos foi atualizada e o Kanban mostrará "NF feita".');
+                    alert('Número da RF registrado. A página de Pedidos foi atualizada e o Kanban mostrará "RF feito".');
                     loadProjetos();
                 })
                 .withFailureHandler(function (error) {
-                    alert('Erro ao informar NF: ' + (error.message || error));
+                    alert('Erro ao informar RF: ' + (error.message || error));
                 })
                 .informarValorNFProjeto(linha, valorTrim);
+        }
+
+        // RF006: upload do comprovante de entrega (usado para liberar STATUS_PEDIDO = Finalizado)
+        function abrirComprovanteEntrega(linha) {
+            const modal = document.getElementById('comprovanteEntregaModal');
+            const inputLinha = document.getElementById('comprovanteEntregaLinha');
+            const atualEl = document.getElementById('comprovanteEntregaAtual');
+            const fileInput = document.getElementById('comprovanteEntregaArquivo');
+
+            if (!modal || !inputLinha || !atualEl || !fileInput) return;
+
+            inputLinha.value = linha;
+            atualEl.textContent = 'Carregando...';
+            modal.classList.add('active');
+            fileInput.value = '';
+
+            google.script.run
+                .withSuccessHandler(function (info) {
+                    info = info || {};
+                    const url = info.comprovanteEntregaUrl || '';
+                    if (url) {
+                        atualEl.innerHTML = '<a href="' + url + '" target="_blank">Abrir comprovante</a>';
+                    } else {
+                        atualEl.textContent = 'Nenhum comprovante anexado ainda.';
+                    }
+                })
+                .withFailureHandler(function () {
+                    atualEl.textContent = 'Não foi possível carregar o comprovante atual.';
+                })
+                .getInfoPedido(linha);
+        }
+
+        function closeComprovanteEntregaModal() {
+            const modal = document.getElementById('comprovanteEntregaModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function enviarComprovanteEntrega() {
+            const linha = parseInt(document.getElementById('comprovanteEntregaLinha').value, 10);
+            const input = document.getElementById('comprovanteEntregaArquivo');
+            if (!linha || linha < 2) {
+                alert('Linha do projeto inválida.');
+                return;
+            }
+            if (!input || !input.files || input.files.length === 0) {
+                alert('Selecione um arquivo para enviar.');
+                return;
+            }
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            const btn = document.querySelector('#comprovanteEntregaModal .btn.btn-primary');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Enviando...';
+            }
+
+            reader.onload = function () {
+                const dataUrl = reader.result;
+                const base64 = (dataUrl && dataUrl.indexOf('base64,') >= 0) ? dataUrl.split('base64,')[1] : dataUrl;
+                const fileData = {
+                    base64: base64 || '',
+                    name: file.name || 'arquivo',
+                    mimeType: file.type || 'application/octet-stream'
+                };
+
+                google.script.run
+                    .withSuccessHandler(function () {
+                        closeComprovanteEntregaModal();
+                        loadProjetos();
+                        alert('Comprovante de entrega enviado com sucesso.');
+                    })
+                    .withFailureHandler(function (err) {
+                        alert('Erro ao enviar comprovante: ' + (err && err.message ? err.message : err));
+                    })
+                    .salvarComprovanteEntrega(linha, fileData);
+            };
+
+            reader.onerror = function () {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Salvar';
+                }
+                alert('Falha ao ler o arquivo.');
+            };
+
+            reader.readAsDataURL(file);
         }
 
         // Editar projeto (abre modal de edição)
@@ -2031,18 +2346,20 @@
             });
         }
 
-        // Normaliza valor em formato BR para string numérica com ponto decimal (para salvar na planilha)
         function normalizarValorMoedaParaSalvar(value) {
             if (!value) return '';
+
             var s = String(value).trim();
             if (!s) return '';
+
             s = s.replace(/[^\d,.-]/g, '');
             s = s.replace(/\./g, '').replace(',', '.');
-            var num = parseFloat(s);
-            if (isNaN(num)) return String(value);
-            return num.toFixed(2);
-        }
 
+            var num = parseFloat(s);
+            if (isNaN(num)) return '';
+
+            return num.toFixed(2).replace('.', ',');
+        }
         function openInfoPedido(linha) {
             var modal = document.getElementById('infoPedidoModal');
             var tituloEl = document.getElementById('infoPedidoTitulo');

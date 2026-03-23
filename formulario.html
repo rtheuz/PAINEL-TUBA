@@ -423,6 +423,9 @@
                         <select id="versaoPicker" onchange="carregarVersaoSelecionada()"
                             aria-label="Selecionar versão da proposta"
                             style="margin-left:6px; padding:3px 8px; border-radius:4px; border:1px solid #ccc; font-size:13px;"></select>
+                        <button type="button" id="btnExcluirVersao"
+                            style="margin-left:10px; padding:4px 10px; border-radius:6px; border:1px solid #f5c2c7; background:#fff; color:#c62828; font-weight:700; cursor:pointer;"
+                            onclick="excluirVersaoSelecionada()">Excluir versão</button>
                     </div>
                 </div>
             </div>
@@ -440,6 +443,11 @@
                 <div id="bannerNovoProjeto"
                     style="display:none; background:#fff3cd; border:1px solid #ffc107; border-radius:6px; padding:10px 14px; margin-bottom:10px; color:#856404;">
                     ⚠️ <strong>Você está criando um NOVO projeto.</strong> O projeto original será mantido.
+                </div>
+
+                <div id="bannerProjetoDuplicado"
+                    style="display:none; background:#f8d7da; border:1px solid #f5c2c7; border-radius:6px; padding:10px 14px; margin-bottom:10px; color:#842029;">
+                    ⚠️ <strong>Já existe um projeto com este código.</strong> Se salvar, o projeto existente será sobrescrito.
                 </div>
 
                 <div class="row">
@@ -488,9 +496,9 @@
                     <div class="col">
                         <label class="inline" style="margin-bottom:0;">
                             <input type="checkbox" id="obsTemNotaFiscal" style="margin-right:8px;">
-                            <span>Projeto exige Nota Fiscal</span>
+                            <span>Projeto exige RF</span>
                         </label>
-                        <small class="note" style="display:block; margin-top:4px;">Você poderá informar o valor da NF na
+                        <small class="note" style="display:block; margin-top:4px;">Você poderá informar RF na
                             página Projetos.</small>
                     </div>
                 </div>
@@ -731,12 +739,21 @@
                 <div class="form-actions-buttons" style="display:flex; gap:5px; align-items:left; flex-wrap:wrap;">
                     <button type="button" onclick="limparFormularioCompleto()"
                         style="background:#af1f1f; color:white;">🗑️ Limpar Formulário</button>
-                    <button type="button" id="btnPreviewPdf" onclick="calcular(false, true)"
+                    <button type="button" id="btnPreviewPdf" onclick="calcular(undefined, true)"
                         style="background:#4e818a; color:white;">👁 Ver Prévia do PDF</button>
                         <button type="button" onclick="salvarOrcamento()" style="background:#59963d; color:white;">💾
                         Salvar</button>
                     <button type="button" id="btnGerar" onclick="calcular()" style="background:#59963d; color:white;">📄
                         Gerar PDF</button>
+                    <button type="button" id="btnConverterPedido" onclick="salvarComoPedido()" style="background:#4b7f2a; color:white;">
+                        🔄 Converter em pedido
+                    </button>
+                </div>
+
+                <!-- RF001: obrigatório para gerar PDF -->
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:10px 12px; background:#fff;">
+                    <label for="nomeVersaoInput" style="font-weight:700; color:#555; min-width:170px;">Nome da Versão:</label>
+                    <input type="text" id="nomeVersaoInput" placeholder="Ex: Com material" style="flex:1; min-width:260px; padding:10px; border-radius:6px; border:1px solid #ddd; font-weight:600;">
                 </div>
 
                 <input type="radio" name="modoVersaoPdf" value="sobrescrever" checked hidden aria-hidden="true">
@@ -924,6 +941,104 @@
             }
         }
 
+        /* ---------- HELPER: process price row setup ---------- */
+        function _setupProcPrecoRow(row, prodDiv) {
+            var tipoSel = row.querySelector('.preco-proc-tipo');
+            var unitInput = row.querySelector('.preco-proc-unit');
+            var totalInput = row.querySelector('.preco-proc-total');
+            if (!tipoSel || !unitInput || !totalInput) return;
+
+            function getQtd() {
+                return parseFloat((prodDiv.querySelector('.produtoQuantidade') || {}).value) || 1;
+            }
+
+            function applyTipoState() {
+                var isUnit = tipoSel.value === 'unit';
+                unitInput.readOnly = !isUnit;
+                unitInput.style.background = isUnit ? '#fff' : '#f1f8e9';
+                unitInput.style.borderColor = isUnit ? '#90caf9' : '#a5d6a7';
+                totalInput.readOnly = isUnit;
+                totalInput.style.background = isUnit ? '#f1f8e9' : '#fff';
+                totalInput.style.borderColor = isUnit ? '#a5d6a7' : '#90caf9';
+            }
+
+            function recalcFromUnit() {
+                var u = parseFloat(unitInput.value);
+                totalInput.value = (!isNaN(u) && u >= 0) ? (u * getQtd()).toFixed(2) : '';
+            }
+
+            function recalcFromTotal() {
+                var t = parseFloat(totalInput.value);
+                var q = getQtd();
+                unitInput.value = (!isNaN(t) && t >= 0 && q > 0) ? (t / q).toFixed(2) : '';
+            }
+
+            tipoSel.addEventListener('change', function () {
+                applyTipoState();
+                if (tipoSel.value === 'unit' && unitInput.value) recalcFromUnit();
+                else if (tipoSel.value === 'total' && totalInput.value) recalcFromTotal();
+            });
+
+            unitInput.addEventListener('input', function () {
+                if (tipoSel.value === 'unit') recalcFromUnit();
+            });
+
+            totalInput.addEventListener('input', function () {
+                if (tipoSel.value === 'total') recalcFromTotal();
+            });
+
+            applyTipoState();
+
+            row._recalcProcPreco = function () {
+                if (tipoSel.value === 'unit' && unitInput.value !== '') recalcFromUnit();
+                else if (tipoSel.value === 'total' && totalInput.value !== '') recalcFromTotal();
+            };
+        }
+
+        function _addOutroProcessoAoProduto(prodDiv, inicial) {
+            var container = prodDiv.querySelector(".produtoOutrosProcessos");
+            if (!container) return;
+            var row = document.createElement("div");
+            row.className = "outro-proc-row";
+            row.style.cssText = "display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap; padding:5px 8px; background:#fff8e1; border-radius:4px; border:1px solid #ffcc80;";
+            row.innerHTML = '<input type="text" class="outro-proc-sigla" placeholder="Sigla (ex: GL)" title="Abreviação do processo" style="width:72px; flex-shrink:0; padding:4px 8px; border:2px solid #ff8f00; border-radius:4px; font-size:13px; font-weight:700; text-transform:uppercase;">'
+                + '<input type="text" class="outro-proc-nome" placeholder="Nome por extenso (ex: Galvanização)" title="Nome completo do processo" style="min-width:140px; flex:1; padding:4px 8px; border:1px solid #ffcc80; border-radius:4px; font-size:13px;">'
+                + '<input type="text" class="outro-proc-desc" placeholder="Descrição..." style="flex:2; min-width:100px; padding:4px 8px; border:1px solid #ffcc80; border-radius:4px; font-size:12px;">'
+                + '<select class="preco-proc-tipo" style="padding:4px 6px; border:1px solid #ffcc80; border-radius:4px; font-size:12px;">'
+                + '<option value="unit">R$ Unit.</option><option value="total">R$ Total</option></select>'
+                + '<input type="number" step="0.01" min="0" class="preco-proc-unit" placeholder="unit." style="width:80px; padding:4px 8px; border:1px solid #ffcc80; border-radius:4px;">'
+                + '<input type="number" step="0.01" min="0" class="preco-proc-total" placeholder="total" style="width:80px; padding:4px 8px; border:1px solid #a5d6a7; border-radius:4px;">'
+                + '<button type="button" onclick="this.parentElement.remove()" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:4px; padding:3px 8px; font-size:13px; cursor:pointer;">✕</button>';
+            // Auto-uppercase sigla as user types
+            var siglaEl = row.querySelector('.outro-proc-sigla');
+            siglaEl.addEventListener('input', function() { this.value = this.value.toUpperCase().replace(/\s/g, ''); });
+            container.appendChild(row);
+            if (inicial) {
+                // New format: sigla + nomeCompleto; legacy format: nome was the full name
+                if (inicial.sigla) siglaEl.value = inicial.sigla;
+                else if (inicial.nome && !inicial.nomeCompleto) {
+                    // Legacy: derive sigla from first letters of non-empty name words (best-effort)
+                    siglaEl.value = inicial.nome.split(/\s+/).filter(function(w) { return w.length > 0; }).map(function(w) { return w[0]; }).join('').toUpperCase().substring(0, 5);
+                }
+                var nomeEl = row.querySelector('.outro-proc-nome');
+                if (inicial.nomeCompleto) nomeEl.value = inicial.nomeCompleto;
+                else if (inicial.nome) nomeEl.value = inicial.nome;
+                if (inicial.descricao) row.querySelector('.outro-proc-desc').value = inicial.descricao;
+                var tipoSel = row.querySelector('.preco-proc-tipo');
+                if (inicial.tipoPreco) tipoSel.value = inicial.tipoPreco;
+                var unitInput = row.querySelector('.preco-proc-unit');
+                var totalInput = row.querySelector('.preco-proc-total');
+                if (inicial.precoUnitario != null && inicial.precoUnitario !== '') {
+                    unitInput.value = Number(inicial.precoUnitario).toFixed(2);
+                }
+                if (inicial.tipoPreco === 'total' && inicial.precoTotal != null && inicial.precoTotal !== '') {
+                    totalInput.value = Number(inicial.precoTotal).toFixed(2);
+                }
+            }
+            _setupProcPrecoRow(row, prodDiv);
+            return row;
+        }
+
         /* ---------- PRODUTOS CADASTRADOS ---------- */
         let produtosCatalogo = [];
 
@@ -1035,6 +1150,10 @@
                         <label>Preço Total (R$):</label>
                         <input type="number" step="0.01" class="produtoPrecoTotal" readonly style="background:#e8f5e9; font-weight:600;">
                     </div>
+                    <div class="col" style="flex:0 0 160px;">
+                        <label>Peças por chapa:</label>
+                        <input type="number" step="1" min="0" class="produtoPecasPorChapa" placeholder="Ex: 4" style="font-weight:600;">
+                    </div>
                 </div>
                 
                 <div class="row" style="margin-top:8px;">
@@ -1051,6 +1170,11 @@
                             <label class="proc-item" style="display:inline-block; margin-right:12px; margin-bottom:4px;"><input type="checkbox" class="produtoProcesso" value="ACB"> ACB - Acabamento</label>
                             <!-- RF002: Campos de descrição por processo (gerados dinamicamente) -->
                             <div class="produtoDescricoesProcessos" style="margin-top:10px;"></div>
+                            <!-- Outros processos personalizados -->
+                            <div style="margin-top:8px; border-top:1px dashed #90caf9; padding-top:8px;">
+                                <button type="button" class="produtoBtnAddOutro" style="background:#fff3e0; color:#e65100; border:1px solid #ffb74d; border-radius:4px; padding:4px 10px; font-size:12px; cursor:pointer;">➕ Outro Processo</button>
+                                <div class="produtoOutrosProcessos" style="margin-top:6px;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1073,6 +1197,10 @@
             const qtdInput = div.querySelector(".produtoQuantidade");
             qtdInput.addEventListener("input", function () {
                 calcularTotalProduto(div);
+                // Recalculate all process row prices when qty changes
+                div.querySelectorAll('.desc-proc-row, .outro-proc-row').forEach(function (row) {
+                    if (typeof row._recalcProcPreco === 'function') row._recalcProcPreco();
+                });
             });
 
             // Adiciona listener para atualizar total quando preço unitário mudar
@@ -1107,16 +1235,30 @@
                         var row = document.createElement("div");
                         row.className = "desc-proc-row";
                         row.dataset.sigla = sigla;
-                        row.style.cssText = "display:flex; align-items:center; gap:8px; margin-bottom:6px;";
-                        row.innerHTML = '<label style="min-width:160px; font-size:13px; color:#333;"><strong>' + sigla + '</strong> - ' + (_NOMES_PROCESSOS[sigla] || sigla) + ':</label>'
-                            + '<input type="text" class="desc-proc-input" placeholder="Ex: 2h, 3 chapas 1000x500..." style="flex:1; padding:4px 8px; border:1px solid #90caf9; border-radius:4px;">';
+                        row.style.cssText = "display:flex; align-items:center; gap:6px; margin-bottom:6px; flex-wrap:wrap; padding:5px 8px; background:#f0f8ff; border-radius:4px;";
+                        row.innerHTML = '<label style="min-width:150px; font-size:13px; color:#333;"><strong>' + sigla + '</strong> - ' + (_NOMES_PROCESSOS[sigla] || sigla) + ':</label>'
+                            + '<input type="text" class="desc-proc-input" placeholder="Ex: 2h 30min ou 1 CHAPA..." style="flex:1; min-width:100px; padding:4px 8px; border:1px solid #90caf9; border-radius:4px;">'
+                            + '<select class="preco-proc-tipo" style="padding:4px 6px; border:1px solid #90caf9; border-radius:4px; font-size:12px;">'
+                            + '<option value="unit">R$ Unit.</option><option value="total">R$ Total</option></select>'
+                            + '<input type="number" step="0.01" min="0" class="preco-proc-unit" placeholder="unit." style="width:80px; padding:4px 8px; border:1px solid #90caf9; border-radius:4px;">'
+                            + '<input type="number" step="0.01" min="0" class="preco-proc-total" placeholder="total" style="width:80px; padding:4px 8px; border:1px solid #a5d6a7; border-radius:4px;">';
                         container.appendChild(row);
+                        _setupProcPrecoRow(row, div);
                     }
                 });
             }
+            div._atualizarDescricoesProcessos = atualizarDescricoesProcessos;
             div.querySelectorAll(".produtoProcesso").forEach(function (cb) {
                 cb.addEventListener("change", atualizarDescricoesProcessos);
             });
+
+            // Botão "Outro Processo"
+            var btnAddOutro = div.querySelector(".produtoBtnAddOutro");
+            if (btnAddOutro) {
+                btnAddOutro.addEventListener("click", function () {
+                    _addOutroProcessoAoProduto(div);
+                });
+            }
 
             // Campo de busca integrado que filtra produtos por código ou descrição
             const buscaInput = div.querySelector(".produtoBusca");
@@ -1307,6 +1449,8 @@
             div.querySelector(".produtoPrecoUnit").value = produto.preco ? Number(produto.preco).toFixed(2) : "";
             div.querySelector(".produtoUnidade").value = produto.unidade || "UN";
             div.querySelector(".produtoQuantidade").value = "1";
+            var pecasChapa = div.querySelector(".produtoPecasPorChapa");
+            if (pecasChapa) pecasChapa.value = produto.pecasPorChapa != null && produto.pecasPorChapa !== "" ? produto.pecasPorChapa : "";
             var processos = produto.processos || [];
             div.querySelectorAll(".produtoProcesso").forEach(cb => {
                 cb.checked = processos.indexOf(cb.value) >= 0;
@@ -1317,6 +1461,28 @@
                 boxProcessos.style.display = "block";
                 btnProcessos.textContent = "Ocultar Processos";
             }
+            // Trigger process description/price field update
+            if (typeof div._atualizarDescricoesProcessos === 'function') {
+                div._atualizarDescricoesProcessos();
+            } else {
+                var changeEvent = new Event("change");
+                div.querySelectorAll(".produtoProcesso").forEach(function(cb) { cb.dispatchEvent(changeEvent); });
+            }
+            // Set precosProcessos from catalog (rows are now created synchronously above)
+            var precosDosCat = produto.precosProcessos || {};
+            div.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                var sigla = row.dataset.sigla;
+                var precoInput = row.querySelector(".preco-proc-unit") || row.querySelector(".preco-proc-input");
+                if (sigla && precoInput && precosDosCat[sigla] != null && precosDosCat[sigla] !== "") {
+                    precoInput.value = Number(precosDosCat[sigla]).toFixed(2);
+                    if (row._recalcProcPreco) row._recalcProcPreco();
+                }
+            });
+            // Restore outrosProcessos from catalog
+            var outrosCat = produto.outrosProcessos || [];
+            var outrosContainer = div.querySelector(".produtoOutrosProcessos");
+            if (outrosContainer) outrosContainer.innerHTML = "";
+            outrosCat.forEach(function(o) { _addOutroProcessoAoProduto(div, o); });
             calcularTotalProduto(div);
         }
 
@@ -1357,13 +1523,64 @@
 
             const processos = [];
             (div.querySelectorAll(".produtoProcesso:checked") || []).forEach(cb => { if (cb.value) processos.push(cb.value); });
+            const precosProcessos = {};
+            div.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                var sigla = row.dataset.sigla;
+                var precoInput = row.querySelector(".preco-proc-unit") || row.querySelector(".preco-proc-input");
+                if (sigla && precoInput && precoInput.value.trim()) {
+                    var val = parseFloat(precoInput.value);
+                    if (!isNaN(val) && val > 0) precosProcessos[sigla] = val;
+                }
+            });
+            // Collect custom processes for catalog
+            const outrosProcessos = [];
+            const nomesProcessosCustom = {};
+            div.querySelectorAll(".outro-proc-row").forEach(function(row) {
+                var siglaEl = row.querySelector(".outro-proc-sigla");
+                var sigla = siglaEl ? (siglaEl.value || "").trim().replace(/\s/g, '').toUpperCase() : "";
+                if (!sigla) return;
+                var nomeEl = row.querySelector(".outro-proc-nome");
+                var nomeCompleto = nomeEl ? (nomeEl.value || "").trim() : "";
+                var desc = ((row.querySelector(".outro-proc-desc") || {}).value || "").trim();
+                var tipoSel = row.querySelector(".preco-proc-tipo");
+                var tipoPreco = tipoSel ? tipoSel.value : "unit";
+                var unitEl = row.querySelector(".preco-proc-unit");
+                var totalEl = row.querySelector(".preco-proc-total");
+                var precoUnitario = unitEl ? (parseFloat(unitEl.value) || 0) : 0;
+                var precoTotal = totalEl ? (parseFloat(totalEl.value) || 0) : 0;
+                outrosProcessos.push({ sigla: sigla, nomeCompleto: nomeCompleto, descricao: desc, tipoPreco: tipoPreco, precoUnitario: precoUnitario, precoTotal: precoTotal });
+                if (processos.indexOf(sigla) < 0) processos.push(sigla);
+                if (precoUnitario > 0) precosProcessos[sigla] = precoUnitario;
+                nomesProcessosCustom[sigla] = nomeCompleto || sigla;
+            });
+            const descricoesProcessos = {};
+            div.querySelectorAll(".desc-proc-row").forEach(function(row) {
+                var sigla = row.dataset.sigla;
+                var input = row.querySelector(".desc-proc-input");
+                if (sigla && input && input.value.trim()) {
+                    descricoesProcessos[sigla] = input.value.trim();
+                }
+            });
+            div.querySelectorAll(".outro-proc-row").forEach(function(row) {
+                var siglaEl = row.querySelector(".outro-proc-sigla");
+                var sigla = siglaEl ? (siglaEl.value || "").trim().replace(/\s/g, '').toUpperCase() : "";
+                if (!sigla) return;
+                var desc = ((row.querySelector(".outro-proc-desc") || {}).value || "").trim();
+                if (desc) descricoesProcessos[sigla] = desc;
+            });
+            const pecasPorChapaEl = div.querySelector(".produtoPecasPorChapa");
             const dadosProduto = {
                 codigo: codigo,
                 descricao: descricao,
                 ncm: ncm,
                 unidade: unidade,
                 preco: precoUnitario,
-                processos: processos
+                processos: processos,
+                pecasPorChapa: pecasPorChapaEl && pecasPorChapaEl.value.trim() !== "" ? parseFloat(pecasPorChapaEl.value) : "",
+                precosProcessos: precosProcessos,
+                descricoesProcessos: descricoesProcessos,
+                outrosProcessos: outrosProcessos,
+                nomesProcessosCustom: nomesProcessosCustom
             };
 
             google.script.run
@@ -1402,13 +1619,47 @@
 
                 // RF002: Coletar descrições por processo
                 const descricoesProcessos = {};
+                const precosProcessos = {};
                 div.querySelectorAll(".desc-proc-row").forEach(function (row) {
                     var sigla = row.dataset.sigla;
                     var input = row.querySelector(".desc-proc-input");
                     if (sigla && input && input.value.trim()) {
                         descricoesProcessos[sigla] = input.value.trim();
                     }
+                    // Support new preco-proc-unit or legacy preco-proc-input
+                    var precoInput = row.querySelector(".preco-proc-unit") || row.querySelector(".preco-proc-input");
+                    if (sigla && precoInput && precoInput.value.trim()) {
+                        var val = parseFloat(precoInput.value);
+                        if (!isNaN(val) && val > 0) precosProcessos[sigla] = val;
+                    }
                 });
+
+                // Coletar "Outros" processos personalizados e mesclar nos arrays padrão
+                const outrosProcessos = [];
+                const nomesProcessosCustom = {};
+                div.querySelectorAll(".outro-proc-row").forEach(function (row) {
+                    var siglaEl = row.querySelector(".outro-proc-sigla");
+                    var sigla = siglaEl ? (siglaEl.value || "").trim().replace(/\s/g, '').toUpperCase() : "";
+                    if (!sigla) return;
+                    var nomeEl = row.querySelector(".outro-proc-nome");
+                    var nomeCompleto = nomeEl ? (nomeEl.value || "").trim() : "";
+                    var desc = ((row.querySelector(".outro-proc-desc") || {}).value || "").trim();
+                    var tipoSel = row.querySelector(".preco-proc-tipo");
+                    var tipoPreco = tipoSel ? tipoSel.value : "unit";
+                    var unitEl = row.querySelector(".preco-proc-unit");
+                    var totalEl = row.querySelector(".preco-proc-total");
+                    var precoUnitario = unitEl ? (parseFloat(unitEl.value) || 0) : 0;
+                    var precoTotal = totalEl ? (parseFloat(totalEl.value) || 0) : 0;
+                    outrosProcessos.push({ sigla: sigla, nomeCompleto: nomeCompleto, descricao: desc, tipoPreco: tipoPreco, precoUnitario: precoUnitario, precoTotal: precoTotal });
+                    // Merge into standard process arrays so all existing code handles them
+                    if (processos.indexOf(sigla) < 0) processos.push(sigla);
+                    if (desc) descricoesProcessos[sigla] = desc;
+                    if (precoUnitario > 0) precosProcessos[sigla] = precoUnitario;
+                    nomesProcessosCustom[sigla] = nomeCompleto || sigla;
+                });
+
+                const pecasPorChapaEl = div.querySelector(".produtoPecasPorChapa");
+                const pecasPorChapa = pecasPorChapaEl && pecasPorChapaEl.value.trim() !== "" ? parseFloat(pecasPorChapaEl.value) : "";
 
                 produtos.push({
                     codigo: codigo || "",
@@ -1418,8 +1669,12 @@
                     precoUnitario: precoUnitario,
                     quantidade: quantidade,
                     precoTotal: precoTotal,
+                    pecasPorChapa: pecasPorChapa,
                     processos: processos,
-                    descricoesProcessos: descricoesProcessos
+                    descricoesProcessos: descricoesProcessos,
+                    precosProcessos: precosProcessos,
+                    outrosProcessos: outrosProcessos,
+                    nomesProcessosCustom: nomesProcessosCustom
                 });
             });
             return produtos;
@@ -1439,6 +1694,7 @@
             if (preserveIndice === true) {
                 const codigoProjeto = data + indiceAtual + iniciais;
                 document.getElementById("obsProjeto").value = codigoProjeto;
+                verificarCodigoDuplicado(codigoProjeto);
                 return;
             }
 
@@ -1446,6 +1702,7 @@
             if (indiceAtual !== "" && indiceAtual.toLowerCase() !== "a") {
                 const codigoProjeto = data + indiceAtual + iniciais;
                 document.getElementById("obsProjeto").value = codigoProjeto;
+                verificarCodigoDuplicado(codigoProjeto);
                 return;
             }
 
@@ -1458,6 +1715,7 @@
                         const iniciaisAtual = document.getElementById("projetoIniciais").value.trim();
                         const codigoProjeto = data + indice + iniciaisAtual;
                         document.getElementById("obsProjeto").value = codigoProjeto;
+                        verificarCodigoDuplicado(codigoProjeto);
                     })
                     .withFailureHandler(function (err) {
                         document.getElementById("projetoIndice").value = "a";
@@ -1465,12 +1723,14 @@
                         const iniciaisAtual = document.getElementById("projetoIniciais").value.trim();
                         const codigoProjeto = data + indice + iniciaisAtual;
                         document.getElementById("obsProjeto").value = codigoProjeto;
+                        verificarCodigoDuplicado(codigoProjeto);
                     })
                     .detectarProximoIndice(data, iniciais);
             } else {
                 const indice = document.getElementById("projetoIndice").value || "a";
                 const codigoProjeto = data + indice + iniciais;
                 document.getElementById("obsProjeto").value = codigoProjeto;
+                verificarCodigoDuplicado(codigoProjeto);
             }
         }
 
@@ -1494,6 +1754,31 @@
             if (!banner) return;
             var mudou = (data !== _originalProjetoData) || (indice !== _originalProjetoIndice) || (iniciais !== _originalProjetoIniciais);
             banner.style.display = mudou ? "block" : "none";
+        }
+
+        // Retorna true se o código de projeto (sem sufixo _v2) já existe em listaOrcamentosCompleta.
+        // Os itens da lista têm formato "CÓDIGO - data - cliente - descrição" no campo "nome".
+        function codigoProjetoJaExiste(codigo) {
+            if (!codigo || codigo.length < 8) return false;
+            var base = codigo.replace(/_v\d+$/, "").toLowerCase();
+            return listaOrcamentosCompleta.some(function(r) {
+                var nomeBase = String(r.nome || "").split(" - ")[0].trim().replace(/_v\d+$/, "").toLowerCase();
+                return nomeBase === base;
+            });
+        }
+
+        // Verifica se o código do projeto atual já existe na lista de orçamentos (duplicidade)
+        // Só é exibido quando o usuário NÃO carregou um projeto existente (criando um novo)
+        function verificarCodigoDuplicado(codigoAtual) {
+            var bannerDup = document.getElementById("bannerProjetoDuplicado");
+            if (!bannerDup) return;
+            // Se estamos editando um projeto carregado, não exibe o banner de duplicado
+            if (linhaOrcamentoCarregado) {
+                bannerDup.style.display = "none";
+                return;
+            }
+            if (!codigoAtual) codigoAtual = document.getElementById("obsProjeto").value.trim();
+            bannerDup.style.display = codigoProjetoJaExiste(codigoAtual) ? "block" : "none";
         }
 
         // RF006: Criar pasta 01_IN dentro da pasta do projeto
@@ -1824,6 +2109,7 @@
         function preencherFormulario(data) {
             // Garante que sempre teremos um objeto, mesmo que venha null/undefined
             const safeData = data || {};
+            _tipoPdfSelecionado = safeData.tipoPdf || (safeData.dados && safeData.dados.tipoPdf) || null;
             numeroSequencialCarregado = (safeData.numeroSequencial != null && safeData.numeroSequencial !== "") ? safeData.numeroSequencial : null;
 
             // Cria objetos vazios padrão para evitar erros de "undefined"
@@ -1842,7 +2128,8 @@
                 if (base.length >= 9) {
                     projetoData = base.substring(0, 6);
                     projetoIndice = base.substring(6, 7);
-                    projetoIniciais = base.substring(7, 9);
+                    // Iniciais podem ter 2 ou mais caracteres (ex: "AB", "ABC") – captura tudo a partir da posição 7
+                    projetoIniciais = base.substring(7);
                 } else if (base.length >= 6 && !projetoData) {
                     projetoData = base.substring(0, 6);
                     if (base.length > 6) projetoIndice = base.charAt(6);
@@ -1860,9 +2147,11 @@
                 _originalProjetoIndice = projetoIndice;
                 _originalProjetoIniciais = projetoIniciais;
             }
-            // Ocultar banner (limpar estado anterior)
+            // Ocultar banners (limpar estado anterior)
             var banner = document.getElementById("bannerNovoProjeto");
             if (banner) banner.style.display = "none";
+            var bannerDup = document.getElementById("bannerProjetoDuplicado");
+            if (bannerDup) bannerDup.style.display = "none";
 
             // 2. Cliente (campo único: nome = busca ou novo)
             document.getElementById("clienteNome").value = cliente.nome || "";
@@ -1890,7 +2179,14 @@
             document.getElementById("obsPagamento").value = observacoes.pagamento || "";
             document.getElementById("obsAdicional").value = observacoes.adicional || "";
             document.getElementById("obsKanban").value = observacoes.observacoesKanban || "";
-            document.getElementById("obsProjeto").value = observacoes.projeto || "";
+            document.getElementById("obsProjeto").value = observacoes.projeto || document.getElementById("obsProjeto").value;
+
+            // RF001: preencher Nome da Versão (obrigatório para gerar PDF)
+            const nomeVersaoInput = document.getElementById("nomeVersaoInput");
+            if (nomeVersaoInput) {
+                nomeVersaoInput.value = (safeData.nomeVersao != null) ? String(safeData.nomeVersao) : (observacoes.nomeVersao != null ? String(observacoes.nomeVersao) : "");
+            }
+
             document.getElementById("obsDescricao").value = observacoes.descricao || "";
             document.getElementById("obsProcessos").value = observacoes.processos || "";
             document.getElementById("obsTemNotaFiscal").checked = !!observacoes.temNotaFiscal;
@@ -1951,6 +2247,9 @@
                     prodDiv.querySelector(".produtoUnidade").value = prodData.unidade || "UN";
                     prodDiv.querySelector(".produtoPrecoUnit").value = prodData.precoUnitario || "";
                     prodDiv.querySelector(".produtoQuantidade").value = prodData.quantidade || 1;
+                    // Peças por chapa
+                    var pecasEl = prodDiv.querySelector(".produtoPecasPorChapa");
+                    if (pecasEl) pecasEl.value = prodData.pecasPorChapa != null && prodData.pecasPorChapa !== "" ? prodData.pecasPorChapa : "";
                     // Processos do item (MP, CL, D, S, Pin)
                     const processos = prodData.processos || [];
                     prodDiv.querySelectorAll(".produtoProcesso").forEach(cb => {
@@ -1963,28 +2262,29 @@
                         btnProcessos.textContent = "Ocultar Processos";
                     }
                     // RF002: Atualizar campos de descrição e preencher valores salvos
+                    if (typeof prodDiv._atualizarDescricoesProcessos === 'function') {
+                        prodDiv._atualizarDescricoesProcessos();
+                    }
                     var descContnr = prodDiv.querySelector(".produtoDescricoesProcessos");
                     if (descContnr) {
-                        // Dispara a atualização para criar os campos de descrição
-                        processos.forEach(function (sigla) {
-                            if (!descContnr.querySelector('.desc-proc-row[data-sigla="' + sigla + '"]')) {
-                                var row = document.createElement("div");
-                                row.className = "desc-proc-row";
-                                row.dataset.sigla = sigla;
-                                row.style.cssText = "display:flex; align-items:center; gap:8px; margin-bottom:6px;";
-                                row.innerHTML = '<label style="min-width:160px; font-size:13px; color:#333;"><strong>' + sigla + '</strong> - ' + (_NOMES_PROCESSOS[sigla] || sigla) + ':</label>'
-                                    + '<input type="text" class="desc-proc-input" placeholder="Ex: 2h, 3 chapas 1000x500..." style="flex:1; padding:4px 8px; border:1px solid #90caf9; border-radius:4px;">';
-                                descContnr.appendChild(row);
-                            }
-                        });
-                        // Preencher descrições salvas
+                        // Preencher descrições e preços salvos
                         var descs = prodData.descricoesProcessos || {};
+                        var precos = prodData.precosProcessos || {};
                         descContnr.querySelectorAll(".desc-proc-row").forEach(function (row) {
                             var sigla = row.dataset.sigla;
                             var input = row.querySelector(".desc-proc-input");
                             if (sigla && input && descs[sigla]) input.value = descs[sigla];
+                            var precoInput = row.querySelector(".preco-proc-unit") || row.querySelector(".preco-proc-input");
+                            if (sigla && precoInput && precos[sigla] != null && precos[sigla] !== "") {
+                                precoInput.value = Number(precos[sigla]).toFixed(2);
+                                if (row._recalcProcPreco) row._recalcProcPreco();
+                            }
                         });
                     }
+                    // Restaurar "Outros" processos
+                    var outrosContainer = prodDiv.querySelector(".produtoOutrosProcessos");
+                    if (outrosContainer) outrosContainer.innerHTML = "";
+                    (prodData.outrosProcessos || []).forEach(function(o) { _addOutroProcessoAoProduto(prodDiv, o); });
                     calcularTotalProduto(prodDiv);
                 });
             }
@@ -1997,12 +2297,23 @@
                 const versaoContainer = document.getElementById("versaoPickerContainer");
                 if (versaoPicker && versaoContainer) {
                     if (versoes.length > 0) {
-                        let opcoesHtml = '<option value="' + VERSAO_BASE_KEY + '">v1 - original</option>';
+                        // Monta label do PDF usando o mesmo padrão do RF002/RF004
+                        const tipoBase = safeData.tipoPdf || (safeData.dados && safeData.dados.tipoPdf) || "Proposta";
+                        const prefixoBase = (String(tipoBase).trim().toLowerCase() === "pedido") ? "Pedido_" : "Proposta_";
+                        const baseCodigo = String((safeData.observacoes && safeData.observacoes.projeto) ? safeData.observacoes.projeto : "").replace(/_v\d+$/i, "").trim() || "";
+                        const baseSeq = (safeData.numeroSequencial != null && safeData.numeroSequencial !== "") ? safeData.numeroSequencial : "—";
+                        const baseNome = (safeData.nomeVersao != null)
+                            ? String(safeData.nomeVersao)
+                            : ((safeData.dados && safeData.dados.nomeVersao != null) ? String(safeData.dados.nomeVersao) : "");
+
+                        let opcoesHtml = '<option value="' + VERSAO_BASE_KEY + '">' + prefixoBase + baseCodigo + "_" + baseSeq + "_" + (baseNome || "Sem Material") + '</option>';
                         versoes.forEach(function (v) {
-                            var match = (v.codigo || "").match(/_v(\d+)$/);
-                            var sufixo = match ? "v" + match[1] : (v.codigo || "versão");
-                            var dataStr = v.dataSalvo ? new Date(v.dataSalvo).toLocaleDateString('pt-BR') : "";
-                            opcoesHtml += '<option value="' + (v.codigo || '') + '">' + sufixo + (dataStr ? " — " + dataStr : "") + '</option>';
+                            const codigoBaseV = String(v.codigo || "").replace(/_v\d+$/i, "").trim();
+                            const tipoV = v.tipoPdf || (v.dados && v.dados.tipoPdf) || "Proposta";
+                            const prefixoV = (String(tipoV).trim().toLowerCase() === "pedido") ? "Pedido_" : "Proposta_";
+                            const seqV = (v.numeroSequencial != null && v.numeroSequencial !== "") ? v.numeroSequencial : "—";
+                            const nomeV = (v.nomeVersao != null) ? v.nomeVersao : ((v.dados && v.dados.nomeVersao) ? v.dados.nomeVersao : "");
+                            opcoesHtml += '<option value="' + (v.codigo || '') + '">' + prefixoV + codigoBaseV + "_" + seqV + "_" + (nomeV || "Sem Material") + '</option>';
                         });
                         versaoPicker.innerHTML = opcoesHtml;
                         versaoContainer.style.display = "block";
@@ -2011,13 +2322,25 @@
                         if (ultimaVersao && ultimaVersao.dados) {
                             versaoPicker.value = ultimaVersao.codigo;
                             _isFillFromVersion = true;
-                            preencherFormulario(Object.assign({}, ultimaVersao.dados, { numeroSequencial: ultimaVersao.numeroSequencial }));
+                            preencherFormulario(Object.assign({}, ultimaVersao.dados, { numeroSequencial: ultimaVersao.numeroSequencial, nomeVersao: ultimaVersao.nomeVersao || ultimaVersao.dados.nomeVersao, tipoPdf: ultimaVersao.tipoPdf || ultimaVersao.dados.tipoPdf }));
                             _isFillFromVersion = false;
                         }
+                        var btnExcluir = document.getElementById("btnExcluirVersao");
+                        if (btnExcluir) btnExcluir.disabled = (versaoPicker.value === VERSAO_BASE_KEY);
                     } else {
-                        versaoPicker.innerHTML = '<option value="' + VERSAO_BASE_KEY + '">v1 - original</option>';
+                        const tipoBase = safeData.tipoPdf || (safeData.dados && safeData.dados.tipoPdf) || "Proposta";
+                        const prefixoBase = (String(tipoBase).trim().toLowerCase() === "pedido") ? "Pedido_" : "Proposta_";
+                        const baseCodigo = String((safeData.observacoes && safeData.observacoes.projeto) ? safeData.observacoes.projeto : "").replace(/_v\d+$/i, "").trim() || "";
+                        const baseSeq = (safeData.numeroSequencial != null && safeData.numeroSequencial !== "") ? safeData.numeroSequencial : "—";
+                        const baseNome = (safeData.nomeVersao != null)
+                            ? String(safeData.nomeVersao)
+                            : ((safeData.dados && safeData.dados.nomeVersao != null) ? String(safeData.dados.nomeVersao) : "");
+
+                        versaoPicker.innerHTML = '<option value="' + VERSAO_BASE_KEY + '">' + prefixoBase + baseCodigo + "_" + baseSeq + "_" + (baseNome || "Sem Material") + '</option>';
                         versaoPicker.value = VERSAO_BASE_KEY;
-                        versaoContainer.style.display = "none";
+                        versaoContainer.style.display = "block";
+                        var btnExcluir2 = document.getElementById("btnExcluirVersao");
+                        if (btnExcluir2) btnExcluir2.disabled = true;
                     }
                 }
             }
@@ -2039,11 +2362,59 @@
                 var versoes = _dadosRootCarregado.versoes || [];
                 var versao = versoes.find(function (v) { return v.codigo === selectedCodigo; });
                 if (!versao) return;
-                dadosParaCarregar = Object.assign({}, versao.dados || {}, { numeroSequencial: versao.numeroSequencial });
+                    dadosParaCarregar = Object.assign({}, versao.dados || {}, {
+                        numeroSequencial: versao.numeroSequencial,
+                        nomeVersao: versao.nomeVersao != null ? versao.nomeVersao : (versao.dados && versao.dados.nomeVersao),
+                        tipoPdf: versao.tipoPdf != null ? versao.tipoPdf : (versao.dados && versao.dados.tipoPdf)
+                    });
             }
             _isFillFromVersion = true;
             preencherFormulario(dadosParaCarregar);
             _isFillFromVersion = false;
+
+            // RF003: desabilita exclusão para v1
+            var btnExcluir = document.getElementById("btnExcluirVersao");
+            if (btnExcluir) btnExcluir.disabled = (selectedCodigo === VERSAO_BASE_KEY);
+
+            // RF005/RF004: se a versão selecionada for um PEDIDO, não permitir criar nova versão (sobrescrever apenas)
+            var modoVersaoNovaEl = document.getElementById("modoVersaoPdfNova");
+            if (modoVersaoNovaEl) {
+                const ehPedidoSelecionado = String(_tipoPdfSelecionado || "").trim().toLowerCase() === "pedido";
+                modoVersaoNovaEl.disabled = ehPedidoSelecionado;
+                if (ehPedidoSelecionado) modoVersaoNovaEl.checked = false;
+            }
+        }
+
+        // RF003: excluir versão selecionada (v2, v3...).
+        function excluirVersaoSelecionada() {
+            var versaoPicker = document.getElementById("versaoPicker");
+            if (!versaoPicker) return;
+            var selectedCodigo = versaoPicker.value;
+            if (!selectedCodigo) return;
+            if (selectedCodigo === VERSAO_BASE_KEY) {
+                alert("Não é possível excluir a versão base (v1).");
+                return;
+            }
+
+            const hiddenKey = document.getElementById("rascunhoSelectKey");
+            const key = hiddenKey ? hiddenKey.value : "";
+            const linha = key ? parseInt(key, 10) : NaN;
+            if (!linha || linha < 2) {
+                alert("Carregue um orçamento existente para excluir uma versão.");
+                return;
+            }
+
+            if (!confirm("Excluir a versão selecionada?\n\nEssa ação removerá a entrada da versão no projeto.")) return;
+
+            google.script.run
+                .withSuccessHandler(function () {
+                    alert("Versão excluída com sucesso.");
+                    carregarProjetoPorLinha(linha);
+                })
+                .withFailureHandler(function (err) {
+                    alert("Erro ao excluir versão: " + (err && err.message ? err.message : err));
+                })
+                .excluirVersaoOrcamento(linha, selectedCodigo);
         }
 
         // Variável global para armazenar todos os orçamentos
@@ -2186,6 +2557,14 @@
                     })
                     .atualizarRascunho(linhaOrcamentoCarregado, dados);
             } else {
+                // Se não tem orçamento carregado, verifica se o código já existe antes de salvar.
+                // Faz a checagem diretamente na lista (não depende do estado visual do banner).
+                if (codigoProjetoJaExiste(codigoProjeto)) {
+                    if (!confirm("⚠️ Já existe um projeto com o código \"" + codigoProjeto + "\".\n\nDeseja sobrescrever o projeto existente?")) {
+                        btn.disabled = originalDisabled;
+                        return;
+                    }
+                }
                 // Se não tem orçamento carregado, salva como novo rascunho
                 btn.textContent = "Salvando...";
 
@@ -2219,6 +2598,8 @@
             _originalProjetoIniciais = null;
             var bannerReset = document.getElementById("bannerNovoProjeto");
             if (bannerReset) bannerReset.style.display = "none";
+            var bannerDupReset = document.getElementById("bannerProjetoDuplicado");
+            if (bannerDupReset) bannerDupReset.style.display = "none";
 
             const today = new Date();
             document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
@@ -2261,6 +2642,8 @@
         let numeroSequencialCarregado = null;
         // Root JSON_DADOS (com versoes[]) do projeto atualmente carregado
         let _dadosRootCarregado = null;
+        // Tipo do PDF selecionado no seletor de versões (Proposta ou Pedido)
+        let _tipoPdfSelecionado = null;
         // Flag: true enquanto preencherFormulario está sendo chamado recursivamente para uma versão específica
         let _isFillFromVersion = false;
         // Valor especial para representar a versão base (v1) no seletor de versões
@@ -2463,7 +2846,12 @@
         }
 
         function calcular(asPedido, apenasPreview) {
-            asPedido = !!asPedido;
+            // Se asPedido vier explícito (true/false), respeita.
+            // Caso venha undefined (ex: botão "Gerar PDF"), usa o tipo da versão selecionada no seletor (Proposta ou Pedido).
+            var asPedidoResolvido = (typeof asPedido === "boolean")
+                ? asPedido
+                : (String(_tipoPdfSelecionado || "").trim().toLowerCase() === "pedido");
+            asPedido = !!asPedidoResolvido;
             apenasPreview = !!apenasPreview;
             const btn = apenasPreview ? document.getElementById("btnPreviewPdf") : (asPedido ? document.querySelector('button[onclick="salvarComoPedido()"]') : document.getElementById("btnGerar"));
             if (!btn) return;
@@ -2582,6 +2970,18 @@
                 }
             }
 
+            // Verificar duplicidade: se NÃO está editando projeto carregado e for sobrescrever a versão atual,
+            // pedir confirmação. Para "nova versão" (v2/v3...), não pode bloquear o fluxo.
+            if (!apenasPreview && !linhaOrcamentoCarregado && sobrescreverVersao) {
+                if (codigoProjetoJaExiste(codigoProjetoCompleto)) {
+                    if (!confirm("⚠️ Já existe um projeto com o código \"" + codigoProjetoCompleto + "\".\n\nDeseja sobrescrever o projeto existente?")) {
+                        btn.disabled = false;
+                        btn.textContent = textoOriginalBtn;
+                        return;
+                    }
+                }
+            }
+
             const observacoes = {
                 projeto: codigoProjetoCompleto,
                 descricao: dadosColetados.observacoes.descricao,
@@ -2604,6 +3004,11 @@
 
             // --- coletar TODOS os dados do formulário para salvar junto com o orçamento ---
             const dadosFormularioCompleto = coletarDadosFormulario();
+            const nomeVersaoTexto = (document.getElementById("nomeVersaoInput") && document.getElementById("nomeVersaoInput").value != null)
+                ? document.getElementById("nomeVersaoInput").value.trim()
+                : "";
+
+            // RF001 (atual): "Nome da Versão" não é obrigatório.
 
             // NOVO: Preparar informações de pagamento para gerar tabela de parcelas
             const infoPagamento = {
@@ -2626,6 +3031,7 @@
                 dadosFormularioCompleto,
                 infoPagamento,
                 asPedido,
+                nomeVersaoTexto,
                 sobrescreverVersao
             ];
             if (apenasPreview) argsPdf.push(true);
@@ -2680,7 +3086,8 @@
                 .gerarPdfOrcamento.apply(google.script.run, argsPdf);
         }
 
-        var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+
+        var baseUrl = "<?= (typeof baseUrl !== 'undefined' && baseUrl) ? String(baseUrl) : '' ?>";
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
         function voltarPagina() {
@@ -2860,59 +3267,86 @@
                     return;
                 }
 
-                // Mostra loading
-                document.getElementById("previewLoading").classList.remove("hidden");
-                document.getElementById("previewStatus").textContent = "Calculando...";
+                // Calcula preview localmente (evita limite de transferência do google.script.run)
+                let totalGeral = 0;
+                const detalhamento = [];
 
-                // Chama o servidor para calcular
-                google.script.run
-                    .withSuccessHandler(function (resultado) {
-                        // Esconde loading
-                        document.getElementById("previewLoading").classList.add("hidden");
+                // Produtos cadastrados
+                dados.produtosCadastrados.forEach(function(prod) {
+                    const precoTotal = (parseFloat(prod.precoUnitario) || 0) * (parseFloat(prod.quantidade) || 0);
+                    totalGeral += precoTotal;
+                    detalhamento.push({
+                        tipo: 'produto',
+                        descricao: prod.descricao || prod.codigo,
+                        quantidade: prod.quantidade,
+                        precoUnitario: prod.precoUnitario,
+                        precoTotal: precoTotal
+                    });
+                });
 
-                        if (resultado.erro) {
-                            document.getElementById("previewStatus").textContent = "Erro ao calcular: " + resultado.erro;
-                            return;
-                        }
-
-                        // Atualiza status
-                        const agora = new Date();
-                        document.getElementById("previewStatus").textContent = "Atualizado às " + agora.toLocaleTimeString('pt-BR');
-
-                        // Atualiza total
-                        document.getElementById("previewTotal").textContent = formatarReais(resultado.total);
-
-                        // Atualiza detalhamento
-                        let detalhamentoHtml = "";
-
-                        // Agrupa por tipo (apenas produtos e processos do pedido)
-                        const produtos = resultado.detalhamento.filter(d => d.tipo === 'produto');
-                        const processos = resultado.detalhamento.filter(d => d.tipo === 'processo');
-
-                        if (produtos.length > 0) {
-                            detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>📦 Produtos Cadastrados:</strong><br>';
-                            produtos.forEach(p => {
-                                detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao} (${p.quantidade}x) - ${formatarReais(p.precoTotal)}<br>`;
+                // Processos do pedido (descontos e custos extras)
+                if (dados.processosPedido && Array.isArray(dados.processosPedido)) {
+                    const subtotalAntesProcessos = totalGeral;
+                    dados.processosPedido.forEach(function(proc) {
+                        let preco = 0;
+                        if (proc.tipo === "desconto" || proc.tipo === "custo") {
+                            const tipoValor = proc.tipoValor === "percentual" || proc.tipoValor === "fixo" ? proc.tipoValor : "fixo";
+                            if (proc.tipo === "desconto") {
+                                preco = tipoValor === "percentual"
+                                    ? -(subtotalAntesProcessos * (parseFloat(proc.percentual) || 0) / 100)
+                                    : -(parseFloat(proc.valorFixo) || 0);
+                            } else {
+                                preco = parseFloat(proc.valorFixo) || 0;
+                            }
+                            detalhamento.push({
+                                tipo: 'processo',
+                                descricao: proc.descricao || (proc.tipo === "desconto" ? "Desconto" : "Custo extra"),
+                                precoTotal: preco
                             });
-                            detalhamentoHtml += '</div>';
-                        }
-
-                        if (processos.length > 0) {
-                            detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>⚙️ Processos Adicionais:</strong><br>';
-                            processos.forEach(p => {
-                                detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao} - ${formatarReais(p.precoTotal)}<br>`;
+                        } else {
+                            const vh = parseFloat(proc.valorHora) || 0, h = parseFloat(proc.horas) || 0;
+                            const vm = parseFloat(proc.valorMat) || 0, qm = parseFloat(proc.qtdMat) || 0, vf = parseFloat(proc.valorFixo) || 0;
+                            preco = vh * h + vm * qm + vf;
+                            detalhamento.push({
+                                tipo: 'processo',
+                                descricao: proc.descricao || 'Processo adicional',
+                                precoTotal: preco
                             });
-                            detalhamentoHtml += '</div>';
                         }
+                        totalGeral += preco;
+                    });
+                }
 
-                        document.getElementById("previewDetalhamento").innerHTML = detalhamentoHtml;
-                    })
-                    .withFailureHandler(function (erro) {
-                        document.getElementById("previewLoading").classList.add("hidden");
-                        document.getElementById("previewStatus").textContent = "Erro ao calcular preview";
-                        console.error("Erro ao calcular preview:", erro);
-                    })
-                    .calcularPreviewOrcamento(dados);
+                // Atualiza status
+                const agora = new Date();
+                document.getElementById("previewStatus").textContent = "Atualizado às " + agora.toLocaleTimeString('pt-BR');
+
+                // Atualiza total
+                document.getElementById("previewTotal").textContent = formatarReais(totalGeral);
+
+                // Atualiza detalhamento (sem limite de itens)
+                let detalhamentoHtml = "";
+
+                const produtos = detalhamento.filter(d => d.tipo === 'produto');
+                const processos = detalhamento.filter(d => d.tipo === 'processo');
+
+                if (produtos.length > 0) {
+                    detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>📦 Produtos Cadastrados:</strong><br>';
+                    produtos.forEach(p => {
+                        detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao} (${p.quantidade}x) - ${formatarReais(p.precoTotal)}<br>`;
+                    });
+                    detalhamentoHtml += '</div>';
+                }
+
+                if (processos.length > 0) {
+                    detalhamentoHtml += '<div style="margin-bottom:12px;"><strong>⚙️ Processos Adicionais:</strong><br>';
+                    processos.forEach(p => {
+                        detalhamentoHtml += `&nbsp;&nbsp;• ${p.descricao} - ${formatarReais(p.precoTotal)}<br>`;
+                    });
+                    detalhamentoHtml += '</div>';
+                }
+
+                document.getElementById("previewDetalhamento").innerHTML = detalhamentoHtml;
 
             } catch (erro) {
                 console.error("Erro ao atualizar preview:", erro);

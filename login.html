@@ -214,6 +214,68 @@
       }
     })();
 
+    function buildPostLoginUrl(token) {
+      const url = new URL(WEBAPP_URL);
+      url.searchParams.set('page', 'dashboard');
+
+      if (redirectTo) {
+        var raw = String(redirectTo).trim();
+        var query = raw;
+
+        if (/^https?:\/\//i.test(raw)) {
+          try {
+            query = new URL(raw).search || '';
+          } catch (e) {
+            query = raw;
+          }
+        }
+
+        if (query && !query.startsWith('?')) {
+          query = '?' + query.replace(/^\?+/, '');
+        }
+
+        if (query) {
+          const params = new URLSearchParams(query);
+          const targetPage = params.get('page');
+          if (targetPage) {
+            url.searchParams.set('page', targetPage);
+            params.delete('page');
+          }
+          params.delete('token');
+          params.forEach(function (value, key) {
+            url.searchParams.set(key, value);
+          });
+        }
+      }
+
+      url.searchParams.set('token', token);
+      return url.toString();
+    }
+
+    function redirectNow(url, preferTop) {
+      var target = String(url || '').trim();
+      if (!target) return false;
+
+      if (preferTop) {
+        try {
+          window.top.location.assign(target);
+          return true;
+        } catch (e) {}
+      }
+
+      try {
+        window.location.assign(target);
+        return true;
+      } catch (e) {}
+
+      try {
+        window.open(target, preferTop ? '_top' : '_self');
+        return true;
+      } catch (e) {}
+
+      return false;
+    }
+
     function login() {
       console.log('isEmbeddedMode() =', isEmbeddedMode());
 
@@ -236,7 +298,7 @@
           if (res && res.success) {
 
             if (isEmbeddedMode()) {
-              if (baseUrl) {
+              if (baseUrl && baseUrl !== 'null') {
                 var page = 'dashboard';
                 var rest = '';
                 if (redirectTo) {
@@ -249,24 +311,38 @@
                   } catch (e) {}
                 }
                 var url = (baseUrl.replace(/\/$/, '')) + '/' + page + '.html?' + (rest ? rest + '&' : '') + 'token=' + encodeURIComponent(res.token);
-                window.top.location.href = url;
+                if (!redirectNow(url, true)) {
+                  erro.innerText = "Login realizado, mas o redirecionamento foi bloqueado.";
+                  btn.disabled = false;
+                  btn.textContent = "Entrar";
+                  return;
+                }
               } else {
-                var message = { type: 'AUTH_TOKEN', token: res.token, redirectTo: redirectTo };
-                window.top.postMessage(message, '*');
+                // Se não há baseUrl, redireciona igual modo standalone
+                let destinationUrl = buildPostLoginUrl(res.token);
+                if (!redirectNow(destinationUrl, false)) {
+                  erro.innerText = "Login realizado, mas o redirecionamento foi bloqueado.";
+                  btn.disabled = false;
+                  btn.textContent = "Entrar";
+                  return;
+                }
+                btn.textContent = "Sucesso!";
               }
-              btn.textContent = "Sucesso!";
             } else {
               console.log("Executando em modo Standalone: Redirecionando para o dashboard.");
-              localStorage.setItem('token', res.token);  // <-- ADICIONE ESTA LINHA
-              let destinationUrl = WEBAPP_URL + "?page=dashboard&token=" + encodeURIComponent(res.token);
-
-              if (redirectTo) {
-                destinationUrl = WEBAPP_URL + redirectTo +
-                  (redirectTo.includes('?') ? '&' : '?') +
-                  'token=' + encodeURIComponent(res.token);
+              try {
+                localStorage.setItem('token', res.token);
+              } catch (e) {
+                console.warn('Falha ao salvar token no localStorage:', e);
               }
+              let destinationUrl = buildPostLoginUrl(res.token);
 
-              window.top.location.href = destinationUrl;
+              if (!redirectNow(destinationUrl, false)) {
+                erro.innerText = "Login realizado, mas o redirecionamento foi bloqueado.";
+                btn.disabled = false;
+                btn.textContent = "Entrar";
+                return;
+              }
             }
 
           } else {

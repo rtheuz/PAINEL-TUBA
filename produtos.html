@@ -42,7 +42,7 @@
             margin-bottom: 10px;
         }
 
-        .header . subtitle {
+        .header .subtitle {
             opacity: 0.9;
             font-size: 1.1em;
         }
@@ -116,7 +116,7 @@
             color: white;
         }
 
-        . btn-secondary:hover {
+        .btn-secondary:hover {
             background: #5a6268;
             transform: translateY(-2px);
         }
@@ -147,7 +147,7 @@
             font-size: 1.2em;
         }
 
-        . table-container {
+        .table-container {
             padding: 30px;
             overflow-x: auto;
             overflow-y: auto;
@@ -185,18 +185,18 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        th. sortable::after {
+        th.sortable::after {
             content: ' ⇅';
             opacity: 0. 5;
             font-size: 0.8em;
         }
 
-        th. sort-asc::after {
+        th.sort-asc::after {
             content: ' ▲';
             opacity: 1;
         }
 
-        th. sort-desc::after {
+        th.sort-desc::after {
             content: ' ▼';
             opacity: 1;
         }
@@ -227,7 +227,7 @@
             word-wrap: break-word;
         }
 
-        . no-results {
+        .no-results {
             text-align: center;
             padding: 60px 20px;
             color: #999;
@@ -284,17 +284,17 @@
         }
 
         /* Scrollbar personalizada */
-        . table-container::-webkit-scrollbar {
+        .table-container::-webkit-scrollbar {
             height: 12px;
             width: 12px;
         }
 
-        . table-container::-webkit-scrollbar-track {
+        .table-container::-webkit-scrollbar-track {
             background: #f1f1f1;
             border-radius: 10px;
         }
 
-        . table-container::-webkit-scrollbar-thumb {
+        .table-container::-webkit-scrollbar-thumb {
             background: #FF9933;
             border-radius: 10px;
         }
@@ -330,7 +330,7 @@
                 border-radius: 10px;
             }
 
-            . header h1 {
+            .header h1 {
                 font-size: 1.5em;
             }
 
@@ -451,174 +451,134 @@
     </div>
 
     <script>
-        const token = '<?= token ?>';
-        let produtosData = [];
-        let headers = [];
-        let sortColumn = null;
-        let sortDirection = 'asc';
+    // Dados já serializados e seguros, injetados como string pelo servidor
+    let headers      = JSON.parse('<?!= headersJson ?>');
+    let produtosData = JSON.parse('<?!= dadosJson ?>');
+    const token      = <?!= JSON.stringify(token) ?>;
+    var baseUrl      = <?!= JSON.stringify(typeof baseUrl !== 'undefined' ? baseUrl : null) ?>;
 
-        // Carrega dados ao abrir a página
-        window.onload = function () {
-            carregarProdutos();
-        };
+    let sortColumn    = null;
+    let sortDirection = 'asc';
 
-        function carregarProdutos() {
-            document.getElementById('loadingIndicator').style.display = 'block';
-            document.getElementById('tableContent').style.display = 'none';
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
 
-            google.script.run
-                .withSuccessHandler(function (result) {
-                    headers = result.headers || [];
-                    produtosData = result.data || [];
+    function pageUrl(page, qs) {
+        if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+        return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
+    }
+    function voltarDashboard() {
+        window.location.href = pageUrl('dashboard', 'token=' + token);
+    }
 
-                    renderizarTabela();
-                    atualizarEstatisticas();
+    window.onload = function () {
+        renderizarTabela();
+        atualizarEstatisticas();
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('tableContent').style.display    = 'block';
+    };
 
-                    document.getElementById('loadingIndicator').style.display = 'none';
-                    document.getElementById('tableContent').style.display = 'block';
-                })
-                .withFailureHandler(function (error) {
-                    alert('Erro ao carregar produtos: ' + error.message);
-                    document.getElementById('loadingIndicator').style.display = 'none';
-                })
-                .getProdutos();
-        }
+    document.addEventListener('DOMContentLoaded', function () {
+        const el = document.getElementById('searchInput');
+        if (el) el.addEventListener('input', renderizarTabela);
+    });
 
-        function renderizarTabela() {
-            const thead = document.getElementById('tableHead');
-            const tbody = document.getElementById('tableBody');
+    function renderizarTabela() {
+        const thead = document.getElementById('tableHead');
+        const tbody = document.getElementById('tableBody');
 
-            // Renderiza cabeçalho
-            let headerHtml = '<tr>';
-            headers.forEach((header, index) => {
-                if (header !== '_linhaPlanilha') {
-                    const sortClass = sortColumn === index ? `sort-${sortDirection}` : '';
-                    headerHtml += `<th class="sortable ${sortClass}" onclick="ordenarPor(${index})">${header}</th>`;
-                }
-            });
-            headerHtml += '</tr>';
-            thead.innerHTML = headerHtml;
-
-            // Renderiza corpo
-            const filtro = document.getElementById('searchInput').value.toLowerCase();
-            let bodyHtml = '';
-            let count = 0;
-
-            produtosData.forEach(produto => {
-                // Aplica filtro
-                const matches = Object.values(produto).some(val =>
-                    String(val).toLowerCase().includes(filtro)
-                );
-
-                if (matches) {
-                    count++;
-                    bodyHtml += '<tr>';
-                    headers.forEach(header => {
-                        if (header !== '_linhaPlanilha') {
-                            bodyHtml += `<td>${produto[header] || ''}</td>`;
-                        }
-                    });
-                    bodyHtml += '</tr>';
-                }
-            });
-
-            tbody.innerHTML = bodyHtml;
-
-            // Mostra mensagem se não houver resultados
-            document.getElementById('noResults').style.display = count === 0 ? 'block' : 'none';
-            document.getElementById('produtosVisiveis').textContent = count;
-        }
-
-        function ordenarPor(columnIndex) {
-            const columnName = headers[columnIndex];
-
-            if (sortColumn === columnIndex) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = columnIndex;
-                sortDirection = 'asc';
-            }
-
-            produtosData.sort((a, b) => {
-                let valA = a[columnName] || '';
-                let valB = b[columnName] || '';
-
-                // Tenta converter para número se possível
-                const numA = parseFloat(String(valA).replace(/[^\d,.-]/g, '').replace(',', '.'));
-                const numB = parseFloat(String(valB).replace(/[^\d,.-]/g, '').replace(',', '.'));
-
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    return sortDirection === 'asc' ? numA - numB : numB - numA;
-                }
-
-                // Ordenação alfabética
-                const compare = String(valA).localeCompare(String(valB));
-                return sortDirection === 'asc' ? compare : -compare;
-            });
-
-            renderizarTabela();
-        }
-
-        function atualizarEstatisticas() {
-            document.getElementById('totalProdutos').textContent = produtosData.length;
-            document.getElementById('produtosVisiveis').textContent = produtosData.length;
-        }
-
-        function limparFiltros() {
-            document.getElementById('searchInput').value = '';
-            sortColumn = null;
-            sortDirection = 'asc';
-            renderizarTabela();
-        }
-
-        function exportarExcel() {
-            const filtro = document.getElementById('searchInput').value.toLowerCase();
-            const dadosFiltrados = produtosData.filter(produto =>
-                Object.values(produto).some(val =>
-                    String(val).toLowerCase().includes(filtro)
-                )
-            );
-
-            if (dadosFiltrados.length === 0) {
-                alert('Nenhum dado para exportar');
-                return;
-            }
-
-            let csv = headers.filter(h => h !== '_linhaPlanilha').join(',') + '\n';
-
-            dadosFiltrados.forEach(produto => {
-                const row = headers
-                    .filter(h => h !== '_linhaPlanilha')
-                    .map(header => {
-                        const valor = produto[header] || '';
-                        return `"${String(valor).replace(/"/g, '""')}"`;
-                    })
-                    .join(',');
-                csv += row + '\n';
-            });
-
-            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `produtos_${new Date().toISOString().split('T')[0]}. csv`;
-            link.click();
-        }
-
-        var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
-        const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-        function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
-        function voltarDashboard() {
-            window.location.href = pageUrl('dashboard', 'token=' + token);
-        }
-
-        // Filtro em tempo real
-        document.addEventListener('DOMContentLoaded', function () {
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', renderizarTabela);
+        let headerHtml = '<tr>';
+        headers.forEach(function(header, index) {
+            if (header !== '_linhaPlanilha') {
+                const sortClass = sortColumn === index ? 'sort-' + sortDirection : '';
+                headerHtml += '<th class="sortable ' + sortClass + '" onclick="ordenarPor(' + index + ')">' + header + '</th>';
             }
         });
-    </script>
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+
+        const filtro = document.getElementById('searchInput').value.toLowerCase();
+        let bodyHtml = '';
+        let count = 0;
+
+        produtosData.forEach(function(produto) {
+            const matches = Object.values(produto).some(function(val) {
+                return String(val).toLowerCase().includes(filtro);
+            });
+            if (matches) {
+                count++;
+                bodyHtml += '<tr>';
+                headers.forEach(function(header) {
+                    if (header !== '_linhaPlanilha') {
+                        bodyHtml += '<td>' + (produto[header] || '') + '</td>';
+                    }
+                });
+                bodyHtml += '</tr>';
+            }
+        });
+
+        tbody.innerHTML = bodyHtml;
+        document.getElementById('noResults').style.display      = count === 0 ? 'block' : 'none';
+        document.getElementById('produtosVisiveis').textContent = count;
+    }
+
+    function ordenarPor(columnIndex) {
+        const columnName = headers[columnIndex];
+        if (sortColumn === columnIndex) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn    = columnIndex;
+            sortDirection = 'asc';
+        }
+        produtosData.sort(function(a, b) {
+            let valA = a[columnName] || '';
+            let valB = b[columnName] || '';
+            const numA = parseFloat(String(valA).replace(/[^\d,.-]/g, '').replace(',', '.'));
+            const numB = parseFloat(String(valB).replace(/[^\d,.-]/g, '').replace(',', '.'));
+            if (!isNaN(numA) && !isNaN(numB)) return sortDirection === 'asc' ? numA - numB : numB - numA;
+            const compare = String(valA).localeCompare(String(valB));
+            return sortDirection === 'asc' ? compare : -compare;
+        });
+        renderizarTabela();
+    }
+
+    function atualizarEstatisticas() {
+        document.getElementById('totalProdutos').textContent    = produtosData.length;
+        document.getElementById('produtosVisiveis').textContent = produtosData.length;
+    }
+
+    function limparFiltros() {
+        document.getElementById('searchInput').value = '';
+        sortColumn    = null;
+        sortDirection = 'asc';
+        renderizarTabela();
+    }
+
+    function exportarExcel() {
+        const filtro = document.getElementById('searchInput').value.toLowerCase();
+        const dadosFiltrados = produtosData.filter(function(p) {
+            return Object.values(p).some(function(v) {
+                return String(v).toLowerCase().includes(filtro);
+            });
+        });
+        if (dadosFiltrados.length === 0) { alert('Nenhum dado para exportar'); return; }
+
+        let csv = headers.filter(function(h) { return h !== '_linhaPlanilha'; }).join(',') + '\n';
+        dadosFiltrados.forEach(function(produto) {
+            const row = headers
+                .filter(function(h) { return h !== '_linhaPlanilha'; })
+                .map(function(header) {
+                    return '"' + String(produto[header] || '').replace(/"/g, '""') + '"';
+                }).join(',');
+            csv += row + '\n';
+        });
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href     = URL.createObjectURL(blob);
+        link.download = 'produtos_' + new Date().toISOString().split('T')[0] + '.csv';
+        link.click();
+    }
+</script>
 </body>
 
 </html>

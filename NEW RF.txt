@@ -1,0 +1,18 @@
+[RF001] Adicionar um campo para dar nome a versão do orçamento "Nome da Versão" em formulário.html.
+[RF002] Nome do pdf de um proposta será atualizado: Salvar as versões de orçamento com o nome do pdf: "Proposta_"códigodoprojeto"_"NumeroSequencial"_"Nome da Versão" (Exemplo: Proposta_260309aBR_1754_Com material).
+[RF003] No formulario.html, onde listamos as versões de orçamento de um projeto, diferenciar/listar as versões pelo nome do pdf.
+[RF004] Adicionar um botão no formulário para "Converter em pedido", e salvaremos o pdf com nome de "Pedido_"códigodoprojeto"_"NumeroSequencial"_"Nome da Versão" (Exemplo: Pedido_260309aBR_1754_Com material).
+[RF005] Em projetos, ao selecionar status "Convertido em Pedido" pedir para confirmar qual versão de orçamento virou pedido, pois pode haver inconsistências com a versão apresentada na página de projetos (que é sempre a ultima gerada) e a versão que realmente virou pedido, ao confirmar a versão que realmente virou pedido, atualizar se necessãrio a linha daquele projeto para os dados daquela versão.
+[RF006] Adicionar um botão em projetos.html, junto ao botão de "RF (botão para informar nota fiscal)", para adicionar um comprovante de entrega.
+
+
+
+- Data que virou pedido (Data de competência)
+- Data de entrega
+- Data vencimento
+- Cliente
+- Nome do PDF que virou pedido (Exemplo: Pedido_260309aBR_1754_Com material)
+- Valor
+- Processos
+- Condições de pagamento
+- Nota Fiscal

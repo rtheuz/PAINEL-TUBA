@@ -979,10 +979,14 @@
         (obs ? `<p>Obs: ${obs}</p>` : '');
 
       // Envio/Coleta: indicador de Nota Fiscal (Precisa de NF ou NF feita)
+      // Só exibe se o projeto realmente exige nota fiscal (temNotaFiscal = true)
       const isEnvioColeta = columnName && (columnName.indexOf('Envio') !== -1 || columnName.indexOf('Coleta') !== -1);
-      if (isEnvioColeta && (card.temNotaFiscal || card.valorNF)) {
-        const nfLabel = card.valorNF
-          ? '<p class="card-nf card-nf-feita">📄 NF feita' + (card.valorNF ? ' — ' + String(card.valorNF).replace(/</g, '&lt;') : '') + '</p>'
+      if (isEnvioColeta && !!card.temNotaFiscal) {
+        const nfValorRaw = (card.valorNF != null && String(card.valorNF).trim() !== '') ? String(card.valorNF).trim() : '';
+        // 'SN' = Sem Nota (valor padrão quando nota ainda não foi emitida)
+        const nfPreenchida = !!nfValorRaw && nfValorRaw.toUpperCase() !== 'SN';
+        const nfLabel = nfPreenchida
+          ? '<p class="card-nf card-nf-feita">📄 NF feita — ' + nfValorRaw.replace(/</g, '&lt;') + '</p>'
           : '<p class="card-nf card-nf-pendente">📄 Precisa de Nota Fiscal</p>';
         el.insertAdjacentHTML('beforeend', nfLabel);
       }
