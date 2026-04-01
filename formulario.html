@@ -424,7 +424,7 @@
                             aria-label="Selecionar versão da proposta"
                             style="margin-left:6px; padding:3px 8px; border-radius:4px; border:1px solid #ccc; font-size:13px;"></select>
                         <button type="button" id="btnExcluirVersao"
-                            style="margin-left:10px; padding:4px 10px; border-radius:6px; border:1px solid #f5c2c7; background:#fff; color:#c62828; font-weight:700; cursor:pointer;"
+                            style="margin-left:10px; padding:4px 10px; border-radius:6px; border:1px solid #f5c2c7; background:#fff; color:#c62828; font-weight:700; cursor:pointer; display:none;"
                             onclick="excluirVersaoSelecionada()">Excluir versão</button>
                     </div>
                 </div>
@@ -773,6 +773,8 @@
     <script>
         const token = "<?= token ?>"; // token deve ser strings
         var linhaUrlInicial = "<?= (typeof linhaUrlInicial !== 'undefined' && linhaUrlInicial != null) ? String(linhaUrlInicial) : '' ?>"; // linha passada pela URL (servidor define linhaUrlInicial no case 'formulario')
+        // Modo edição via Projetos: quando abre com ?linha=..., não auto-preenche nem recalcula índice automaticamente.
+        const MODO_EDICAO_VIA_LINHA = !!(linhaUrlInicial && String(linhaUrlInicial).trim());
 
         // RF001: Variáveis para armazenar valores originais dos campos do projeto ao carregar
         var _originalProjetoData = null;
@@ -787,36 +789,44 @@
                 .withSuccessHandler(function (usuarioObj) {
                     if (!usuarioObj) return;
 
+                    // Em modo edição via Projetos, não auto-preenche nada (nem vendedor).
+                    if (MODO_EDICAO_VIA_LINHA) return;
+
                     // Preenche nome completo do vendedor
                     const vendedorInput = document.getElementById("obsVendedor");
                     vendedorInput.value = usuarioObj.usuario || "";
 
-                    // Preenche iniciais personalizadas (editável pelo usuário) — sempre atualiza com as do servidor ao carregar
+                    // Se NÃO há projeto carregado (_originalProjetoData ainda null), podemos sugerir iniciais e gerar código.
+                    // Quando um projeto é carregado (via lista/projetos.html), não devemos sobrescrever iniciais nem recálculo automático.
                     const iniciaisInput = document.getElementById("projetoIniciais");
-                    if (usuarioObj.iniciais) {
-                        iniciaisInput.value = usuarioObj.iniciais;
-                    } else if (!iniciaisInput.value) {
-                        iniciaisInput.value = "";
-                    }
-                    // Sempre recalcula o índice quando o usuário retorna: data e iniciais já estão
-                    // preenchidas (data=hoje, iniciais=do usuário), e detectarProximoIndice usa
-                    // os projetos que esse usuário já criou no dia.
-                    if (typeof atualizarCamposProjeto === 'function') {
-                        atualizarCamposProjeto();
+                    const temProjetoCarregado = (_originalProjetoData !== null || _originalProjetoIndice !== null || _originalProjetoIniciais !== null);
+                    if (!temProjetoCarregado) {
+                        if (usuarioObj.iniciais) {
+                            iniciaisInput.value = usuarioObj.iniciais;
+                        } else if (!iniciaisInput.value) {
+                            iniciaisInput.value = "";
+                        }
+                        if (typeof atualizarCamposProjeto === 'function') {
+                            atualizarCamposProjeto();
+                        }
                     }
 
                 })
                 .withFailureHandler(function () {
-                    // Sem token ou falha: atualiza código com o que tiver (usuário pode digitar iniciais)
-                    if (typeof atualizarCamposProjeto === 'function') {
+                    // Sem token ou falha: só recalcula código automaticamente se não houver projeto carregado.
+                    if (MODO_EDICAO_VIA_LINHA) return;
+                    const temProjetoCarregado = (_originalProjetoData !== null || _originalProjetoIndice !== null || _originalProjetoIniciais !== null);
+                    if (!temProjetoCarregado && typeof atualizarCamposProjeto === 'function') {
                         atualizarCamposProjeto();
                     }
                 })
                 .getUsuarioLogadoPorToken(token);
         } else {
-            // Sem token: agenda atualização para depois dos listeners (evita código sem iniciais no primeiro paint)
+            // Sem token: agenda atualização apenas quando NÃO há projeto carregado.
             setTimeout(function () {
-                if (typeof atualizarCamposProjeto === 'function') {
+                if (MODO_EDICAO_VIA_LINHA) return;
+                const temProjetoCarregado = (_originalProjetoData !== null || _originalProjetoIndice !== null || _originalProjetoIniciais !== null);
+                if (!temProjetoCarregado && typeof atualizarCamposProjeto === 'function') {
                     atualizarCamposProjeto();
                 }
             }, 0);
@@ -855,11 +865,15 @@
         /* ---------- INICIALIZAÇÃO ---------- */
 
 
-        const today = new Date();
-        document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
-            String(today.getMonth() + 1).padStart(2, '0') +
-            String(today.getDate()).padStart(2, '0');
-        document.getElementById("clienteData").value = today.toISOString().slice(0, 10);
+        // Inicialização padrão: para novos projetos, setar data=hoje.
+        // Em modo edição via Projetos (?linha=...), não preencher automaticamente para evitar inconsistências.
+        if (!MODO_EDICAO_VIA_LINHA) {
+            const today = new Date();
+            document.getElementById("projetoData").value = String(today.getFullYear()).slice(2) +
+                String(today.getMonth() + 1).padStart(2, '0') +
+                String(today.getDate()).padStart(2, '0');
+            document.getElementById("clienteData").value = today.toISOString().slice(0, 10);
+        }
 
         /* ---------- CLIENTE ---------- */
         let listaClientes = [];
@@ -1690,6 +1704,16 @@
             const iniciais = document.getElementById("projetoIniciais").value.trim();
             const indiceAtual = document.getElementById("projetoIndice").value.trim();
 
+            // Anti-race: evita callbacks atrasados de detectarProximoIndice sobrescreverem projeto carregado.
+            if (typeof window._idxReqId === 'undefined') window._idxReqId = 0;
+
+            // Modo edição via projetos: nunca chamar detectarProximoIndice automaticamente.
+            if (typeof MODO_EDICAO_VIA_LINHA !== 'undefined' && MODO_EDICAO_VIA_LINHA && preserveIndice !== true) {
+                const codigoProjeto = data + (indiceAtual || "a") + iniciais;
+                document.getElementById("obsProjeto").value = codigoProjeto;
+                return;
+            }
+
             // Carregando projeto: usa o índice do projeto carregado
             if (preserveIndice === true) {
                 const codigoProjeto = data + indiceAtual + iniciais;
@@ -1708,8 +1732,18 @@
 
             // Índice vazio ou "a" (padrão): calcula o próximo disponível para data+iniciais
             if (data && iniciais && data.length === 6) {
+                const reqId = ++window._idxReqId;
+                const dataReq = data;
+                const iniciaisReq = iniciais;
                 google.script.run
                     .withSuccessHandler(function (proximoIndice) {
+                        // Ignorar retorno atrasado / fora do contexto atual
+                        if (reqId !== window._idxReqId) return;
+                        // Se já existe projeto carregado, não sobrescrever índice/código com auto-detecção
+                        if (_originalProjetoData !== null || _originalProjetoIndice !== null || _originalProjetoIniciais !== null) return;
+                        // Se o usuário mudou data/iniciais enquanto a requisição estava em voo, ignora.
+                        if (document.getElementById("projetoData").value.trim() !== dataReq) return;
+                        if (document.getElementById("projetoIniciais").value.trim() !== iniciaisReq) return;
                         document.getElementById("projetoIndice").value = proximoIndice || "a";
                         const indice = document.getElementById("projetoIndice").value;
                         const iniciaisAtual = document.getElementById("projetoIniciais").value.trim();
@@ -1718,6 +1752,10 @@
                         verificarCodigoDuplicado(codigoProjeto);
                     })
                     .withFailureHandler(function (err) {
+                        if (reqId !== window._idxReqId) return;
+                        if (_originalProjetoData !== null || _originalProjetoIndice !== null || _originalProjetoIniciais !== null) return;
+                        if (document.getElementById("projetoData").value.trim() !== dataReq) return;
+                        if (document.getElementById("projetoIniciais").value.trim() !== iniciaisReq) return;
                         document.getElementById("projetoIndice").value = "a";
                         const indice = document.getElementById("projetoIndice").value;
                         const iniciaisAtual = document.getElementById("projetoIniciais").value.trim();
@@ -1754,6 +1792,18 @@
             if (!banner) return;
             var mudou = (data !== _originalProjetoData) || (indice !== _originalProjetoIndice) || (iniciais !== _originalProjetoIniciais);
             banner.style.display = mudou ? "block" : "none";
+        }
+
+        // Retorna true quando o identificador base do projeto carregado foi alterado
+        // (data + índice + iniciais). Nesse caso o fluxo deve criar um novo projeto.
+        function projetoBaseFoiAlterado() {
+            if (_originalProjetoData === null && _originalProjetoIndice === null && _originalProjetoIniciais === null) return false;
+            var data = document.getElementById("projetoData").value.trim();
+            var indice = document.getElementById("projetoIndice").value.trim();
+            var iniciais = document.getElementById("projetoIniciais").value.trim();
+            return (data !== String(_originalProjetoData || "").trim()) ||
+                (indice !== String(_originalProjetoIndice || "").trim()) ||
+                (iniciais !== String(_originalProjetoIniciais || "").trim());
         }
 
         // Retorna true se o código de projeto (sem sufixo _v2) já existe em listaOrcamentosCompleta.
@@ -2090,12 +2140,21 @@
             formData.produtosCadastrados = coletarProdutosCadastrados();
 
             // 7. Número sequencial (preservado ao sobrescrever versão)
+            // Evita duplicar NUMERO_SEQUENCIAL quando o usuário reaproveita um orçamento carregado
+            // mas muda o "projeto base" (data+índice+iniciais) para criar um projeto diferente.
+            // Nesse caso, deixamos o backend gerar/incrementar um novo número sequencial.
             if (numeroSequencialCarregado != null) {
-                formData.numeroSequencial = numeroSequencialCarregado;
+                const baseAtual = String(formData.projeto.data || "") + String(formData.projeto.indice || "") + String(formData.projeto.iniciais || "");
+                const baseOriginal = String(_originalProjetoData || "") + String(_originalProjetoIndice || "") + String(_originalProjetoIniciais || "");
+                const podePreservar = !baseOriginal || (baseAtual.toLowerCase() === baseOriginal.toLowerCase());
+                if (podePreservar) formData.numeroSequencial = numeroSequencialCarregado;
             }
 
-            // 8. Linha do projeto na planilha (quando carregou orçamento existente) — evita duplicar ao gerar PDF
-            if (typeof linhaOrcamentoCarregado !== 'undefined' && linhaOrcamentoCarregado != null && linhaOrcamentoCarregado !== '') {
+            // 8. Linha do projeto na planilha (quando carregou orçamento existente) — evita duplicar ao gerar PDF.
+            // IMPORTANTE: se o usuário mudou o identificador base, isso passa a ser um NOVO projeto,
+            // então NÃO enviamos linhaProjeto para não sobrescrever a linha carregada.
+            const baseAlterada = projetoBaseFoiAlterado();
+            if (!baseAlterada && typeof linhaOrcamentoCarregado !== 'undefined' && linhaOrcamentoCarregado != null && linhaOrcamentoCarregado !== '') {
                 const linhaNum = parseInt(linhaOrcamentoCarregado, 10);
                 if (!isNaN(linhaNum) && linhaNum >= 2) {
                     formData.linhaProjeto = linhaNum;
@@ -2171,8 +2230,16 @@
             document.getElementById("clienteData").value = cliente.data || "";
 
             // 3. Informações do PDF e observações Kanban/Projetos
-            document.getElementById("obsPrazoProposta").value = observacoes.prazoProposta || "";
-            document.getElementById("obsPrazo").value = observacoes.prazo || "";
+            // Ajuste de UX: se vier como yyyy-MM-dd do planilhas/date input, mostrar como dd/MM/yyyy.
+            function toBrDateLike(v) {
+                if (v == null) return "";
+                const s = String(v).trim();
+                const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (m) return m[3] + "/" + m[2] + "/" + m[1];
+                return s;
+            }
+            document.getElementById("obsPrazoProposta").value = toBrDateLike(observacoes.prazoProposta || "");
+            document.getElementById("obsPrazo").value = toBrDateLike(observacoes.prazo || "");
             document.getElementById("obsVendedor").value = observacoes.vendedor || "";
             document.getElementById("obsMaterialCond").value = observacoes.materialCond || "";
             document.getElementById("obsTransporte").value = observacoes.transporte || "";
@@ -2306,14 +2373,14 @@
                             ? String(safeData.nomeVersao)
                             : ((safeData.dados && safeData.dados.nomeVersao != null) ? String(safeData.dados.nomeVersao) : "");
 
-                        let opcoesHtml = '<option value="' + VERSAO_BASE_KEY + '">' + prefixoBase + baseCodigo + "_" + baseSeq + "_" + (baseNome || "Sem Material") + '</option>';
+                        let opcoesHtml = '<option value="' + VERSAO_BASE_KEY + '">' + prefixoBase + baseCodigo + "_" + baseSeq + (baseNome ? "_" + baseNome : "") + '</option>';
                         versoes.forEach(function (v) {
                             const codigoBaseV = String(v.codigo || "").replace(/_v\d+$/i, "").trim();
                             const tipoV = v.tipoPdf || (v.dados && v.dados.tipoPdf) || "Proposta";
                             const prefixoV = (String(tipoV).trim().toLowerCase() === "pedido") ? "Pedido_" : "Proposta_";
                             const seqV = (v.numeroSequencial != null && v.numeroSequencial !== "") ? v.numeroSequencial : "—";
                             const nomeV = (v.nomeVersao != null) ? v.nomeVersao : ((v.dados && v.dados.nomeVersao) ? v.dados.nomeVersao : "");
-                            opcoesHtml += '<option value="' + (v.codigo || '') + '">' + prefixoV + codigoBaseV + "_" + seqV + "_" + (nomeV || "Sem Material") + '</option>';
+                            opcoesHtml += '<option value="' + (v.codigo || '') + '">' + prefixoV + codigoBaseV + "_" + seqV + (nomeV ? "_" + nomeV : "") + '</option>';
                         });
                         versaoPicker.innerHTML = opcoesHtml;
                         versaoContainer.style.display = "block";
@@ -2336,7 +2403,7 @@
                             ? String(safeData.nomeVersao)
                             : ((safeData.dados && safeData.dados.nomeVersao != null) ? String(safeData.dados.nomeVersao) : "");
 
-                        versaoPicker.innerHTML = '<option value="' + VERSAO_BASE_KEY + '">' + prefixoBase + baseCodigo + "_" + baseSeq + "_" + (baseNome || "Sem Material") + '</option>';
+                        versaoPicker.innerHTML = '<option value="' + VERSAO_BASE_KEY + '">' + prefixoBase + baseCodigo + "_" + baseSeq + (baseNome ? "_" + baseNome : "") + '</option>';
                         versaoPicker.value = VERSAO_BASE_KEY;
                         versaoContainer.style.display = "block";
                         var btnExcluir2 = document.getElementById("btnExcluirVersao");
@@ -2387,6 +2454,8 @@
 
         // RF003: excluir versão selecionada (v2, v3...).
         function excluirVersaoSelecionada() {
+            alert("Não é permitido excluir versões. Todas as versões devem permanecer acessíveis.");
+            return;
             var versaoPicker = document.getElementById("versaoPicker");
             if (!versaoPicker) return;
             var selectedCodigo = versaoPicker.value;
@@ -2539,8 +2608,10 @@
             btn.disabled = true;
             const dados = coletarDadosFormulario();
 
-            // Se já tem um orçamento carregado, atualiza ele
-            if (linhaOrcamentoCarregado) {
+            // Se já tem um orçamento carregado E o código base não mudou, atualiza ele.
+            // Se mudou, cria um novo projeto e mantém o carregado intacto.
+            const baseAlterada = projetoBaseFoiAlterado();
+            if (linhaOrcamentoCarregado && !baseAlterada) {
                 btn.textContent = "Atualizando...";
 
                 google.script.run
@@ -2565,7 +2636,7 @@
                         return;
                     }
                 }
-                // Se não tem orçamento carregado, salva como novo rascunho
+                // Fluxo de novo projeto (inclui caso "carregou e alterou código base")
                 btn.textContent = "Salvando...";
 
                 // Usa o código do projeto como nome interno (a exibição na lista é gerada pelo backend)
@@ -2769,9 +2840,7 @@
                 var projetoIniciaisAtual = (dados.projeto.iniciais || "").trim();
                 var mudouIdentificador = (projetoDataAtual !== _originalProjetoData) || (projetoIndiceAtual !== _originalProjetoIndice) || (projetoIniciaisAtual !== _originalProjetoIniciais);
                 if (mudouIdentificador) {
-                    if (!confirm("⚠️ Você está criando um NOVO projeto (código: " + codigoProjeto + ") a partir de um projeto existente.\nO projeto original será mantido.\n\nSalvar como PEDIDO?")) return;
-                } else if (linhaOrcamentoCarregado) {
-                    if (!confirm("Você está SOBRESCREVENDO o projeto existente (código: " + codigoProjeto + ").\n\nSalvar como PEDIDO?")) return;
+                    if (!confirm("⚠️ O código do projeto carregado é diferente do código preenchido em \"Informações do Projeto\".\n\nAo salvar como pedido, um projeto existente pode ser sobrescrito.\nDeseja continuar?")) return;
                 } else {
                     if (!confirm("Salvar este projeto como PEDIDO?\n\nSerá gerada a proposta comercial em PDF e o projeto será registrado já como \"Convertido em Pedido\".")) return;
                 }
@@ -2956,16 +3025,24 @@
                 var codigoAtual = projetoDataAtual + projetoIndiceAtual + projetoIniciaisAtual;
                 var mudouIdentificador = (projetoDataAtual !== _originalProjetoData) || (projetoIndiceAtual !== _originalProjetoIndice) || (projetoIniciaisAtual !== _originalProjetoIniciais);
                 if (mudouIdentificador) {
-                    if (!confirm("⚠️ Você está criando um NOVO projeto (código: " + codigoAtual + ").\nO projeto original será mantido.\n\nDeseja continuar?")) {
+                    if (!confirm("⚠️ O código do projeto carregado foi alterado.\n\nAo continuar, será criado um NOVO projeto e o projeto carregado permanecerá intacto.\n\nDeseja continuar?")) {
                         btn.disabled = false;
                         btn.textContent = textoOriginalBtn;
                         return;
                     }
-                } else if (linhaOrcamentoCarregado && sobrescreverVersao) {
-                    if (!confirm("Você está SOBRESCREVENDO o projeto existente (código: " + codigoAtual + ").\n\nDeseja continuar?")) {
-                        btn.disabled = false;
-                        btn.textContent = textoOriginalBtn;
-                        return;
+                } else {
+                    if (sobrescreverVersao) {
+                        if (!confirm("Você está atualizando a versão atual do projeto carregado.\n\nAo gerar PDF, a versão atual será sobrescrita.\n\nDeseja continuar?")) {
+                            btn.disabled = false;
+                            btn.textContent = textoOriginalBtn;
+                            return;
+                        }
+                    } else {
+                        if (!confirm("Você está gerando uma NOVA versão para o projeto carregado.\n\nDeseja continuar?")) {
+                            btn.disabled = false;
+                            btn.textContent = textoOriginalBtn;
+                            return;
+                        }
                     }
                 }
             }

@@ -191,11 +191,10 @@
     var embeddedMode = <?!= (typeof embedded !== 'undefined' && embedded) ? 'true' : 'false' ?>;
 
     function isEmbeddedMode() {
-      if (embeddedMode === true || embeddedMode === 'true') return true;
-      try {
-        if (window.self !== window.top) return true;
-      } catch (e) { return true; }
-      return false;
+      // IMPORTANT: não inferir por window.top/iframe aqui.
+      // Em alguns ambientes (incluindo o webapp do Apps Script), isso pode dar "true"
+      // mesmo no navegador normal e quebrar o redirect.
+      return (embeddedMode === true || embeddedMode === 'true');
     }
 
     // (initInfo permanece igual)
@@ -278,6 +277,7 @@
 
     function login() {
       console.log('isEmbeddedMode() =', isEmbeddedMode());
+      const embeddedNow = isEmbeddedMode();
 
       const usuario = document.getElementById('usuario').value.trim();
       const senha = document.getElementById('senha').value.trim();
@@ -296,6 +296,23 @@
       google.script.run
         .withSuccessHandler(res => {
           if (res && res.success) {
+            // Mantém a sessão no PWA (parent) quando logar via iframe.
+            if (embeddedNow) {
+              const msg = { type: 'AUTH_TOKEN', token: res.token };
+              try { window.top && window.top.postMessage(msg, '*'); } catch (e) {}
+              try { window.parent && window.parent.postMessage(msg, '*'); } catch (e) {}
+              try { window.parent && window.parent.parent && window.parent.parent.postMessage(msg, '*'); } catch (e) {}
+
+              // Fallback: se por algum motivo o container não receber postMessage,
+              // navega o próprio iframe para a página pós-login com token.
+              try {
+                const destinationUrl = buildPostLoginUrl(res.token);
+                redirectNow(destinationUrl, false);
+              } catch (e) {}
+
+              btn.textContent = "Sucesso!";
+              return;
+            }
 
             if (isEmbeddedMode()) {
               if (baseUrl && baseUrl !== 'null') {

@@ -126,6 +126,8 @@
             will-change: transform;
         }
 
+        a.btn { text-decoration: none; box-sizing: border-box; }
+
         .btn:active {
             transform: scale(0.96);
         }
@@ -807,6 +809,7 @@
             </div>
             <div class="actions">
                 <button class="btn btn-ghost" onclick="voltarPagina()" title="Voltar para o Dashboard">← Voltar</button>
+                <a class="btn btn-ghost" id="linkComprovanteMobile" href="#" title="Buscar pedido e enviar comprovante (celular)">📦 Comprovante</a>
                 <button class="btn btn-primary" onclick="openNovoProjetoRapidoModal()"
                     title="Criar projeto rápido (cliente, proposta, prazos)">+ Novo Projeto</button>
                 <button class="btn btn-success" onclick="abrirFormulario()" title="Novo projeto (formulário completo)">+
@@ -1346,6 +1349,13 @@
             return function () { clearTimeout(t); t = setTimeout(fn, ms); };
         }
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+        (function () {
+            var lc = document.getElementById('linkComprovanteMobile');
+            if (lc && typeof token !== 'undefined' && token) {
+                lc.href = pageUrl('comprovanteentrega', 'token=' + token);
+                if (baseUrl) lc.setAttribute('target', '_top');
+            }
+        })();
         function voltarPagina() {
             if (!token) {
                 alert("Token não encontrado. Por favor, recarregue a página.");
@@ -1557,8 +1567,39 @@
                     (p.PROJETO || '').toString().toLowerCase().includes(searchTerm) ||
                     (p['DESCRIÇÃO'] || p.DESCRIÇÃO || '').toString().toLowerCase().includes(searchTerm);
 
-                const matchStatusOrc = !statusOrc || p.STATUS_ORCAMENTO === statusOrc;
-                const matchStatusPed = !statusPed || p.STATUS_PEDIDO === statusPed;
+                // Normaliza status para evitar falhas por variação de capitalização/espaços
+                function _normStatus(v) { return (v == null ? '' : String(v)).trim().toLowerCase(); }
+                function _mapStatusOrc(v) {
+                    const s = _normStatus(v);
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho ') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    // aceitos
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho' || s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'rascunho') return 'rascunho';
+                    // mapas reais
+                    if (s === 'rascunho') return 'rascunho';
+                    if (s === 'enviado') return 'enviado';
+                    if (s === 'convertido em pedido') return 'convertido em pedido';
+                    if (s === 'expirado/perdido' || s === 'expirado / perdido') return 'expirado/perdido';
+                    return s;
+                }
+                const matchStatusOrc = !statusOrc || _mapStatusOrc(p.STATUS_ORCAMENTO) === _mapStatusOrc(statusOrc);
+                const matchStatusPed = !statusPed || _normStatus(p.STATUS_PEDIDO) === _normStatus(statusPed);
 
                 const matchColCliente = !filtroCliente || (p.CLIENTE || '').toString().toLowerCase().includes(filtroCliente);
                 const matchColProjeto = !filtroProjeto || (p.PROJETO || '').toString().toLowerCase().includes(filtroProjeto);
@@ -1661,6 +1702,9 @@
                 const nfBtnCor = !exigeNF ? '#ef4444' : (nfPreenchida ? '#16a34a' : '#f59e0b');
                 const nfBtnTitle = !exigeNF ? '' : (nfPreenchida ? ('RF preenchida (' + nfValor + ')') : 'Informar RF (pendente)');
                 const nfBtnTexto = !exigeNF ? 'RF' : (nfPreenchida ? 'RF ✔' : 'RF ?');
+                const temComprovante = !!projeto.temComprovanteEntrega;
+                const comprovanteBtnCor = temComprovante ? '#16a34a' : '#6d4c41';
+                const comprovanteBtnTitle = temComprovante ? 'Comprovante enviado (clique para visualizar/alterar)' : 'Adicionar comprovante de entrega';
 
                 const isConvertido = projeto.STATUS_ORCAMENTO === 'Convertido em Pedido';
 
@@ -1704,7 +1748,7 @@
             </td>
             <td class="actions-cell">
               <button type="button" class="btn btn-small" style="background:${nfBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="abrirInformarNFSeExige(${linha})" title="${nfBtnTitle || ''}">${nfBtnTexto}</button>
-              <button type="button" class="btn btn-small" style="background:#6d4c41; color:white; min-width:36px; margin-right:4px;" onclick="abrirComprovanteEntrega(${linha})" title="Adicionar comprovante de entrega">📦</button>
+              <button type="button" class="btn btn-small" style="background:${comprovanteBtnCor}; color:white; min-width:36px; margin-right:4px;" onclick="abrirComprovanteEntrega(${linha})" title="${comprovanteBtnTitle}">📦</button>
               <div class="actions-dropdown">
                 <button type="button" class="btn btn-small actions-trigger" onclick="toggleActionsMenu(event, ${linha})" title="Ações">⋮</button>
                 <div class="actions-menu" id="actionsMenu-${linha}">

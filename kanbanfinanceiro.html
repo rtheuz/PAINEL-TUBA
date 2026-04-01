@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <base target="_top">
+    <title>Kanban financeiro — TUBA</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f766e 100%);
+            --card: #fff;
+            --muted: #64748b;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; font-family: Inter, system-ui, sans-serif; color: #0f172a; background: var(--bg); overflow: hidden; }
+        .page { display: flex; flex-direction: column; height: 100%; }
+        .topbar {
+            flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+            padding: 12px 18px; background: rgba(15, 23, 42, 0.92); color: #fff;
+        }
+        .topbar h1 { margin: 0; font-size: 18px; font-weight: 700; }
+        .topbar p { margin: 4px 0 0; font-size: 12px; opacity: 0.85; }
+        .btn {
+            appearance: none; border: 0; padding: 9px 14px; border-radius: 10px; font-weight: 600; cursor: pointer;
+            font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-ghost { background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-primary { background: linear-gradient(90deg, #0ea5e9, #3b82f6); color: #fff; }
+        .board-wrap { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
+        .board { display: flex; gap: 14px; align-items: flex-start; width: max-content; min-width: 100%; padding-bottom: 24px; }
+        .col {
+            width: 300px; flex-shrink: 0; background: rgba(255,255,255,0.95); border-radius: 14px; padding: 12px;
+            box-shadow: 0 8px 24px rgba(2,6,23,0.1);
+        }
+        .col-header { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e2e8f0; }
+        .col-header .count { opacity: 0.7; font-weight: 600; }
+        .card-k {
+            background: var(--card); border-radius: 10px; padding: 12px; margin-bottom: 10px;
+            box-shadow: 0 2px 10px rgba(2,6,23,0.06); border-left: 4px solid #94a3b8; font-size: 13px;
+        }
+        .card-k strong { display: block; font-size: 14px; margin-bottom: 6px; color: #0f172a; }
+        .card-k .meta { color: var(--muted); font-size: 12px; line-height: 1.45; }
+        .badge-dias { display: inline-block; margin-top: 8px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+        .empty-col { color: var(--muted); font-size: 12px; padding: 16px 8px; text-align: center; }
+        .loading { text-align: center; padding: 48px; color: #fff; }
+        .spinner { border: 3px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.9s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <div>
+                <h1>Kanban financeiro</h1>
+                <p>Projetos finalizados — prioridade por vencimento e atraso</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a class="btn btn-primary" id="linkPedidos" href="#">Pedidos</a>
+                <button type="button" class="btn btn-ghost" onclick="voltar()">← Painel</button>
+            </div>
+        </div>
+        <div class="board-wrap" id="boardWrap">
+            <div class="loading" id="loadingEl"><div class="spinner"></div>Carregando…</div>
+            <div class="board" id="board" style="display:none;"></div>
+        </div>
+    </div>
+    <script type="application/json" id="pedidos-iniciais"><?!= pedidosData || '[]' ?></script>
+    <script>
+        const token = '<?= token ?>';
+        var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+        const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        function pageUrl(page, qs) {
+            if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+            return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
+        }
+        var pedidos = [];
+        try {
+            var el = document.getElementById('pedidos-iniciais');
+            if (el && el.textContent) pedidos = JSON.parse(el.textContent);
+        } catch (e) { pedidos = []; }
+
+        document.getElementById('linkPedidos').href = pageUrl('pedidos', 'token=' + token);
+        if (baseUrl) document.getElementById('linkPedidos').setAttribute('target', '_top');
+
+        function voltar() {
+            window.location.href = pageUrl('painelfinanceiro', 'token=' + token);
+        }
+
+        function parseNum(v) {
+            if (v == null || v === '') return 0;
+            if (typeof v === 'number' && !isNaN(v)) return v;
+            var s = (v + '').trim().replace(/[^\d,.]/g, '');
+            if (!s) return 0;
+            var lastC = s.lastIndexOf(','), lastD = s.lastIndexOf('.');
+            if (lastC > lastD) return parseFloat(s.replace(/\./g, '').replace(',', '.')) || 0;
+            if (lastD > lastC) return parseFloat(s.replace(/,/g, '')) || 0;
+            return parseFloat(s.replace(',', '.')) || 0;
+        }
+        function formatCurrency(value) {
+            var num = parseNum(value);
+            if (!num && num !== 0) return '-';
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+        }
+        function getDataVencimento(p) {
+            return (p._dataVencimento || p.DATA_VENCIMENTO || p['DATA DE VENCIMENTO'] || '').toString().trim();
+        }
+        function getStatusPagamento(p) {
+            return (p.STATUS_PAGAMENTO || p['STATUS PAGAMENTO'] || 'Pendente').toString().trim();
+        }
+        function parsePrimeiroVencDate(p) {
+            var v = getDataVencimento(p);
+            if (!v) return null;
+            var primeira = (v + '').trim().split(/[\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || '';
+            var m = primeira.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+            var iso = primeira.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (iso) return new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+            var d = new Date(primeira);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        function startOfDay(d) {
+            var x = new Date(d.getTime());
+            x.setHours(0, 0, 0, 0);
+            return x;
+        }
+        function getStatusExibicao(p) {
+            var status = getStatusPagamento(p);
+            if (status === 'Pago' || status === 'Pago (A VERIFICAR)') return status;
+            var dataVenc = getDataVencimento(p);
+            if (dataVenc) {
+                var primeiraData = (dataVenc + '').trim().split(/[\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || '';
+                var m = primeiraData.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (m) {
+                    var d = new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+                    var hoje = startOfDay(new Date());
+                    d = startOfDay(d);
+                    if (d.getTime() < hoje.getTime()) return 'Atrasado';
+                } else {
+                    var iso = primeiraData.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    if (iso) {
+                        var d2 = new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+                        var h2 = startOfDay(new Date());
+                        d2 = startOfDay(d2);
+                        if (d2.getTime() < h2.getTime()) return 'Atrasado';
+                    }
+                }
+            }
+            return status;
+        }
+        function isFinalizado(p) {
+            return (p.STATUS_PEDIDO || '').toString().trim().toLowerCase() === 'finalizado';
+        }
+        function valorPendenteNum(p) {
+            var sp = getStatusPagamento(p);
+            if (sp === 'Pago') return 0;
+            var vt = parseNum(p['VALOR TOTAL']);
+            var vp = parseNum(p.VALOR_PAGO || p['VALOR PAGO']);
+            return Math.max(0, vt - vp);
+        }
+        function diasDesdePrimeiroVenc(p) {
+            var d = parsePrimeiroVencDate(p);
+            if (!d) return null;
+            var hoje = startOfDay(new Date());
+            d = startOfDay(d);
+            return Math.floor((hoje.getTime() - d.getTime()) / 86400000);
+        }
+        function diasAtePrimeiroVenc(p) {
+            var d = parsePrimeiroVencDate(p);
+            if (!d) return null;
+            var hoje = startOfDay(new Date());
+            d = startOfDay(d);
+            return Math.floor((d.getTime() - hoje.getTime()) / 86400000);
+        }
+        function corBordaAtraso(dias) {
+            if (dias == null || dias <= 0) return '#94a3b8';
+            if (dias <= 7) return '#eab308';
+            if (dias <= 30) return '#ea580c';
+            return '#dc2626';
+        }
+        function corBadgeAtraso(dias) {
+            if (dias <= 7) return { bg: '#fef9c3', fg: '#854d0e' };
+            if (dias <= 30) return { bg: '#ffedd5', fg: '#9a3412' };
+            return { bg: '#fee2e2', fg: '#991b1b' };
+        }
+        function bucket(p) {
+            var sp = getStatusPagamento(p);
+            if (sp === 'Pago') return null;
+            if (sp === 'Pago (A VERIFICAR)') return 'verificar';
+            if (sp === 'Pago parcialmente') return 'parcial';
+            if (getStatusExibicao(p) === 'Atrasado') return 'atrasado';
+            return 'pendente';
+        }
+        function sortKeyAtrasado(p) {
+            var d = diasDesdePrimeiroVenc(p);
+            return d == null ? -999 : d;
+        }
+        function sortKeyPendente(p) {
+            var d = diasAtePrimeiroVenc(p);
+            if (d == null) return 99999;
+            return d;
+        }
+        function renderCard(p, tipoCol) {
+            var proj = (p.PROJETO || '').toString();
+            var cli = (p.CLIENTE || '').toString();
+            var pend = valorPendenteNum(p);
+            var venc = getDataVencimento(p) || '—';
+            var diasA = diasDesdePrimeiroVenc(p);
+            var border = '#94a3b8';
+            var badge = '';
+            if (tipoCol === 'atrasado' && diasA != null && diasA > 0) {
+                border = corBordaAtraso(diasA);
+                var c = corBadgeAtraso(diasA);
+                badge = '<span class="badge-dias" style="background:' + c.bg + ';color:' + c.fg + ';">Atraso: ' + diasA + ' dia(s)</span>';
+            } else if (tipoCol === 'pendente') {
+                var ate = diasAtePrimeiroVenc(p);
+                if (ate != null && ate >= 0) {
+                    border = ate <= 7 ? '#38bdf8' : '#94a3b8';
+                    badge = '<span class="badge-dias" style="background:#e0f2fe;color:#0369a1;">Vence em ' + ate + ' dia(s)</span>';
+                }
+            } else if (tipoCol === 'parcial') {
+                border = '#3b82f6';
+                var ate2 = diasAtePrimeiroVenc(p);
+                if (ate2 != null && ate2 >= 0) badge = '<span class="badge-dias" style="background:#dbeafe;color:#1e40af;">Próx. venc. em ' + ate2 + ' d</span>';
+                else if (diasA != null && diasA > 0) {
+                    border = corBordaAtraso(diasA);
+                    var c2 = corBadgeAtraso(diasA);
+                    badge = '<span class="badge-dias" style="background:' + c2.bg + ';color:' + c2.fg + ';">Atraso: ' + diasA + ' d</span>';
+                }
+            }
+            return '<div class="card-k" style="border-left-color:' + border + ';">' +
+                '<strong>' + proj.replace(/</g, '&lt;') + '</strong>' +
+                '<div class="meta">' + cli.replace(/</g, '&lt;') + '</div>' +
+                '<div class="meta">Pendente: ' + formatCurrency(pend) + '</div>' +
+                '<div class="meta">Venc.: ' + String(venc).replace(/</g, '&lt;').split('\n').join(' · ') + '</div>' +
+                badge + '</div>';
+        }
+        function renderBoard() {
+            var list = (pedidos || []).filter(isFinalizado);
+            var cols = { atrasado: [], pendente: [], parcial: [], verificar: [] };
+            list.forEach(function (p) {
+                var b = bucket(p);
+                if (b && cols[b]) cols[b].push(p);
+            });
+            cols.atrasado.sort(function (a, b) { return sortKeyAtrasado(b) - sortKeyAtrasado(a); });
+            cols.pendente.sort(function (a, b) { return sortKeyPendente(a) - sortKeyPendente(b); });
+            cols.parcial.sort(function (a, b) {
+                var da = sortKeyAtrasado(a) > 0 ? 10000 + sortKeyAtrasado(a) : sortKeyPendente(a);
+                var db = sortKeyAtrasado(b) > 0 ? 10000 + sortKeyAtrasado(b) : sortKeyPendente(b);
+                return da - db;
+            });
+            cols.verificar.sort(function (a, b) { return (a.PROJETO || '').localeCompare(b.PROJETO || ''); });
+
+            var defs = [
+                { id: 'atrasado', title: 'Atrasado', items: cols.atrasado },
+                { id: 'pendente', title: 'Pendente', items: cols.pendente },
+                { id: 'parcial', title: 'Pago parcialmente', items: cols.parcial },
+                { id: 'verificar', title: 'Pago (a verificar)', items: cols.verificar }
+            ];
+            var html = '';
+            defs.forEach(function (d) {
+                html += '<div class="col" data-col="' + d.id + '">';
+                html += '<div class="col-header">' + d.title + ' <span class="count">(' + d.items.length + ')</span></div>';
+                if (d.items.length === 0) html += '<div class="empty-col">Nenhum card</div>';
+                else d.items.forEach(function (p) { html += renderCard(p, d.id); });
+                html += '</div>';
+            });
+            document.getElementById('board').innerHTML = html;
+        }
+        function showBoard() {
+            document.getElementById('loadingEl').style.display = 'none';
+            var b = document.getElementById('board');
+            b.style.display = 'flex';
+            renderBoard();
+        }
+        function loadPedidos() {
+            document.getElementById('loadingEl').style.display = 'block';
+            document.getElementById('board').style.display = 'none';
+            google.script.run
+                .withSuccessHandler(function (data) {
+                    pedidos = data || [];
+                    showBoard();
+                })
+                .withFailureHandler(function (err) {
+                    document.getElementById('loadingEl').innerHTML = '<p style="color:#fecaca;">Erro: ' + (err.message || err) + '</p>';
+                })
+                .getPedidos();
+        }
+
+        if (pedidos && pedidos.length) showBoard();
+        else loadPedidos();
+    </script>
+</body>
+</html>

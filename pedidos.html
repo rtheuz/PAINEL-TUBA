@@ -182,6 +182,10 @@
         table td.col-parcelas, table th.col-parcelas { min-width: 220px; }
         table td.col-valor-pendente, table th.col-valor-pendente { min-width: 160px; }
         table td.col-obs, table th.col-obs { min-width: 120px; max-width: 200px; }
+        .status-inline-select { font-size: 12px; max-width: 168px; padding: 5px 8px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit; background: #fff; }
+        .status-inline-hint { display: block; font-size: 10px; color: #64748b; margin-top: 4px; max-width: 168px; }
+        .btn[disabled], .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+        .acoes-pedido-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 320px; }
     </style>
 </head>
 
@@ -274,6 +278,32 @@
             </div>
         </div>
 
+        <!-- Comprovante de entrega (mesma API que Projetos: linha = aba Projetos) -->
+        <div id="comprovanteEntregaModal" class="modal">
+            <div class="modal-content" style="max-width:560px;">
+                <div class="modal-header">
+                    <h2>Comprovante de entrega</h2>
+                    <button type="button" class="modal-close" onclick="closeComprovanteEntregaModal()">×</button>
+                </div>
+                <div style="padding: 0 4px 8px;">
+                    <input type="hidden" id="comprovanteEntregaLinha" value="">
+                    <div class="form-group">
+                        <label>Enviar documento</label>
+                        <input type="file" id="comprovanteEntregaArquivo" />
+                        <p class="form-hint">PDF ou imagem. O arquivo fica na pasta do projeto.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Documento atual</label>
+                        <div id="comprovanteEntregaAtual" style="font-size:13px; color:#374151;">—</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-ghost" onclick="closeComprovanteEntregaModal()">Cancelar</button>
+                        <button type="button" class="btn btn-primary" id="comprovanteEntregaSalvarBtn" onclick="enviarComprovanteEntregaPedidos()">Salvar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="page-content-scroll">
         <div class="card">
             <div class="filters">
@@ -315,7 +345,22 @@
         const token = '<?= token ?>';
         var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        var STATUS_PAGAMENTO_OPTIONS = ['Pendente', 'Pago', 'Atrasado', 'Pago parcialmente', 'Pago (A VERIFICAR)'];
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+        function escapeHtmlAttr(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+        function getLinkRelatorioProjeto(p) {
+            var u = (p && (p.LINK_RELATORIO_PROJETO || p['LINK_RELATORIO_PROJETO'])) ? String(p.LINK_RELATORIO_PROJETO || p['LINK_RELATORIO_PROJETO']).trim() : '';
+            return u;
+        }
+        function isProjetoFinalizado(p) {
+            return (p && p.STATUS_PEDIDO) ? String(p.STATUS_PEDIDO).trim().toLowerCase() === 'finalizado' : false;
+        }
+        function hojeDataBr() {
+            var d = new Date();
+            return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+        }
         let pedidos = [];
         var pedidosIniciais = [];
         try {
@@ -444,6 +489,126 @@
             }).join('\n');
         }
         /** Considera a primeira data de vencimento (quando há várias separadas por vírgula/newline) para marcar Atrasado. */
+        function onStatusPagamentoInlineChange(sel) {
+            var linha = parseInt(sel.getAttribute('data-linha'), 10);
+            var novo = (sel.value || '').trim();
+            var p = pedidos.find(function (x) { return x._linhaPlanilha == linha; });
+            if (!p) { alert('Pedido não encontrado.'); loadPedidos(); return; }
+            var antigo = getStatusPagamento(p);
+            if (novo === antigo) return;
+            var projeto = (p.PROJETO || '').toString().trim();
+            if (!projeto) { alert('Código do projeto inválido.'); sel.value = antigo; return; }
+            var updates = { STATUS_PAGAMENTO: novo };
+            if (novo === 'Pago') {
+                var vt = parseNum(p['VALOR TOTAL']);
+                var hojeBr = hojeDataBr();
+                updates.VALOR_PAGO = vt;
+                updates.HISTORICO_PAGAMENTOS = JSON.stringify([{ data: hojeBr, valor: vt, parcela: 1 }]);
+            }
+            var dadosProjeto = { CLIENTE: p.CLIENTE, 'VALOR TOTAL': p['VALOR TOTAL'], _dataCompetencia: p._dataCompetencia, _linhaPlanilha: p._linhaPlanilha };
+            sel.disabled = true;
+            google.script.run
+                .withSuccessHandler(function () {
+                    sel.disabled = false;
+                    p.STATUS_PAGAMENTO = novo;
+                    if (novo === 'Pago') {
+                        var vtNum = parseNum(p['VALOR TOTAL']);
+                        var hojeOk = hojeDataBr();
+                        p.VALOR_PAGO = vtNum;
+                        p._historicoPagamentos = [{ data: hojeOk, valor: vtNum, parcela: 1 }];
+                        p['PARCELAS E PGTOS'] = updates.HISTORICO_PAGAMENTOS;
+                        p._valorRestante = null;
+                    }
+                    renderTable();
+                })
+                .withFailureHandler(function (err) {
+                    sel.disabled = false;
+                    sel.value = antigo;
+                    alert('Erro ao atualizar status: ' + (err.message || err));
+                })
+                .atualizarPedidoNaPlanilha(projeto, updates, dadosProjeto);
+        }
+
+        function gerarRelatorioProjetoPedidos(linhaProj) {
+            linhaProj = parseInt(linhaProj, 10);
+            if (!linhaProj || linhaProj < 2) { alert('Linha do projeto inválida.'); return; }
+            if (!confirm('Gerar relatório do projeto (PDF na pasta do projeto)?')) return;
+            google.script.run
+                .withSuccessHandler(function (res) {
+                    res = res || {};
+                    alert('Relatório gerado com sucesso.');
+                    if (res.url) window.open(res.url, '_blank');
+                    loadPedidos();
+                })
+                .withFailureHandler(function (err) {
+                    alert('Erro ao gerar relatório: ' + (err && err.message ? err.message : err));
+                })
+                .gerarRelatorioProjeto(linhaProj);
+        }
+
+        function abrirComprovanteEntregaPedidos(linhaProj) {
+            linhaProj = parseInt(linhaProj, 10);
+            if (!linhaProj || linhaProj < 2) { alert('Linha do projeto inválida.'); return; }
+            var modal = document.getElementById('comprovanteEntregaModal');
+            var inputLinha = document.getElementById('comprovanteEntregaLinha');
+            var atualEl = document.getElementById('comprovanteEntregaAtual');
+            var fileInput = document.getElementById('comprovanteEntregaArquivo');
+            if (!modal || !inputLinha || !atualEl || !fileInput) return;
+            inputLinha.value = String(linhaProj);
+            atualEl.textContent = 'Carregando...';
+            modal.classList.add('active');
+            fileInput.value = '';
+            google.script.run
+                .withSuccessHandler(function (info) {
+                    info = info || {};
+                    var url = info.comprovanteEntregaUrl || '';
+                    if (url) atualEl.innerHTML = '<a href="' + escapeHtmlAttr(url) + '" target="_blank" rel="noopener">Abrir comprovante</a>';
+                    else atualEl.textContent = 'Nenhum comprovante anexado ainda.';
+                })
+                .withFailureHandler(function () {
+                    atualEl.textContent = 'Não foi possível carregar o comprovante atual.';
+                })
+                .getInfoPedido(linhaProj);
+        }
+
+        function closeComprovanteEntregaModal() {
+            var modal = document.getElementById('comprovanteEntregaModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function enviarComprovanteEntregaPedidos() {
+            var linha = parseInt(document.getElementById('comprovanteEntregaLinha').value, 10);
+            var input = document.getElementById('comprovanteEntregaArquivo');
+            var btn = document.getElementById('comprovanteEntregaSalvarBtn');
+            if (!linha || linha < 2) { alert('Linha do projeto inválida.'); return; }
+            if (!input || !input.files || input.files.length === 0) { alert('Selecione um arquivo para enviar.'); return; }
+            var file = input.files[0];
+            if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+            var reader = new FileReader();
+            reader.onload = function () {
+                var dataUrl = reader.result;
+                var base64 = (dataUrl && dataUrl.indexOf('base64,') >= 0) ? dataUrl.split('base64,')[1] : dataUrl;
+                var fileData = { base64: base64 || '', name: file.name || 'arquivo', mimeType: file.type || 'application/octet-stream' };
+                google.script.run
+                    .withSuccessHandler(function () {
+                        if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+                        closeComprovanteEntregaModal();
+                        loadPedidos();
+                        alert('Comprovante de entrega enviado com sucesso.');
+                    })
+                    .withFailureHandler(function (err) {
+                        if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+                        alert('Erro ao enviar comprovante: ' + (err && err.message ? err.message : err));
+                    })
+                    .salvarComprovanteEntrega(linha, fileData);
+            };
+            reader.onerror = function () {
+                if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+                alert('Falha ao ler o arquivo.');
+            };
+            reader.readAsDataURL(file);
+        }
+
         function getStatusExibicao(p) {
             var status = getStatusPagamento(p);
             if (status === "Pago" || status === "Pago (A VERIFICAR)") return status;
@@ -714,8 +879,6 @@
 
             filtered.forEach(function (p, idx) {
                 var linha = p._linhaPlanilha || 0;
-                var statusExib = getStatusExibicao(p);
-                var statusClass = getStatusPagamentoClass(statusExib);
                 var valorPagoNum = parseNum(p["VALOR_PAGO"] || p["VALOR PAGO"]) || 0;
                 var valorTotalNum = parseNum(p["VALOR TOTAL"]) || 0;
                 var pagoLabel = 'Pago: ' + (valorPagoNum > 0 ? formatCurrency(valorPagoNum) : '-');
@@ -730,6 +893,25 @@
                 var parcelasCellHtml = parcelasStr === '-' ? '-' : parcelasStr.split('\n').map(function (line) {
                     return '<span class="parcela-linha">' + String(line).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
                 }).join('');
+                var statusArmazenado = getStatusPagamento(p);
+                var statusExibicaoLista = getStatusExibicao(p);
+                var optHtml = STATUS_PAGAMENTO_OPTIONS.map(function (opt) {
+                    return '<option value="' + escapeHtmlAttr(opt) + '"' + (opt === statusArmazenado ? ' selected' : '') + '>' + String(opt).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+                }).join('');
+                var hintExib = (statusExibicaoLista !== statusArmazenado) ? '<span class="status-inline-hint">Na lista: ' + String(statusExibicaoLista).replace(/</g, '&lt;') + '</span>' : '';
+                var statusCellHtml = '<select class="status-inline-select" data-linha="' + linha + '" onclick="event.stopPropagation();" onchange="onStatusPagamentoInlineChange(this)">' + optHtml + '</select>' + hintExib;
+                var linhaProj = (p._linhaPlanilha && p._linhaPlanilha < 50000) ? p._linhaPlanilha : 0;
+                var linkRel = getLinkRelatorioProjeto(p);
+                var podeRelatorio = isProjetoFinalizado(p) && linhaProj >= 2;
+                var btnRelatorio = podeRelatorio
+                    ? '<button type="button" class="btn btn-small btn-primary" onclick="gerarRelatorioProjetoPedidos(' + linhaProj + ')" title="Gerar PDF do relatório (exige comprovante)">🧾 Relatório</button>'
+                    : '<button type="button" class="btn btn-small btn-primary" disabled title="Só após Finalizado na aba Projetos">🧾 Relatório</button>';
+                var linkRelHtml = linkRel ? '<a href="' + escapeHtmlAttr(linkRel) + '" target="_blank" rel="noopener" class="btn btn-small" style="background:#ecfdf5;color:#047857;border:1px solid #10b981;" title="Abrir relatório salvo">📋 PDF</a> ' : '';
+                var acoesHtml = '<div class="acoes-pedido-wrap">' + linkRelHtml +
+                    (linhaProj >= 2 ? '<button type="button" class="btn btn-small" style="background:#6d4c41;color:white;" onclick="abrirComprovanteEntregaPedidos(' + linhaProj + ')" title="Comprovante de entrega">📦</button> ' : '') +
+                    btnRelatorio + ' ' +
+                    (p['LINK DO PDF'] ? '<a href="' + String(p['LINK DO PDF']).replace(/"/g, '&quot;') + '" target="_blank" class="btn btn-small" style="margin-right:0;" title="Orçamento PDF">📄</a> ' : '') +
+                    '<button type="button" class="btn btn-small btn-primary" onclick="editPedido(' + linha + ')" title="Editar">✏️</button> <button type="button" class="btn btn-small btn-pasta" onclick="abrirPastaProjeto(this)" data-projeto="' + String(p.PROJETO != null ? p.PROJETO : '').replace(/"/g, '&quot;') + '" title="Pasta Drive">📁</button></div>';
                 html += '<tr data-linha="' + linha + '">' +
                     '<td>' + (p._numeroSequencial != null && p._numeroSequencial !== '' ? p._numeroSequencial : '') + '</td>' +
                     '<td>' + (getNotaFiscal(p) || '-') + '</td>' +
@@ -743,11 +925,9 @@
                     '<td class="celula-multilinha celula-vencimento">' + dataVencCellHtml + '</td>' +
                     '<td class="col-parcelas parcelas-resumo celula-multilinha">' + parcelasCellHtml + '</td>' +
                     '<td class="col-valor-pendente celula-valor-pendente">' + valorPendenteCell + '</td>' +
-                    '<td><span class="status-badge ' + statusClass + '">' + (statusExib || 'Pendente') + '</span></td>' +
+                    '<td>' + statusCellHtml + '</td>' +
                     '<td class="col-obs">' + (p.OBS != null ? String(p.OBS).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;') : '') + '</td>' +
-                    '<td>' +
-                    (p['LINK DO PDF'] ? '<a href="' + String(p['LINK DO PDF']).replace(/"/g, '&quot;') + '" target="_blank" class="btn btn-small" style="margin-right:6px;" title="Abrir orçamento (PDF)">📄</a> ' : '') +
-                    '<button type="button" class="btn btn-small btn-primary" onclick="editPedido(' + linha + ')" title="Editar">✏️ Editar</button> <button type="button" class="btn btn-small btn-pasta" onclick="abrirPastaProjeto(this)" data-projeto="' + String(p.PROJETO != null ? p.PROJETO : '').replace(/"/g, '&quot;') + '" title="Abrir pasta do projeto">📁 Pasta</button></td>' +
+                    '<td>' + acoesHtml + '</td>' +
                     '</tr>';
             });
 
@@ -770,7 +950,7 @@
             if (m) return m[3] + '/' + m[2] + '/' + m[1];
             return str;
         }
-        // dataBaseStr = data de entrega (prioridade) ou data de competência para cálculo dos vencimentos
+        // dataBaseStr = data de entrega (obrigatória para cálculo automático de vencimentos)
         function calcularVencimentosFromCondicao(condicoes, dataBaseStr, valorTotal) {
             if (!condicoes || !condicoes.trim()) return [];
             var texto = condicoes.trim().toUpperCase().replace(/\s+/g, ' ');
@@ -816,16 +996,20 @@
         function recalcDataVencimentoNoModal() {
             var cond = document.getElementById('editCondicoesPagamento').value.trim();
             var dataEntregaInput = (document.getElementById('editDataEntrega') && document.getElementById('editDataEntrega').value) ? document.getElementById('editDataEntrega').value.trim() : '';
-            var dataCompInput = (document.getElementById('editDataCompetencia') && document.getElementById('editDataCompetencia').value) ? document.getElementById('editDataCompetencia').value.trim() : '';
-            var dataBase = dataEntregaInput ? (inputDateToBr(dataEntregaInput) || dataEntregaInput) : (dataCompInput ? (inputDateToBr(dataCompInput) || dataCompInput) : '');
-            if (!dataBase && dataEntregaInput.match(/^\d{4}-\d{2}-\d{2}/)) dataBase = inputDateToBr(dataEntregaInput);
-            if (!dataBase && dataCompInput.match(/^\d{4}-\d{2}-\d{2}/)) dataBase = inputDateToBr(dataCompInput);
+            var dataBase = dataEntregaInput ? (inputDateToBr(dataEntregaInput) || dataEntregaInput) : '';
             var vt = document.getElementById('editPedidoModal').getAttribute('data-valor-total') || '0';
             var valorTotal = parseFloat(vt) || 0;
-            var datas = calcularVencimentosFromCondicao(cond, dataBase || dataEntregaInput || dataCompInput, valorTotal);
             var vencEl = document.getElementById('editDataVencimento');
+            // Regra: só calcula vencimento automaticamente quando a data de entrega existir.
+            if (!dataBase) {
+                if (vencEl) vencEl.value = '';
+                return;
+            }
+            var datas = calcularVencimentosFromCondicao(cond, dataBase, valorTotal);
             if (datas.length > 0) {
                 vencEl.value = datas.join('\n');
+            } else if (vencEl) {
+                vencEl.value = '';
             }
         }
         function dataToDisplay(d) {

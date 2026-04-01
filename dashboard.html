@@ -33,13 +33,8 @@
     }
 
     @keyframes rotate {
-      from {
-        transform: rotate(0deg);
-      }
-
-      to {
-        transform: rotate(360deg);
-      }
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     .header {
@@ -56,55 +51,60 @@
     }
 
     .header img {
-      width: 200px;
+      width: 300px;
     }
 
     .header h1 {
       color: #fff;
-      font-size: 36px;
+      font-weight: 600;
       text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
-      margin: 0;
     }
 
-    .header-extra {
+    .welcome-msg {
       position: relative;
       z-index: 1;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 16px;
-      padding: 16px 40px 0;
-      margin-bottom: 8px;
+      /* Mantemos a margem e a altura, garantindo que fique no mesmo lugar */
+      margin: 12px 40px 0; 
+      color: #fff;
+      font-weight: 600;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      height: 40px; 
     }
 
-    .busca-modulos {
-      flex: 1;
-      min-width: 200px;
-      max-width: 320px;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 12px;
-      font-family: 'Montserrat', sans-serif;
-      font-size: 14px;
-      background: rgba(255, 255, 255, 0.9);
-      color: #1a1a1a;
+    /* Estilo base para os dois textos */
+    .welcome-title, .welcome-subtitle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%; /* Ocupa toda a largura disponível... */
+      text-align: center; /* ...para poder centralizar o texto perfeitamente! */
+      opacity: 0; 
+      animation: fadeToggle 8s infinite; 
     }
 
-    .busca-modulos::placeholder {
-      color: #666;
+    .welcome-title {
+      font-size: 35px;
     }
 
-    .busca-modulos:focus {
-      outline: 2px solid rgba(26, 115, 232, 0.8);
+    .welcome-subtitle {
+      font-size: 25px; 
+      margin-top: 2px;
+      animation-delay: 4s; 
     }
 
-    .status-atualizacao {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.9);
+    /* Animação de Fade In e Fade Out (inalterada) */
+    @keyframes fadeToggle {
+      0% { opacity: 0; transform: translateY(10px); }   
+      10% { opacity: 1; transform: translateY(0); }     
+      40% { opacity: 1; transform: translateY(0); }     
+      50% { opacity: 0; transform: translateY(-10px); } 
+      100% { opacity: 0; transform: translateY(-10px); }
     }
 
-    .status-atualizacao.atualizando {
-      opacity: 0.85;
+    @keyframes subtitle-pulse {
+      0% { text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
+      50% { text-shadow: 1px 1px 12px rgba(255, 255, 255, 0.6); }
+      100% { text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
     }
 
     .container {
@@ -132,9 +132,25 @@
       box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
     }
 
+    /* Estilo base e transição do ícone */
     .card .icon {
       font-size: 40px;
       margin-bottom: 10px;
+      display: inline-block; /* Necessário para rotação funcionar corretamente */
+      transition: transform 0.2s ease-out; /* Reseta suavemente */
+    }
+
+    /* Animação que faz o ícone balançar ao passar o mouse */
+    .card:hover .icon {
+      animation: icon-wobble 0.8s ease-in-out infinite;
+    }
+
+    @keyframes icon-wobble {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-5deg); }
+      50% { transform: rotate(5deg); }
+      75% { transform: rotate(-3deg); }
+      100% { transform: rotate(0deg); }
     }
 
     .card h3 {
@@ -174,16 +190,6 @@
     }
 
     @media(max-width:500px) {
-      .header-extra {
-        padding: 16px 20px 0;
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      .busca-modulos {
-        max-width: none;
-      }
-
       .container {
         padding: 20px;
         gap: 15px;
@@ -191,6 +197,19 @@
 
       .header h1 {
         font-size: 22px;
+      }
+
+      .welcome-msg {
+        height: 30px; /* Ajusta a altura no celular */
+      }
+
+      .welcome-title {
+        font-size: 20px;
+      }
+
+      .welcome-subtitle {
+        font-size: 18px;
+        margin-top: 0;
       }
 
       .card h3 {
@@ -208,7 +227,11 @@
 
   <div class="header">
     <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
-    <h1>Dashboard</h1>
+    <h1>Painel TUBA</h1>
+  </div>
+  <div class="welcome-msg" id="welcomeMsg">
+    <div class="welcome-title">Seja Bem-vindo, <?= (typeof usuarioNome !== 'undefined' && usuarioNome) ? usuarioNome : 'usuário' ?>!</div>
+    <div class="welcome-subtitle">Simplifique processos. Aumente resultados.</div>
   </div>
 
 
@@ -224,7 +247,7 @@
 
     <div class="card" data-module-name="linha de produção tarefas produção kanban">
       <div class="icon">🏭</div>
-      <h3>Linha de Produção</h3>
+      <h3>Gestão por Processos</h3>
       <div class="stats" id="statKanban">0</div>
       <p>Tarefas em produção</p>
       <a id="linkKanban" href="#">Abrir</a>
@@ -297,7 +320,7 @@
 
     if (!token) { window.location.href = pageUrl('login', ''); }
 
-    var setLink = function(id, page, qs) {
+    var setLink = function (id, page, qs) {
       var el = document.getElementById(id);
       el.href = pageUrl(page, qs || 'token=' + token);
       if (baseUrl) el.setAttribute('target', '_top');
