@@ -27,6 +27,344 @@ const ID_PASTA_PRINCIPAL = CONFIG.ID_PASTA_PRINCIPAL;
 const ID_LOGO = CONFIG.ID_LOGO;
 const FAVICON = CONFIG.FAVICON;
 
+/**
+ * Menu de reparos (aparece ao abrir a planilha).
+ */
+function onOpen(e) {
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu("PRD / Reparos")
+      .addItem("Listar PRDs duplicados (projetos/versões)", "menuListarPRDsDuplicados")
+      .addItem("Corrigir PRDs duplicados (assumir catálogo como original)", "menuCorrigirPRDsDuplicados")
+      .addToUi();
+  } catch (err) {
+    Logger.log("onOpen menu PRD falhou: " + (err && err.message ? err.message : err));
+  }
+}
+
+function _getOrCreateSheetByName_(name) {
+  var sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  return sh;
+}
+
+function _limparESetarTabela_(sheet, values) {
+  sheet.clearContents();
+  sheet.clearFormats();
+  if (!values || !values.length) return;
+  sheet.getRange(1, 1, values.length, values[0].length).setValues(values);
+  try {
+    sheet.getRange(1, 1, 1, values[0].length).setFontWeight("bold");
+    sheet.setFrozenRows(1);
+    sheet.autoResizeColumns(1, Math.min(values[0].length, 12));
+  } catch (e) { /* ignora */ }
+}
+
+function _mapDonoCatalogoPorPRD_() {
+  var donoCatalogo = {};
+  try {
+    if (!SHEET_PRODUTOS || SHEET_PRODUTOS.getLastRow() < 2) return donoCatalogo;
+    var dadosProd = SheetCache.getData(SHEET_PRODUTOS);
+    for (var r = 1; r < dadosProd.length; r++) {
+      var prd = _normalizarCodigoPRD(dadosProd[r][0]);
+      if (!_ehCodigoPRDValido(prd)) continue;
+      var projCat = String(dadosProd[r][8] || "").trim(); // coluna I (0-based 8)
+      if (!projCat) continue;
+      var base = projCat.replace(/_v\d+$/i, "").trim();
+      if (!base) continue;
+      if (!donoCatalogo[prd]) donoCatalogo[prd] = base;
+    }
+  } catch (e) {
+    Logger.log("_mapDonoCatalogoPorPRD_ aviso: " + (e && e.message ? e.message : e));
+  }
+  return donoCatalogo;
+}
+
+function _normStr_(v) {
+  return String(v == null ? "" : v).trim().toLowerCase().replace(/\s+/g, " ");
+}
+function _normNcm_(v) {
+  return _normStr_(v).replace(/[^\d]/g, "");
+}
+function _normUn_(v) {
+  return String(v == null ? "" : v).trim().toUpperCase().replace(/\s+/g, "");
+}
+function _num_(v) {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number" && isFinite(v)) return v;
+  var s = String(v).trim().replace(/[^\d,.\-]/g, "");
+  if (!s) return 0;
+  var lastC = s.lastIndexOf(",");
+  var lastD = s.lastIndexOf(".");
+  if (lastC > lastD) s = s.replace(/\./g, "").replace(",", ".");
+  else if (lastD > lastC) s = s.replace(/,/g, "");
+  else s = s.replace(",", ".");
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+/**
+ * Mapa PRD -> assinatura canônica do catálogo (para identificar “mesmo produto”).
+ * Estrutura da Relação de produtos:
+ * A=codigo, B=descricao, E=ncm, F=preco, G=unidade
+ */
+function _mapAssinaturaCatalogoPorPRD_() {
+  var map = {};
+  try {
+    if (!SHEET_PRODUTOS || SHEET_PRODUTOS.getLastRow() < 2) return map;
+    var dadosProd = SheetCache.getData(SHEET_PRODUTOS);
+    for (var r = 1; r < dadosProd.length; r++) {
+      var prd = _normalizarCodigoPRD(dadosProd[r][0]);
+      if (!_ehCodigoPRDValido(prd)) continue;
+      if (map[prd]) continue;
+      map[prd] = {
+        descricao: _normStr_(dadosProd[r][1]),
+        ncm: _normNcm_(dadosProd[r][4]),
+        unidade: _normUn_(dadosProd[r][6]),
+        preco: _num_(dadosProd[r][5])
+      };
+    }
+  } catch (e) {
+    Logger.log("_mapAssinaturaCatalogoPorPRD_ aviso: " + (e && e.message ? e.message : e));
+  }
+  return map;
+}
+
+function _assinaturaProdutoJson_(p) {
+  if (!p || typeof p !== "object") return { descricao: "", ncm: "", unidade: "", preco: 0 };
+  return {
+    descricao: _normStr_(p.descricao),
+    ncm: _normNcm_(p.ncm),
+    unidade: _normUn_(p.unidade),
+    // prioridade: precoUnitario (mais consistente), senão tenta inferir por precoTotal/qtd
+    preco: (function () {
+      var pu = _num_(p.precoUnitario);
+      if (pu > 0) return pu;
+      var qtd = _num_(p.quantidade);
+      var pt = _num_(p.precoTotal);
+      if (qtd > 0 && pt > 0) return pt / qtd;
+      return 0;
+    })()
+  };
+}
+
+function _textoParecido_(a, b) {
+  a = _normStr_(a);
+  b = _normStr_(b);
+  if (!a || !b) return true;
+  if (a === b) return true;
+  // Aceita quando um contém o outro (evita falso conflito por sufixos como "(N/A)" ou pequenos complementos)
+  if (a.length >= 6 && b.length >= 6) {
+    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return true;
+  }
+  return false;
+}
+
+function _bateCatalogo_(sigJson, sigCat) {
+  if (!sigCat) return true; // sem referência no catálogo: não julga como duplicado
+  // Descrição: match exato ou "parecido" (contain)
+  var okDesc = !sigCat.descricao || _textoParecido_(sigJson.descricao, sigCat.descricao);
+  // NCM: se algum lado vazio, não acusa conflito
+  var okNcm = (!sigCat.ncm || !sigJson.ncm) ? true : (sigJson.ncm === sigCat.ncm);
+  // Unidade: se JSON vazio, não acusa conflito
+  var okUn = (!sigCat.unidade || !sigJson.unidade) ? true : (sigJson.unidade === sigCat.unidade);
+  // Preço: tolerância absoluta + relativa (evita conflito por arredondamento)
+  var okPreco;
+  if (!sigCat.preco || sigCat.preco <= 0 || !sigJson.preco || sigJson.preco <= 0) okPreco = true;
+  else {
+    var diff = Math.abs(sigJson.preco - sigCat.preco);
+    okPreco = (diff <= 0.01) || (diff / sigCat.preco <= 0.005); // 0,5%
+  }
+  return okDesc && okNcm && okUn && okPreco;
+}
+
+function _getProdutoItemFromOccurrence_(occ, cacheByLinha, sheetProj, idxJson) {
+  if (!occ || !occ.linha || !sheetProj) return null;
+  var linha = Number(occ.linha);
+  if (!cacheByLinha[linha]) {
+    var cell = sheetProj.getRange(linha, idxJson + 1).getValue();
+    if (!cell || typeof cell !== "string" || !String(cell).trim()) {
+      cacheByLinha[linha] = { parsed: null };
+    } else {
+      try {
+        cacheByLinha[linha] = { parsed: JSON.parse(String(cell).trim()) };
+      } catch (e) {
+        cacheByLinha[linha] = { parsed: null };
+      }
+    }
+  }
+  var parsed = cacheByLinha[linha].parsed;
+  if (!parsed) return null;
+  if (occ.contexto === "base") {
+    var listB = parsed && parsed.dados && parsed.dados.produtosCadastrados;
+    return (Array.isArray(listB) && listB[occ.index]) ? listB[occ.index] : null;
+  }
+  if (occ.contexto === "versao") {
+    var versoes = parsed && parsed.versoes;
+    var vIdx = (occ.versaoIndex != null) ? occ.versaoIndex : null;
+    if (vIdx == null) return null;
+    var listV = versoes && versoes[vIdx] && versoes[vIdx].dados && versoes[vIdx].dados.produtosCadastrados;
+    return (Array.isArray(listV) && listV[occ.index]) ? listV[occ.index] : null;
+  }
+  return null;
+}
+
+/**
+ * MENU: gera relatório em aba "PRD_DUPLICADOS".
+ */
+function menuListarPRDsDuplicados() {
+  var ui = SpreadsheetApp.getUi();
+  var sh = _getOrCreateSheetByName_("PRD_DUPLICADOS");
+  var donoCatalogo = _mapDonoCatalogoPorPRD_();
+  var assinaturaCatalogo = _mapAssinaturaCatalogoPorPRD_();
+  var sheetProj = SHEET_PROJ;
+  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
+  var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  var idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
+  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
+  var cacheByLinha = {};
+
+  var diag = diagnosticarPRDsEntreProjetos({});
+  var duplicados = (diag && diag.duplicadosEntreProjetos) ? diag.duplicadosEntreProjetos : [];
+
+  var values = [];
+  values.push([
+    "PRD",
+    "Ocorrências (total)",
+    "Dono no catálogo (projeto base)",
+    "Linha (Projetos)",
+    "Projeto (linha base)",
+    "Contexto",
+    "Versão (se aplicável)",
+    "Index item",
+    "Bate catálogo?",
+    "Desc (json)",
+    "Desc (catálogo)",
+    "NCM (json)",
+    "NCM (catálogo)",
+    "UN (json)",
+    "UN (catálogo)",
+    "Preço unit (json)",
+    "Preço (catálogo)",
+    "Obs"
+  ]);
+
+  if (!duplicados.length) {
+    values.push(["—", 0, "—", "", "", "", "", "", "Nenhum PRD duplicado entre projetos/versões encontrado."]);
+    _limparESetarTabela_(sh, values);
+    try { ss.setActiveSheet(sh); } catch (e) { }
+    ui.alert("PRDs duplicados", "Nenhum PRD duplicado entre projetos/versões foi encontrado.", ui.ButtonSet.OK);
+    return { success: true, duplicados: 0 };
+  }
+
+  duplicados.forEach(function (d) {
+    var prd = d.codigo;
+    var arr = d.ocorrencias || [];
+    var dono = donoCatalogo[prd] || "";
+    var sigCat = assinaturaCatalogo[prd] || null;
+    arr.forEach(function (o) {
+      // Lê o item real para comparar assinatura com catálogo (evita falso positivo: mesmo produto em vários projetos)
+      var sigJson = { descricao: "", ncm: "", unidade: "", preco: 0 };
+      try {
+        var item = _getProdutoItemFromOccurrence_(o, cacheByLinha, sheetProj, idxJson);
+        if (item) sigJson = _assinaturaProdutoJson_(item);
+      } catch (eSig) { }
+
+      var bate = _bateCatalogo_(sigJson, sigCat);
+      var obs = bate ? "mesmo produto (ok)" : "CONFLITO com catálogo (corrigir)";
+      if (!sigCat) obs = "PRD não encontrado no catálogo (avaliar)";
+
+      values.push([
+        prd,
+        arr.length,
+        dono || "—",
+        o.linha || "",
+        o.projeto || "",
+        o.contexto || "",
+        o.versao || "",
+        (o.index != null ? o.index : ""),
+        bate ? "SIM" : "NÃO",
+        sigJson.descricao || "",
+        sigCat ? (sigCat.descricao || "") : "",
+        sigJson.ncm || "",
+        sigCat ? (sigCat.ncm || "") : "",
+        sigJson.unidade || "",
+        sigCat ? (sigCat.unidade || "") : "",
+        sigJson.preco || 0,
+        sigCat ? (sigCat.preco || 0) : 0,
+        obs
+      ]);
+    });
+  });
+
+  _limparESetarTabela_(sh, values);
+  try { ss.setActiveSheet(sh); } catch (e) { }
+  ui.alert(
+    "PRDs duplicados",
+    "Encontrados " + duplicados.length + " PRDs duplicados entre projetos/versões.\n" +
+    "Relatório gerado na aba: PRD_DUPLICADOS",
+    ui.ButtonSet.OK
+  );
+  return { success: true, duplicados: duplicados.length };
+}
+
+/**
+ * MENU: aplica o reparo e gera/atualiza o relatório.
+ */
+function menuCorrigirPRDsDuplicados() {
+  var ui = SpreadsheetApp.getUi();
+  var confirm = ui.alert(
+    "Corrigir PRDs duplicados",
+    "Isso vai alterar o JSON_DADOS na aba Projetos, reatribuindo novos PRDs únicos para ocorrências duplicadas (assumindo a Relação de produtos como original).\n\nDeseja continuar?",
+    ui.ButtonSet.YES_NO
+  );
+  if (confirm !== ui.Button.YES) return { success: false, cancelled: true };
+
+  var res = repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo({ dryRun: false });
+  menuListarPRDsDuplicados();
+  try {
+    var sh2 = _getOrCreateSheetByName_("PRD_REGERAR_PDF");
+    var vals = [];
+    vals.push(["Projeto para regenerar", "Linha (Projetos)", "É versão?", "Código da versão", "Qtd itens PRD trocados"]);
+
+    var byKey = {};
+    (res.itensTrocados || []).forEach(function (it) {
+      var key = (it.contexto === "versao" && it.versaoCodigo) ? ("V:" + it.versaoCodigo) : ("B:" + it.projetoBase);
+      if (!byKey[key]) {
+        byKey[key] = { projetoBase: it.projetoBase, linha: it.linha, isVersao: (it.contexto === "versao"), versaoCodigo: it.versaoCodigo || "", qtd: 0 };
+      }
+      byKey[key].qtd++;
+    });
+    var keys = Object.keys(byKey);
+    keys.sort();
+    keys.forEach(function (k) {
+      var o = byKey[k];
+      vals.push([
+        o.isVersao && o.versaoCodigo ? o.versaoCodigo : o.projetoBase,
+        o.linha,
+        o.isVersao ? "SIM" : "NÃO",
+        o.versaoCodigo || "",
+        o.qtd
+      ]);
+    });
+    if (vals.length === 1) vals.push(["—", "", "", "", 0]);
+    _limparESetarTabela_(sh2, vals);
+  } catch (eRep) {
+    Logger.log("menuCorrigirPRDsDuplicados: falha ao gerar PRD_REGERAR_PDF: " + (eRep && eRep.message ? eRep.message : eRep));
+  }
+
+  ui.alert(
+    "Reparo concluído",
+    "Projetos analisados: " + (res.analisados != null ? res.analisados : "?") + "\n" +
+    "PRDs duplicados encontrados: " + (res.prdsDuplicados != null ? res.prdsDuplicados : "?") + "\n" +
+    "Linhas alteradas (JSON_DADOS): " + (res.alterados != null ? res.alterados : "?") + "\n\n" +
+    "A lista de projetos/versões para gerar novo PDF foi gerada na aba: PRD_REGERAR_PDF\n\n" +
+    "Agora carregue os orçamentos no formulário e gere novos PDFs (os antigos não mudam).",
+    ui.ButtonSet.OK
+  );
+  return res;
+}
+
 // ==================== SHEET CACHE ====================
 /**
  * Per-execution cache for sheet data values.
@@ -123,27 +461,15 @@ function getProdutosCadastrados() {
  */
 function getProximoCodigoPRD() {
   try {
-    // Use global SHEET_PRODUTOS
-    if (!SHEET_PRODUTOS) {
-      return "PRD00001"; // Primeiro código se a aba não existe
-    }
-
-    const dados = SheetCache.getData(SHEET_PRODUTOS);
-    if (dados.length < 2) {
-      return "PRD00001"; // Primeiro código se não há produtos
-    }
-
-    // Encontra o maior número PRD
+    const reservados = _coletarCodigosPRDReservadosGlobais();
     let maxNumero = 0;
-    for (let i = 1; i < dados.length; i++) {
-      const codigo = String(dados[i][0] || "");
-      if (codigo.startsWith("PRD")) {
-        const numero = parseInt(codigo.substring(3), 10);
-        if (!isNaN(numero) && numero > maxNumero) {
-          maxNumero = numero;
-        }
+    reservados.forEach(function (codigo) {
+      const m = String(codigo || "").match(/^PRD(\d+)$/i);
+      if (m && m[1]) {
+        const numero = parseInt(m[1], 10);
+        if (!isNaN(numero) && numero > maxNumero) maxNumero = numero;
       }
-    }
+    });
 
     // Retorna o próximo número formatado
     const proximoNumero = maxNumero + 1;
@@ -154,6 +480,228 @@ function getProximoCodigoPRD() {
   }
 }
 
+function _normalizarCodigoPRD(codigo) {
+  return String(codigo || "").trim().toUpperCase();
+}
+
+function _ehCodigoPRDValido(codigo) {
+  return /^PRD\d+$/.test(_normalizarCodigoPRD(codigo));
+}
+
+function _coletarCodigosPRDDoCatalogo() {
+  const usados = new Set();
+  try {
+    if (!SHEET_PRODUTOS) return usados;
+    const dados = SheetCache.getData(SHEET_PRODUTOS);
+    for (let i = 1; i < dados.length; i++) {
+      const codigo = _normalizarCodigoPRD(dados[i][0]);
+      if (_ehCodigoPRDValido(codigo)) usados.add(codigo);
+    }
+  } catch (e) {
+    Logger.log("Aviso _coletarCodigosPRDDoCatalogo: " + (e && e.message ? e.message : e));
+  }
+  return usados;
+}
+
+function _coletarCodigosPRDDeProjetosJson() {
+  const usados = new Set();
+  try {
+    if (!SHEET_PROJ) return usados;
+    const dados = SheetCache.getData(SHEET_PROJ);
+    if (!dados || dados.length < 2) return usados;
+    const headers = dados[0] || [];
+    const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
+    if (idxJson < 0) return usados;
+
+    function coletarLista(lista) {
+      if (!Array.isArray(lista)) return;
+      lista.forEach(function (p) {
+        const codigo = _normalizarCodigoPRD(p && p.codigo);
+        if (_ehCodigoPRDValido(codigo)) usados.add(codigo);
+      });
+    }
+
+    for (let i = 1; i < dados.length; i++) {
+      const cell = dados[i][idxJson];
+      if (!cell || typeof cell !== "string" || !String(cell).trim()) continue;
+      let parsed = null;
+      try {
+        parsed = JSON.parse(String(cell).trim());
+      } catch (eParse) {
+        parsed = null;
+      }
+      if (!parsed) continue;
+
+      coletarLista(parsed && parsed.dados && parsed.dados.produtosCadastrados);
+      if (Array.isArray(parsed.versoes)) {
+        parsed.versoes.forEach(function (v) {
+          coletarLista(v && v.dados && v.dados.produtosCadastrados);
+        });
+      }
+    }
+  } catch (e) {
+    Logger.log("Aviso _coletarCodigosPRDDeProjetosJson: " + (e && e.message ? e.message : e));
+  }
+  return usados;
+}
+
+function _coletarCodigosPRDReservadosGlobais() {
+  const reservados = _coletarCodigosPRDDoCatalogo();
+  const jsonCodes = _coletarCodigosPRDDeProjetosJson();
+  jsonCodes.forEach(function (c) { reservados.add(c); });
+  return reservados;
+}
+
+function _obterMaiorNumeroPRDGlobal() {
+  let maxNumero = 0;
+  const reservados = _coletarCodigosPRDReservadosGlobais();
+  reservados.forEach(function (codigo) {
+    const m = String(codigo || "").match(/^PRD(\d+)$/i);
+    if (m && m[1]) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n) && n > maxNumero) maxNumero = n;
+    }
+  });
+  return maxNumero;
+}
+
+function _alocarFaixaPRDAtomica(qtd) {
+  const quantidade = Math.max(1, parseInt(qtd, 10) || 1);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const key = "PRD_NEXT_NUMBER";
+
+    let next = parseInt(props.getProperty(key), 10);
+    const maxGlobal = _obterMaiorNumeroPRDGlobal();
+    if (!Number.isFinite(next) || next <= maxGlobal) {
+      next = maxGlobal + 1;
+    }
+
+    const inicio = next;
+    const fim = next + quantidade - 1;
+    props.setProperty(key, String(fim + 1));
+
+    const codigos = [];
+    for (let n = inicio; n <= fim; n++) {
+      codigos.push("PRD" + String(n).padStart(5, "0"));
+    }
+    return codigos;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
+  if (!produtos || !Array.isArray(produtos) || produtos.length === 0) {
+    return { produtos: produtos || [], alteracoes: 0 };
+  }
+
+  const reservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDReservadosGlobais();
+  const usadosNoOrcamento = new Set();
+  let alteracoes = 0;
+
+  let poolNovosCodigos = [];
+
+  function gerarNovoCodigoLivre() {
+    while (true) {
+      if (poolNovosCodigos.length === 0) {
+        poolNovosCodigos = _alocarFaixaPRDAtomica(20);
+      }
+      const codigo = _normalizarCodigoPRD(poolNovosCodigos.shift());
+      if (!reservados.has(codigo) && !usadosNoOrcamento.has(codigo)) {
+        return codigo;
+      }
+    }
+  }
+
+  produtos.forEach(function (produto) {
+    if (!produto || typeof produto !== "object") return;
+
+    const codigoAtual = _normalizarCodigoPRD(produto.codigo);
+    const valido = _ehCodigoPRDValido(codigoAtual);
+    const disponivelNoOrcamento = valido && !usadosNoOrcamento.has(codigoAtual);
+
+    if (disponivelNoOrcamento) {
+      produto.codigo = codigoAtual;
+      usadosNoOrcamento.add(codigoAtual);
+      return;
+    }
+
+    const novoCodigo = gerarNovoCodigoLivre();
+    produto.codigo = novoCodigo;
+    reservados.add(novoCodigo);
+    usadosNoOrcamento.add(novoCodigo);
+    alteracoes++;
+  });
+
+  return { produtos: produtos, alteracoes: alteracoes };
+}
+
+/**
+ * Consolida itens duplicados por PRD dentro do mesmo orçamento/projeto.
+ * Mantém 1 item por código (somando quantidades e totais; unindo processos).
+ * Isso evita PDFs/JSON com o mesmo PRD repetido por falhas de UI ou import.
+ */
+function _consolidarProdutosCadastradosPorCodigo(produtos) {
+  if (!produtos || !Array.isArray(produtos) || produtos.length === 0) return produtos || [];
+  var by = {};
+  var ordem = [];
+  produtos.forEach(function (p) {
+    if (!p || typeof p !== "object") return;
+    var cod = (p.codigo != null ? String(p.codigo).trim() : "");
+    var key = cod ? cod.toUpperCase() : ("__sem_codigo__#" + ordem.length);
+    if (!by[key]) {
+      by[key] = JSON.parse(JSON.stringify(p));
+      ordem.push(key);
+      // normalizações básicas
+      by[key].quantidade = Number(by[key].quantidade) || 0;
+      by[key].precoUnitario = Number(by[key].precoUnitario) || 0;
+      by[key].precoTotal = Number(by[key].precoTotal) || 0;
+      if (!Array.isArray(by[key].processos)) by[key].processos = [];
+      if (!by[key].descricoesProcessos || typeof by[key].descricoesProcessos !== "object") by[key].descricoesProcessos = {};
+      if (!by[key].precosProcessos || typeof by[key].precosProcessos !== "object") by[key].precosProcessos = {};
+      return;
+    }
+    var acc = by[key];
+    var qtd = Number(p.quantidade) || 0;
+    var pu = Number(p.precoUnitario) || 0;
+    var pt = Number(p.precoTotal) || 0;
+    if (!pt && (pu || qtd)) pt = pu * qtd;
+
+    acc.quantidade = (Number(acc.quantidade) || 0) + qtd;
+    // preço unitário: mantém o primeiro não-zero
+    if (!(Number(acc.precoUnitario) > 0) && pu > 0) acc.precoUnitario = pu;
+    acc.precoTotal = (Number(acc.precoTotal) || 0) + pt;
+
+    // merge processos
+    var procs = (p.processos && Array.isArray(p.processos)) ? p.processos : [];
+    procs.forEach(function (sigla) {
+      if (sigla && acc.processos.indexOf(sigla) < 0) acc.processos.push(sigla);
+    });
+
+    // merge descrições e preços por processo (não sobrescreve o que já existe)
+    if (p.descricoesProcessos && typeof p.descricoesProcessos === "object") {
+      for (var k in p.descricoesProcessos) {
+        if (!Object.prototype.hasOwnProperty.call(p.descricoesProcessos, k)) continue;
+        if (acc.descricoesProcessos[k] == null || String(acc.descricoesProcessos[k]).trim() === "") {
+          acc.descricoesProcessos[k] = p.descricoesProcessos[k];
+        }
+      }
+    }
+    if (p.precosProcessos && typeof p.precosProcessos === "object") {
+      for (var k2 in p.precosProcessos) {
+        if (!Object.prototype.hasOwnProperty.call(p.precosProcessos, k2)) continue;
+        if (acc.precosProcessos[k2] == null || Number(acc.precosProcessos[k2]) <= 0) {
+          acc.precosProcessos[k2] = p.precosProcessos[k2];
+        }
+      }
+    }
+  });
+  return ordem.map(function (k) { return by[k]; });
+}
+
 
 /**
  * Atribui códigos PRD aos produtos que não possuem código
@@ -162,26 +710,7 @@ function getProximoCodigoPRD() {
  */
 function atribuirCodigosPRDAutomaticos(produtos) {
   if (!produtos || produtos.length === 0) return produtos;
-
-  // Conta quantos produtos precisam de código
-  const produtosSemCodigo = produtos.filter(p => !p.codigo || p.codigo.trim() === "");
-
-  if (produtosSemCodigo.length === 0) {
-    return produtos; // Todos já têm código
-  }
-
-  // Obtém o próximo código PRD disponível
-  const proximoCodigo = getProximoCodigoPRD();
-  let numeroBase = parseInt(proximoCodigo.substring(3), 10);
-
-  // Atribui códigos aos produtos que não têm
-  produtos.forEach(produto => {
-    if (!produto.codigo || produto.codigo.trim() === "") {
-      produto.codigo = "PRD" + String(numeroBase).padStart(5, "0");
-      numeroBase++;
-    }
-  });
-
+  atribuirPRDsUnicos(produtos);
   return produtos;
 }
 
@@ -1396,17 +1925,11 @@ function gerarPdfOrcamento(
       }
     }
 
-    // Atribui códigos PRD apenas a produtos cadastrados (orçamento não usa mais chapas/peças)
-    var proximoPRD = getProximoCodigoPRD();
-    var numeroPRD = parseInt(proximoPRD.substring(3), 10) || 0;
+    // Garante PRDs únicos por orçamento antes de montar itens/PDF.
     if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
-      produtosCadastrados.forEach(function (prod) {
-        var codigo = (prod.codigo && String(prod.codigo).trim()) || "";
-        if (!codigo || String(codigo).toUpperCase().indexOf("PRD") !== 0) {
-          prod.codigo = "PRD" + String(numeroPRD).padStart(5, "0");
-          numeroPRD++;
-        }
-      });
+      atribuirPRDsUnicos(produtosCadastrados);
+      // Evita duplicação do mesmo PRD no PDF/JSON (consolida itens iguais).
+      produtosCadastrados = _consolidarProdutosCadastradosPorCodigo(produtosCadastrados);
     }
 
     const resultados = [];
@@ -2303,17 +2826,48 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
   // Atribui PRD apenas a produtos cadastrados (chapas/peças não são mais usados no orçamento)
   chapas = chapas || [];
 
-  // Atribui PRD a produtos cadastrados sem código e sincroniza em dadosFormularioCompleto
+  // Garante PRDs únicos e sincroniza no JSON completo para persistência correta.
   const listaProds = produtosCadastrados || [];
-  listaProds.forEach((prod, idx) => {
-    const codigo = (prod.codigo && String(prod.codigo).trim()) || "";
-    if (!codigo || !String(codigo).toUpperCase().startsWith("PRD")) {
-      prod.codigo = getProximoCodigoPRD();
-      if (dadosFormularioCompleto && dadosFormularioCompleto.produtosCadastrados && dadosFormularioCompleto.produtosCadastrados[idx]) {
-        dadosFormularioCompleto.produtosCadastrados[idx].codigo = prod.codigo;
-      }
+  atribuirPRDsUnicos(listaProds);
+  // Consolida duplicados por PRD dentro do mesmo projeto (evita repetir item no JSON/PDF).
+  var listaProdsConsolidada = _consolidarProdutosCadastradosPorCodigo(listaProds);
+  produtosCadastrados = listaProdsConsolidada;
+  if (dadosFormularioCompleto && Array.isArray(dadosFormularioCompleto.produtosCadastrados)) {
+    // Reescreve a lista do formulário com a versão consolidada (inclui códigos PRD já atribuídos).
+    dadosFormularioCompleto.produtosCadastrados = JSON.parse(JSON.stringify(listaProdsConsolidada));
+  }
+
+  function _sincronizarProdutosNaRelacao(produtos, codigoProj, nomeCliente) {
+    try {
+      if (!produtos || !Array.isArray(produtos) || produtos.length === 0) return;
+      if (!SHEET_PRODUTOS) return;
+
+      const existentes = _coletarCodigosPRDDoCatalogo();
+      produtos.forEach(function (prod) {
+        const codigo = _normalizarCodigoPRD(prod && prod.codigo);
+        if (!_ehCodigoPRDValido(codigo)) return;
+        if (existentes.has(codigo)) return;
+
+        const produtoRelacao = {
+          codigo: codigo,
+          descricao: prod.descricao || "",
+          ncm: prod.ncm || "",
+          preco: Number(prod.precoUnitario) || 0,
+          unidade: prod.unidade || "UN",
+          caracteristicas: (prod.descricoesProcessos && typeof prod.descricoesProcessos === "object") ? JSON.stringify(prod.descricoesProcessos) : "",
+          projeto: codigoProj || "",
+          cliente: nomeCliente || "",
+          processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : [],
+          pecasPorChapa: prod.pecasPorChapa != null ? prod.pecasPorChapa : "",
+          precosProcessos: prod.precosProcessos && typeof prod.precosProcessos === "object" ? prod.precosProcessos : {}
+        };
+        inserirProdutoNaRelacao(produtoRelacao);
+        existentes.add(codigo);
+      });
+    } catch (eSyncRel) {
+      Logger.log("Aviso _sincronizarProdutosNaRelacao: " + (eSyncRel && eSyncRel.message ? eSyncRel.message : eSyncRel));
     }
-  });
+  }
 
   // ----- Aqui fazíamos appendRow; agora vamos checar existência e atualizar se necessário -----
   try {
@@ -2387,6 +2941,30 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
             const numSeqV = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial != null) ? dadosFormularioCompleto.numeroSequencial : null;
             const dadosV = dadosFormularioCompleto ? JSON.parse(JSON.stringify(dadosFormularioCompleto)) : {};
             if (dadosV.observacoes) dadosV.observacoes.projeto = codigoProjeto;
+            // Pedido já convertido: preservar infoPedido da linha base (competência / datas) ao gravar versão _vN
+            try {
+              const idxStV = _findHeaderIndexProjetos(hdrs, "STATUS_ORCAMENTO");
+              const stLinhaV = idxStV >= 0 ? String(sheetProj.getRange(linhaBase, idxStV + 1).getValue() || "").trim() : "";
+              if (isPedido && stLinhaV === "Convertido em Pedido") {
+                var infoBaseV = (jsonData.dados && jsonData.dados.infoPedido) ? jsonData.dados.infoPedido : null;
+                if (infoBaseV && typeof infoBaseV === "object") {
+                  if (!dadosV.infoPedido) dadosV.infoPedido = {};
+                  var chavesV = ["dataVirouPedido", "dataEntrega", "notaFiscal", "valorPedido", "comprovanteEntregaUrl", "temComprovanteEntrega", "dataFimProducao"];
+                  for (var vi = 0; vi < chavesV.length; vi++) {
+                    var cv = chavesV[vi];
+                    if (infoBaseV[cv] != null && infoBaseV[cv] !== "") dadosV.infoPedido[cv] = infoBaseV[cv];
+                  }
+                  if (infoBaseV.statusDates && typeof infoBaseV.statusDates === "object") {
+                    if (!dadosV.infoPedido.statusDates) dadosV.infoPedido.statusDates = {};
+                    Object.keys(infoBaseV.statusDates).forEach(function (sk) {
+                      if (infoBaseV.statusDates[sk] != null && infoBaseV.statusDates[sk] !== "") dadosV.infoPedido.statusDates[sk] = infoBaseV.statusDates[sk];
+                    });
+                  }
+                }
+              }
+            } catch (eInfoV) {
+              Logger.log("Aviso registrarOrcamento (versão): " + (eInfoV && eInfoV.message ? eInfoV.message : eInfoV));
+            }
             const novaEntrada = {
               codigo: codigoProjeto,
               dataSalvo: new Date().toISOString(),
@@ -2450,14 +3028,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       Logger.log("Aviso registrarOrcamento: falha ao montar descricoesProcessos: " + (eDescProc && eDescProc.message ? eDescProc.message : eDescProc));
     }
 
-    let dadosJson = JSON.stringify({
-      nome: codigoProjeto,
-      dataSalvo: agora.toISOString(),
-      numeroSequencial: numeroSequencial,
-      dados: dadosParaJson
-    });
-
-    // usar: Projetos 
+    // usar: Projetos
     const sheetProj = SHEET_PROJ;
     const targetSheet = sheetProj;
 
@@ -2473,6 +3044,55 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     if (!linhaExistente && sheetProj) {
       linhaExistente = findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto) || 0;
     }
+
+    // PDF tipo Pedido em projeto já convertido: não sobrescrever infoPedido (competência / datas de status) com dados incompletos do formulário
+    try {
+      if (linhaExistente && sheetProj && isPedido) {
+        const hdrsMerge = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+        const idxOrcMerge = _findHeaderIndexProjetos(hdrsMerge, "STATUS_ORCAMENTO");
+        const rowMerge = sheetProj.getRange(linhaExistente, 1, linhaExistente, sheetProj.getLastColumn()).getValues()[0];
+        const stMerge = (idxOrcMerge >= 0 && rowMerge[idxOrcMerge] != null) ? String(rowMerge[idxOrcMerge]).trim() : "";
+        if (stMerge === "Convertido em Pedido") {
+          const idxJsonMerge = _findHeaderIndex(hdrsMerge, "JSON_DADOS");
+          if (idxJsonMerge >= 0) {
+            const cellMerge = sheetProj.getRange(linhaExistente, idxJsonMerge + 1).getValue();
+            let parsedMerge = null;
+            try {
+              parsedMerge = (cellMerge && String(cellMerge).trim()) ? JSON.parse(String(cellMerge).trim()) : null;
+            } catch (eM) { parsedMerge = null; }
+            const dadosAnt = parsedMerge && parsedMerge.dados ? parsedMerge.dados : null;
+            const infoAnt = (dadosAnt && dadosAnt.infoPedido) ? dadosAnt.infoPedido : (parsedMerge && parsedMerge.infoPedido ? parsedMerge.infoPedido : null);
+            if (infoAnt && typeof infoAnt === "object") {
+              if (!dadosParaJson.infoPedido) dadosParaJson.infoPedido = {};
+              var chavesPreservarInfoPedido = ["dataVirouPedido", "dataEntrega", "notaFiscal", "valorPedido", "comprovanteEntregaUrl", "temComprovanteEntrega", "dataFimProducao"];
+              for (var ki = 0; ki < chavesPreservarInfoPedido.length; ki++) {
+                var ck = chavesPreservarInfoPedido[ki];
+                if (infoAnt[ck] != null && infoAnt[ck] !== "") {
+                  dadosParaJson.infoPedido[ck] = infoAnt[ck];
+                }
+              }
+              if (infoAnt.statusDates && typeof infoAnt.statusDates === "object") {
+                if (!dadosParaJson.infoPedido.statusDates) dadosParaJson.infoPedido.statusDates = {};
+                Object.keys(infoAnt.statusDates).forEach(function (sk) {
+                  if (infoAnt.statusDates[sk] != null && infoAnt.statusDates[sk] !== "") {
+                    dadosParaJson.infoPedido.statusDates[sk] = infoAnt.statusDates[sk];
+                  }
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (eMergeIp) {
+      Logger.log("Aviso registrarOrcamento: falha ao preservar infoPedido (pedido já convertido): " + (eMergeIp && eMergeIp.message ? eMergeIp.message : eMergeIp));
+    }
+
+    let dadosJson = JSON.stringify({
+      nome: codigoProjeto,
+      dataSalvo: agora.toISOString(),
+      numeroSequencial: numeroSequencial,
+      dados: dadosParaJson
+    });
 
     // RF001/RF003/RF005: Ao sobrescrever a versão base (sem _v), preservar jsonData.versoes existentes.
     // Isso evita que converter em pedido apague versões anteriores do projeto.
@@ -2556,6 +3176,8 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       "OBSERVAÇÕES": observacoesKanban,
       "JSON_DADOS": dadosJson
     };
+    /** @type {boolean} Já estava "Convertido em Pedido" antes deste registrar (evita re-disparar COT→PED / estado inicial de preparação) */
+    var jaEraConvertidoEmPedido = false;
     if (linhaExistente) {
       var rowAtualReg = targetSheet.getRange(linhaExistente, 1, linhaExistente, targetSheet.getLastColumn()).getValues()[0];
       var headersReg = targetSheet.getRange(1, 1, 1, targetSheet.getLastColumn()).getValues()[0];
@@ -2563,6 +3185,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       var statusAtualReg = "";
       var idxOrc = _findHeaderIndexProjetos(headersReg, "STATUS_ORCAMENTO");
       if (idxOrc >= 0 && rowAtualReg[idxOrc]) statusAtualReg = String(rowAtualReg[idxOrc] || "").trim();
+      if (statusAtualReg === "Convertido em Pedido") jaEraConvertidoEmPedido = true;
       // Projeto já convertido em pedido: não alterar DATA ao gerar novo PDF (data de competência só na aba Pedidos e editável só no modal de Pedidos)
       if (statusAtualReg === "Convertido em Pedido" && idxData >= 0 && rowAtualReg[idxData] != null && String(rowAtualReg[idxData]).trim() !== "") {
         dadosObjReg["DATA"] = rowAtualReg[idxData];
@@ -2573,6 +3196,17 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
         if (idxOrc >= 0 && rowAtualReg[idxOrc]) dadosObjReg["STATUS_ORCAMENTO"] = rowAtualReg[idxOrc];
         if (idxPed >= 0 && rowAtualReg[idxPed]) dadosObjReg["STATUS_PEDIDO"] = rowAtualReg[idxPed];
         if (idxObs >= 0 && observacoesKanban === "" && rowAtualReg[idxObs]) dadosObjReg["OBSERVAÇÕES"] = rowAtualReg[idxObs];
+      } else if (statusAtualReg === "Convertido em Pedido") {
+        // Regenerar PDF como Pedido sem nova conversão: manter colunas de Kanban e fluxo como estão
+        var idxPedEx = _findHeaderIndexProjetos(headersReg, "STATUS_PEDIDO");
+        var idxObsEx = _findHeaderIndexProjetos(headersReg, "OBSERVAÇÕES");
+        var idxPrazoEx = _findHeaderIndexProjetos(headersReg, "PRAZO");
+        var idxPrazoPropEx = _findHeaderIndexProjetos(headersReg, "PRAZO_PROPOSTA");
+        if (idxOrc >= 0 && rowAtualReg[idxOrc]) dadosObjReg["STATUS_ORCAMENTO"] = rowAtualReg[idxOrc];
+        if (idxPedEx >= 0 && rowAtualReg[idxPedEx]) dadosObjReg["STATUS_PEDIDO"] = rowAtualReg[idxPedEx];
+        if (idxObsEx >= 0 && observacoesKanban === "" && rowAtualReg[idxObsEx]) dadosObjReg["OBSERVAÇÕES"] = rowAtualReg[idxObsEx];
+        if (idxPrazoEx >= 0 && rowAtualReg[idxPrazoEx] != null && String(rowAtualReg[idxPrazoEx]).trim() !== "") dadosObjReg["PRAZO"] = rowAtualReg[idxPrazoEx];
+        if (idxPrazoPropEx >= 0 && rowAtualReg[idxPrazoPropEx] != null && String(rowAtualReg[idxPrazoPropEx]).trim() !== "") dadosObjReg["PRAZO_PROPOSTA"] = rowAtualReg[idxPrazoPropEx];
       }
       _escreverLinhaProjetosPorCabecalho(targetSheet, linhaExistente, dadosObjReg, true);
     } else {
@@ -2591,8 +3225,20 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
               var idxDataDup = _findHeaderIndexProjetos(headersProj2, "DATA");
               var idxOrcDup = _findHeaderIndexProjetos(headersProj2, "STATUS_ORCAMENTO");
               var statusDup = (idxOrcDup >= 0 && rowAtualDup[idxOrcDup]) ? String(rowAtualDup[idxOrcDup] || "").trim() : "";
+              if (statusDup === "Convertido em Pedido") jaEraConvertidoEmPedido = true;
               if (statusDup === "Convertido em Pedido" && idxDataDup >= 0 && rowAtualDup[idxDataDup] != null && String(rowAtualDup[idxDataDup]).trim() !== "") dadosObjReg["DATA"] = rowAtualDup[idxDataDup];
               if (!isPedido && idxOrcDup >= 0 && rowAtualDup[idxOrcDup]) dadosObjReg["STATUS_ORCAMENTO"] = rowAtualDup[idxOrcDup];
+              if (isPedido && statusDup === "Convertido em Pedido") {
+                var idxPedDup = _findHeaderIndexProjetos(headersProj2, "STATUS_PEDIDO");
+                var idxObsDup = _findHeaderIndexProjetos(headersProj2, "OBSERVAÇÕES");
+                var idxPrazoDup = _findHeaderIndexProjetos(headersProj2, "PRAZO");
+                var idxPrazoPropDup = _findHeaderIndexProjetos(headersProj2, "PRAZO_PROPOSTA");
+                if (idxOrcDup >= 0 && rowAtualDup[idxOrcDup]) dadosObjReg["STATUS_ORCAMENTO"] = rowAtualDup[idxOrcDup];
+                if (idxPedDup >= 0 && rowAtualDup[idxPedDup]) dadosObjReg["STATUS_PEDIDO"] = rowAtualDup[idxPedDup];
+                if (idxObsDup >= 0 && observacoesKanban === "" && rowAtualDup[idxObsDup]) dadosObjReg["OBSERVAÇÕES"] = rowAtualDup[idxObsDup];
+                if (idxPrazoDup >= 0 && rowAtualDup[idxPrazoDup] != null && String(rowAtualDup[idxPrazoDup]).trim() !== "") dadosObjReg["PRAZO"] = rowAtualDup[idxPrazoDup];
+                if (idxPrazoPropDup >= 0 && rowAtualDup[idxPrazoPropDup] != null && String(rowAtualDup[idxPrazoPropDup]).trim() !== "") dadosObjReg["PRAZO_PROPOSTA"] = rowAtualDup[idxPrazoPropDup];
+              }
               _escreverLinhaProjetosPorCabecalho(targetSheet, ri, dadosObjReg, true);
               break;
             }
@@ -2617,13 +3263,15 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       }
     }
 
-    // Quando salvou como pedido: renomear pasta COT→PED e sincronizar aba Pedidos
+    // Quando salvou como pedido: renomear pasta COT→PED e sincronizar aba Pedidos (só na conversão nova — não ao regenerar PDF de pedido já convertido)
     if (isPedido && sheetProj && (codigoProjeto || "").length >= 6) {
       try {
-        const codigoBase = String(codigoProjeto).replace(/_v\d+$/, "").trim();
-        const dataProj = codigoBase.substring(0, 6);
-        const nomeAbrev = (dadosFormularioCompleto && dadosFormularioCompleto.cliente && dadosFormularioCompleto.cliente.nomeAbreviado) || "";
-        atualizarPrefixoPastaParaPedido(codigoBase, dataProj, cliente.nome || "", descricao, nomeAbrev);
+        if (!jaEraConvertidoEmPedido) {
+          const codigoBase = String(codigoProjeto).replace(/_v\d+$/, "").trim();
+          const dataProj = codigoBase.substring(0, 6);
+          const nomeAbrev = (dadosFormularioCompleto && dadosFormularioCompleto.cliente && dadosFormularioCompleto.cliente.nomeAbreviado) || "";
+          atualizarPrefixoPastaParaPedido(codigoBase, dataProj, cliente.nome || "", descricao, nomeAbrev);
+        }
       } catch (ePasta) {
         Logger.log("Aviso ao renomear pasta COT→PED em registrarOrcamento: " + (ePasta && ePasta.message));
       }
@@ -2631,29 +3279,9 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       if (linhaPedido >= 2) ensurePedidoRow(linhaPedido);
     }
 
-    // Insere os produtos cadastrados na "Relação de produtos" apenas quando é projeto NOVO.
-    // Ao editar e gerar PDF de projeto existente, não reinsere (evita timeout: cada inserirProdutoNaRelacao lê a planilha inteira).
-    if (!linhaExistente && produtosCadastrados && Array.isArray(produtosCadastrados)) {
-      produtosCadastrados.forEach(function (prod) {
-        const codigo = (prod.codigo && String(prod.codigo).trim()) || "";
-        if (codigo && String(codigo).toUpperCase().startsWith("PRD")) {
-          const produtoRelacao = {
-            codigo: codigo,
-            descricao: prod.descricao || "",
-            ncm: prod.ncm || "",
-            preco: Number(prod.precoUnitario) || 0,
-            unidade: prod.unidade || "UN",
-            caracteristicas: (prod.descricoesProcessos && typeof prod.descricoesProcessos === "object") ? JSON.stringify(prod.descricoesProcessos) : "",
-            projeto: codigoProjeto || "",
-            cliente: cliente.nome || "",
-            processos: prod.processos && Array.isArray(prod.processos) ? prod.processos : [],
-            pecasPorChapa: prod.pecasPorChapa != null ? prod.pecasPorChapa : "",
-            precosProcessos: prod.precosProcessos && typeof prod.precosProcessos === "object" ? prod.precosProcessos : {}
-          };
-          inserirProdutoNaRelacao(produtoRelacao);
-        }
-      });
-    }
+    // Garante que PRDs do orçamento fiquem refletidos na Relação de produtos.
+    // Sem essa sincronização, códigos só no JSON_DADOS podem ser reaproveitados em outros projetos.
+    _sincronizarProdutosNaRelacao(produtosCadastrados, codigoProjeto, cliente && cliente.nome);
 
     // Atualizar cadastro do cliente (cria se novo, atualiza se existente)
     try {
@@ -2707,23 +3335,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
           _escreverLinhaProjetosPorCabecalho(sheetProj, sheetProj.getLastRow() + 1, dadosObjFallback, false);
         }
       }
-      if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
-        produtosCadastrados.forEach(function (prod) {
-          const codigo = (prod.codigo && String(prod.codigo).trim()) || "";
-          if (codigo && String(codigo).toUpperCase().startsWith("PRD")) {
-            inserirProdutoNaRelacao({
-              codigo: codigo,
-              descricao: prod.descricao || "",
-              ncm: prod.ncm || "",
-              preco: Number(prod.precoUnitario) || 0,
-              unidade: prod.unidade || "UN",
-              caracteristicas: (prod.descricoesProcessos && typeof prod.descricoesProcessos === "object") ? JSON.stringify(prod.descricoesProcessos) : "",
-              projeto: codigoProjeto || "",
-              cliente: cliente.nome || ""
-            });
-          }
-        });
-      }
+      _sincronizarProdutosNaRelacao(produtosCadastrados, codigoProjeto, cliente && cliente.nome);
 
     } catch (e2) {
       Logger.log("Erro fallback appendRow em registrarOrcamento: " + e2);
@@ -2736,6 +3348,560 @@ function incrementarContador(tipo) {
   const props = PropertiesService.getScriptProperties();
   const valorAtual = Number(props.getProperty(tipo)) || 0;
   props.setProperty(tipo, valorAtual + 1);
+}
+
+/**
+ * Corrige PRDs duplicados em JSON_DADOS (base e versões) na aba Projetos.
+ * Uso sugerido no editor do Apps Script:
+ *   corrigirPRDsDuplicadosJSONDados();
+ *   corrigirPRDsDuplicadosJSONDados({ projeto: "260101aAB" });
+ *   corrigirPRDsDuplicadosJSONDados({ linha: 123 });
+ */
+function corrigirPRDsDuplicadosJSONDados(opcoes) {
+  opcoes = opcoes || {};
+  const sheetProj = SHEET_PROJ;
+  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
+
+  const lastRow = sheetProj.getLastRow();
+  if (lastRow < 2) return { success: true, analisados: 0, alterados: 0, detalhes: [] };
+
+  const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
+  const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
+  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada na aba Projetos.");
+
+  const filtroProjeto = String(opcoes.projeto || "").trim();
+  const filtroLinha = Number(opcoes.linha || 0);
+  const codigosReservadosGlobais = _coletarCodigosPRDDoCatalogo();
+  const detalhes = [];
+  let totalAnalisados = 0;
+  let totalAlterados = 0;
+
+  for (let linha = 2; linha <= lastRow; linha++) {
+    if (filtroLinha && linha !== filtroLinha) continue;
+
+    const codigoProjetoLinha = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
+    const codigoBaseLinha = codigoProjetoLinha.replace(/_v\d+$/i, "").trim();
+    if (filtroProjeto && filtroProjeto !== codigoProjetoLinha && filtroProjeto !== codigoBaseLinha) continue;
+
+    const jsonCell = sheetProj.getRange(linha, idxJson + 1).getValue();
+    if (!jsonCell || typeof jsonCell !== "string" || !jsonCell.trim()) continue;
+
+    totalAnalisados++;
+    let parsed;
+    try {
+      parsed = JSON.parse(String(jsonCell).trim());
+    } catch (eParse) {
+      detalhes.push({ linha: linha, projeto: codigoProjetoLinha, erro: "JSON inválido" });
+      continue;
+    }
+
+    let alteracoesLinha = 0;
+    const detalhesLinha = [];
+
+    if (parsed && parsed.dados && Array.isArray(parsed.dados.produtosCadastrados)) {
+      const rBase = atribuirPRDsUnicos(parsed.dados.produtosCadastrados, codigosReservadosGlobais);
+      if (rBase.alteracoes > 0) {
+        alteracoesLinha += rBase.alteracoes;
+        detalhesLinha.push("base:" + rBase.alteracoes);
+      }
+    }
+
+    if (parsed && Array.isArray(parsed.versoes)) {
+      parsed.versoes.forEach(function (versao) {
+        if (!versao || !versao.dados || !Array.isArray(versao.dados.produtosCadastrados)) return;
+        const rV = atribuirPRDsUnicos(versao.dados.produtosCadastrados, codigosReservadosGlobais);
+        if (rV.alteracoes > 0) {
+          alteracoesLinha += rV.alteracoes;
+          detalhesLinha.push((versao.codigo || "versao") + ":" + rV.alteracoes);
+        }
+      });
+    }
+
+    if (alteracoesLinha > 0) {
+      sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
+      totalAlterados++;
+      detalhes.push({
+        linha: linha,
+        projeto: codigoProjetoLinha,
+        alteracoes: alteracoesLinha,
+        contextos: detalhesLinha.join(", ")
+      });
+    }
+  }
+
+  if (totalAlterados > 0) SheetCache.invalidate(sheetProj);
+
+  return {
+    success: true,
+    analisados: totalAnalisados,
+    alterados: totalAlterados,
+    detalhes: detalhes
+  };
+}
+
+/**
+ * Corrige PRDs duplicados ENTRE projetos/versões no JSON_DADOS.
+ * Regra: para PRDs que NÃO existem na Relação de produtos, mantém a primeira ocorrência
+ * e reatribui as demais com novo PRD único.
+ */
+function corrigirPRDsDuplicadosEntreProjetosJSON(opcoes) {
+  opcoes = opcoes || {};
+  const sheetProj = SHEET_PROJ;
+  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
+
+  const lastRow = sheetProj.getLastRow();
+  if (lastRow < 2) return { success: true, analisados: 0, alterados: 0, ocorrenciasDuplicadas: 0, detalhes: [] };
+
+  const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
+  const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
+  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
+
+  const filtroProjeto = String(opcoes.projeto || "").trim();
+  const filtroLinha = Number(opcoes.linha || 0);
+  const codigosCatalogo = _coletarCodigosPRDDoCatalogo();
+
+  const rows = [];
+  const ocorrencias = {};
+  let analisados = 0;
+
+  function addOcc(codigo, item) {
+    if (!ocorrencias[codigo]) ocorrencias[codigo] = [];
+    ocorrencias[codigo].push(item);
+  }
+
+  for (let linha = 2; linha <= lastRow; linha++) {
+    if (filtroLinha && linha !== filtroLinha) continue;
+
+    const codigoProjetoLinha = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
+    const codigoBaseLinha = codigoProjetoLinha.replace(/_v\d+$/i, "").trim();
+    if (filtroProjeto && filtroProjeto !== codigoProjetoLinha && filtroProjeto !== codigoBaseLinha) continue;
+
+    const jsonCell = sheetProj.getRange(linha, idxJson + 1).getValue();
+    if (!jsonCell || typeof jsonCell !== "string" || !jsonCell.trim()) continue;
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(String(jsonCell).trim());
+    } catch (eParse) {
+      continue;
+    }
+    if (!parsed) continue;
+
+    analisados++;
+    const rowObj = { linha: linha, projeto: codigoProjetoLinha, parsed: parsed, touched: false, alteracoes: 0 };
+    rows.push(rowObj);
+
+    const baseList = parsed && parsed.dados && parsed.dados.produtosCadastrados;
+    if (Array.isArray(baseList)) {
+      baseList.forEach(function (p, idx) {
+        const codigo = _normalizarCodigoPRD(p && p.codigo);
+        if (_ehCodigoPRDValido(codigo) && !codigosCatalogo.has(codigo)) {
+          addOcc(codigo, { row: rowObj, where: "base", index: idx });
+        }
+      });
+    }
+
+    if (Array.isArray(parsed.versoes)) {
+      parsed.versoes.forEach(function (v, vIdx) {
+        const list = v && v.dados && v.dados.produtosCadastrados;
+        if (!Array.isArray(list)) return;
+        list.forEach(function (p, pIdx) {
+          const codigo = _normalizarCodigoPRD(p && p.codigo);
+          if (_ehCodigoPRDValido(codigo) && !codigosCatalogo.has(codigo)) {
+            addOcc(codigo, { row: rowObj, where: "versao", versaoIndex: vIdx, index: pIdx });
+          }
+        });
+      });
+    }
+  }
+
+  let ocorrenciasDuplicadas = 0;
+  Object.keys(ocorrencias).forEach(function (codigo) {
+    const arr = ocorrencias[codigo] || [];
+    if (arr.length <= 1) return;
+    ocorrenciasDuplicadas += (arr.length - 1);
+    for (let i = 1; i < arr.length; i++) {
+      const occ = arr[i];
+      if (occ.where === "base") {
+        const list = occ.row.parsed && occ.row.parsed.dados && occ.row.parsed.dados.produtosCadastrados;
+        if (Array.isArray(list) && list[occ.index]) {
+          list[occ.index].codigo = "";
+          occ.row.touched = true;
+          occ.row.alteracoes++;
+        }
+      } else {
+        const versoes = occ.row.parsed && occ.row.parsed.versoes;
+        const list = versoes && versoes[occ.versaoIndex] && versoes[occ.versaoIndex].dados && versoes[occ.versaoIndex].dados.produtosCadastrados;
+        if (Array.isArray(list) && list[occ.index]) {
+          list[occ.index].codigo = "";
+          occ.row.touched = true;
+          occ.row.alteracoes++;
+        }
+      }
+    }
+  });
+
+  const reservados = _coletarCodigosPRDReservadosGlobais();
+  const detalhes = [];
+  let alterados = 0;
+
+  rows.forEach(function (r) {
+    if (!r.touched) return;
+
+    if (r.parsed && r.parsed.dados && Array.isArray(r.parsed.dados.produtosCadastrados)) {
+      atribuirPRDsUnicos(r.parsed.dados.produtosCadastrados, reservados);
+    }
+    if (Array.isArray(r.parsed.versoes)) {
+      r.parsed.versoes.forEach(function (v) {
+        if (v && v.dados && Array.isArray(v.dados.produtosCadastrados)) {
+          atribuirPRDsUnicos(v.dados.produtosCadastrados, reservados);
+        }
+      });
+    }
+
+    sheetProj.getRange(r.linha, idxJson + 1).setValue(JSON.stringify(r.parsed));
+    alterados++;
+    detalhes.push({ linha: r.linha, projeto: r.projeto, itensCorrigidos: r.alteracoes });
+  });
+
+  if (alterados > 0) SheetCache.invalidate(sheetProj);
+
+  return {
+    success: true,
+    analisados: analisados,
+    alterados: alterados,
+    ocorrenciasDuplicadas: ocorrenciasDuplicadas,
+    detalhes: detalhes
+  };
+}
+
+/**
+ * REPARO (incidente PRD): corrige PRDs repetidos ENTRE orçamentos assumindo o catálogo como "fonte do original".
+ *
+ * Regra principal:
+ * - Se um PRD existe na aba "Relação de produtos", consideramos que o orçamento/projeto indicado nessa linha do catálogo
+ *   é o "dono" original do PRD.
+ * - Qualquer ocorrência do mesmo PRD em OUTRO projeto/versão é tratada como duplicada e recebe um novo PRD único.
+ *
+ * Observações:
+ * - Não altera a aba "Relação de produtos" (você disse que está correta).
+ * - Altera SOMENTE o JSON_DADOS (base e versões) na aba Projetos.
+ * - Depois disso, ao carregar o orçamento no formulario.html e gerar novo PDF, virá com PRDs únicos.
+ *
+ * Uso sugerido no editor do Apps Script:
+ *   repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo({ dryRun: true })  // ver relatório
+ *   repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo({ dryRun: false }) // aplicar
+ *
+ * Opções:
+ * - dryRun (boolean): padrão true (não grava).
+ * - projeto (string): filtra por um projeto/código base específico.
+ * - linha (number): filtra por uma linha específica da aba Projetos.
+ * - limit (number): limita quantidade de PRDs a reparar (útil para testes).
+ */
+function repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo(opcoes) {
+  opcoes = opcoes || {};
+  var dryRun = (opcoes.dryRun !== undefined) ? !!opcoes.dryRun : true;
+  var filtroProjeto = String(opcoes.projeto || "").trim();
+  var filtroLinha = Number(opcoes.linha || 0);
+  var limit = Number(opcoes.limit || 0);
+
+  var sheetProj = SHEET_PROJ;
+  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
+  var lastRow = sheetProj.getLastRow();
+  if (lastRow < 2) {
+    return { success: true, dryRun: dryRun, analisados: 0, prdsDuplicados: 0, alterados: 0, detalhes: [] };
+  }
+
+  var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  var idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
+  var idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
+  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
+
+  // Assinatura do catálogo por PRD: se o item do JSON não bate, consideramos duplicação indevida.
+  var assinaturaCatalogo = _mapAssinaturaCatalogoPorPRD_();
+
+  var rows = [];
+  var ocorrencias = {}; // PRD -> [ {row, where, versaoIndex?, index?} ]
+  var itensTrocados = []; // { linha, projetoBase, contexto, versaoCodigo, index, prdAntes, prdDepois }
+
+  function addOcc(codigo, item) {
+    if (!ocorrencias[codigo]) ocorrencias[codigo] = [];
+    ocorrencias[codigo].push(item);
+  }
+
+  function coletarOcorrenciasLista(list, rowObj, where, versaoIndex) {
+    if (!Array.isArray(list)) return;
+    for (var i = 0; i < list.length; i++) {
+      var p = list[i];
+      var codigo = _normalizarCodigoPRD(p && p.codigo);
+      if (!_ehCodigoPRDValido(codigo)) continue;
+      addOcc(codigo, { row: rowObj, where: where, versaoIndex: versaoIndex, index: i });
+    }
+  }
+
+  var analisados = 0;
+  for (var linha = 2; linha <= lastRow; linha++) {
+    if (filtroLinha && linha !== filtroLinha) continue;
+    var codigoProjetoLinha = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
+    var codigoBaseLinha = codigoProjetoLinha.replace(/_v\d+$/i, "").trim();
+    if (filtroProjeto && filtroProjeto !== codigoProjetoLinha && filtroProjeto !== codigoBaseLinha) continue;
+
+    var jsonCell = sheetProj.getRange(linha, idxJson + 1).getValue();
+    if (!jsonCell || typeof jsonCell !== "string" || !jsonCell.trim()) continue;
+
+    var parsed = null;
+    try { parsed = JSON.parse(String(jsonCell).trim()); } catch (eParse) { parsed = null; }
+    if (!parsed) continue;
+
+    analisados++;
+    var rowObj = {
+      linha: linha,
+      projeto: codigoProjetoLinha,
+      projetoBase: codigoBaseLinha,
+      parsed: parsed,
+      touched: false,
+      itensCorrigidos: 0
+    };
+    rows.push(rowObj);
+
+    coletarOcorrenciasLista(parsed && parsed.dados && parsed.dados.produtosCadastrados, rowObj, "base", null);
+    if (Array.isArray(parsed.versoes)) {
+      for (var v = 0; v < parsed.versoes.length; v++) {
+        var ver = parsed.versoes[v];
+        coletarOcorrenciasLista(ver && ver.dados && ver.dados.produtosCadastrados, rowObj, "versao", v);
+      }
+    }
+  }
+
+  // Determina ocorrências indevidas (PRD existe no catálogo, mas dados do JSON não batem).
+  var prdsConflitantes = 0;
+  var detalhes = [];
+
+  function getListFromOcc(occ) {
+    if (!occ || !occ.row) return null;
+    if (occ.where === "base") return occ.row.parsed && occ.row.parsed.dados && occ.row.parsed.dados.produtosCadastrados;
+    var versoes = occ.row.parsed && occ.row.parsed.versoes;
+    return versoes && versoes[occ.versaoIndex] && versoes[occ.versaoIndex].dados && versoes[occ.versaoIndex].dados.produtosCadastrados;
+  }
+
+  Object.keys(ocorrencias).forEach(function (prd) {
+    var arr = ocorrencias[prd] || [];
+    if (limit && prdsConflitantes >= limit) return;
+    var sigCat = assinaturaCatalogo[prd] || null;
+    if (!sigCat) return; // se PRD não está no catálogo, não arrisca alterar
+
+    var conflitos = 0;
+    for (var j = 0; j < arr.length; j++) {
+      var occ = arr[j];
+      var list = getListFromOcc(occ);
+      var item = (Array.isArray(list) && list[occ.index]) ? list[occ.index] : null;
+      if (!item) continue;
+      var sigJson = _assinaturaProdutoJson_(item);
+      var bate = _bateCatalogo_(sigJson, sigCat);
+      if (!bate) {
+        // conflito com o catálogo: reatribuir PRD (zera e depois gera novo)
+        var prdAntes = _normalizarCodigoPRD(item.codigo);
+        item.codigo = "";
+        occ.row.touched = true;
+        occ.row.itensCorrigidos++;
+        conflitos++;
+        var versaoCodigo = "";
+        if (occ.where === "versao") {
+          try {
+            var vObj = occ.row.parsed && occ.row.parsed.versoes && occ.row.parsed.versoes[occ.versaoIndex];
+            versaoCodigo = vObj && vObj.codigo ? String(vObj.codigo) : "";
+          } catch (eV) { versaoCodigo = ""; }
+        }
+        itensTrocados.push({
+          linha: occ.row.linha,
+          projetoBase: occ.row.projetoBase,
+          contexto: occ.where,
+          versaoCodigo: versaoCodigo,
+          index: occ.index,
+          prdAntes: prdAntes,
+          prdDepois: ""
+        });
+      }
+    }
+    if (conflitos > 0) {
+      prdsConflitantes++;
+      detalhes.push({ prd: prd, conflitos: conflitos, ocorrencias: arr.length });
+    }
+  });
+
+  // Reatribui novos PRDs para os itens que ficaram com codigo="" nas linhas tocadas.
+  var reservados = _coletarCodigosPRDReservadosGlobais();
+  var alterados = 0;
+
+  rows.forEach(function (r) {
+    if (!r.touched) return;
+    // Garante PRDs únicos dentro da linha (base + versões) usando o pool global reservado.
+    if (r.parsed && r.parsed.dados && Array.isArray(r.parsed.dados.produtosCadastrados)) {
+      atribuirPRDsUnicos(r.parsed.dados.produtosCadastrados, reservados);
+    }
+    if (Array.isArray(r.parsed.versoes)) {
+      r.parsed.versoes.forEach(function (v) {
+        if (v && v.dados && Array.isArray(v.dados.produtosCadastrados)) {
+          atribuirPRDsUnicos(v.dados.produtosCadastrados, reservados);
+        }
+      });
+    }
+
+    if (!dryRun) {
+      sheetProj.getRange(r.linha, idxJson + 1).setValue(JSON.stringify(r.parsed));
+    }
+    alterados++;
+  });
+
+  // Preenche prdDepois (após reatribuição)
+  try {
+    itensTrocados.forEach(function (it) {
+      var rObj = rows.find(function (x) { return x && x.linha === it.linha; });
+      if (!rObj) return;
+      if (it.contexto === "base") {
+        var listB = rObj.parsed && rObj.parsed.dados && rObj.parsed.dados.produtosCadastrados;
+        if (Array.isArray(listB) && listB[it.index]) it.prdDepois = _normalizarCodigoPRD(listB[it.index].codigo);
+      } else if (it.contexto === "versao") {
+        var versoes = rObj.parsed && rObj.parsed.versoes;
+        // localizar pelo versaoCodigo para ficar robusto
+        var vIdx = -1;
+        if (it.versaoCodigo && Array.isArray(versoes)) {
+          for (var vi = 0; vi < versoes.length; vi++) {
+            if (versoes[vi] && String(versoes[vi].codigo || "") === String(it.versaoCodigo)) { vIdx = vi; break; }
+          }
+        }
+        if (vIdx >= 0) {
+          var listV = versoes[vIdx] && versoes[vIdx].dados && versoes[vIdx].dados.produtosCadastrados;
+          if (Array.isArray(listV) && listV[it.index]) it.prdDepois = _normalizarCodigoPRD(listV[it.index].codigo);
+        }
+      }
+    });
+  } catch (eAfter) { /* ignora */ }
+
+  if (!dryRun && alterados > 0) SheetCache.invalidate(sheetProj);
+
+  return {
+    success: true,
+    dryRun: dryRun,
+    analisados: analisados,
+    prdsDuplicados: prdsConflitantes,
+    alterados: alterados,
+    detalhes: detalhes,
+    itensTrocados: itensTrocados
+  };
+}
+
+/**
+ * Diagnóstico de PRDs para investigar duplicação entre projetos.
+ * Retorna onde cada PRD aparece (linha/projeto/contexto) e inconsistências com Relação de produtos.
+ */
+function diagnosticarPRDsEntreProjetos(opcoes) {
+  opcoes = opcoes || {};
+  const sheetProj = SHEET_PROJ;
+  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
+
+  const lastRow = sheetProj.getLastRow();
+  if (lastRow < 2) {
+    return {
+      success: true,
+      analisados: 0,
+      duplicadosEntreProjetos: [],
+      prdsSomenteJson: [],
+      totais: { prdsUnicosJson: 0, prdsCatalogo: _coletarCodigosPRDDoCatalogo().size }
+    };
+  }
+
+  const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
+  const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
+  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
+
+  const filtroProjeto = String(opcoes.projeto || "").trim();
+  const filtroLinha = Number(opcoes.linha || 0);
+  const catalogo = _coletarCodigosPRDDoCatalogo();
+  const ocorrencias = {};
+  let analisados = 0;
+
+  function addOcc(codigo, info) {
+    if (!ocorrencias[codigo]) ocorrencias[codigo] = [];
+    ocorrencias[codigo].push(info);
+  }
+
+  for (let linha = 2; linha <= lastRow; linha++) {
+    if (filtroLinha && linha !== filtroLinha) continue;
+    const projeto = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
+    const base = projeto.replace(/_v\d+$/i, "").trim();
+    if (filtroProjeto && filtroProjeto !== projeto && filtroProjeto !== base) continue;
+
+    const cell = sheetProj.getRange(linha, idxJson + 1).getValue();
+    if (!cell || typeof cell !== "string" || !String(cell).trim()) continue;
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(String(cell).trim());
+    } catch (eParse) {
+      continue;
+    }
+    if (!parsed) continue;
+    analisados++;
+
+    const baseList = parsed && parsed.dados && parsed.dados.produtosCadastrados;
+    if (Array.isArray(baseList)) {
+      baseList.forEach(function (p, idx) {
+        const codigo = _normalizarCodigoPRD(p && p.codigo);
+        if (_ehCodigoPRDValido(codigo)) {
+          addOcc(codigo, { linha: linha, projeto: projeto, contexto: "base", index: idx });
+        }
+      });
+    }
+
+    if (Array.isArray(parsed.versoes)) {
+      parsed.versoes.forEach(function (v, vIdx) {
+        const versaoCodigo = v && v.codigo ? String(v.codigo) : "";
+        const list = v && v.dados && v.dados.produtosCadastrados;
+        if (!Array.isArray(list)) return;
+        list.forEach(function (p, idx) {
+          const codigo = _normalizarCodigoPRD(p && p.codigo);
+          if (_ehCodigoPRDValido(codigo)) {
+            addOcc(codigo, { linha: linha, projeto: projeto, contexto: "versao", versao: versaoCodigo, versaoIndex: vIdx, index: idx });
+          }
+        });
+      });
+    }
+  }
+
+  const duplicadosEntreProjetos = [];
+  const prdsSomenteJson = [];
+  Object.keys(ocorrencias).forEach(function (codigo) {
+    const arr = ocorrencias[codigo] || [];
+    const projetosUnicos = {};
+    arr.forEach(function (o) {
+      projetosUnicos[o.projeto || (o.versao || "")] = 1;
+    });
+    const qtProjetos = Object.keys(projetosUnicos).length;
+
+    if (arr.length > 1 && qtProjetos > 1) {
+      duplicadosEntreProjetos.push({ codigo: codigo, ocorrencias: arr });
+    }
+    if (!catalogo.has(codigo)) {
+      prdsSomenteJson.push({ codigo: codigo, ocorrencias: arr.length });
+    }
+  });
+
+  return {
+    success: true,
+    analisados: analisados,
+    duplicadosEntreProjetos: duplicadosEntreProjetos,
+    prdsSomenteJson: prdsSomenteJson,
+    totais: {
+      prdsUnicosJson: Object.keys(ocorrencias).length,
+      prdsCatalogo: catalogo.size,
+      duplicadosEntreProjetos: duplicadosEntreProjetos.length,
+      prdsSomenteJson: prdsSomenteJson.length
+    }
+  };
 }
 
 /**

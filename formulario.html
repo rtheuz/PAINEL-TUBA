@@ -1332,6 +1332,11 @@
             // Esta função só deve ser chamada quando há certeza de seleção (change, blur, Enter)
             function verificarEPreencherProduto(valor, forcarPreenchimento = false) {
                 if (!valor || valor.trim() === "") {
+                    // Se o campo foi limpo, desvincula do catálogo (evita PRD ficar preso).
+                    if (hiddenIndex) hiddenIndex.value = "";
+                    const hiddenCodigo = div.querySelector(".produtoCodigo");
+                    if (hiddenCodigo) hiddenCodigo.value = "";
+                    buscaInput.style.background = "";
                     return false;
                 }
 
@@ -1390,12 +1395,32 @@
                     }
                 }
 
+                // Se não corresponde a um item do catálogo, garantimos que NÃO mantenha PRD antigo.
+                if (forcarPreenchimento) {
+                    if (hiddenIndex) hiddenIndex.value = "";
+                    const hiddenCodigo = div.querySelector(".produtoCodigo");
+                    if (hiddenCodigo) hiddenCodigo.value = "";
+                }
                 return false;
             }
 
             // Listener para quando o usuário digita - APENAS FILTRA, não preenche
             buscaInput.addEventListener("input", function () {
                 const valor = this.value.trim();
+                // Se o usuário está digitando algo diferente do item selecionado, desvincula do catálogo
+                // para evitar reutilizar PRD de outro produto por engano.
+                try {
+                    const idxSel = hiddenIndex && hiddenIndex.value !== "" ? parseInt(hiddenIndex.value, 10) : NaN;
+                    if (!isNaN(idxSel) && idxSel >= 0 && idxSel < produtosCatalogo.length) {
+                        const pSel = produtosCatalogo[idxSel];
+                        const valorCanon = `${pSel.codigo} - ${pSel.descricao} (${pSel.familia || 'N/A'})`;
+                        if (valor && valor.toLowerCase() !== valorCanon.toLowerCase()) {
+                            hiddenIndex.value = "";
+                            const hiddenCodigo = div.querySelector(".produtoCodigo");
+                            if (hiddenCodigo) hiddenCodigo.value = "";
+                        }
+                    }
+                } catch (e) { /* ignora */ }
                 // Apenas filtra a lista, não preenche automaticamente
                 filtrarProdutos(valor);
             });
