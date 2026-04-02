@@ -1414,7 +1414,7 @@
                     if (!isNaN(idxSel) && idxSel >= 0 && idxSel < produtosCatalogo.length) {
                         const pSel = produtosCatalogo[idxSel];
                         const valorCanon = `${pSel.codigo} - ${pSel.descricao} (${pSel.familia || 'N/A'})`;
-                        if (valor && valor.toLowerCase() !== valorCanon.toLowerCase()) {
+                        if (!valor || valor.toLowerCase() !== valorCanon.toLowerCase()) {
                             hiddenIndex.value = "";
                             const hiddenCodigo = div.querySelector(".produtoCodigo");
                             if (hiddenCodigo) hiddenCodigo.value = "";

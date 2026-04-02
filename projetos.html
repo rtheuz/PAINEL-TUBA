@@ -2271,8 +2271,16 @@
                 google.script.run
                     .withSuccessHandler(function () {
                         closeComprovanteEntregaModal();
-                        loadProjetos();
-                        alert('Comprovante de entrega enviado com sucesso.');
+                        google.script.run
+                            .withSuccessHandler(function () {
+                                alert('Comprovante de entrega enviado com sucesso.');
+                                loadProjetos();
+                            })
+                            .withFailureHandler(function (err) {
+                                alert('Comprovante enviado, mas não foi possível atualizar o status para Finalizado: ' + (err && err.message ? err.message : err));
+                                loadProjetos();
+                            })
+                            .atualizarProjetoNaPlanilha(linha, { STATUS_PEDIDO: 'Finalizado' });
                     })
                     .withFailureHandler(function (err) {
                         alert('Erro ao enviar comprovante: ' + (err && err.message ? err.message : err));
