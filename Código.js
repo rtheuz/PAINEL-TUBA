@@ -5899,6 +5899,7 @@ function getPedidos() {
         p.JSON_DADOS = proj.JSON_DADOS || proj["JSON_DADOS"] || "";
         p.PROCESSOS = proj.PROCESSOS || "";
         p.STATUS_PEDIDO = proj.STATUS_PEDIDO || "";
+        p.temComprovanteEntrega = !!proj.temComprovanteEntrega;
       } else {
         p._linhaPlanilha = 50000 + (rowPed._linhaPedidos || 0);
       }
@@ -5963,6 +5964,13 @@ function getPedidos() {
           exigeNF = !!obs.temNotaFiscal;
           var pag = (obs.pagamento || "").toString().trim();
           if (pag && !condicoes) condicoes = pag;
+          // Extract temComprovanteEntrega from JSON_DADOS as fallback
+          if (!p.temComprovanteEntrega) {
+            var ip = dados.infoPedido || {};
+            if (ip.comprovanteEntregaUrl || ip.temComprovanteEntrega) {
+              p.temComprovanteEntrega = !!(ip.comprovanteEntregaUrl || ip.temComprovanteEntrega);
+            }
+          }
         }
       } catch (e) { }
       p._condicoesPagamento = condicoes;
@@ -6841,7 +6849,7 @@ function gerarRelatorioProjeto(linha) {
   let notaFiscal = (rowPed.NF || parsed.dados.infoPedido.notaFiscal || "").toString().trim();
   if (!exigeNFRel && !notaFiscal) notaFiscal = "SN";
   if (exigeNFRel && notaFiscal.toUpperCase() === "SN") notaFiscal = "";
-  const comprovanteUrl = parsed.dados.infoPedido.comprovanteEntregaUrl || "";
+  const comprovanteUrl = String(parsed.dados.infoPedido.comprovanteEntregaUrl || "").replace(/[\r\n]+/g, "").trim();
   const numeroSequencialPedido = (rowPed.NUMERO_SEQUENCIAL != null && rowPed.NUMERO_SEQUENCIAL !== "") ? rowPed.NUMERO_SEQUENCIAL : numeroSequencial;
 
   // Fallback: se DATA_VENCIMENTO estiver vazio na aba Pedidos, calcula a partir de
@@ -6983,6 +6991,17 @@ function gerarRelatorioProjeto(linha) {
     }
   } catch (eStyleTb) {
     // Fallback silencioso caso a API limite algum estilo na tabela
+  }
+
+  // Define o link do comprovante explicitamente para evitar truncagem automática pelo Google Docs
+  try {
+    if (comprovanteUrl) {
+      const compCell = table.getRow(10).getCell(1);
+      const textEl = compCell.editAsText();
+      textEl.setLinkUrl(0, textEl.getText().length - 1, comprovanteUrl);
+    }
+  } catch (eLinkUrl) {
+    // Fallback: link como texto simples (já inserido via appendTable)
   }
 
   // Finaliza antes do export (evita PDF em branco)

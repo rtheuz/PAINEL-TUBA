@@ -185,7 +185,77 @@
         .status-inline-select { font-size: 12px; max-width: 168px; padding: 5px 8px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit; background: #fff; }
         .status-inline-hint { display: block; font-size: 10px; color: #64748b; margin-top: 4px; max-width: 168px; }
         .btn[disabled], .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
-        .acoes-pedido-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; max-width: 320px; }
+        .acoes-pedido-wrap { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; }
+
+        /* Menu de ações (dropdown) */
+        .actions-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .actions-trigger {
+            width: 32px;
+            min-width: 32px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--accent), #3b82f6);
+            color: white;
+            border: 0;
+            cursor: pointer;
+            line-height: 1;
+            height: 28px;
+        }
+
+        .actions-trigger:hover { opacity: 0.9; }
+
+        .actions-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            min-width: 200px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e5e7eb;
+            z-index: 200;
+            overflow: hidden;
+            padding: 6px 0;
+        }
+
+        .actions-menu.show { display: block; }
+
+        .actions-menu button {
+            display: block;
+            width: 100%;
+            padding: 10px 14px;
+            border: 0;
+            background: none;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            color: #0f172a;
+            white-space: nowrap;
+        }
+
+        .actions-menu button:hover { background: #f1f5f9; }
+
+        .actions-menu button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+        .comprovante-check {
+            color: #16a34a;
+            font-size: 15px;
+            line-height: 1;
+            vertical-align: middle;
+            cursor: default;
+        }
     </style>
 </head>
 
@@ -903,15 +973,22 @@
                 var linhaProj = (p._linhaPlanilha && p._linhaPlanilha < 50000) ? p._linhaPlanilha : 0;
                 var linkRel = getLinkRelatorioProjeto(p);
                 var podeRelatorio = isProjetoFinalizado(p) && linhaProj >= 2;
-                var btnRelatorio = podeRelatorio
-                    ? '<button type="button" class="btn btn-small btn-primary" onclick="gerarRelatorioProjetoPedidos(' + linhaProj + ')" title="Gerar PDF do relatório (exige comprovante)">🧾 Relatório</button>'
-                    : '<button type="button" class="btn btn-small btn-primary" disabled title="Só após Finalizado na aba Projetos">🧾 Relatório</button>';
-                var linkRelHtml = linkRel ? '<a href="' + escapeHtmlAttr(linkRel) + '" target="_blank" rel="noopener" class="btn btn-small" style="background:#ecfdf5;color:#047857;border:1px solid #10b981;" title="Abrir relatório salvo">📋 PDF</a> ' : '';
-                var acoesHtml = '<div class="acoes-pedido-wrap">' + linkRelHtml +
-                    (linhaProj >= 2 ? '<button type="button" class="btn btn-small" style="background:#6d4c41;color:white;" onclick="abrirComprovanteEntregaPedidos(' + linhaProj + ')" title="Comprovante de entrega">📦</button> ' : '') +
-                    btnRelatorio + ' ' +
-                    (p['LINK DO PDF'] ? '<a href="' + String(p['LINK DO PDF']).replace(/"/g, '&quot;') + '" target="_blank" class="btn btn-small" style="margin-right:0;" title="Orçamento PDF">📄</a> ' : '') +
-                    '<button type="button" class="btn btn-small btn-primary" onclick="editPedido(' + linha + ')" title="Editar">✏️</button> <button type="button" class="btn btn-small btn-pasta" onclick="abrirPastaProjeto(this)" data-projeto="' + String(p.PROJETO != null ? p.PROJETO : '').replace(/"/g, '&quot;') + '" title="Pasta Drive">📁</button></div>';
+                var temComprovante = p.temComprovanteEntrega;
+                var linkRelHtml = linkRel ? '<a href="' + escapeHtmlAttr(linkRel) + '" target="_blank" rel="noopener" class="btn btn-small" style="background:#ecfdf5;color:#047857;border:1px solid #10b981;" title="Abrir relatório salvo (PDF)">📋 PDF</a> ' : '';
+                var propostaBtnHtml = p['LINK DO PDF'] ? '<a href="' + escapeHtmlAttr(String(p['LINK DO PDF'])) + '" target="_blank" rel="noopener" class="btn btn-small" style="background:#eff6ff;color:#1d4ed8;border:1px solid #3b82f6;" title="Proposta Comercial PDF">📄 Proposta</a> ' : '';
+                var comprovanteIconHtml = temComprovante ? '<span class="comprovante-check" title="Comprovante de entrega anexado">✅</span> ' : '';
+                var acoesDropdownHtml = '<div class="actions-dropdown">' +
+                    '<button type="button" class="btn btn-small actions-trigger" onclick="toggleActionsMenuPedidos(event, ' + linha + ')" title="Ações">⋮</button>' +
+                    '<div class="actions-menu" id="actionsMenuPedidos-' + linha + '">' +
+                    '<button type="button" onclick="fecharActionsMenuPedidos(); editPedido(' + linha + ')">✏️ Editar Pedido</button>' +
+                    (podeRelatorio
+                        ? '<button type="button" onclick="fecharActionsMenuPedidos(); gerarRelatorioProjetoPedidos(' + linhaProj + ')">🧾 Gerar Relatório</button>'
+                        : '<button type="button" disabled title="Só após Finalizado na aba Projetos">🧾 Gerar Relatório</button>') +
+                    (linhaProj >= 2 ? '<button type="button" onclick="fecharActionsMenuPedidos(); abrirComprovanteEntregaPedidos(' + linhaProj + ')" style="' + (temComprovante ? 'color:#16a34a;font-weight:700;' : '') + '">📦 Comprovante de Entrega</button>' : '') +
+                    '<button type="button" onclick="fecharActionsMenuPedidos(); abrirPastaProjeto(this)" data-projeto="' + escapeHtmlAttr(String(p.PROJETO != null ? p.PROJETO : '')) + '">📁 Abrir Pasta de Entrega</button>' +
+                    '</div>' +
+                    '</div>';
+                var acoesHtml = '<div class="acoes-pedido-wrap">' + propostaBtnHtml + linkRelHtml + comprovanteIconHtml + acoesDropdownHtml + '</div>';
                 html += '<tr data-linha="' + linha + '">' +
                     '<td>' + (p._numeroSequencial != null && p._numeroSequencial !== '' ? p._numeroSequencial : '') + '</td>' +
                     '<td>' + (getNotaFiscal(p) || '-') + '</td>' +
@@ -1293,6 +1370,22 @@
                 })
                 .getUrlPastaProjeto(codigo);
         }
+
+        function toggleActionsMenuPedidos(event, linha) {
+            event.stopPropagation();
+            var menu = document.getElementById('actionsMenuPedidos-' + linha);
+            if (!menu) return;
+            var isAberto = menu.classList.contains('show');
+            fecharActionsMenuPedidos();
+            if (!isAberto) menu.classList.add('show');
+        }
+
+        function fecharActionsMenuPedidos() {
+            var todos = document.querySelectorAll('.actions-menu.show');
+            for (var i = 0; i < todos.length; i++) todos[i].classList.remove('show');
+        }
+
+        document.addEventListener('click', fecharActionsMenuPedidos);
 
         (function () {
             var scrollEl = document.querySelector('.page-content-scroll');
