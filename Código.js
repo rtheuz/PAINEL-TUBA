@@ -447,7 +447,7 @@ function getProdutosCadastrados() {
  */
 function getProximoCodigoPRD() {
   try {
-    const reservados = _coletarCodigosPRDDoCatalogo();
+    const reservados = _coletarCodigosPRDReservadosGlobais();
     let maxNumero = 0;
     reservados.forEach(function (codigo) {
       const m = String(codigo || "").match(/^PRD(\d+)$/i);
@@ -540,7 +540,9 @@ function _coletarCodigosPRDReservadosGlobais() {
 
 function _obterMaiorNumeroPRDGlobal() {
   let maxNumero = 0;
-  const reservados = _coletarCodigosPRDDoCatalogo();
+  // Scan both catalog and JSON_DADOS to get the true global max.
+  // This ensures we never reuse a code that was already allocated in a draft/rascunho.
+  const reservados = _coletarCodigosPRDReservadosGlobais();
   reservados.forEach(function (codigo) {
     const m = String(codigo || "").match(/^PRD(\d+)$/i);
     if (m && m[1]) {
@@ -556,18 +558,15 @@ function _alocarFaixaPRDAtomica(qtd) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    const props = PropertiesService.getScriptProperties();
-    const key = "PRD_NEXT_NUMBER";
-
-    let next = parseInt(props.getProperty(key), 10);
+    // Always derive the starting point from the actual data (catalog + JSON_DADOS).
+    // We intentionally do NOT read the PRD_NEXT_NUMBER property here because it may
+    // be stale (set by older code that pre-allocated codes in chunks of 20, leaving gaps).
     const maxGlobal = _obterMaiorNumeroPRDGlobal();
-    if (!Number.isFinite(next) || next <= maxGlobal) {
-      next = maxGlobal + 1;
-    }
+    const inicio = maxGlobal + 1;
+    const fim = maxGlobal + quantidade;
 
-    const inicio = next;
-    const fim = next + quantidade - 1;
-    props.setProperty(key, String(fim + 1));
+    // Write updated value for informational/debugging use (not read back by this function).
+    PropertiesService.getScriptProperties().setProperty("PRD_NEXT_NUMBER", String(fim + 1));
 
     const codigos = [];
     for (let n = inicio; n <= fim; n++) {
@@ -588,11 +587,32 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
   const usadosNoOrcamento = new Set();
   let alteracoes = 0;
 
-  function gerarNovoCodigoLivre() {
-    while (true) {
-      const codigo = _normalizarCodigoPRD(_alocarFaixaPRDAtomica(1)[0]);
-      if (!reservados.has(codigo) && !usadosNoOrcamento.has(codigo)) return codigo;
+  // First pass: count how many products need a new code so we can allocate them all
+  // in a single atomic lock call instead of one lock call per product.
+  // A product needs a new code when it has no valid PRD or its code is a within-order duplicate.
+  var precisaNovoContagem = 0;
+  var codigosExistentesVistos = new Set();
+  produtos.forEach(function (produto) {
+    if (!produto || typeof produto !== "object") return;
+    var cod = _normalizarCodigoPRD(produto.codigo);
+    if (!_ehCodigoPRDValido(cod) || codigosExistentesVistos.has(cod)) {
+      precisaNovoContagem++;
+    } else {
+      codigosExistentesVistos.add(cod);
     }
+  });
+
+  // Pre-allocate all needed codes in one batch (single lock acquisition).
+  var poolNovosCodigos = precisaNovoContagem > 0 ? _alocarFaixaPRDAtomica(precisaNovoContagem) : [];
+  var poolIdx = 0;
+
+  function proximoCodigoLivre() {
+    while (poolIdx < poolNovosCodigos.length) {
+      var c = _normalizarCodigoPRD(poolNovosCodigos[poolIdx++]);
+      if (!reservados.has(c) && !usadosNoOrcamento.has(c)) return c;
+    }
+    // Fallback: only triggered when pre-allocation underestimated (should not happen normally).
+    return _normalizarCodigoPRD(_alocarFaixaPRDAtomica(1)[0]);
   }
 
   produtos.forEach(function (produto) {
@@ -609,7 +629,7 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
       return;
     }
 
-    const novoCodigo = gerarNovoCodigoLivre();
+    const novoCodigo = proximoCodigoLivre();
     produto.codigo = novoCodigo;
     reservados.add(novoCodigo);
     usadosNoOrcamento.add(novoCodigo);
