@@ -583,7 +583,10 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
     return { produtos: produtos || [], alteracoes: 0 };
   }
 
-  const reservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDDoCatalogo();
+  // Use a LOCAL copy of the reserved set so we never mutate the caller's shared Set.
+  // Always scan both catalog and JSON_DADOS to avoid reusing codes from drafts.
+  var baseReservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDReservadosGlobais();
+  var reservados = new Set(baseReservados);
   const usadosNoOrcamento = new Set();
   let alteracoes = 0;
 
@@ -620,7 +623,7 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
 
     const codigoAtual = _normalizarCodigoPRD(produto.codigo);
     const valido = _ehCodigoPRDValido(codigoAtual);
-    const disponivelNoOrcamento = valido && !usadosNoOrcamento.has(codigoAtual);
+    const disponivelNoOrcamento = valido && !usadosNoOrcamento.has(codigoAtual) && !reservados.has(codigoAtual);
 
     if (disponivelNoOrcamento) {
       produto.codigo = codigoAtual;
