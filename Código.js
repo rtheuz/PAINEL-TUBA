@@ -623,7 +623,7 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
 
     const codigoAtual = _normalizarCodigoPRD(produto.codigo);
     const valido = _ehCodigoPRDValido(codigoAtual);
-    const disponivelNoOrcamento = valido && !usadosNoOrcamento.has(codigoAtual) && !reservados.has(codigoAtual);
+    const disponivelNoOrcamento = valido && !usadosNoOrcamento.has(codigoAtual);
 
     if (disponivelNoOrcamento) {
       produto.codigo = codigoAtual;
