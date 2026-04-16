@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Saída de Veículo</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    /* Header com gradiente e botão voltar */
+    .top-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+      padding: calc(env(safe-area-inset-top) + 16px) 20px 20px 20px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .back-button {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(12px);
+      border: none;
+      color: white;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .back-button:active {
+      transform: scale(0.92);
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Container com scroll */
+    .page-wrapper {
+      min-height: 100vh;
+      padding-top: calc(env(safe-area-inset-top) + 80px);
+      padding-bottom: calc(env(safe-area-inset-bottom) + 160px);
+    }
+
+    /* Card branco principal */
+    .content-card {
+      background: white;
+      border-radius: 28px 28px 0 0;
+      min-height: calc(100vh - 100px);
+      padding: 28px 20px 40px 20px;
+      box-shadow: 0 -6px 30px rgba(0, 0, 0, 0.12);
+    }
+
+    /* Header do card com ícone */
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #f1f5f9;
+    }
+
+    .icon-box {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+      box-shadow: 0 6px 16px rgba(14, 165, 233, 0.35);
+    }
+
+    .header-text h1 {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0 0 4px 0;
+      line-height: 1.2;
+    }
+
+    .header-text p {
+      font-size: 14px;
+      color: #64748b;
+      margin: 0;
+      font-weight: 500;
+    }
+
+    /* Campos do formulário */
+    .field-wrapper {
+      margin-bottom: 24px;
+    }
+
+    .field-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+
+    .label-icon {
+      font-size: 20px;
+    }
+
+    .field-input, .field-select, .field-textarea {
+      width: 100%;
+      font-size: 16px;
+      padding: 16px 18px;
+      border: 2.5px solid #e2e8f0;
+      border-radius: 14px;
+      background: #ffffff;
+      color: #0f172a;
+      transition: all 0.25s ease;
+      font-family: inherit;
+      font-weight: 500;
+    }
+
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      outline: none;
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 5px rgba(14, 165, 233, 0.12);
+      background: #fafeff;
+    }
+
+    .field-input:disabled, .field-input[readonly] {
+      background: #f8fafc;
+      color: #64748b;
+      border-color: #f1f5f9;
+      cursor: not-allowed;
+    }
+
+    .field-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'%3E%3Cpath stroke='%230ea5e9' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M7 10l5 5 5-5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 24px;
+      padding-right: 48px;
+      cursor: pointer;
+    }
+
+    .field-textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    /* Mensagens */
+    .alert-box {
+      padding: 16px 18px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      animation: slideDown 0.35s ease-out;
+    }
+
+    .alert-success {
+      background: #dcfce7;
+      color: #166534;
+      border: 2.5px solid #86efac;
+    }
+
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 2.5px solid #fca5a5;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Footer fixo */
+    .bottom-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      padding: 18px 20px calc(env(safe-area-inset-bottom) + 18px) 20px;
+      box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 90;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    /* Botões grandes */
+    .action-btn {
+      width: 100%;
+      min-height: 56px;
+      border: none;
+      border-radius: 16px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-register {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: white;
+      box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4);
+    }
+
+    .btn-register:active:not(:disabled) {
+      transform: scale(0.97);
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.5);
+    }
+
+    .btn-register:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-clear {
+      background: #f1f5f9;
+      color: #475569;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-clear:active {
+      background: #e2e8f0;
+      transform: scale(0.97);
+    }
+
+    /* Spinner de loading */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: rotate 0.7s linear infinite;
+    }
+
+    @keyframes rotate {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsivo tablet */
+    @media (min-width: 640px) {
+      .page-wrapper {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .content-card {
+        max-width: 600px;
+        margin: 0 auto;
+        border-radius: 28px;
+      }
+
+      .bottom-actions {
+        max-width: 600px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 28px 28px 0 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Superior -->
+  <header class="top-header">
+    <button class="back-button" onclick="voltarPagina()" aria-label="Voltar">
+      ←
+    </button>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <div class="page-wrapper">
+    <main class="content-card">
+      <!-- Cabeçalho do Card -->
+      <div class="card-header">
+        <div class="icon-box">🚗</div>
+        <div class="header-text">
+          <h1>Saída de Veículo</h1>
+          <p>Preencha os dados abaixo</p>
+        </div>
+      </div>
+
+      <!-- Mensagem de Feedback -->
+      <div id="mensagem" class="hidden"></div>
+
+      <!-- Formulário -->
+      <form id="formSaida" autocomplete="on">
+        <!-- Funcionário -->
+        <div class="field-wrapper">
+          <label for="campoFuncionario" class="field-label">
+            <span class="label-icon">👤</span>
+            Funcionário
+          </label>
+          <input
+            type="text"
+            name="FUNCIONÁRIO"
+            id="campoFuncionario"
+            class="field-input"
+            required
+            readonly
+          />
+        </div>
+
+        <!-- Veículo -->
+        <div class="field-wrapper">
+          <label for="campoVeiculo" class="field-label">
+            <span class="label-icon">🚙</span>
+            Veículo
+          </label>
+          <select name="VEÍCULO" id="campoVeiculo" class="field-select" required>
+            <option value="Saveiro" selected>Saveiro</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+
+        <!-- Data e Hora de Saída -->
+        <div class="field-wrapper">
+          <label for="campoHoraSaida" class="field-label">
+            <span class="label-icon">📅</span>
+            Data e Hora de Saída
+          </label>
+          <input
+            type="datetime-local"
+            name="HORA SAÍDA"
+            id="campoHoraSaida"
+            class="field-input"
+            required
+          />
+        </div>
+
+        <!-- Previsão de Retorno -->
+        <div class="field-wrapper">
+          <label for="campoHoraRetorno" class="field-label">
+            <span class="label-icon">⏰</span>
+            Previsão de Retorno
+          </label>
+          <input
+            type="datetime-local"
+            name="PREVISÃO RETORNO"
+            id="campoHoraRetorno"
+            class="field-input"
+            required
+          />
+        </div>
+
+        <!-- Motivo -->
+        <div class="field-wrapper">
+          <label for="campoMotivo" class="field-label">
+            <span class="label-icon">📝</span>
+            Motivo
+          </label>
+          <textarea
+            id="campoMotivo"
+            name="MOTIVO"
+            class="field-textarea"
+            placeholder="Descreva o motivo da saída..."
+            required
+          ></textarea>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <!-- Footer com Botões -->
+  <footer class="bottom-actions">
+    <button type="button" id="btnRegistrar" class="action-btn btn-register">
+      <span id="btnRegistrarText">Registrar</span>
+    </button>
+    <button type="button" id="btnLimpar" class="action-btn btn-clear">
+      Limpar
+    </button>
+  </footer>
+
+  <script>
+    const token = '<?= token ?>';
+    const usuario = '<?= usuario ?>';
+
+    const campoFuncionario = document.getElementById('campoFuncionario');
+    const campoHoraSaida = document.getElementById('campoHoraSaida');
+    const campoHoraRetorno = document.getElementById('campoHoraRetorno');
+    const form = document.getElementById('formSaida');
+    const msg = document.getElementById('mensagem');
+    const btnLimpar = document.getElementById('btnLimpar');
+    const btnRegistrar = document.getElementById('btnRegistrar');
+    const btnRegistrarText = document.getElementById('btnRegistrarText');
+
+    let enviando = false;
+
+    campoFuncionario.value = usuario || '';
+
+    function agoraParaDatetimeLocal(offsetMinutes = 0) {
+      const now = new Date(Date.now() + offsetMinutes * 60000);
+      const ano = now.getFullYear();
+      const mes = String(now.getMonth() + 1).padStart(2, '0');
+      const dia = String(now.getDate()).padStart(2, '0');
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      return `${ano}-${mes}-${dia}T${hh}:${mm}`;
+    }
+
+    campoHoraSaida.value = agoraParaDatetimeLocal();
+
+    btnLimpar.addEventListener('click', () => {
+      if (enviando) return;
+      form.reset();
+      campoFuncionario.value = usuario || '';
+      campoHoraSaida.value = agoraParaDatetimeLocal();
+      campoHoraRetorno.value = '';
+      esconderMensagem();
+    });
+
+    function desabilitarBotao() {
+      enviando = true;
+      btnRegistrar.disabled = true;
+      btnRegistrarText.innerHTML = '<span class="loading-spinner"></span> Enviando...';
+    }
+
+    function habilitarBotao() {
+      enviando = false;
+      btnRegistrar.disabled = false;
+      btnRegistrarText.textContent = 'Registrar';
+    }
+
+    function mostrarMensagem(texto, tipo) {
+      msg.textContent = texto;
+      msg.className = `alert-box alert-${tipo}`;
+      msg.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function esconderMensagem() {
+      msg.classList.add('hidden');
+    }
+
+    btnRegistrar.addEventListener('click', () => {
+      if (enviando) return;
+
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+
+      const dados = Object.fromEntries(new FormData(form).entries());
+
+      if (!dados["HORA SAÍDA"]) {
+        mostrarMensagem('⚠️ Informe a data e hora de saída', 'error');
+        return;
+      }
+
+      desabilitarBotao();
+
+      if (window.google && google.script && typeof google.script.run !== 'undefined') {
+        google.script.run
+          .withSuccessHandler(() => {
+            mostrarMensagem('✅ Saída registrada com sucesso!', 'success');
+            form.reset();
+            campoFuncionario.value = usuario || '';
+            campoHoraSaida.value = agoraParaDatetimeLocal();
+            campoHoraRetorno.value = '';
+            setTimeout(() => { habilitarBotao(); }, 1500);
+          })
+          .withFailureHandler((err) => {
+            console.error(err);
+            mostrarMensagem('❌ Erro: ' + (err?.message || err), 'error');
+            habilitarBotao();
+          })
+          .registrarSaidaVeiculo(dados, token);
+      } else {
+        setTimeout(() => {
+          mostrarMensagem('✅ Saída registrada! (dev)', 'success');
+          form.reset();
+          campoFuncionario.value = usuario || '';
+          campoHoraSaida.value = agoraParaDatetimeLocal();
+          campoHoraRetorno.value = '';
+          habilitarBotao();
+        }, 700);
+      }
+    });
+
+    function voltarPagina() {
+      var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+      const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+      window.location.href = pageUrl('dashboard', 'token=' + token);
+    }
+  </script>
+</body>
+</html>AV

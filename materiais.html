@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <base target="_top">
+  <title>Controle de Materiais</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #155ec7;
+      --card-bg: rgba(255, 255, 255, 0.95);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      margin: 0;
+      padding: 10px;
+      min-height: 100vh;
+      background: linear-gradient(90deg, #1125d6, #187a5d, #004b5e);
+      background-size: 400% 400%;
+      animation: gradMove 15s linear infinite;
+      overflow-x: hidden;
+    }
+
+    @keyframes gradMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .container {
+      max-width: 100%;
+      margin: 0 auto;
+      padding-bottom: 20px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .header img {
+      width: 80px;
+      height: auto;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #1a73e8;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    /* Botão Voltar */
+    .btn-voltar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a73e8;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .btn-voltar:active {
+      transform: scale(0.95);
+      background: rgba(230, 230, 230, 0.95);
+    }
+
+    /* Cards de Peso */
+    .peso-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .peso-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a73e8;
+      margin-bottom: 12px;
+    }
+
+    .peso-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .peso-item {
+      background: rgba(26, 115, 232, 0.08);
+      padding: 12px;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .peso-item-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .peso-item-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a73e8;
+    }
+
+    /* Controles */
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .filter-global-container {
+      flex: 1;
+      min-width: 250px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filter-global-container input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid #1a73e8;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      background: rgba(255, 255, 255, 0.95);
+      transition: all 0.3s ease;
+    }
+
+    .filter-global-container input:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.2);
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: #1a73e8;
+      color: white;
+    }
+
+    .btn-primary:active {
+      background: #155ec7;
+      transform: scale(0.98);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a73e8;
+      border: 2px solid #1a73e8;
+    }
+
+    .btn-secondary:active {
+      background: rgba(230, 230, 230, 0.95);
+      transform: scale(0.98);
+    }
+
+    .btn-small {
+      padding: 8px 14px;
+      font-size: 13px;
+    }
+
+    /* Tabela Container */
+    .table-wrapper {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1200px;
+    }
+
+    th, td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #1a73e8;
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+      vertical-align: top;
+    }
+
+    /* Cabeçalho com filtro - estrutura em coluna */
+    th.has-filter {
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+
+    th .th-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    th .th-title {
+      display: block;
+      width: 100%;
+    }
+
+    th:active {
+      background: #155ec7;
+    }
+
+    th.sorted-asc .th-title::after {
+      content: " ▲";
+      font-size: 10px;
+    }
+
+    th.sorted-desc .th-title::after {
+      content: " ▼";
+      font-size: 10px;
+    }
+
+    /* Coluna FEITO POR - quebra de linha no nome */
+    td.feito-por {
+      white-space: normal;
+      word-break: break-word;
+      max-width: 100px;
+      min-width: 80px;
+      line-height: 1.3;
+    }
+
+    /* Input de filtro em N DA CHAPA */
+    th .filter-input {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.95);
+      font-size: 12px;
+      font-family: inherit;
+      display: block;
+      transition: background-color 0.2s ease;
+    }
+
+    th .filter-input:focus {
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+    }
+
+    /* Destaque visual para filtros com valor */
+    th .filter-input.has-value {
+      background: #fff9c4;
+      border-color: #fbc02d;
+      font-weight: 600;
+    }
+
+    /* Badge de filtros ativos */
+    .filtros-ativos-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #1a73e8;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+    }
+
+    .filtros-ativos-badge.hidden {
+      display: none;
+    }
+
+    .filtros-ativos-badge span {
+      color: #1a73e8;
+      font-weight: 700;
+    }
+
+    td input {
+      width: 100%;
+      min-width: 100px;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.3s ease;
+    }
+
+    /* Input DIM - garantir largura mínima adequada */
+    td input[data-field="dim"] {
+      min-width: 120px;
+    }
+
+    td input:focus {
+      outline: none;
+      border-color: #1a73e8;
+      box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+    }
+
+    tr:nth-child(even) {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    tr:hover {
+      background: rgba(26, 115, 232, 0.08);
+    }
+
+    .pdf-link {
+      color: #1a73e8;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 4px;
+      display: inline-block;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .pdf-link:hover {
+      background: rgba(26, 115, 232, 0.1);
+    }
+
+    .input-saving {
+      border-color: #ff9800 !important;
+      background: #fff3e0 !important;
+    }
+
+    /* Loading State */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 5px;
+      }
+
+      .header {
+        padding: 12px 15px;
+        gap: 10px;
+      }
+
+      .header img {
+        width: 60px;
+      }
+
+      .header h1 {
+        font-size: 16px;
+      }
+
+      .btn-voltar {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      .peso-card {
+        padding: 12px;
+      }
+
+      .peso-card-title {
+        font-size: 16px;
+      }
+
+      .peso-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .peso-item-value {
+        font-size: 18px;
+      }
+
+      .filter-global-container {
+        width: 100%;
+        min-width: auto;
+      }
+
+      .filtros-ativos-badge {
+        font-size: 13px;
+        padding: 7px 12px;
+      }
+
+      .btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      th, td {
+        padding: 10px 8px;
+        font-size: 13px;
+      }
+
+      th.has-filter {
+        padding-top: 8px;
+        padding-bottom: 8px;
+      }
+
+      th .filter-input {
+        font-size: 11px;
+        padding: 5px 6px;
+      }
+
+      td input {
+        padding: 6px 8px;
+        font-size: 13px;
+        min-width: 80px;
+      }
+
+      /* DIM no mobile - largura adequada */
+      td input[data-field="dim"] {
+        min-width: 130px;
+        font-size: 14px;
+        padding: 8px 10px;
+      }
+
+      /* FEITO POR no mobile */
+      td.feito-por {
+        max-width: 85px;
+        min-width: 70px;
+        font-size: 12px;
+      }
+
+      table {
+        min-width: 1300px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .header h1 {
+        font-size: 14px;
+      }
+
+      .peso-card-title {
+        font-size: 14px;
+      }
+
+      .peso-item-label {
+        font-size: 12px;
+      }
+
+      .peso-item-value {
+        font-size: 16px;
+      }
+
+      th, td {
+        font-size: 12px;
+        padding: 8px 6px;
+      }
+
+      th.has-filter {
+        padding-top: 6px;
+        padding-bottom: 6px;
+      }
+
+      th .filter-input {
+        font-size: 10px;
+        padding: 4px 5px;
+      }
+
+      /* DIM em telas muito pequenas */
+      td input[data-field="dim"] {
+        min-width: 140px;
+        font-size: 13px;
+      }
+
+      /* FEITO POR em telas pequenas */
+      td.feito-por {
+        max-width: 75px;
+        min-width: 65px;
+        font-size: 11px;
+      }
+    }
+
+    /* Scroll Hint */
+    .scroll-hint {
+      text-align: center;
+      padding: 10px;
+      background: rgba(26, 115, 232, 0.15);
+      color: #1a73e8;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+      border-bottom: 2px solid rgba(26, 115, 232, 0.3);
+    }
+
+    @media (max-width: 1024px) {
+      .scroll-hint {
+        display: block;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <button class="btn-voltar" onclick="voltarPagina()" title="Voltar">
+    ← Voltar
+  </button>
+
+  <div class="container">
+    <div class="header">
+      <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+      <h1>Controle de Materiais</h1>
+    </div>
+
+    <div class="peso-card">
+      <div class="peso-card-title">
+        <span>⚖️</span>
+        <span>Pesos Estimados</span>
+      </div>
+      <div class="peso-grid">
+        <div class="peso-item">
+          <div class="peso-item-label">🟢 Peso Estoque</div>
+          <div class="peso-item-value" id="pesoEstoque">0.00 Kg</div>
+        </div>
+        <div class="peso-item">
+          <div class="peso-item-label">🔵 Peso Cliente</div>
+          <div class="peso-item-value" id="pesoCliente">0.00 Kg</div>
+        </div>
+        <div class="peso-item">
+          <div class="peso-item-label">🟡 Peso Total</div>
+          <div class="peso-item-value" id="pesoTotal">0.00 Kg</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="filter-global-container">
+        <span style="font-weight: 600; color: white;">🔍</span>
+        <input type="text" id="filtroGlobal" placeholder="Buscar em todas as colunas...">
+      </div>
+      <span class="filtros-ativos-badge hidden" id="filtrosAtivosBadge">
+        🔍 <span id="numFiltrosAtivos">0</span> filtros ativos
+      </span>
+      <button class="btn btn-secondary" onclick="limparFiltros()">🔄 Limpar Filtros</button>
+    </div>
+
+    <div class="table-wrapper">
+      <div class="scroll-hint">← Deslize horizontalmente para ver todos os campos →</div>
+      <div class="table-scroll">
+        <table id="etiquetasTable">
+          <thead>
+            <tr>
+              <? for (let key in dados[0]) { ?>
+              <th data-col="<?= key ?>" class="has-filter">
+                <div class="th-content">
+                  <span class="th-title"><?= key ?></span>
+                  <input type="text" class="filter-input column-filter" data-column="<?= key ?>" placeholder="Filtrar..." onclick="event.stopPropagation()">
+                </div>
+              </th>
+              <? } ?>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <? for (let i = 0; i < dados.length; i++) { ?>
+            <tr data-row="<?= i+2 ?>">
+              <? for (let key in dados[i]) { 
+                const isFeitoPor = key.toUpperCase().includes("FEITO POR") || key.toUpperCase().includes("FEITO_POR");
+              ?>
+              <? if(key === "ETIQUETA") { ?>
+              <td><a class="pdf-link" href="<?= dados[i][key] ?>" target="_blank">📄 Abrir PDF</a></td>
+              <? } else if(key === "QTDE") { ?>
+              <td><input type="number" value="<?= dados[i][key] ?>" data-field="qtde" inputmode="numeric"></td>
+              <? } else if(key === "DIM") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="dim"></td>
+              <? } else if(key === "TIPO") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="tipo"></td>
+              <? } else if(key === "PROP") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="prop"></td>
+              <? } else if(key === "MATERIAL") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="material"></td>
+              <? } else if(key === "ESPESSURA") { ?>
+              <td><input type="text" value="<?= dados[i][key] ?>" data-field="esp" inputmode="decimal"></td>
+              <? } else if(key === "PESO APROXIMADO") { ?>
+              <td class="peso" data-valor="<?= dados[i][key] ?>">
+                <?= parseFloat(dados[i][key]).toFixed(2) ?>
+              </td>
+              <? } else if(isFeitoPor) { ?>
+              <td class="feito-por" data-nome-original="<?= dados[i][key] ?>">
+                <span class="nome-formatado"></span>
+              </td>
+              <? } else { ?>
+              <td><?= dados[i][key] ?></td>
+              <? } } ?>
+              <td><button class="btn btn-primary btn-small" onclick="gerarNovaEtiqueta(this)">Gerar Nova Etiqueta</button></td>
+            </tr>
+            <? } ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = "<?= token ?>";
+
+    // Previne zoom em double tap (iOS)
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+
+    // Helpers
+    function debounce(fn, ms) {
+      let t;
+      return (...args) => {
+        clearTimeout(t);
+        t = setTimeout(() => fn(...args), ms);
+      };
+    }
+
+    // Função para extrair apenas números de uma string
+    function extrairNumero(str) {
+      if (!str) return 0;
+      const num = str.toString().replace(/\D/g, '');
+      return num ? parseInt(num, 10) : 0;
+    }
+
+    // Função helper para obter valor correto de cada tipo de célula
+    function obterValorCelula(cell) {
+      if (!cell) return '';
+      
+      const input = cell.querySelector('input');
+      if (input) {
+        return input.value.trim();
+      }
+      
+      if (cell.classList.contains('feito-por')) {
+        return cell.dataset.nomeOriginal || '';
+      }
+      
+      return cell.textContent.trim();
+    }
+
+    // Função para mapear nomes de colunas para índices
+    function getColumnIndexMap() {
+      const table = document.getElementById('etiquetasTable');
+      const headers = Array.from(table.tHead.rows[0].cells);
+      const map = {};
+      
+      headers.forEach((th, index) => {
+        const colName = th.dataset.col;
+        if (colName) {
+          map[colName] = index;
+        }
+      });
+      
+      return map;
+    }
+
+    // Função para verificar se uma coluna deve usar correspondência exata (colunas numéricas)
+    function isNumericColumn(colName) {
+      const upperColName = colName.toUpperCase();
+      
+      // Lista de colunas numéricas conhecidas
+      if (upperColName === 'ESP' || 
+          upperColName === 'QTDE' || 
+          upperColName === 'NF') {
+        return true;
+      }
+      
+      // Padrões de nomes de colunas numéricas
+      if (upperColName.includes('ESPESSURA') || 
+          upperColName.includes('PESO')) {
+        return true;
+      }
+      
+      // N DA CHAPA - verificação mais específica
+      const temN = upperColName.includes('N') || upperColName.includes('Nº') || upperColName.includes('N°');
+      const temChapa = upperColName.includes('CHAPA');
+      if (temN && temChapa) {
+        return true;
+      }
+      
+      return false;
+    }
+
+    // Função para normalizar valor numérico (trata vírgula e ponto)
+    function normalizeNumericValue(value) {
+      if (!value) return '';
+      // Converte vírgula em ponto para comparação numérica
+      return value.trim().replace(',', '.');
+    }
+
+    // Função para comparar valores considerando tipo de coluna
+    function matchFilter(valorCelula, filterValue, colName) {
+      if (isNumericColumn(colName)) {
+        // Para colunas numéricas, fazer correspondência exata
+        const normalizedCelula = normalizeNumericValue(valorCelula);
+        const normalizedFilter = normalizeNumericValue(filterValue);
+        
+        // Se ambos são números, comparar como números
+        const numCelula = parseFloat(normalizedCelula);
+        const numFilter = parseFloat(normalizedFilter);
+        
+        if (!isNaN(numCelula) && !isNaN(numFilter)) {
+          return numCelula === numFilter;
+        }
+        
+        // Se não são números válidos, comparar como string exata
+        return normalizedCelula === normalizedFilter;
+      } else {
+        // Para colunas de texto, usar correspondência parcial (includes)
+        return valorCelula.toLowerCase().includes(filterValue.toLowerCase());
+      }
+    }
+
+    // Função para atualizar o badge de filtros ativos
+    function atualizarBadgeFiltros() {
+      const badge = document.getElementById('filtrosAtivosBadge');
+      const numElement = document.getElementById('numFiltrosAtivos');
+      
+      if (!badge || !numElement) return;
+      
+      let count = 0;
+      
+      // Conta filtro global
+      const filtroGlobal = document.getElementById('filtroGlobal');
+      if (filtroGlobal && filtroGlobal.value.trim()) {
+        count++;
+      }
+      
+      // Conta filtros de coluna
+      const columnFilters = document.querySelectorAll('.column-filter');
+      columnFilters.forEach(input => {
+        if (input.value.trim()) {
+          count++;
+          input.classList.add('has-value');
+        } else {
+          input.classList.remove('has-value');
+        }
+      });
+      
+      numElement.textContent = count;
+      
+      if (count > 0) {
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // Função para extrair dimensões (largura x altura) e converter para número
+    function parseDimension(dim) {
+      if (!dim) return 0;
+      const parts = dim.toString().match(/\d+/g);
+      if (!parts || parts.length === 0) return 0;
+      return parts.reduce((acc, val) => acc * parseInt(val), 1);
+    }
+
+    // Formatar nome "FEITO POR" - quebra o sobrenome
+    function formatarNomeFeitoPor() {
+      const cellsFeitoPor = document.querySelectorAll('td.feito-por');
+      cellsFeitoPor.forEach(cell => {
+        const nomeOriginal = cell.dataset.nomeOriginal;
+        const span = cell.querySelector('.nome-formatado');
+        
+        if (!nomeOriginal || !span) return;
+        
+        const partes = nomeOriginal.trim().split(' ');
+        if (partes.length >= 2) {
+          // Primeiro nome na primeira linha, resto na segunda
+          const primeiroNome = partes[0];
+          const sobrenomes = partes.slice(1).join(' ');
+          span.innerHTML = `${primeiroNome}<br>${sobrenomes}`;
+        } else {
+          span.textContent = nomeOriginal;
+        }
+      });
+    }
+
+    // Soma de Pesos
+    function atualizarSomaPesos() {
+      const rows = document.querySelectorAll('#etiquetasTable tbody tr');
+      let pesoEstoque = 0, pesoCliente = 0, pesoTotal = 0;
+
+      rows.forEach(row => {
+        if (row.style.display === 'none') return;
+
+        const tdPeso = row.querySelector('td.peso');
+        const propInput = row.querySelector('input[data-field="prop"]');
+        const prop = propInput ? propInput.value.trim().toLowerCase() : "";
+
+        if (tdPeso) {
+          const valor = parseFloat(tdPeso.dataset.valor) || 0;
+          pesoTotal += valor;
+          if (prop.includes("tuba")) {
+            pesoEstoque += valor;
+          } else {
+            pesoCliente += valor;
+          }
+        }
+      });
+
+      document.getElementById('pesoEstoque').textContent = pesoEstoque.toFixed(2) + " Kg";
+      document.getElementById('pesoCliente').textContent = pesoCliente.toFixed(2) + " Kg";
+      document.getElementById('pesoTotal').textContent = pesoTotal.toFixed(2) + " Kg";
+    }
+
+    // Filtros combinados (Global + todos os filtros de coluna)
+    function aplicarFiltros() {
+      const filtroGlobal = document.getElementById('filtroGlobal').value.toLowerCase().trim();
+      const table = document.getElementById('etiquetasTable');
+      const rows = table.tBodies[0].rows;
+      
+      // Obter todos os filtros de coluna ativos
+      const columnFilters = {};
+      const columnIndexMap = getColumnIndexMap();
+      
+      document.querySelectorAll('.column-filter').forEach(input => {
+        const colName = input.dataset.column;
+        const value = input.value.trim(); // Mantém o formato original para matchFilter decidir
+        if (value) {
+          columnFilters[colName] = {
+            value: value,
+            index: columnIndexMap[colName]
+          };
+        }
+      });
+
+      Array.from(rows).forEach(row => {
+        let visivelGlobal = true;
+        let visivelColunas = true;
+
+        // Filtro Global
+        if (filtroGlobal) {
+          let textoLinha = '';
+          Array.from(row.cells).forEach(cell => {
+            textoLinha += obterValorCelula(cell) + ' ';
+          });
+          visivelGlobal = textoLinha.toLowerCase().includes(filtroGlobal);
+        }
+
+        // Filtros de Coluna (lógica AND - todos devem passar)
+        for (const colName in columnFilters) {
+          const filter = columnFilters[colName];
+          const cell = row.cells[filter.index];
+          
+          if (cell) {
+            const valorCelula = obterValorCelula(cell);
+            if (!matchFilter(valorCelula, filter.value, colName)) {
+              visivelColunas = false;
+              break; // Se falhar em um filtro, não precisa verificar os outros
+            }
+          }
+        }
+
+        row.style.display = (visivelGlobal && visivelColunas) ? '' : 'none';
+      });
+
+      atualizarBadgeFiltros();
+      atualizarSomaPesos();
+    }
+
+    function limparFiltros() {
+      document.getElementById('filtroGlobal').value = '';
+      
+      // Limpar todos os filtros de coluna
+      const columnFilters = document.querySelectorAll('.column-filter');
+      columnFilters.forEach(input => {
+        input.value = '';
+        input.classList.remove('has-value');
+      });
+      
+      const table = document.getElementById('etiquetasTable');
+      Array.from(table.tBodies[0].rows).forEach(row => row.style.display = '');
+      
+      atualizarBadgeFiltros();
+      atualizarSomaPesos();
+    }
+
+    // Ordenação corrigida por tipo de coluna
+    let ordemAtual = {};
+    function setupOrdenacao() {
+      const table = document.getElementById('etiquetasTable');
+      Array.from(table.tHead.rows[0].cells).forEach((th, i) => {
+        th.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT') return;
+          
+          const colName = th.dataset.col;
+          if (!colName || colName === 'Ações') return;
+          
+          const tbody = table.tBodies[0];
+          const linhas = Array.from(tbody.rows);
+          ordemAtual[i] = ordemAtual[i] === 'asc' ? 'desc' : 'asc';
+
+          linhas.sort((a, b) => {
+            let valA, valB;
+            
+            // Se for coluna FEITO POR, pega o nome original
+            if (a.cells[i].classList.contains('feito-por')) {
+              valA = a.cells[i].dataset.nomeOriginal || '';
+              valB = b.cells[i].dataset.nomeOriginal || '';
+            } else {
+              valA = a.cells[i].querySelector('input') ? a.cells[i].querySelector('input').value : a.cells[i].textContent.trim();
+              valB = b.cells[i].querySelector('input') ? b.cells[i].querySelector('input').value : b.cells[i].textContent.trim();
+            }
+
+            const colUpper = colName.toUpperCase();
+
+            // N DA CHAPA / Nº DA CHAPA - por número puro
+            if ((colUpper.includes("N") || colUpper.includes("Nº") || colUpper.includes("N°")) && colUpper.includes("CHAPA")) {
+              const numA = extrairNumero(valA);
+              const numB = extrairNumero(valB);
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // DATA - por data
+            if (colUpper.includes("DATA")) {
+              const parseDate = (str) => {
+                if (!str || !str.includes('/')) return new Date(0);
+                const parts = str.split("/");
+                if (parts.length !== 3) return new Date(0);
+                return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+              };
+              const dateA = parseDate(valA);
+              const dateB = parseDate(valB);
+              return ordemAtual[i] === 'asc' ? dateA - dateB : dateB - dateA;
+            }
+
+            // DIM - por tamanho (área)
+            if (colName === "DIM") {
+              const dimA = parseDimension(valA);
+              const dimB = parseDimension(valB);
+              return ordemAtual[i] === 'asc' ? dimA - dimB : dimB - dimA;
+            }
+
+            // ESP (ESPESSURA) - por número
+            if (colName === "ESPESSURA" || colName === "ESP") {
+              const numA = parseFloat(valA.replace(',', '.')) || 0;
+              const numB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // QTDE - por número
+            if (colName === "QTDE") {
+              const numA = parseFloat(valA.replace(',', '.')) || 0;
+              const numB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // NF - por número
+            if (colName === "NF" || colUpper.includes("NOTA")) {
+              const numA = extrairNumero(valA);
+              const numB = extrairNumero(valB);
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // PESO - por número
+            if (colUpper.includes('PESO')) {
+              const numA = parseFloat(valA.replace(',', '.')) || 0;
+              const numB = parseFloat(valB.replace(',', '.')) || 0;
+              return ordemAtual[i] === 'asc' ? numA - numB : numB - numA;
+            }
+
+            // FEITO POR, PROP, TIPO, MATERIAL, FORNECEDOR - por nome (texto)
+            return ordemAtual[i] === 'asc' ? valA.localeCompare(valB, 'pt-BR') : valB.localeCompare(valA, 'pt-BR');
+          });
+
+          linhas.forEach(r => tbody.appendChild(r));
+          
+          // Atualiza indicadores visuais
+          Array.from(table.tHead.rows[0].cells).forEach(thx => {
+            thx.classList.remove('sorted-asc', 'sorted-desc');
+          });
+          th.classList.add(ordemAtual[i] === 'asc' ? 'sorted-asc' : 'sorted-desc');
+          
+          atualizarSomaPesos();
+        });
+      });
+    }
+
+    // Recalcular peso por linha
+    function recomputeRowPeso(tr, changedField) {
+      const tdPeso = tr.querySelector('td.peso');
+      if (!tdPeso) return;
+
+      let perUnit = parseFloat(tr.dataset.perUnit) || 0;
+      let qtde = parseFloat(tr.querySelector('input[data-field="qtde"]')?.value) || 0;
+      let origEsp = parseFloat(tr.dataset.originalEsp) || 0;
+      let currEsp = parseFloat(tr.querySelector('input[data-field="esp"]')?.value) || origEsp;
+
+      if (changedField === 'qtde' && perUnit > 0) {
+        const newPeso = perUnit * qtde;
+        tdPeso.dataset.valor = newPeso;
+        tdPeso.textContent = parseFloat(newPeso).toFixed(2);
+        tr.dataset.originalQtde = qtde;
+        tr.dataset.originalPeso = newPeso;
+        return;
+      }
+
+      if (changedField === 'esp' && origEsp > 0 && perUnit > 0) {
+        const newPerUnit = perUnit * (currEsp / origEsp);
+        const newPeso = newPerUnit * qtde;
+        tdPeso.dataset.valor = newPeso;
+        tdPeso.textContent = parseFloat(newPeso).toFixed(2);
+        tr.dataset.perUnit = newPerUnit;
+        tr.dataset.originalEsp = currEsp;
+        tr.dataset.originalPeso = newPeso;
+        return;
+      }
+    }
+
+    // Salvar célula
+    function saveCell(input) {
+      const tr = input.closest('tr');
+      if (!tr) return;
+      const linha = parseInt(tr.dataset.row);
+      const campo = input.dataset.field;
+      const valor = input.value;
+
+      if (input.dataset.saving === 'true') return;
+
+      input.dataset.saving = 'true';
+      input.classList.add('input-saving');
+
+      google.script.run
+        .withSuccessHandler(msg => {
+          input.dataset.saving = 'false';
+          input.classList.remove('input-saving');
+          input.dataset.original = valor;
+          input.dataset.dirty = 'false';
+
+          if (msg === "Linha removida") {
+            tr.remove();
+            atualizarSomaPesos();
+            return;
+          }
+
+          recomputeRowPeso(tr, campo);
+          atualizarSomaPesos();
+        })
+        .withFailureHandler(err => {
+          input.dataset.saving = 'false';
+          input.classList.remove('input-saving');
+          alert("Erro ao salvar: " + err.message);
+        })
+        .atualizarCelulaNaPlanilha(linha, campo, valor);
+    }
+
+    // Gerar etiqueta
+    function gerarNovaEtiqueta(btn) {
+      btn.disabled = true;
+      btn.textContent = "Gerando...";
+      const tr = btn.closest("tr");
+      const rowIndex = parseInt(tr.dataset.row);
+      
+      google.script.run
+        .withSuccessHandler(res => {
+          const urlPdf = typeof res === 'string' ? res : (res && res.urlPdf);
+          const usuario = res && res.usuario;
+          const link = tr.querySelector('a.pdf-link');
+          if (link && urlPdf) link.href = urlPdf;
+          if (usuario) {
+            const tdFeitoPor = tr.querySelector('td.feito-por');
+            if (tdFeitoPor) {
+              tdFeitoPor.dataset.nomeOriginal = usuario;
+              const span = tdFeitoPor.querySelector('.nome-formatado');
+              if (span) {
+                const partes = usuario.trim().split(' ');
+                span.innerHTML = partes.length >= 2 ? `${partes[0]}<br>${partes.slice(1).join(' ')}` : usuario;
+              }
+            }
+          }
+          btn.textContent = "Gerar Nova Etiqueta";
+          btn.disabled = false;
+          atualizarSomaPesos();
+        })
+        .withFailureHandler(err => {
+          alert("Erro ao gerar etiqueta: " + err.message);
+          btn.textContent = "Gerar Nova Etiqueta";
+          btn.disabled = false;
+        })
+        .gerarNovaEtiqueta({ rowIndex }, token);
+    }
+
+    // Padronizar datas
+    function padronizarDatas() {
+      const table = document.getElementById("etiquetasTable");
+      const headers = Array.from(table.tHead.rows[0].cells).map(th => th.textContent.trim().toUpperCase());
+      const dataIndex = headers.findIndex(h => h.includes("DATA"));
+      if (dataIndex === -1) return;
+
+      Array.from(table.tBodies[0].rows).forEach(row => {
+        const cell = row.cells[dataIndex];
+        if (!cell) return;
+        let txt = cell.textContent.trim();
+        if (txt && txt.includes("/")) {
+          let parts = txt.split("/");
+          if (parseInt(parts[0]) > 12) return;
+          if (parts.length === 3) {
+            let m = parts[0].padStart(2, "0");
+            let d = parts[1].padStart(2, "0");
+            let y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+            cell.textContent = `${d}/${m}/${y}`;
+          }
+        }
+      });
+    }
+
+    // Voltar
+    function voltarPagina() {
+      var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+      const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+      function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+      window.location.href = pageUrl('dashboard', 'token=' + token);
+    }
+
+    // Configurar eventos para os filtros de coluna
+    function setupColumnFilters() {
+      const columnFilters = document.querySelectorAll('.column-filter');
+      
+      columnFilters.forEach(input => {
+        input.addEventListener('input', debounce(aplicarFiltros, 300));
+      });
+    }
+
+    // Inicialização
+    window.addEventListener('load', () => {
+      padronizarDatas();
+      formatarNomeFeitoPor();
+
+      const table = document.getElementById('etiquetasTable');
+      if (!table) return;
+
+      // Filtro Global
+      const filtroGlobal = document.getElementById('filtroGlobal');
+      if (filtroGlobal) {
+        filtroGlobal.addEventListener('input', debounce(aplicarFiltros, 300));
+      }
+
+      // Configurar filtros de coluna
+      setupColumnFilters();
+
+      // Dados iniciais
+      Array.from(table.tBodies[0].rows).forEach(tr => {
+        const tdPeso = tr.querySelector('td.peso');
+        const peso = tdPeso ? parseFloat(tdPeso.dataset.valor) || 0 : 0;
+        const inputQtde = tr.querySelector('input[data-field="qtde"]');
+        const qtdeVal = inputQtde ? (parseFloat(inputQtde.value) || 0) : 0;
+        const inputEsp = tr.querySelector('input[data-field="esp"]');
+        const espVal = inputEsp ? (parseFloat(inputEsp.value) || 0) : 0;
+
+        tr.dataset.originalQtde = qtdeVal;
+        tr.dataset.originalPeso = peso;
+        tr.dataset.perUnit = (qtdeVal > 0) ? (peso / qtdeVal) : 0;
+        tr.dataset.originalEsp = espVal;
+
+        tr.querySelectorAll('input').forEach(inp => inp.dataset.original = inp.value);
+      });
+
+      // Event listeners nos inputs
+      const rowInputs = table.querySelectorAll('tbody input');
+      rowInputs.forEach(input => {
+        const debouncedSave = debounce(() => {
+          input.dataset.dirty = 'true';
+          saveCell(input);
+        }, 1000);
+
+        input.addEventListener('focus', () => {
+          input.dataset.editing = 'true';
+        });
+
+        input.addEventListener('blur', () => {
+          input.dataset.editing = 'false';
+          if (input.dataset.dirty === 'true') {
+            saveCell(input);
+          }
+        });
+
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+          }
+        });
+
+        input.addEventListener('input', () => {
+          input.dataset.dirty = 'true';
+          debouncedSave();
+        });
+      });
+
+      setupOrdenacao();
+      atualizarSomaPesos();
+      atualizarBadgeFiltros();
+    });
+  </script>
+</body>
+
+</html>

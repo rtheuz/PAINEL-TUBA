@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: 104mm 53mm;
+    margin: 0;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    -webkit-print-color-adjust: exact;
+    height: 100%;
+    background: #fff;
+  }
+
+  /* Garante que a etiqueta inteira fique em 1 página */
+  .etiqueta {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    box-sizing: border-box;
+    border: 1mm solid #000;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden;
+  }
+
+  .conteudo {
+    flex: 1;
+    padding: 1mm;
+    box-sizing: border-box;
+  }
+
+  table {
+    width: 100%;
+    height: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  td {
+    border: 1px solid #000;
+    padding: 0.8mm 1.5mm;
+    vertical-align: middle;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .label { 
+    font-size: 8px; 
+    color: #555; 
+    margin-right: 2px;
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .prop {
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-block;
+    white-space: nowrap;
+  }
+  
+  .dimensao {
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    display: block;
+    white-space: nowrap;
+  }
+  
+  .espessura { 
+    font-size: 14px; 
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .tipo { 
+    font-size: 13px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  
+  .material { 
+    font-size: 12px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  
+  .data { 
+    font-size: 12px; 
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .fornecedor { 
+    font-size: 11px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    display: inline-block;
+  }
+  
+  .nf { 
+    font-size: 12px; 
+    font-weight: bold;
+    display: inline-block;
+  }
+  
+  .qtde { 
+    font-size: 16px; 
+    font-weight: bold; 
+    text-transform: uppercase;
+    color: #c00;
+    display: inline-block;
+  }
+
+  /* Segunda página */
+  .page-break {
+    page-break-before: always;
+  }
+
+  .aviso {
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    border: 2mm solid #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    text-align: center;
+    padding: 5mm;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: #fffacd;
+  }
+
+  .aviso-linha {
+    font-size: 16px;
+    margin: 2mm 0;
+    line-height: 1.4;
+  }
+
+  .aviso-chapa {
+    font-size: 24px;
+    margin-top: 3mm;
+    padding: 2mm 5mm;
+    background: #fff;
+    border: 2px solid #000;
+    border-radius: 2mm;
+  }
+
+  @media print {
+    .etiqueta, .aviso {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+  }
+</style>
+</head>
+<body>
+  <!-- Primeira página -->
+  <div class="etiqueta">
+    <div class="conteudo">
+      <table>
+        <tr style="height: 15%;">
+          <td colspan="4" style="background: #000; color: #fff;">
+            <span class="label" style="color: #ccc;">Prop:</span>
+            <span class="prop"><?= dados.prop ?></span>
+          </td>
+        </tr>
+        <tr style="height: 14%;">
+          <td colspan="4" style="background: #f0f0f0;">
+            <span class="label">Dim.:</span>
+            <span class="dimensao"><?= dados.dim1 ?> x <?= dados.dim2 ?> mm</span>
+          </td>
+        </tr>
+        <tr style="height: 14%;">
+          <td colspan="2" style="width: 50%;">
+            <span class="label">Esp.:</span>
+            <span class="espessura"><?= dados.esp ?> mm</span>
+          </td>
+          <td colspan="2" style="width: 50%;">
+            <span class="label">Tipo:</span>
+            <span class="tipo"><?= dados.tipo ?></span>
+          </td>
+        </tr>
+        <tr style="height: 14%;">
+          <td colspan="2">
+            <span class="label">Mat.:</span>
+            <span class="material"><?= dados.material ?></span>
+          </td>
+          <td colspan="2">
+            <span class="label">Data:</span>
+            <span class="data"><?= dados.dataEntrada ?></span>
+          </td>
+        </tr>
+        <tr style="height: 14%;">
+          <td colspan="2">
+            <span class="label">Fornecedor:</span>
+            <span class="fornecedor"><?= dados.fornecedor ?></span>
+          </td>
+          <td colspan="2">
+            <span class="label">NF:</span>
+            <span class="nf"><?= dados.nf ?></span>
+          </td>
+        </tr>
+        <tr style="height: 15%;">
+          <td colspan="4" style="background: #ffffcc;">
+            <span class="label">Qtde:</span>
+            <span class="qtde"><?= dados.qtde ?></span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Segunda página -->
+  <div class="page-break"></div>
+  <div class="aviso">
+    <div class="aviso-linha">⚠️ ATUALIZAR DADOS APÓS USAR ⚠️</div>
+    <div class="aviso-linha">GUARDAR ETIQUETA PARA CONTROLE</div>
+    <div class="aviso-chapa">CHAPA #<?= dados.numeroChapa ?></div>
+  </div>
+</body>
+</html>

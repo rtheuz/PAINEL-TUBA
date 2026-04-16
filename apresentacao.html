@@ -1,0 +1,1656 @@
+<! DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apresentação - Kanban e Segurança</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    body {
+      position: relative;
+      background: #000;
+    }
+
+    .slide-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    .slide-container.active {
+      opacity: 1;
+      pointer-events: auto;
+      z-index: 2;
+    }
+
+    .slide-container.fade-out {
+      opacity: 0;
+      z-index: 1;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 250px;
+    }
+
+    .controls.visible {
+      display: flex;
+    }
+
+    .controls h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: 8px;
+    }
+
+    .control-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .control-item label {
+      font-size: 13px;
+    }
+
+    .control-item input {
+      width: 80px;
+      padding: 5px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 13px;
+    }
+
+    .control-item input:focus {
+      outline: none;
+      border-color: #4ecdc4;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .toggle-controls {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1001;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .toggle-controls:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.1);
+    }
+
+    .status-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4ecdc4;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.2);
+      }
+    }
+
+    .status-dot.kanban {
+      background: #1a73e8;
+    }
+
+    .status-dot.seguranca {
+      background: #ff6b6b;
+    }
+
+    .countdown {
+      font-weight: 600;
+      color: #4ecdc4;
+    }
+
+    body.presentation-mode .controls,
+    body.presentation-mode .toggle-controls,
+    body.presentation-mode .status-indicator {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+
+    body.presentation-mode:hover .controls,
+    body.presentation-mode:hover .toggle-controls,
+    body.presentation-mode:hover .status-indicator {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .mensagem-item {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 8px;
+      margin-bottom: 6px;
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .mensagem-item-texto {
+      flex: 1;
+      color: rgba(255, 255, 255, 0.9);
+      word-break: break-word;
+    }
+
+    .mensagem-item-acoes {
+      display: flex;
+      gap: 5px;
+      margin-left: 10px;
+    }
+
+    .mensagem-item-acoes button {
+      padding: 4px 8px;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .mensagem-item-acoes button:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .mensagem-item-acoes button.deletar {
+      background: rgba(255, 107, 107, 0.5);
+    }
+
+    .mensagem-item-acoes button.deletar:hover {
+      background: rgba(255, 107, 107, 0.7);
+    }
+
+    .mensagem-display {
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px 20px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      border-left: 4px solid;
+      backdrop-filter: blur(10px);
+      animation: slideIn 0.5s ease-out;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .mensagem-display.small { font-size: 16px; }
+    .mensagem-display.medium { font-size: 24px; }
+    .mensagem-display.large { font-size: 32px; }
+    .mensagem-display.xlarge { font-size: 48px; font-weight: 600; }
+
+    /* Notificação de novo orçamento */
+    .notificacao-novo-orcamento {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    .notificacao-novo-orcamento.ativo {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .notificacao-conteudo {
+      background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+      color: white;
+      padding: 40px 60px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 600px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: pulse 2s ease-in-out infinite;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .notificacao-conteudo h2 {
+      margin: 0 0 20px 0;
+      font-size: 36px;
+      font-weight: 600;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .notificacao-conteudo p {
+      margin: 0 0 30px 0;
+      font-size: 20px;
+      opacity: 0.95;
+    }
+
+    .notificacao-conteudo button {
+      background: white;
+      color: #1a73e8;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .notificacao-conteudo button:hover {
+      background: #f0f0f0;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .notificacao-conteudo button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="slide-container active" id="kanbanSlide">
+    <iframe id="kanbanFrame" src=""></iframe>
+  </div>
+
+  <div class="slide-container" id="segurancaSlide">
+    <iframe id="segurancaFrame" src=""></iframe>
+  </div>
+
+  <div class="status-indicator" id="statusIndicator">
+    <div class="status-dot kanban" id="statusDot"></div>
+    <span id="statusText">Carregando...</span>
+    <span class="countdown" id="countdown"></span>
+  </div>
+
+  <button class="toggle-controls" id="toggleControls" title="Mostrar/Ocultar Controles">&#9881;</button>
+
+  <div class="controls" id="controls">
+    <h3>&#9881; Configurações</h3>
+    <div class="control-item">
+      <label>Tempo Kanban (minutos):</label>
+      <input type="number" id="timeKanban" min="1" max="60" value="5">
+    </div>
+    <div class="control-item">
+      <label>Tempo Segurança (minutos):</label>
+      <input type="number" id="timeSeguranca" min="1" max="60" value="1">
+    </div>
+    <div style="margin-top: 5px; padding: 8px; background: rgba(255, 255, 255, 0.1); border-radius: 5px; font-size: 12px; color: rgba(255, 255, 255, 0.8);">
+      O Kanban é exibido predominantemente.  A Segurança aparece brevemente entre os ciclos.
+    </div>
+    <div class="control-item">
+      <label>Transição (segundos):</label>
+      <input type="number" id="transitionTime" min="0.5" max="5" step="0.5" value="1.5">
+    </div>
+    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
+      <button id="btnApplySettings" style="width: 100%; padding: 8px; background: #4ecdc4; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+        Aplicar Configurações
+      </button>
+    </div>
+    
+    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.3);">
+      <h3 style="margin: 0 0 10px 0; font-size: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.3); padding-bottom: 8px;">Mensagens</h3>
+      <div style="margin-bottom: 10px;">
+        <input type="text" id="novaMensagemTexto" placeholder="Digite a mensagem..." 
+               style="width: 100%; padding: 8px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: white; font-size: 13px; margin-bottom: 8px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <select id="novaMensagemCor" style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: rgb(48, 48, 48); font-size: 12px;">
+            <option value="#ffffff">Branco</option>
+            <option value="#ff6b6b">Vermelho</option>
+            <option value="#4ecdc4">Ciano</option>
+            <option value="#1a73e8">Azul</option>
+            <option value="#ffd93d">Amarelo</option>
+            <option value="#6bcf7f">Verde</option>
+          </select>
+          <select id="novaMensagemTamanho" style="flex: 1; padding: 6px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 5px; background: rgba(255, 255, 255, 0.1); color: (48, 48, 48); font-size: 12px;">
+            <option value="small">Pequeno</option>
+            <option value="medium" selected>Médio</option>
+            <option value="large">Grande</option>
+            <option value="xlarge">Muito Grande</option>
+          </select>
+        </div>
+        <button id="btnAdicionarMensagem" style="width: 100%; padding: 8px; background: #6bcf7f; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+          Adicionar Mensagem
+        </button>
+      </div>
+      <div id="listaMensagens" style="max-height: 200px; overflow-y: auto;"></div>
+    </div>
+  </div>
+  
+  <div id="mensagensDisplay" style="position: fixed; top: 60px; left: 20px; right: 20px; z-index: 999; pointer-events: none;"></div>
+
+    <!-- Notificação de novo orçamento -->
+  <div class="notificacao-novo-orcamento" id="notificacaoNovoOrcamento">
+    <div class="notificacao-conteudo">
+      <h2>NOVO PEDIDO DE ORÇAMENTO</h2>
+      <p id="notificacaoOrcamentoMensagem">CLIENTE:<br>PROJ:<br><em>*Confirme pressionando OK para remover a notificação</em></p>
+      <button id="btnConfirmarNotificacao">OK</button>
+    </div>
+  </div>
+
+  <!-- Notificação breve de novo projeto em preparação -->
+  <div class="notificacao-preparacao" id="notificacaoPreparacao" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 10001; background: linear-gradient(135deg, #ff9800 0%, #ff6b00 100%); color: white; padding: 20px 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: none; animation: slideDown 0.5s ease-out; max-width: 500px; text-align: center;">
+    <h3 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 600;">⚙️ Novo Projeto em Preparação!</h3>
+    <p id="mensagemPreparacao" style="margin: 0; font-size: 16px; opacity: 0.95;"></p>
+  </div>
+
+  <style>
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+  </style>
+
+  <!-- Áudio para notificação será gerado via Web Audio API -->
+
+  <script>
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+    var WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+    var config = {
+      timeKanban: 10,
+      timeSeguranca: 1,
+      transitionTime: 1.5
+    };
+
+    var currentSlide = 'kanban';
+    var timer = null;
+    var countdownTimer = null;
+    var timeRemaining = 0;
+    var mensagens = [];
+    var syncInterval = null;
+    var orcamentosRascunhoVistos = new Set(); // IDs dos orçamentos já vistos
+    var notificacaoAtiva = false;
+    var audioContext = null; // Contexto de áudio reutilizável
+    var intervaloAudio = null;
+    var intervaloVerificacao = null;
+    var primeiraVerificacao = true; // Flag para marcar orçamentos existentes como vistos
+    var ultimaConfirmacaoVerificada = null; // Timestamp da última confirmação verificada
+    var intervaloVerificacaoConfirmacao = null; // Intervalo para verificar confirmações
+    var timestampNotificacaoAtual = null; // Timestamp da notificação atual
+    var orcamentosNotificacaoAtual = []; // Orçamentos da notificação atual
+    var projetosPreparacaoVistos = new Set(); // IDs dos projetos em preparação já vistos
+    var primeiraVerificacaoPreparacao = true; // Flag para marcar projetos existentes como vistos
+    var intervaloAudioPreparacao = null; // Intervalo de áudio para notificação de preparação
+    var LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE = 'apresentacao_notificacao_orcamento_pendente';
+
+    var kanbanSlide = document.getElementById('kanbanSlide');
+    var segurancaSlide = document.getElementById('segurancaSlide');
+    var kanbanFrame = document. getElementById('kanbanFrame');
+    var segurancaFrame = document.getElementById('segurancaFrame');
+    var statusText = document.getElementById('statusText');
+    var statusDot = document.getElementById('statusDot');
+    var countdown = document. getElementById('countdown');
+    var toggleControls = document.getElementById('toggleControls');
+    var controls = document.getElementById('controls');
+
+    function getToken() {
+      var urlParams = new URLSearchParams(window.location.search);
+      var urlToken = urlParams. get('token');
+      if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        return urlToken;
+      }
+      return localStorage.getItem('token');
+    }
+
+    var token = getToken();
+
+    var kanbanUrl = token ? pageUrl('kanban', 'token=' + token) : pageUrl('kanban', '');
+    var segurancaUrl = pageUrl('seguranca', '');
+
+    kanbanFrame.src = kanbanUrl;
+    segurancaFrame.src = segurancaUrl;
+
+    function loadSettings() {
+      var saved = localStorage.getItem('apresentacaoConfig');
+      if (saved) {
+        config = JSON.parse(saved);
+        document.getElementById('timeKanban').value = config.timeKanban;
+        document.getElementById('timeSeguranca').value = config.timeSeguranca;
+        document.getElementById('transitionTime').value = config.transitionTime;
+      }
+    }
+
+    function saveSettings() {
+      localStorage.setItem('apresentacaoConfig', JSON.stringify(config));
+    }
+
+    function applySettings() {
+      config.timeKanban = parseInt(document.getElementById('timeKanban').value) || 5;
+      config.timeSeguranca = parseInt(document.getElementById('timeSeguranca').value) || 1;
+      config.transitionTime = parseFloat(document.getElementById('transitionTime'). value) || 1.5;
+      saveSettings();
+      resetCycle();
+      alert('Configurações aplicadas!  O ciclo será reiniciado.');
+    }
+
+    function updateTransitionTime() {
+      var style = document.createElement('style');
+      style.textContent = '. slide-container { transition: opacity ' + config.transitionTime + 's ease-in-out; }';
+      document.head.appendChild(style);
+    }
+
+    function updateStatus(slide, timeLeft) {
+      var minutes = Math.floor(timeLeft / 60);
+      var seconds = Math.floor(timeLeft % 60);
+      countdown.textContent = minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+      
+      if (slide === 'kanban') {
+        statusText.textContent = 'Exibindo: Kanban';
+        statusDot.className = 'status-dot kanban';
+      } else {
+        statusText. textContent = 'Exibindo: Segurança';
+        statusDot. className = 'status-dot seguranca';
+      }
+    }
+
+    function switchSlide() {
+      if (currentSlide === 'kanban') {
+        kanbanSlide.classList.remove('active');
+        kanbanSlide.classList.add('fade-out');
+        
+        setTimeout(function() {
+          segurancaSlide.classList.remove('fade-out');
+          segurancaSlide.classList. add('active');
+          currentSlide = 'seguranca';
+          timeRemaining = config. timeSeguranca * 60;
+          updateStatus('seguranca', timeRemaining);
+          scheduleNextSwitch();
+        }, config.transitionTime * 1000);
+      } else {
+        segurancaSlide.classList.remove('active');
+        segurancaSlide.classList.add('fade-out');
+        
+        setTimeout(function() {
+          kanbanSlide. classList.remove('fade-out');
+          kanbanSlide. classList.add('active');
+          currentSlide = 'kanban';
+          timeRemaining = config. timeKanban * 60;
+          updateStatus('kanban', timeRemaining);
+          scheduleNextSwitch();
+        }, config.transitionTime * 1000);
+      }
+    }
+
+    function scheduleNextSwitch() {
+      if (timer) clearTimeout(timer);
+      if (countdownTimer) clearInterval(countdownTimer);
+      
+      var currentTime = currentSlide === 'kanban' ? config.timeKanban : config.timeSeguranca;
+      timeRemaining = currentTime * 60;
+      
+      countdownTimer = setInterval(function() {
+        timeRemaining--;
+        if (timeRemaining > 0) {
+          updateStatus(currentSlide, timeRemaining);
+        } else {
+          clearInterval(countdownTimer);
+        }
+      }, 1000);
+      
+      timer = setTimeout(function() {
+        switchSlide();
+      }, currentTime * 60 * 1000);
+    }
+
+    function startCycle() {
+      timeRemaining = config. timeKanban * 60;
+      updateStatus('kanban', timeRemaining);
+      scheduleNextSwitch();
+    }
+
+    function resetCycle() {
+      if (timer) clearTimeout(timer);
+      if (countdownTimer) clearInterval(countdownTimer);
+      
+      currentSlide = 'kanban';
+      segurancaSlide.classList.remove('active');
+      segurancaSlide.classList.add('fade-out');
+      kanbanSlide.classList.remove('fade-out');
+      kanbanSlide. classList.add('active');
+      
+      updateTransitionTime();
+      startCycle();
+    }
+
+    function adicionarMensagem() {
+      var texto = document.getElementById('novaMensagemTexto').value. trim();
+      var cor = document.getElementById('novaMensagemCor').value;
+      var tamanho = document. getElementById('novaMensagemTamanho').value;
+
+      if (! texto) {
+        alert('Digite uma mensagem! ');
+        return;
+      }
+
+      google.script.run
+        . withSuccessHandler(function(result) {
+          if (result.success) {
+            document.getElementById('novaMensagemTexto').value = '';
+            carregarMensagens();
+            alert('Mensagem adicionada com sucesso!');
+          } else {
+            alert('Erro ao adicionar mensagem: ' + (result.error || 'Erro desconhecido'));
+          }
+        })
+        .withFailureHandler(function(error) {
+          alert('Erro ao adicionar mensagem: ' + error. message);
+        })
+        .salvarMensagemApresentacao(texto, cor, tamanho);
+    }
+
+    function deletarMensagem(mensagemId) {
+      if (! confirm('Tem certeza que deseja deletar esta mensagem?')) return;
+
+      google.script. run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            carregarMensagens();
+          } else {
+            alert('Erro ao deletar mensagem: ' + (result. error || 'Erro desconhecido'));
+          }
+        })
+        . withFailureHandler(function(error) {
+          alert('Erro ao deletar mensagem: ' + error.message);
+        })
+        .deletarMensagemApresentacao(mensagemId);
+    }
+
+    function carregarMensagens() {
+      google.script.run
+        .withSuccessHandler(function(result) {
+          mensagens = result || [];
+          atualizarListaMensagens();
+          atualizarMensagensDisplay();
+        })
+        .withFailureHandler(function(error) {
+          console.error('Erro ao carregar mensagens:', error);
+        })
+        .getMensagensApresentacao();
+    }
+
+    function atualizarListaMensagens() {
+      var container = document.getElementById('listaMensagens');
+      container.innerHTML = '';
+
+      if (mensagens.length === 0) {
+        container.innerHTML = '<div style="color: rgba(255,255,255,0.5); font-size: 11px; text-align: center; padding: 10px;">Nenhuma mensagem cadastrada</div>';
+        return;
+      }
+
+      for (var i = 0; i < mensagens.length; i++) {
+        var mensagem = mensagens[i];
+        var div = document.createElement('div');
+        div.className = 'mensagem-item';
+        
+        var textoDiv = document.createElement('div');
+        textoDiv.className = 'mensagem-item-texto';
+        textoDiv. style.color = mensagem.cor;
+        textoDiv.textContent = mensagem. texto;
+        
+        var acoesDiv = document. createElement('div');
+        acoesDiv.className = 'mensagem-item-acoes';
+        
+        var btnDeletar = document.createElement('button');
+        btnDeletar. className = 'deletar';
+        btnDeletar.innerHTML = '&#128465;';
+        btnDeletar.title = 'Deletar';
+        btnDeletar.setAttribute('data-id', mensagem.id);
+        btnDeletar.onclick = function() {
+          var id = this.getAttribute('data-id');
+          deletarMensagem(id);
+        };
+        
+        acoesDiv.appendChild(btnDeletar);
+        div.appendChild(textoDiv);
+        div.appendChild(acoesDiv);
+        container.appendChild(div);
+      }
+    }
+
+    function atualizarMensagensDisplay() {
+      var container = document.getElementById('mensagensDisplay');
+      container.innerHTML = '';
+
+      if (mensagens.length === 0) return;
+
+      for (var i = 0; i < mensagens.length; i++) {
+        var mensagem = mensagens[i];
+        var div = document.createElement('div');
+        div.className = 'mensagem-display ' + mensagem.tamanho;
+        div.style.color = mensagem.cor;
+        div.style.borderLeftColor = mensagem. cor;
+        div.textContent = mensagem. texto;
+        container.appendChild(div);
+      }
+    }
+
+    function iniciarSincronizacao() {
+      carregarMensagens();
+      if (syncInterval) clearInterval(syncInterval);
+      syncInterval = setInterval(function() {
+        carregarMensagens();
+      }, 3000);
+    }
+
+    // Função para verificar novos orçamentos em rascunho
+    function verificarNovosOrcamentos() {
+      // Só verifica quando o slide do kanban está ativo
+      if (currentSlide !== 'kanban' || notificacaoAtiva) return;
+
+      // Primeiro tenta via API (mais confiável)
+      verificarNovosOrcamentosViaAPI();
+
+      // Também tenta acessar o iframe diretamente (pode funcionar se mesmo domínio)
+      try {
+        var iframe = document.getElementById('kanbanFrame');
+        if (!iframe || !iframe.contentWindow) return;
+
+        // Tenta acessar o conteúdo do iframe (pode falhar por CORS)
+        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        if (!iframeDoc || !iframeDoc.querySelector) return;
+        
+        // Procura pela coluna de rascunho
+        var colunas = iframeDoc.querySelectorAll('.column');
+        var colunaRascunho = null;
+        
+        for (var i = 0; i < colunas.length; i++) {
+          var titulo = colunas[i].querySelector('.column-title');
+          if (titulo && (titulo.textContent.toLowerCase().includes('rascunho') || 
+                         titulo.textContent.toLowerCase().includes('orçamento'))) {
+            // Verifica se tem cards de rascunho
+            var cards = colunas[i].querySelectorAll('.card.orc-rascunho');
+            if (cards.length > 0) {
+              colunaRascunho = colunas[i];
+              break;
+            }
+          }
+        }
+
+        if (!colunaRascunho) return;
+
+        // Obtém todos os cards de rascunho
+        var cardsRascunho = colunaRascunho.querySelectorAll('.card.orc-rascunho');
+        var novosOrcamentos = [];
+
+        for (var j = 0; j < cardsRascunho.length; j++) {
+          var card = cardsRascunho[j];
+          var cliente = card.dataset.cliente || '';
+          var projeto = card.dataset.projeto || '';
+          var id = cliente + '|' + projeto;
+
+          if (!id || id === '|') continue;
+
+          // Na primeira verificação, marca todos como vistos (não são novos)
+          if (primeiraVerificacao) {
+            orcamentosRascunhoVistos.add(id);
+          } else if (!orcamentosRascunhoVistos.has(id)) {
+            // Se não foi visto antes e não é a primeira verificação, é novo
+            novosOrcamentos.push({
+              id: id,
+              cliente: cliente,
+              projeto: projeto
+            });
+            orcamentosRascunhoVistos.add(id);
+          }
+        }
+
+        // Após a primeira verificação, marca a flag como false
+        if (primeiraVerificacao) {
+          primeiraVerificacao = false;
+        }
+
+        // Se encontrou novos orçamentos, exibe notificação
+        if (novosOrcamentos.length > 0) {
+          exibirNotificacaoNovoOrcamento(novosOrcamentos);
+        }
+      } catch (e) {
+        // Ignora erros de CORS - já tentamos via API
+      }
+    }
+
+    // Método alternativo: verificar via API se o iframe não for acessível
+    function verificarNovosOrcamentosViaAPI() {
+      if (notificacaoAtiva) return;
+
+      // Tenta fazer uma requisição para obter dados do kanban
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            if (!data || notificacaoAtiva) return;
+
+            // Procura pela coluna de rascunho nos dados
+            // Verifica todas as colunas que podem conter rascunhos
+            var colunaRascunho = null;
+            var colunaOrcamento = null;
+            
+            for (var status in data) {
+              var statusLower = status.toLowerCase();
+              if (statusLower.includes('rascunho')) {
+                colunaRascunho = data[status];
+              } else if (statusLower.includes('orçamento') || statusLower.includes('orcamento')) {
+                colunaOrcamento = data[status];
+              }
+            }
+
+            // Usa a coluna de rascunho se encontrada, senão usa a de orçamento
+            var colunaParaVerificar = colunaRascunho || colunaOrcamento;
+            if (!colunaParaVerificar || !Array.isArray(colunaParaVerificar)) return;
+
+            // Verifica novos orçamentos
+            var novosOrcamentos = [];
+            for (var i = 0; i < colunaParaVerificar.length; i++) {
+              var orcamento = colunaParaVerificar[i];
+              var cliente = orcamento.cliente || '';
+              var projeto = orcamento.projeto || '';
+              var id = cliente + '|' + projeto;
+
+              if (!id || id === '|') continue; // Ignora orçamentos sem identificação
+
+              // Verifica se é rascunho
+              var statusOrc = orcamento.statusOrcamento || orcamento.status || '';
+              var statusLower = statusOrc.toString().toLowerCase();
+              
+              // Considera rascunho se:
+              // 1. Está na coluna de rascunho, OU
+              // 2. O status contém "rascunho", OU
+              // 3. Está na coluna de orçamento e não tem status definido (assumimos que é rascunho)
+              var isRascunho = colunaRascunho !== null || 
+                               statusLower.includes('rascunho') ||
+                               (colunaOrcamento !== null && !statusOrc);
+
+              if (isRascunho) {
+                // Na primeira verificação, marca todos como vistos (não são novos)
+                if (primeiraVerificacao) {
+                  orcamentosRascunhoVistos.add(id);
+                } else if (!orcamentosRascunhoVistos.has(id)) {
+                  // Se não foi visto antes e não é a primeira verificação, é novo
+                  novosOrcamentos.push({
+                    id: id,
+                    cliente: cliente,
+                    projeto: projeto
+                  });
+                  orcamentosRascunhoVistos.add(id);
+                }
+              }
+            }
+
+            // Após a primeira verificação, marca a flag como false
+            if (primeiraVerificacao) {
+              primeiraVerificacao = false;
+            }
+
+            if (novosOrcamentos.length > 0) {
+              exibirNotificacaoNovoOrcamento(novosOrcamentos);
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Silenciosamente ignora erros - pode não ter acesso à API
+            console.log('Não foi possível verificar orçamentos via API');
+          })
+          .getKanbanData();
+      } else {
+        // Se não tem google.script, tenta fazer requisição HTTP direta
+        try {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', WEBAPP_URL + '?page=kanban' + (token ? '&token=' + token : ''), true);
+          xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+              // Se retornar HTML, não podemos processar facilmente
+              // Neste caso, confiamos apenas no método do iframe
+            }
+          };
+          xhr.send();
+        } catch (e) {
+          // Ignora erros
+        }
+      }
+    }
+
+    // Função para exibir a notificação
+    function exibirNotificacaoNovoOrcamento(novosOrcamentos) {
+      if (notificacaoAtiva) {
+        // Se já há notificação ativa, adiciona os novos orçamentos à lista
+        orcamentosNotificacaoAtual = orcamentosNotificacaoAtual.concat(novosOrcamentos);
+        atualizarMensagemNotificacao();
+        salvarNotificacaoPendenteLocalStorage();
+        return;
+      }
+
+      var novoTimestamp = new Date().getTime();
+      notificacaoAtiva = true;
+      timestampNotificacaoAtual = novoTimestamp;
+      ultimaConfirmacaoVerificada = null; // Reseta a confirmação anterior para nova notificação
+      orcamentosNotificacaoAtual = novosOrcamentos;
+      
+      // Salva no servidor que há notificações pendentes
+      salvarOrcamentosPendentesNoServidor(novosOrcamentos);
+      
+      atualizarMensagemNotificacao();
+      
+      var notificacao = document.getElementById('notificacaoNovoOrcamento');
+      notificacao.classList.add('ativo');
+
+      // Persiste no localStorage para reaparecer ao reabrir a página até o usuário pressionar OK
+      salvarNotificacaoPendenteLocalStorage();
+
+      // Inicia o som de notificação
+      iniciarSomNotificacao();
+      
+      // Verifica imediatamente se há confirmação pendente (para ignorar confirmações antigas)
+      setTimeout(function() {
+        verificarEIgnorarConfirmacoesAntigas(novoTimestamp);
+      }, 500);
+    }
+
+    function salvarNotificacaoPendenteLocalStorage() {
+      try {
+        var payload = {
+          timestamp: timestampNotificacaoAtual,
+          orcamentos: orcamentosNotificacaoAtual
+        };
+        localStorage.setItem(LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE, JSON.stringify(payload));
+      } catch (e) {
+        console.log('Erro ao salvar notificação no localStorage:', e);
+      }
+    }
+
+    function limparNotificacaoPendenteLocalStorage() {
+      try {
+        localStorage.removeItem(LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE);
+      } catch (e) {
+        console.log('Erro ao limpar notificação do localStorage:', e);
+      }
+    }
+
+    // Restaura notificação pendente do localStorage ao carregar a página (mantém até OK)
+    function restaurarNotificacaoPendenteLocalStorage() {
+      if (notificacaoAtiva) return;
+      try {
+        var raw = localStorage.getItem(LOCALSTORAGE_KEY_ORCAMENTO_PENDENTE);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        if (!data || !data.orcamentos || data.orcamentos.length === 0) {
+          limparNotificacaoPendenteLocalStorage();
+          return;
+        }
+        notificacaoAtiva = true;
+        timestampNotificacaoAtual = data.timestamp || new Date().getTime();
+        orcamentosNotificacaoAtual = data.orcamentos;
+        atualizarMensagemNotificacao();
+        var notificacao = document.getElementById('notificacaoNovoOrcamento');
+        if (notificacao) notificacao.classList.add('ativo');
+        iniciarSomNotificacao();
+      } catch (e) {
+        console.log('Erro ao restaurar notificação do localStorage:', e);
+        limparNotificacaoPendenteLocalStorage();
+      }
+    }
+    
+    // Verifica e ignora confirmações antigas (anteriores ao timestamp da notificação)
+    function verificarEIgnorarConfirmacoesAntigas(timestampNotificacao) {
+      if (!notificacaoAtiva || timestampNotificacaoAtual !== timestampNotificacao) return;
+      
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (!notificacaoAtiva || timestampNotificacaoAtual !== timestampNotificacao) return;
+            
+            if (result && result.confirmado && result.timestamp) {
+              var timestampConfirmacao = result.timestamp;
+              
+              // Se a confirmação é anterior ou igual ao timestamp da notificação, ignora
+              // Isso evita que confirmações antigas fechem notificações novas
+              if (timestampConfirmacao <= timestampNotificacao) {
+                // Confirmação antiga - atualiza ultimaConfirmacaoVerificada para ignorá-la
+                ultimaConfirmacaoVerificada = timestampConfirmacao;
+              }
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Silenciosamente ignora erros
+          })
+          .verificarConfirmacaoNotificacaoOrcamento();
+      }
+    }
+
+    // Atualiza a mensagem da notificação com os orçamentos atuais
+    function atualizarMensagemNotificacao() {
+      var notificacao = document.getElementById('notificacaoNovoOrcamento');
+      var conteudo = notificacao ? notificacao.querySelector('#notificacaoOrcamentoMensagem') : null;
+      if (!conteudo) return;
+
+      if (orcamentosNotificacaoAtual.length === 1) {
+        conteudo.innerHTML = 'CLIENTE: ' + (orcamentosNotificacaoAtual[0].cliente || '-') + '<br>' +
+                            'PROJ: ' + (orcamentosNotificacaoAtual[0].projeto || '-') + '<br>' +
+                            '<em>*Confirme pressionando OK para remover a notificação</em>';
+      } else {
+        var linhas = [];
+        for (var i = 0; i < orcamentosNotificacaoAtual.length; i++) {
+          linhas.push('CLIENTE: ' + (orcamentosNotificacaoAtual[i].cliente || '-') + ' | PROJ: ' + (orcamentosNotificacaoAtual[i].projeto || '-'));
+        }
+        conteudo.innerHTML = linhas.join('<br>') + '<br><em>*Confirme pressionando OK para remover a notificação</em>';
+      }
+    }
+
+    // Salva orçamentos pendentes no servidor
+    function salvarOrcamentosPendentesNoServidor(orcamentos) {
+      if (window.google && google.script && google.script.run) {
+        var ids = orcamentos.map(function(o) { return o.id; });
+        google.script.run
+          .withSuccessHandler(function(result) {
+            // Silenciosamente salva
+          })
+          .withFailureHandler(function(error) {
+            console.log('Erro ao salvar orçamentos pendentes:', error);
+          })
+          .salvarOrcamentosPendentesNotificacao(ids);
+      }
+    }
+
+    // Função para gerar e tocar som de notificação
+    function tocarSomNotificacao() {
+      if (!notificacaoAtiva) return; // Não toca se a notificação não está ativa
+      
+      try {
+        // Cria ou reutiliza o contexto de áudio
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // Se o contexto estiver suspenso, resume
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        var currentTime = audioContext.currentTime;
+        var oscillator = audioContext.createOscillator();
+        var gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // Configura um som de alerta (duas notas)
+        oscillator.frequency.setValueAtTime(800, currentTime);
+        oscillator.frequency.setValueAtTime(1000, currentTime + 0.1);
+        oscillator.type = 'sine';
+
+        gainNode.gain.setValueAtTime(0.3, currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.3);
+
+        oscillator.start(currentTime);
+        oscillator.stop(currentTime + 0.3);
+
+        // Toca uma segunda nota após um pequeno delay
+        setTimeout(function() {
+          if (!notificacaoAtiva) return; // Verifica novamente antes de tocar segunda nota
+          
+          try {
+            var oscillator2 = audioContext.createOscillator();
+            var gainNode2 = audioContext.createGain();
+
+            oscillator2.connect(gainNode2);
+            gainNode2.connect(audioContext.destination);
+
+            var currentTime2 = audioContext.currentTime;
+            oscillator2.frequency.setValueAtTime(1000, currentTime2);
+            oscillator2.frequency.setValueAtTime(1200, currentTime2 + 0.1);
+            oscillator2.type = 'sine';
+
+            gainNode2.gain.setValueAtTime(0.3, currentTime2);
+            gainNode2.gain.exponentialRampToValueAtTime(0.01, currentTime2 + 0.3);
+
+            oscillator2.start(currentTime2);
+            oscillator2.stop(currentTime2 + 0.3);
+          } catch (e) {
+            console.log('Erro ao tocar segunda nota:', e);
+          }
+        }, 150);
+      } catch (e) {
+        console.log('Erro ao criar áudio:', e);
+        // Fallback: usa beep do sistema
+        try {
+          var audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OSdTQ8OUKjk8LZjHAY4kdfyzHksBSR3x/Dej0AKFF606euoVRQKRp/g8r5sIQUrgc7y2Yk2CBtpvfDknU0PDlCo5PC2YxwGOJHX8sx5LAUkd8fw3o9AChRetOnrqFUU');
+          audio.volume = 0.5;
+          audio.play().catch(function(err) {
+            console.log('Erro ao tocar áudio fallback:', err);
+          });
+        } catch (e2) {
+          console.log('Erro no fallback de áudio:', e2);
+        }
+      }
+    }
+
+    // Função para tocar o som ao aparecer e repetir a cada 5 minutos até o usuário pressionar OK
+    var INTERVALO_SOM_NOTIFICACAO_MS = 5 * 60 * 1000; // 5 minutos
+
+    function iniciarSomNotificacao() {
+      // Para qualquer intervalo anterior
+      pararSomNotificacao();
+      
+      // Toca o som imediatamente quando a notificação aparece
+      tocarSomNotificacao();
+
+      // Repete o som a cada 5 minutos enquanto a notificação estiver ativa
+      intervaloAudio = setInterval(function() {
+        if (notificacaoAtiva) {
+          tocarSomNotificacao();
+        } else {
+          pararSomNotificacao();
+        }
+      }, INTERVALO_SOM_NOTIFICACAO_MS);
+    }
+
+    // Função para parar o som de notificação de orçamento
+    function pararSomNotificacao() {
+      if (intervaloAudio) {
+        clearInterval(intervaloAudio);
+        intervaloAudio = null;
+      }
+    }
+
+    // Função para confirmar a visualização
+    function confirmarVisualizacao() {
+      // Salva a confirmação no servidor para sincronizar com outras instâncias
+      var timestamp = new Date().getTime();
+      
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result && result.success) {
+              // Confirmação salva com sucesso
+              fecharNotificacaoLocal();
+            } else {
+              // Se falhar, fecha localmente mesmo assim
+              fecharNotificacaoLocal();
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Se falhar, fecha localmente mesmo assim
+            console.log('Erro ao salvar confirmação:', error);
+            fecharNotificacaoLocal();
+          })
+          .confirmarNotificacaoOrcamento(timestamp);
+      } else {
+        // Se não tem acesso ao Google Apps Script, fecha localmente
+        fecharNotificacaoLocal();
+      }
+    }
+
+    // Função para fechar a notificação localmente
+    function fecharNotificacaoLocal() {
+      // Só fecha se realmente estiver ativa
+      if (!notificacaoAtiva) return;
+      
+      notificacaoAtiva = false;
+      var timestampFechamento = new Date().getTime();
+      timestampNotificacaoAtual = null;
+      orcamentosNotificacaoAtual = [];
+      var notificacao = document.getElementById('notificacaoNovoOrcamento');
+      if (notificacao) notificacao.classList.remove('ativo');
+      pararSomNotificacao();
+      ultimaConfirmacaoVerificada = timestampFechamento;
+      limparNotificacaoPendenteLocalStorage();
+    }
+
+    // Função para verificar se houve confirmação de outra instância
+    function verificarConfirmacaoRemota() {
+      if (!notificacaoAtiva) return; // Só verifica se há notificação ativa
+      
+      // Garante que temos um timestamp válido
+      if (!timestampNotificacaoAtual) {
+        // Se por algum motivo não temos timestamp, cria um agora
+        timestampNotificacaoAtual = new Date().getTime();
+      }
+
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            // Verifica novamente se ainda está ativa (pode ter sido fechada durante a requisição)
+            if (!notificacaoAtiva || !timestampNotificacaoAtual) return;
+            
+            if (result && result.confirmado && result.timestamp) {
+              var timestampConfirmacao = result.timestamp;
+              
+              // Só fecha se a confirmação for MAIS RECENTE (não igual) que o timestamp da notificação atual
+              // Isso garante que só fecha quando realmente houve uma confirmação APÓS a notificação aparecer
+              // Usa > ao invés de >= para evitar fechar por confirmações simultâneas
+              if (timestampConfirmacao > timestampNotificacaoAtual) {
+                // Confirmação é mais recente que a notificação - fecha
+                fecharNotificacaoLocal();
+              }
+              // Não fecha em nenhum outro caso
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Silenciosamente ignora erros
+          })
+          .verificarConfirmacaoNotificacaoOrcamento();
+      }
+    }
+
+    // Função para verificar se há notificações pendentes ao carregar a página
+    function verificarNotificacoesPendentes() {
+      if (notificacaoAtiva) return; // Se já há notificação ativa, não verifica
+
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result && result.pendente && result.orcamentos && result.orcamentos.length > 0) {
+              // Há notificações pendentes - verifica se ainda há orçamentos em rascunho
+              verificarOrcamentosPendentesEExibir(result.orcamentos, result.timestamp);
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Silenciosamente ignora erros
+          })
+          .verificarOrcamentosPendentesNotificacao();
+      }
+    }
+
+    // Verifica se os orçamentos pendentes ainda existem e exibe notificação
+    function verificarOrcamentosPendentesEExibir(idsPendentes, timestampPendente) {
+      // Verifica se há confirmação mais recente
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(resultConfirmacao) {
+            if (resultConfirmacao && resultConfirmacao.confirmado && resultConfirmacao.timestamp) {
+              // Se há confirmação mais recente que a notificação pendente, não exibe
+              if (resultConfirmacao.timestamp >= timestampPendente) {
+                return;
+              }
+            }
+            
+            // Busca os dados do kanban para obter informações dos orçamentos
+            google.script.run
+              .withSuccessHandler(function(dataKanban) {
+                if (!dataKanban) return;
+                
+                // Procura pelos orçamentos pendentes nos dados
+                var orcamentosEncontrados = [];
+                var idsSet = new Set(idsPendentes);
+                
+                for (var status in dataKanban) {
+                  var coluna = dataKanban[status];
+                  if (!Array.isArray(coluna)) continue;
+                  
+                  for (var i = 0; i < coluna.length; i++) {
+                    var orcamento = coluna[i];
+                    var cliente = orcamento.cliente || '';
+                    var projeto = orcamento.projeto || '';
+                    var id = cliente + '|' + projeto;
+                    
+                    if (idsSet.has(id)) {
+                      var statusOrc = orcamento.statusOrcamento || orcamento.status || '';
+                      var statusLower = statusOrc.toString().toLowerCase();
+                      
+                      // Verifica se ainda é rascunho
+                      var isRascunho = status.toLowerCase().includes('rascunho') || 
+                                      status.toLowerCase().includes('orçamento') ||
+                                      statusLower.includes('rascunho');
+                      
+                      if (isRascunho) {
+                        orcamentosEncontrados.push({
+                          id: id,
+                          cliente: cliente,
+                          projeto: projeto
+                        });
+                        orcamentosRascunhoVistos.add(id);
+                      }
+                    }
+                  }
+                }
+                
+                // Se encontrou orçamentos ainda em rascunho, exibe notificação
+                if (orcamentosEncontrados.length > 0) {
+                  // Usa timestamp atual, não o pendente, para evitar fechamento por confirmações antigas
+                  exibirNotificacaoNovoOrcamento(orcamentosEncontrados);
+                }
+              })
+              .withFailureHandler(function(error) {
+                // Silenciosamente ignora
+              })
+              .getKanbanData();
+          })
+          .withFailureHandler(function(error) {
+            // Silenciosamente ignora
+          })
+          .verificarConfirmacaoNotificacaoOrcamento();
+      }
+    }
+
+    // Função para verificar novos projetos em preparação
+    function verificarNovosProjetosPreparacao() {
+      // Só verifica quando o slide do kanban está ativo
+      if (currentSlide !== 'kanban') return;
+
+      // Tenta verificar via API
+      if (window.google && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(data) {
+            if (!data) return;
+
+            // Procura pela coluna de preparação
+            var colunaPreparacao = null;
+            for (var status in data) {
+              var statusLower = status.toLowerCase();
+              if (statusLower.includes('preparação') || statusLower.includes('preparacao')) {
+                colunaPreparacao = data[status];
+                break;
+              }
+            }
+
+            if (!colunaPreparacao || !Array.isArray(colunaPreparacao)) return;
+
+            // Verifica novos projetos
+            var novosProjetos = [];
+            for (var i = 0; i < colunaPreparacao.length; i++) {
+              var projeto = colunaPreparacao[i];
+              var cliente = projeto.cliente || '';
+              var projetoNome = projeto.projeto || '';
+              var id = cliente + '|' + projetoNome;
+
+              if (!id || id === '|') continue;
+
+              // Na primeira verificação, marca todos como vistos
+              if (primeiraVerificacaoPreparacao) {
+                projetosPreparacaoVistos.add(id);
+              } else if (!projetosPreparacaoVistos.has(id)) {
+                // Se não foi visto antes e não é a primeira verificação, é novo
+                novosProjetos.push({
+                  id: id,
+                  cliente: cliente,
+                  projeto: projetoNome
+                });
+                projetosPreparacaoVistos.add(id);
+              }
+            }
+
+            // Após a primeira verificação, marca a flag como false
+            if (primeiraVerificacaoPreparacao) {
+              primeiraVerificacaoPreparacao = false;
+            }
+
+            // Se encontrou novos projetos, exibe notificação breve
+            if (novosProjetos.length > 0) {
+              exibirNotificacaoPreparacao(novosProjetos);
+            }
+          })
+          .withFailureHandler(function(error) {
+            // Silenciosamente ignora erros
+          })
+          .getKanbanData();
+      }
+    }
+
+    // Função para exibir notificação breve de preparação
+    function exibirNotificacaoPreparacao(novosProjetos) {
+      console.log('Exibindo notificação de preparação para', novosProjetos.length, 'projetos'); // Debug
+      var notificacao = document.getElementById('notificacaoPreparacao');
+      var mensagem = document.getElementById('mensagemPreparacao');
+      
+      if (!notificacao || !mensagem) {
+        console.error('Elementos de notificação de preparação não encontrados');
+        return;
+      }
+      
+      if (novosProjetos.length === 1) {
+        mensagem.textContent = 'Cliente: ' + novosProjetos[0].cliente + ' - Projeto: ' + novosProjetos[0].projeto;
+      } else {
+        mensagem.textContent = novosProjetos.length + ' novos projetos entraram em preparação';
+      }
+      
+      // Mostra a notificação
+      notificacao.style.display = 'block';
+      
+      // Inicia o som por 10 segundos (sempre toca, mesmo se houver notificação de orçamento)
+      console.log('Iniciando som de preparação'); // Debug
+      iniciarSomPreparacao();
+      
+      // Remove a notificação após 5 segundos (visual)
+      setTimeout(function() {
+        notificacao.style.display = 'none';
+      }, 5000);
+    }
+
+    // Função específica para tocar som de preparação (mais alto e claro)
+    function tocarSomPreparacao() {
+      console.log('Tocando som de preparação'); // Debug
+      try {
+        // Cria ou reutiliza o contexto de áudio
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // Se o contexto estiver suspenso, resume
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        var currentTime = audioContext.currentTime;
+        
+        // Primeira nota - mais alta e clara (frequência mais alta)
+        var oscillator1 = audioContext.createOscillator();
+        var gainNode1 = audioContext.createGain();
+        oscillator1.connect(gainNode1);
+        gainNode1.connect(audioContext.destination);
+        
+        // Frequências mais altas e distintas
+        oscillator1.frequency.setValueAtTime(1200, currentTime);
+        oscillator1.frequency.setValueAtTime(1500, currentTime + 0.2);
+        oscillator1.type = 'triangle'; // Tipo square é mais chamativo que sine
+        
+        // Volume bem mais alto (0.7 ao invés de 0.3)
+        gainNode1.gain.setValueAtTime(0.7, currentTime);
+        gainNode1.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.5);
+        
+        oscillator1.start(currentTime);
+        oscillator1.stop(currentTime + 0.5);
+        
+        // Segunda nota após delay curto
+        setTimeout(function() {
+          try {
+            var oscillator2 = audioContext.createOscillator();
+            var gainNode2 = audioContext.createGain();
+            oscillator2.connect(gainNode2);
+            gainNode2.connect(audioContext.destination);
+            
+            var currentTime2 = audioContext.currentTime;
+            oscillator2.frequency.setValueAtTime(1500, currentTime2);
+            oscillator2.frequency.setValueAtTime(1800, currentTime2 + 0.2);
+            oscillator2.type = 'triangle';
+            
+            gainNode2.gain.setValueAtTime(0.7, currentTime2);
+            gainNode2.gain.exponentialRampToValueAtTime(0.01, currentTime2 + 0.5);
+            
+            oscillator2.start(currentTime2);
+            oscillator2.stop(currentTime2 + 0.5);
+          } catch (e) {
+            console.log('Erro ao tocar segunda nota de preparação:', e);
+          }
+        }, 250);
+        
+        // Terceira nota para tornar mais distintivo
+        setTimeout(function() {
+          try {
+            var oscillator3 = audioContext.createOscillator();
+            var gainNode3 = audioContext.createGain();
+            oscillator3.connect(gainNode3);
+            gainNode3.connect(audioContext.destination);
+            
+            var currentTime3 = audioContext.currentTime;
+            oscillator3.frequency.setValueAtTime(1800, currentTime3);
+            oscillator3.frequency.setValueAtTime(2000, currentTime3 + 0.2);
+            oscillator3.type = 'triangle';
+            
+            gainNode3.gain.setValueAtTime(0.7, currentTime3);
+            gainNode3.gain.exponentialRampToValueAtTime(0.01, currentTime3 + 0.5);
+            
+            oscillator3.start(currentTime3);
+            oscillator3.stop(currentTime3 + 0.5);
+          } catch (e) {
+            console.log('Erro ao tocar terceira nota de preparação:', e);
+          }
+        }, 500);
+      } catch (e) {
+        console.log('Erro ao criar áudio de preparação:', e);
+        // Fallback: usa beep do sistema mais alto
+        try {
+          var audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OSdTQ8OUKjk8LZjHAY4kdfyzHksBSR3x/Dej0AKFF606euoVRQKRp/g8r5sIQUrgc7y2Yk2CBtpvfDknU0PDlCo5PC2YxwGOJHX8sx5LAUkd8fw3o9AChRetOnrqFUU');
+          audio.volume = 0.9; // Volume bem mais alto no fallback
+          audio.play().catch(function(err) {
+            console.log('Erro ao tocar áudio fallback de preparação:', err);
+          });
+        } catch (e2) {
+          console.log('Erro no fallback de áudio de preparação:', e2);
+        }
+      }
+    }
+
+    // Função para tocar som de preparação (limitado a 10 segundos)
+    function iniciarSomPreparacao() {
+      // Para qualquer intervalo anterior
+      pararSomPreparacao();
+      
+      // Toca o som imediatamente (sempre toca, mesmo se houver notificação de orçamento)
+      tocarSomPreparacao();
+
+      var tempoInicio = Date.now();
+      var duracaoMaxima = 10000; // 10 segundos em milissegundos
+
+      // Configura para tocar a cada 2.5 segundos (mais frequente), mas apenas por 10 segundos
+      intervaloAudioPreparacao = setInterval(function() {
+        var tempoDecorrido = Date.now() - tempoInicio;
+        
+        if (tempoDecorrido >= duracaoMaxima) {
+          // Para o som após 10 segundos
+          pararSomPreparacao();
+          return;
+        }
+        
+        // Toca o som sempre (não verifica notificação de orçamento)
+        tocarSomPreparacao();
+      }, 2500); // A cada 2.5 segundos para ser mais frequente e chamativo
+    }
+
+    // Função para parar o som de preparação
+    function pararSomPreparacao() {
+      if (intervaloAudioPreparacao) {
+        clearInterval(intervaloAudioPreparacao);
+        intervaloAudioPreparacao = null;
+      }
+    }
+
+    // Inicia a verificação periódica de novos orçamentos
+    function iniciarVerificacaoOrcamentos() {
+      // Verifica a cada 5 segundos
+      if (intervaloVerificacao) clearInterval(intervaloVerificacao);
+      intervaloVerificacao = setInterval(function() {
+        verificarNovosOrcamentos();
+        verificarNovosProjetosPreparacao(); // Também verifica preparação
+      }, 5000);
+
+      // Primeira verificação após 2 segundos
+      setTimeout(function() {
+        verificarNovosOrcamentos();
+        verificarNovosProjetosPreparacao();
+      }, 2000);
+    }
+
+    // Inicia a verificação periódica de confirmações remotas
+    function iniciarVerificacaoConfirmacao() {
+      // Verifica a cada 2 segundos se há confirmação de outra instância
+      if (intervaloVerificacaoConfirmacao) clearInterval(intervaloVerificacaoConfirmacao);
+      intervaloVerificacaoConfirmacao = setInterval(function() {
+        verificarConfirmacaoRemota();
+      }, 2000);
+    }
+
+    toggleControls. addEventListener('click', function() {
+      controls.classList.toggle('visible');
+    });
+
+    document.getElementById('btnApplySettings').addEventListener('click', function() {
+      applySettings();
+    });
+
+    document.getElementById('btnAdicionarMensagem').addEventListener('click', function() {
+      adicionarMensagem();
+    });
+
+    document.getElementById('novaMensagemTexto').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        adicionarMensagem();
+      }
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e. key === 'Escape') {
+        controls.classList.toggle('visible');
+      } else if (e. key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        if (timer) clearTimeout(timer);
+        switchSlide();
+      }
+    });
+
+    var presentationModeTimer = setTimeout(function() {
+      document.body.classList.add('presentation-mode');
+    }, 3000);
+
+    document.addEventListener('mousemove', function() {
+      clearTimeout(presentationModeTimer);
+      document.body.classList. remove('presentation-mode');
+      presentationModeTimer = setTimeout(function() {
+        document.body.classList.add('presentation-mode');
+      }, 3000);
+    });
+
+    setInterval(function() {
+      if (currentSlide === 'kanban') {
+        kanbanFrame.src = kanbanFrame.src;
+      } else {
+        segurancaFrame.src = segurancaFrame.src;
+      }
+    }, 300000);
+
+    // Configura o botão de confirmação
+    document.getElementById('btnConfirmarNotificacao').addEventListener('click', function() {
+      confirmarVisualizacao();
+    });
+
+    // Permite fechar com ESC também
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && notificacaoAtiva) {
+        confirmarVisualizacao();
+      }
+    });
+
+    loadSettings();
+    updateTransitionTime();
+    startCycle();
+    iniciarSincronizacao();
+    iniciarVerificacaoOrcamentos();
+    iniciarVerificacaoConfirmacao();
+    
+    // Ao carregar a página: restaura notificação pendente do localStorage primeiro (prioridade)
+    // Assim a mensagem continua até o usuário pressionar OK, mesmo fechando/abrindo várias vezes
+    setTimeout(function() {
+      restaurarNotificacaoPendenteLocalStorage();
+      verificarNotificacoesPendentes();
+    }, 1500); // Verificação após 1.5s para garantir que o DOM está pronto
+  </script>
+</body>
+
+</html>

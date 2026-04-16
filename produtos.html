@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relação de Produtos - TUBA</title>
+    <link rel="icon" href="https://i.imgur.com/C0dSTyE.png" type="image/png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 98%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FF9933 0%, #FF7700 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 12px 40px 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #FF9933;
+            box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 1.2em;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #FF9933;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #FF7700;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .stats {
+            padding: 15px 30px;
+            background: #fff3e0;
+            border-bottom: 2px solid #ffe0b2;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            color: #FF9933;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+
+        .table-container {
+            padding: 30px;
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: calc(100vh - 400px);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+            table-layout: auto;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #FF9933 0%, #FF7700 100%);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            white-space: nowrap;
+            font-size: 0.9em;
+            min-width: 80px;
+        }
+
+        th:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        th.sortable::after {
+            content: ' ⇅';
+            opacity: 0. 5;
+            font-size: 0.8em;
+        }
+
+        th.sort-asc::after {
+            content: ' ▲';
+            opacity: 1;
+        }
+
+        th.sort-desc::after {
+            content: ' ▼';
+            opacity: 1;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #e9ecef;
+            transition: all 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #fff3e0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        td {
+            padding: 10px 8px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+            font-size: 0.9em;
+        }
+
+        /* Adiciona tooltip ao passar o mouse em células com conteúdo longo */
+        td:hover {
+            overflow: visible;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .no-results-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            color: #FF9933;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #FF9933;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .back-button {
+            position: absolute;
+            left: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .back-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Scrollbar personalizada */
+        .table-container::-webkit-scrollbar {
+            height: 12px;
+            width: 12px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background: #FF9933;
+            border-radius: 10px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb:hover {
+            background: #FF7700;
+        }
+
+        /* Responsivo para telas médias */
+        @media (max-width: 1400px) {
+            .container {
+                max-width: 95%;
+            }
+
+            table {
+                font-size: 0.8em;
+            }
+
+            th,
+            td {
+                padding: 8px 6px;
+                font-size: 0.85em;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                max-width: 100%;
+                border-radius: 10px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .header .subtitle {
+                font-size: 0.9em;
+            }
+
+            .controls {
+                flex-direction: column;
+                padding: 15px;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+                padding: 15px;
+            }
+
+            .table-container {
+                padding: 15px;
+                max-height: calc(100vh - 450px);
+            }
+
+            table {
+                font-size: 0.75em;
+            }
+
+            th,
+            td {
+                padding: 6px 4px;
+                font-size: 0.8em;
+                min-width: 60px;
+            }
+
+            .back-button {
+                position: static;
+                transform: none;
+                margin-bottom: 15px;
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Para telas muito pequenas */
+        @media (max-width: 480px) {
+
+            th,
+            td {
+                padding: 4px 2px;
+                font-size: 0.7em;
+                min-width: 50px;
+            }
+
+            .header h1 {
+                font-size: 1.2em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <button class="back-button" onclick="voltarDashboard()">← Voltar</button>
+            <h1>📦 Relação de Produtos</h1>
+            <div class="subtitle">Gerenciamento e controle de produtos</div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar em todos os campos... ">
+                <span class="search-icon">🔍</span>
+            </div>
+            <button class="btn btn-primary" onclick="exportarExcel()">
+                📊 Exportar Excel
+            </button>
+            <button class="btn btn-secondary" onclick="limparFiltros()">
+                🔄 Limpar Filtros
+            </button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total de produtos:</span>
+                <span class="stat-value" id="totalProdutos">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Exibindo:</span>
+                <span class="stat-value" id="produtosVisiveis">0</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <div id="loadingIndicator" class="loading">
+                <div class="loading-spinner"></div>
+                <p>Carregando produtos...</p>
+            </div>
+            <div id="tableContent" style="display: none;">
+                <table id="produtosTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <div id="noResults" class="no-results" style="display: none;">
+                    <div class="no-results-icon">🔍</div>
+                    <h3>Nenhum produto encontrado</h3>
+                    <p>Tente ajustar os filtros de busca</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Dados já serializados e seguros, injetados como string pelo servidor
+    let headers      = JSON.parse('<?!= headersJson ?>');
+    let produtosData = JSON.parse('<?!= dadosJson ?>');
+    const token      = <?!= JSON.stringify(token) ?>;
+    var baseUrl      = <?!= JSON.stringify(typeof baseUrl !== 'undefined' ? baseUrl : null) ?>;
+
+    let sortColumn    = null;
+    let sortDirection = 'asc';
+
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+
+    function pageUrl(page, qs) {
+        if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+        return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
+    }
+    function voltarDashboard() {
+        window.location.href = pageUrl('dashboard', 'token=' + token);
+    }
+
+    window.onload = function () {
+        renderizarTabela();
+        atualizarEstatisticas();
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('tableContent').style.display    = 'block';
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const el = document.getElementById('searchInput');
+        if (el) el.addEventListener('input', renderizarTabela);
+    });
+
+    function renderizarTabela() {
+        const thead = document.getElementById('tableHead');
+        const tbody = document.getElementById('tableBody');
+
+        let headerHtml = '<tr>';
+        headers.forEach(function(header, index) {
+            if (header !== '_linhaPlanilha') {
+                const sortClass = sortColumn === index ? 'sort-' + sortDirection : '';
+                headerHtml += '<th class="sortable ' + sortClass + '" onclick="ordenarPor(' + index + ')">' + header + '</th>';
+            }
+        });
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+
+        const filtro = document.getElementById('searchInput').value.toLowerCase();
+        let bodyHtml = '';
+        let count = 0;
+
+        produtosData.forEach(function(produto) {
+            const matches = Object.values(produto).some(function(val) {
+                return String(val).toLowerCase().includes(filtro);
+            });
+            if (matches) {
+                count++;
+                bodyHtml += '<tr>';
+                headers.forEach(function(header) {
+                    if (header !== '_linhaPlanilha') {
+                        bodyHtml += '<td>' + (produto[header] || '') + '</td>';
+                    }
+                });
+                bodyHtml += '</tr>';
+            }
+        });
+
+        tbody.innerHTML = bodyHtml;
+        document.getElementById('noResults').style.display      = count === 0 ? 'block' : 'none';
+        document.getElementById('produtosVisiveis').textContent = count;
+    }
+
+    function ordenarPor(columnIndex) {
+        const columnName = headers[columnIndex];
+        if (sortColumn === columnIndex) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortColumn    = columnIndex;
+            sortDirection = 'asc';
+        }
+        produtosData.sort(function(a, b) {
+            let valA = a[columnName] || '';
+            let valB = b[columnName] || '';
+            const numA = parseFloat(String(valA).replace(/[^\d,.-]/g, '').replace(',', '.'));
+            const numB = parseFloat(String(valB).replace(/[^\d,.-]/g, '').replace(',', '.'));
+            if (!isNaN(numA) && !isNaN(numB)) return sortDirection === 'asc' ? numA - numB : numB - numA;
+            const compare = String(valA).localeCompare(String(valB));
+            return sortDirection === 'asc' ? compare : -compare;
+        });
+        renderizarTabela();
+    }
+
+    function atualizarEstatisticas() {
+        document.getElementById('totalProdutos').textContent    = produtosData.length;
+        document.getElementById('produtosVisiveis').textContent = produtosData.length;
+    }
+
+    function limparFiltros() {
+        document.getElementById('searchInput').value = '';
+        sortColumn    = null;
+        sortDirection = 'asc';
+        renderizarTabela();
+    }
+
+    function exportarExcel() {
+        const filtro = document.getElementById('searchInput').value.toLowerCase();
+        const dadosFiltrados = produtosData.filter(function(p) {
+            return Object.values(p).some(function(v) {
+                return String(v).toLowerCase().includes(filtro);
+            });
+        });
+        if (dadosFiltrados.length === 0) { alert('Nenhum dado para exportar'); return; }
+
+        let csv = headers.filter(function(h) { return h !== '_linhaPlanilha'; }).join(',') + '\n';
+        dadosFiltrados.forEach(function(produto) {
+            const row = headers
+                .filter(function(h) { return h !== '_linhaPlanilha'; })
+                .map(function(header) {
+                    return '"' + String(produto[header] || '').replace(/"/g, '""') + '"';
+                }).join(',');
+            csv += row + '\n';
+        });
+
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href     = URL.createObjectURL(blob);
+        link.download = 'produtos_' + new Date().toISOString().split('T')[0] + '.csv';
+        link.click();
+    }
+</script>
+</body>
+
+</html>

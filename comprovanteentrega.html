@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <base target="_top">
+    <title>Comprovante de entrega — TUBA</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Comprovante">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --card: #ffffff;
+            --accent: #0ea5e9;
+            --muted: #94a3b8;
+            --ok: #10b981;
+            --warn: #f59e0b;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body {
+            margin: 0;
+            min-height: 100%;
+            font-family: Inter, system-ui, sans-serif;
+            background: linear-gradient(165deg, var(--bg) 0%, #134e4a 100%);
+            color: #e2e8f0;
+        }
+        .wrap { max-width: 480px; margin: 0 auto; padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); }
+        .top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .top h1 { margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; }
+        .top p { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+        .btn {
+            border: 0;
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            font-family: inherit;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn-primary { background: linear-gradient(90deg, var(--accent), #3b82f6); color: #fff; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+        .btn-ghost { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-back { width: auto; padding: 10px 14px; font-size: 14px; margin-top: 0; flex-shrink: 0; }
+        .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+        .tab {
+            flex: 1;
+            padding: 12px 10px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.06);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            text-align: center;
+            line-height: 1.25;
+        }
+        .tab.active { border-color: var(--accent); color: #fff; background: rgba(14, 165, 233, 0.15); }
+        .hint { font-size: 12px; color: var(--muted); margin: 0 0 12px; line-height: 1.45; }
+        .field {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.12);
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        .field::placeholder { color: #64748b; }
+        .field:focus { outline: none; border-color: var(--accent); }
+        .panel {
+            background: var(--card);
+            color: #0f172a;
+            border-radius: 16px;
+            padding: 18px;
+            margin-top: 16px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+        }
+        .panel h2 { margin: 0 0 12px; font-size: 1.05rem; }
+        .result-btn {
+            width: 100%;
+            text-align: left;
+            padding: 14px 14px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            background: #f8fafc;
+            font-family: inherit;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .result-btn:active { transform: scale(0.99); }
+        .result-btn .proj { font-weight: 700; color: #0f172a; display: block; margin-bottom: 4px; }
+        .result-btn .sub { font-size: 12px; color: #64748b; }
+        .tag { display: inline-block; margin-top: 6px; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+        .tag-ok { background: #d1fae5; color: #065f46; }
+        .tag-warn { background: #fef3c7; color: #92400e; }
+        .empty { text-align: center; color: #64748b; padding: 24px 12px; font-size: 14px; }
+        .file-wrap { margin-top: 14px; }
+        .file-wrap input[type="file"] { width: 100%; font-size: 15px; margin-top: 8px; }
+        .footer-note { margin-top: 20px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.4; }
+        #viewBusca.hidden, #viewEnvio.hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="top">
+            <div>
+                <h1>Comprovante de entrega</h1>
+            </div>
+            <button type="button" class="btn btn-ghost btn-back" onclick="irDashboard()">Início</button>
+        </div>
+
+        <div id="viewBusca">
+            <h2>Buscar por:</h2>
+            <div class="tabs" role="tablist">
+                <button type="button" class="tab active" id="tabCodigo" data-tipo="codigo" onclick="setTipoBusca('codigo')">Projeto ou Nº orçamento</button>
+                <button type="button" class="tab" id="tabCliente" data-tipo="cliente" onclick="setTipoBusca('cliente')">Cliente</button>
+            </div>
+            <p class="hint" id="hintBusca">Digite o código do projeto ou o número do orçamento.</p>
+            <input type="search" class="field" id="campoBusca" placeholder="" autocomplete="off" enterkeyhint="search"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();executarBusca();}">
+            <button type="button" class="btn btn-primary" id="btnBuscar" onclick="executarBusca()">Buscar</button>
+
+            <div class="panel" id="painelResultados" style="display:none;">
+                <h2 id="tituloResultados">Resultados</h2>
+                <div id="listaResultados"></div>
+            </div>
+        </div>
+
+        <div id="viewEnvio" class="hidden">
+            <div class="panel">
+                <button type="button" class="btn btn-ghost" style="width:auto;margin-bottom:12px;color:#475569;border-color:#cbd5e1;" onclick="voltarBusca()">← Outro projeto</button>
+                <h2 id="envioTitulo">Projeto</h2>
+                <p class="hint" style="color:#475569;margin-top:8px;" id="envioDetalhe"></p>
+                <div class="file-wrap">
+                    <label style="font-weight:600;font-size:14px;">Arquivo (PDF ou foto)</label>
+                    <input type="file" id="arquivoComp" accept="image/*,application/pdf,.pdf">
+                </div>
+                <button type="button" class="btn btn-primary" id="btnEnviar" onclick="enviarArquivo()">Enviar comprovante</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = '<?= token ?>';
+        var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+        const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        function pageUrl(page, qs) {
+            if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+            return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
+        }
+        var tipoBusca = 'codigo';
+        var selecionado = null;
+        var ultimaListaBusca = [];
+
+        function irDashboard() {
+            window.location.href = pageUrl('dashboard', 'token=' + token);
+        }
+        function setTipoBusca(t) {
+            tipoBusca = t;
+            document.getElementById('tabCodigo').classList.toggle('active', t === 'codigo');
+            document.getElementById('tabCliente').classList.toggle('active', t === 'cliente');
+            var hint = document.getElementById('hintBusca');
+            var inp = document.getElementById('campoBusca');
+            if (t === 'codigo') {
+                hint.textContent = 'Pesquise pelo código do Projeto (Ex.: 260301aBR) ou o número do orçamento (Ex.: 1699).';
+                inp.placeholder = 'Projeto ou número orçamento';
+            } else {
+                hint.textContent = 'Digite parte do nome do cliente (Só pedidos para Envio/Coleta serão mostrados).';
+                inp.placeholder = 'Nome do cliente';
+            }
+        }
+        setTipoBusca('codigo');
+
+        function executarBusca() {
+            var q = (document.getElementById('campoBusca').value || '').trim();
+            if (!q) {
+                alert('Digite algo para buscar.');
+                return;
+            }
+            var btn = document.getElementById('btnBuscar');
+            btn.disabled = true;
+            btn.textContent = 'Buscando…';
+            google.script.run
+                .withSuccessHandler(function (lista) {
+                    btn.disabled = false;
+                    btn.textContent = 'Buscar';
+                    mostrarResultados(lista || []);
+                })
+                .withFailureHandler(function (err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Buscar';
+                    alert('Erro na busca: ' + (err.message || err));
+                })
+                .buscarProjetosEnvioComprovante(q, tipoBusca);
+        }
+
+        function mostrarResultados(lista) {
+            var painel = document.getElementById('painelResultados');
+            var listaEl = document.getElementById('listaResultados');
+            painel.style.display = 'block';
+            if (!lista.length) {
+                listaEl.innerHTML = '<div class="empty">Nenhum projeto encontrado. Confira o código ou tente outro nome.</div>';
+                ultimaListaBusca = [];
+                return;
+            }
+            ultimaListaBusca = lista;
+            var html = '';
+            for (var i = 0; i < lista.length; i++) {
+                var r = lista[i];
+                var seq = (r.numeroSequencial != null && r.numeroSequencial !== '') ? String(r.numeroSequencial) : '—';
+                var tag = r.temComprovante
+                    ? '<span class="tag tag-ok">Já tem comprovante (pode substituir)</span>'
+                    : '<span class="tag tag-warn">Sem comprovante</span>';
+                html += '<button type="button" class="result-btn" onclick="selecionarProjeto(' + i + ')">';
+                html += '<span class="proj">' + escapeHtml(r.projeto) + '</span>';
+                html += '<span class="sub">' + escapeHtml(r.cliente) + ' · Nº orç.: ' + escapeHtml(seq) + '</span>';
+                if (r.statusPedido) html += '<span class="sub">Status pedido: ' + escapeHtml(r.statusPedido) + '</span>';
+                html += tag;
+                html += '</button>';
+            }
+            listaEl.innerHTML = html;
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function selecionarProjeto(idx) {
+            var lista = ultimaListaBusca;
+            if (!lista || !lista[idx]) return;
+            selecionado = lista[idx];
+            document.getElementById('viewBusca').classList.add('hidden');
+            document.getElementById('viewEnvio').classList.remove('hidden');
+            var seq = (selecionado.numeroSequencial != null && selecionado.numeroSequencial !== '') ? String(selecionado.numeroSequencial) : '—';
+            document.getElementById('envioTitulo').textContent = selecionado.projeto;
+            document.getElementById('envioDetalhe').innerHTML = '<strong>' + escapeHtml(selecionado.cliente) + '</strong><br>Nº orçamento: ' + escapeHtml(seq);
+            document.getElementById('arquivoComp').value = '';
+        }
+
+        function voltarBusca() {
+            selecionado = null;
+            document.getElementById('viewEnvio').classList.add('hidden');
+            document.getElementById('viewBusca').classList.remove('hidden');
+        }
+
+        function enviarArquivo() {
+            if (!selecionado || !selecionado.linha) {
+                alert('Selecione um projeto.');
+                return;
+            }
+            var input = document.getElementById('arquivoComp');
+            if (!input.files || !input.files.length) {
+                alert('Escolha um arquivo (foto ou PDF).');
+                return;
+            }
+            var file = input.files[0];
+            var btn = document.getElementById('btnEnviar');
+            btn.disabled = true;
+            btn.textContent = 'Enviando…';
+            var reader = new FileReader();
+            reader.onload = function () {
+                var dataUrl = reader.result;
+                var base64 = (dataUrl && dataUrl.indexOf('base64,') >= 0) ? dataUrl.split('base64,')[1] : dataUrl;
+                var fileData = {
+                    base64: base64 || '',
+                    name: file.name || 'comprovante',
+                    mimeType: file.type || 'application/octet-stream'
+                };
+                google.script.run
+                    .withSuccessHandler(function () {
+                        btn.disabled = false;
+                        btn.textContent = 'Enviar comprovante';
+                        alert('Comprovante salvo com sucesso.');
+                        voltarBusca();
+                        document.getElementById('painelResultados').style.display = 'none';
+                    })
+                    .withFailureHandler(function (err) {
+                        btn.disabled = false;
+                        btn.textContent = 'Enviar comprovante';
+                        alert('Erro ao enviar: ' + (err.message || err));
+                    })
+                    .salvarComprovanteEntrega(selecionado.linha, fileData);
+            };
+            reader.onerror = function () {
+                btn.disabled = false;
+                btn.textContent = 'Enviar comprovante';
+                alert('Não foi possível ler o arquivo.');
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #001941, #398669);
+      overflow: hidden;
+    }
+
+    /* Fundo animado com formas suaves */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 250%;
+      height: 250%;
+      background: radial-gradient(circle, rgba(15, 143, 175, 0.2) 0%, transparent 70%);
+      animation: rotate 30s linear infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .login-box {
+      position: relative;
+      z-index: 1;
+      width: 360px;
+      padding: 50px 40px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(15px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .login-box:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .login-box img {
+      width: 185px;
+      margin-bottom: 20px;
+    }
+
+    .login-box h2 {
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      margin-bottom: 30px;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 14px 40px 14px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.25);
+      color: hwb(0 17% 83%);
+      font-size: 14px;
+      outline: none;
+      transition: border 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+    }
+
+    .input-group input::placeholder {
+      color: rgba(53, 53, 53, 0.7);
+    }
+
+    .input-group input:focus {
+      border-color: #535353;
+      background: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+    }
+
+    .input-group .icon {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(26, 139, 232, 0.8);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(26, 115, 232, 1);
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      background: rgba(26, 115, 232, 0.5);
+      cursor: not-allowed;
+    }
+
+    .error {
+      color: #ff6b6b;
+      font-size: 13px;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    .info {
+      color: #dfeff7;
+      font-size: 12px;
+      margin-top: 10px;
+      min-height: 18px;
+    }
+
+    @media(max-width:400px) {
+      .login-box {
+        width: 90%;
+        padding: 40px 25px;
+      }
+
+      .login-box img {
+        width: 140px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-box">
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+    <h2>Bem-vindo</h2>
+
+    <div class="input-group">
+      <input type="text" id="usuario" placeholder="Usuário">
+      <div class="icon">👤</div>
+    </div>
+
+    <div class="input-group">
+      <input type="password" id="senha" placeholder="Senha">
+      <div class="icon">🔒</div>
+    </div>
+
+    <div class="error" id="erro"></div>
+    <div class="info" id="info"></div>
+    <button id="loginBtn" onclick="login()">Entrar</button>
+  </div>
+
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+
+    var redirectTo = <?!= (typeof redirectTo !== 'undefined' && redirectTo) ? ("'" + String(redirectTo).replace(/'/g, "\\'") + "'") : "null" ?>;
+    var postLoginMsg = <?!= (typeof postLoginMsg !== 'undefined' && postLoginMsg) ? ("'" + String(postLoginMsg).replace(/'/g, "\\'") + "'") : "null" ?>;
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+
+    // Flag vinda do Code.gs: templateLogin.embedded (ou detectar se está em iframe)
+    var embeddedMode = <?!= (typeof embedded !== 'undefined' && embedded) ? 'true' : 'false' ?>;
+
+    function isEmbeddedMode() {
+      // IMPORTANT: não inferir por window.top/iframe aqui.
+      // Em alguns ambientes (incluindo o webapp do Apps Script), isso pode dar "true"
+      // mesmo no navegador normal e quebrar o redirect.
+      return (embeddedMode === true || embeddedMode === 'true');
+    }
+
+    // (initInfo permanece igual)
+    (function initInfo() {
+      const infoEl = document.getElementById('info');
+      if (redirectTo) {
+        try {
+          const u = new URL(WEBAPP_URL + (redirectTo.startsWith('?') ? redirectTo : ('?' + redirectTo)));
+          const p = u.searchParams.get('page') || redirectTo;
+          infoEl.textContent = "Ao entrar você será redirecionado para: " + p;
+        } catch (e) {
+          infoEl.textContent = "Ao entrar você será redirecionado para a página solicitada.";
+        }
+      } else if (postLoginMsg) {
+        infoEl.textContent = postLoginMsg;
+      }
+    })();
+
+    function buildPostLoginUrl(token) {
+      const url = new URL(WEBAPP_URL);
+      url.searchParams.set('page', 'dashboard');
+
+      if (redirectTo) {
+        var raw = String(redirectTo).trim();
+        var query = raw;
+
+        if (/^https?:\/\//i.test(raw)) {
+          try {
+            query = new URL(raw).search || '';
+          } catch (e) {
+            query = raw;
+          }
+        }
+
+        if (query && !query.startsWith('?')) {
+          query = '?' + query.replace(/^\?+/, '');
+        }
+
+        if (query) {
+          const params = new URLSearchParams(query);
+          const targetPage = params.get('page');
+          if (targetPage) {
+            url.searchParams.set('page', targetPage);
+            params.delete('page');
+          }
+          params.delete('token');
+          params.forEach(function (value, key) {
+            url.searchParams.set(key, value);
+          });
+        }
+      }
+
+      url.searchParams.set('token', token);
+      return url.toString();
+    }
+
+    function redirectNow(url, preferTop) {
+      var target = String(url || '').trim();
+      if (!target) return false;
+
+      if (preferTop) {
+        try {
+          window.top.location.assign(target);
+          return true;
+        } catch (e) {}
+      }
+
+      try {
+        window.location.assign(target);
+        return true;
+      } catch (e) {}
+
+      try {
+        window.open(target, preferTop ? '_top' : '_self');
+        return true;
+      } catch (e) {}
+
+      return false;
+    }
+
+    function login() {
+      console.log('isEmbeddedMode() =', isEmbeddedMode());
+      const embeddedNow = isEmbeddedMode();
+
+      const usuario = document.getElementById('usuario').value.trim();
+      const senha = document.getElementById('senha').value.trim();
+      const btn = document.getElementById('loginBtn');
+      const erro = document.getElementById('erro');
+
+      if (!usuario || !senha) {
+        erro.innerText = "Preencha usuário e senha";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Entrando...";
+      erro.innerText = "";
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res && res.success) {
+            // Mantém a sessão no PWA (parent) quando logar via iframe.
+            if (embeddedNow) {
+              const msg = { type: 'AUTH_TOKEN', token: res.token };
+              try { window.top && window.top.postMessage(msg, '*'); } catch (e) {}
+              try { window.parent && window.parent.postMessage(msg, '*'); } catch (e) {}
+              try { window.parent && window.parent.parent && window.parent.parent.postMessage(msg, '*'); } catch (e) {}
+
+              // Fallback: se por algum motivo o container não receber postMessage,
+              // navega o próprio iframe para a página pós-login com token.
+              try {
+                const destinationUrl = buildPostLoginUrl(res.token);
+                redirectNow(destinationUrl, false);
+              } catch (e) {}
+
+              btn.textContent = "Sucesso!";
+              return;
+            }
+
+            if (isEmbeddedMode()) {
+              if (baseUrl && baseUrl !== 'null') {
+                var page = 'dashboard';
+                var rest = '';
+                if (redirectTo) {
+                  try {
+                    var params = new URLSearchParams(redirectTo.startsWith('?') ? redirectTo : '?' + redirectTo);
+                    page = params.get('page') || 'dashboard';
+                    params.delete('page');
+                    params.delete('token');
+                    rest = params.toString();
+                  } catch (e) {}
+                }
+                var url = (baseUrl.replace(/\/$/, '')) + '/' + page + '.html?' + (rest ? rest + '&' : '') + 'token=' + encodeURIComponent(res.token);
+                if (!redirectNow(url, true)) {
+                  erro.innerText = "Login realizado, mas o redirecionamento foi bloqueado.";
+                  btn.disabled = false;
+                  btn.textContent = "Entrar";
+                  return;
+                }
+              } else {
+                // Se não há baseUrl, redireciona igual modo standalone
+                let destinationUrl = buildPostLoginUrl(res.token);
+                if (!redirectNow(destinationUrl, false)) {
+                  erro.innerText = "Login realizado, mas o redirecionamento foi bloqueado.";
+                  btn.disabled = false;
+                  btn.textContent = "Entrar";
+                  return;
+                }
+                btn.textContent = "Sucesso!";
+              }
+            } else {
+              console.log("Executando em modo Standalone: Redirecionando para o dashboard.");
+              try {
+                localStorage.setItem('token', res.token);
+              } catch (e) {
+                console.warn('Falha ao salvar token no localStorage:', e);
+              }
+              let destinationUrl = buildPostLoginUrl(res.token);
+
+              if (!redirectNow(destinationUrl, false)) {
+                erro.innerText = "Login realizado, mas o redirecionamento foi bloqueado.";
+                btn.disabled = false;
+                btn.textContent = "Entrar";
+                return;
+              }
+            }
+
+          } else {
+            erro.innerText = "Usuário ou senha incorretos";
+            btn.disabled = false;
+            btn.textContent = "Entrar";
+          }
+        })
+        .withFailureHandler(err => {
+          erro.innerText = "Erro: " + err.message;
+          btn.disabled = false;
+          btn.textContent = "Entrar";
+        })
+        .autenticarUsuario(usuario, senha);
+    }
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') login();
+    });
+  </script>
+</body>
+
+</html>

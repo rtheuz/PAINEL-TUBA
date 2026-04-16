@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Manutenção de Equipamentos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #ffffff;
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100%;
+            padding: 0.75rem;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 1.25rem;
+            padding: 1.25rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 1rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin: 0 0 0.25rem 0;
+            line-height: 1.3;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            opacity: 0.95;
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .back-btn {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            z-index: 100;
+            background: white;
+            border: none;
+            padding: 0.875rem 1.25rem;
+            border-radius: 3rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--primary);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .back-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .form-section {
+            background: #f8fafc;
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 2px solid #e2e8f0;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        select,
+        input[type="date"],
+        input[type="time"],
+        input[type="text"] {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            background: white;
+            transition: all 0.2s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .frequency-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.625rem;
+            margin-top: 0.75rem;
+        }
+
+        .frequency-option {
+            position: relative;
+        }
+
+        .frequency-option input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .frequency-label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.875rem 0.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.875rem;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 72px;
+            text-align: center;
+        }
+
+        .frequency-option input:checked + .frequency-label {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(79, 70, 229, 0.1) 0%, rgba(79, 70, 229, 0.05) 100%);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+        }
+
+        .frequency-label .freq-name {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            color: #334155;
+        }
+
+        .frequency-label .freq-count {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .frequency-option input:checked + .frequency-label .freq-count {
+            color: var(--primary-dark);
+        }
+
+        /* Badges de status coloridos */
+        .frequency-option.nunca .frequency-label {
+            border-color: #cbd5e1;
+        }
+
+        .frequency-option.nunca input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(148, 163, 184, 0.15) 0%, rgba(148, 163, 184, 0.05) 100%);
+            border-color: #64748b;
+        }
+
+        .frequency-option.atrasada .frequency-label {
+            border-color: #fecaca;
+        }
+
+        .frequency-option.atrasada input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.05) 100%);
+            border-color: #ef4444;
+        }
+
+        .frequency-option.atrasada .freq-count {
+            color: #dc2626;
+        }
+
+        .frequency-option.liberada .frequency-label {
+            border-color: #bfdbfe;
+        }
+
+        .frequency-option.liberada input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+            border-color: #3b82f6;
+        }
+
+        .frequency-option.liberada .freq-count {
+            color: #2563eb;
+        }
+
+        .frequency-option.pendente .frequency-label {
+            border-color: #bbf7d0;
+        }
+
+        .frequency-option.pendente input:checked + .frequency-label {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%);
+            border-color: #10b981;
+        }
+
+        .frequency-option.pendente .freq-count {
+            color: #059669;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+
+        .task-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
+
+        .task-card.selected {
+            border-color: var(--primary);
+            box-shadow: 0 4px 16px rgba(79, 70, 229, 0.15);
+        }
+
+        .task-card.overdue {
+            border-left: 5px solid #ef4444;
+            background: linear-gradient(90deg, #fef2f2 0%, white 20px);
+        }
+
+        .task-header {
+            padding: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.875rem;
+            cursor: pointer;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .task-checkbox {
+            width: 28px;
+            height: 28px;
+            min-width: 28px;
+            min-height: 28px;
+            border-radius: 0.5rem;
+            border: 2px solid #cbd5e1;
+            cursor: pointer;
+            margin-top: 0.25rem;
+            accent-color: var(--primary);
+        }
+
+        .task-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-component {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.625rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            max-width: 100%;
+        }
+
+        .task-component.atrasada {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .task-component.liberada {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .task-component.pendente {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .task-component.nunca_feito {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .task-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.4;
+            margin-bottom: 0.375rem;
+            word-wrap: break-word;
+        }
+
+        .task-subtitle {
+            font-size: 0.8125rem;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .task-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            margin-top: 0.375rem;
+        }
+
+        .task-status-badge.atrasada {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .task-status-badge.liberada {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .task-status-badge.pendente {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .task-status-badge.nunca_feito {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .task-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .task-details.visible {
+            max-height: 500px;
+            padding: 1rem;
+        }
+
+        .task-details-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0.875rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.375rem;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 1.125rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            border-radius: 1rem;
+            font-size: 1.0625rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 5rem;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: scale(0.98);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-message {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            padding: 1rem 1.25rem;
+            border-radius: 1rem;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            transform: translateY(-150%);
+            transition: transform 0.3s ease;
+        }
+
+        .status-message.visible {
+            transform: translateY(0);
+        }
+
+        .status-message.success {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-message.error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status-message.info {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1.5rem;
+            color: #64748b;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 0.9375rem;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 1.5rem 0 0.75rem;
+            padding-left: 0.25rem;
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                max-width: 640px;
+                margin: 0 auto;
+                padding: 1.5rem;
+            }
+
+            .card {
+                padding: 2rem;
+            }
+
+            .header h1 {
+                font-size: 1.75rem;
+            }
+
+            .frequency-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .back-btn {
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            .back-btn:active {
+                transform: translateX(-50%) scale(0.96);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>🔧 Manutenção de Equipamentos</h1>
+                <p>Selecione o plano e registre as tarefas realizadas</p>
+            </div>
+
+            <form id="maintenanceForm" autocomplete="off">
+                <!-- Seleção do Plano -->
+                <div class="form-section">
+                    <label class="form-label" for="maintenancePlan">📋 Plano de Manutenção</label>
+                    <select id="maintenancePlan" name="maintenancePlan" required>
+                        <option value="" disabled selected>Selecione um plano...</option>
+                    </select>
+                </div>
+
+                <!-- Filtros de Frequência -->
+                <div id="frequencySection" class="form-section" style="display: none;">
+                    <label class="form-label">🎯 Filtrar por Status</label>
+                    <div class="frequency-grid" id="frequencyOptions"></div>
+                </div>
+
+                <!-- Lista de Tarefas -->
+                <div id="checklistContainer" style="display: none;">
+                    <h2 class="section-title">Lista de Tarefas</h2>
+                    <div id="maintenanceChecklist" class="task-list"></div>
+                </div>
+
+                <!-- Botão de Envio -->
+                <button type="submit" id="submitButton" class="submit-btn" disabled>
+                    <span id="buttonText">✓ Registrar Manutenção</span>
+                    <div id="loadingSpinner" class="loading-spinner"></div>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Botão Voltar -->
+    <button class="back-btn" onclick="voltarPagina()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        <span>Voltar</span>
+    </button>
+
+    <!-- Mensagem de Status -->
+    <div id="statusMessage" class="status-message"></div>
+
+    <script>
+        const token = "<?= token ?>";
+        let currentUser = null;
+
+        function loadUserByToken() {
+            if (!token) return;
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(function (usuarioObj) {
+                    if (!usuarioObj) return;
+                    currentUser = usuarioObj;
+                    populateResponsibleFields();
+                }).withFailureHandler(function (err) {
+                    console.warn('Não foi possível obter usuário por token:', err);
+                }).getUsuarioLogadoPorToken(token);
+            }
+        }
+
+        function populateResponsibleFields() {
+            if (!currentUser) return;
+            const inputs = document.querySelectorAll('.responsible-input');
+            inputs.forEach(inp => { if (inp && !inp.value) inp.value = currentUser.usuario || ''; });
+        }
+
+        const MAINTENANCE_PLANS = {
+            "MAQUINA_LASER": {
+                name: "Máquina Laser",
+                tasks: {
+                    'DIÁRIA': [
+                        { id: 'D01', componente: 'Cabeça de Saída do Laser (Óptica)', acao: 'Inspeção Visual da Lente/bico de corte', responsavelSugerido: 'Operador' },
+                        { id: 'D02', componente: 'Compressor', acao: 'Verificação de reservatório (purgar água)', responsavelSugerido: 'Operador' },
+                        { id: 'D03', componente: 'Sistema de Resfriamento (Chiller)', acao: 'Monitoramento da Temperatura Ambiente', responsavelSugerido: 'Operador' },
+                    ],
+                    'SEMANAL': [
+                        { id: 'S01', componente: 'Filtros de Ar', acao: 'Limpeza ou Substituição dos Filtros', responsavelSugerido: 'Operador' },
+                        { id: 'S02', componente: 'Cabeça de Saída do Laser (Óptica)', acao: 'Limpeza Interna', responsavelSugerido: 'Operador' },
+                        { id: 'S03', componente: 'Carrinhos de Carregamento', acao: 'Limpeza Geral', responsavelSugerido: 'Operador' }
+                    ],
+                    'MENSAL': [
+                        { id: 'M01', componente: 'Gabinete da Fonte Laser', acao: 'Limpeza Externa / Ventiladores', responsavelSugerido: 'Operador / Técnico' },
+                        { id: 'M02', componente: 'Sistema de Resfriamento (Chiller)', acao: 'Troca do Fluido e Limpeza do Circuito', responsavelSugerido: 'Técnico' },
+                        { id: 'M03', componente: 'Gabinete de Controle', acao: 'Inspeção Interna (Poeira)', responsavelSugerido: 'Operador / Técnico' },
+                        { id: 'M04', componente: 'Guias Lineares Longitudinais', acao: 'Limpeza e Lubrificação', responsavelSugerido: 'Operador / Técnico' },
+                        { id: 'M05', componente: 'Guias Lineares Transversais', acao: 'Limpeza e Lubrificação', responsavelSugerido: 'Operador / Técnico' }
+                    ],
+                    'TRIMESTRAL': [
+                        { id: 'T01', componente: 'Área de Trabalho', acao: 'Limpeza Grelhas', responsavelSugerido: 'Operador' },
+                        { id: 'T02', componente: 'Cabeça de Saída do Laser (Óptica)', acao: 'Limpeza Profunda da Lente/bico de corte', responsavelSugerido: 'Técnico' },
+                        { id: 'T03', componente: 'Sistema de Resfriamento (Chiller)', acao: 'Verificação Completa do Sistema de Resfriamento', responsavelSugerido: 'Técnico' }
+                    ],
+                    'ANUAL': [
+                        { id: 'A01', componente: 'Compressor', acao: 'Troca de óleo', responsavelSugerido: 'Operador' }
+                    ],
+                    'ESPECIALIZADA': [
+                        { id: 'E01', componente: 'Fonte Laser (Raycus)', acao: 'Reparo e Desmontagem (pelo Fabricante)', responsavelSugerido: 'Fabricante' },
+                    ]
+                }
+            }
+        };
+
+        const FREQUENCY_DAYS = { 'DIÁRIA': 1, 'SEMANAL': 8, 'MENSAL': 31, 'TRIMESTRAL': 92, 'ANUAL': 367, 'ESPECIALIZADA': 99999 };
+        const FREQUENCY_TOLERANCE = { 'DIÁRIA': 0, 'SEMANAL': 3, 'MENSAL': 10, 'TRIMESTRAL': 15, 'ANUAL': 30, 'ESPECIALIZADA': 0 };
+
+        let maintenanceHistory = [];
+        let tempTaskState = {};
+        let currentTaskStatusMap = {};
+
+        const maintenancePlanSelect = document.getElementById('maintenancePlan');
+        const frequencyOptionsContainer = document.getElementById('frequencyOptions');
+        const maintenanceChecklist = document.getElementById('maintenanceChecklist');
+        const maintenanceForm = document.getElementById('maintenanceForm');
+        const frequencySection = document.getElementById('frequencySection');
+        const checklistContainer = document.getElementById('checklistContainer');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const statusMessage = document.getElementById('statusMessage');
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializePlanSelect();
+            loadUserByToken();
+            maintenanceForm.addEventListener('submit', handleSubmit);
+            maintenancePlanSelect.addEventListener('change', handlePlanChange);
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run.withSuccessHandler(processHistoryAndInit).withFailureHandler(handleError).getMaintenanceHistory();
+                showStatusMessage('Carregando histórico...', 'info');
+            } else {
+                processHistoryAndInit([]);
+            }
+        });
+
+        function processHistoryAndInit(history) {
+            maintenanceHistory = history || [];
+            showStatusMessage('Histórico carregado!', 'success');
+            setTimeout(() => hideStatusMessage(), 2000);
+        }
+
+        function initializePlanSelect() {
+            let optionsHtml = '<option value="" disabled selected>Selecione um plano...</option>';
+            for (const key in MAINTENANCE_PLANS) {
+                optionsHtml += `<option value="${key}">${MAINTENANCE_PLANS[key].name}</option>`;
+            }
+            maintenancePlanSelect.innerHTML = optionsHtml;
+        }
+
+        function formatDate(date) {
+            if (!date) return 'N/A';
+            try {
+                const d = (date instanceof Date) ? date : new Date(date);
+                if (isNaN(d)) return 'N/A';
+                return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            } catch (e) { return 'N/A'; }
+        }
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return { currentDate: `${year}-${month}-${day}`, currentTime: `${hours}:${minutes}` };
+        }
+
+        function getTaskKey(componente, acao) { 
+            return (componente || '').trim() + '||' + (acao || '').trim(); 
+        }
+
+        function normalizeString(s) {
+            if (!s) return '';
+            return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        function calculateTaskStatus(planKey) {
+            const planName = MAINTENANCE_PLANS[planKey].name;
+            const planNameNormalized = normalizeString(planName);
+            const statusMap = {};
+            const today = new Date(); 
+            today.setHours(0, 0, 0, 0);
+            const validHistory = Array.isArray(maintenanceHistory) ? maintenanceHistory : [];
+
+            const lastExecutionMap = {};
+            validHistory.filter(h => h.planName && normalizeString(h.planName) === planNameNormalized)
+                .forEach(h => {
+                    const taskKey = getTaskKey(h.componente, h.acao);
+                    const executionDate = new Date(h.date);
+                    if (isNaN(executionDate)) return;
+                    executionDate.setHours(0, 0, 0, 0);
+                    if (!lastExecutionMap[taskKey] || executionDate > lastExecutionMap[taskKey]) 
+                        lastExecutionMap[taskKey] = executionDate;
+                });
+
+            for (const freq in MAINTENANCE_PLANS[planKey].tasks) {
+                const tasks = MAINTENANCE_PLANS[planKey].tasks[freq];
+                const intervalDays = FREQUENCY_DAYS[freq] || 99999;
+                const toleranceDays = FREQUENCY_TOLERANCE[freq] || 0;
+
+                tasks.forEach(task => {
+                    const taskKey = getTaskKey(task.componente, task.acao);
+                    const lastDate = lastExecutionMap[taskKey] || null;
+                    let nextDate = null, releaseDate = null, overdueDate = null, statusCategory = 'PENDENTE';
+                    
+                    if (lastDate) {
+                        nextDate = new Date(lastDate);
+                        nextDate.setDate(nextDate.getDate() + intervalDays);
+                        nextDate.setHours(0, 0, 0, 0);
+                        releaseDate = new Date(nextDate); 
+                        releaseDate.setDate(releaseDate.getDate() - toleranceDays);
+                        overdueDate = new Date(nextDate); 
+                        overdueDate.setDate(overdueDate.getDate() + toleranceDays);
+                        
+                        if (today > overdueDate) statusCategory = 'ATRASADA';
+                        else if (today >= releaseDate) statusCategory = 'LIBERADA';
+                        else statusCategory = 'PENDENTE';
+                    } else {
+                        statusCategory = 'NUNCA_FEITO';
+                    }
+                    
+                    statusMap[task.id] = { 
+                        lastDate, nextDate, releaseDate, overdueDate, statusCategory, 
+                        frequency: freq, intervalDays 
+                    };
+                });
+            }
+
+            return statusMap;
+        }
+
+        function saveCurrentTaskState() {
+            tempTaskState = {};
+            const checkedTasks = document.querySelectorAll('input[name="task_id"]:checked');
+            checkedTasks.forEach(cb => {
+                const id = cb.value;
+                const card = cb.closest('.task-card');
+                if (!card) return;
+                const d = card.querySelector('.date-input')?.value || '';
+                const t = card.querySelector('.time-input')?.value || '';
+                const r = card.querySelector('.responsible-input')?.value.trim() || '';
+                tempTaskState[id] = { date: d, time: t, responsible: r };
+            });
+        }
+
+        function toggleTaskDetails(checkbox) {
+            const taskCard = checkbox.closest('.task-card');
+            if (!taskCard) return;
+            
+            const detailDiv = taskCard.querySelector('.task-details');
+            const dateInput = taskCard.querySelector('.date-input');
+            const timeInput = taskCard.querySelector('.time-input');
+            const responsibleInput = taskCard.querySelector('.responsible-input');
+
+            if (checkbox.checked) {
+                taskCard.classList.add('selected');
+                detailDiv.classList.add('visible');
+                dateInput.required = true; 
+                timeInput.required = true; 
+                responsibleInput.required = true;
+                
+                const { currentDate, currentTime } = getCurrentDateTime();
+                if (!dateInput.value) dateInput.value = currentDate;
+                if (!timeInput.value) timeInput.value = currentTime;
+                if (!responsibleInput.value && currentUser) responsibleInput.value = currentUser.usuario || '';
+            } else {
+                taskCard.classList.remove('selected');
+                detailDiv.classList.remove('visible');
+                dateInput.required = false; 
+                timeInput.required = false; 
+                responsibleInput.required = false;
+            }
+        }
+
+        function handleFrequencyChange() {
+            saveCurrentTaskState();
+            const selectedPlanKey = maintenancePlanSelect.value;
+            const currentPlan = MAINTENANCE_PLANS[selectedPlanKey];
+            if (!currentPlan) return;
+            
+            const selectedFilters = Array.from(document.querySelectorAll('input[name="frequency"]:checked')).map(cb => cb.value);
+            renderChecklist(currentPlan.tasks, selectedFilters, currentTaskStatusMap);
+            populateResponsibleFields();
+        }
+
+        function handlePlanChange() {
+            const selectedPlanKey = maintenancePlanSelect.value;
+            tempTaskState = {}; 
+            currentTaskStatusMap = {};
+            
+            if (selectedPlanKey) {
+                currentTaskStatusMap = calculateTaskStatus(selectedPlanKey);
+                renderFrequencyOptions(currentTaskStatusMap);
+                frequencySection.style.display = 'block';
+                checklistContainer.style.display = 'block';
+                submitButton.disabled = false;
+            } else {
+                frequencySection.style.display = 'none';
+                checklistContainer.style.display = 'none';
+                submitButton.disabled = true;
+            }
+            
+            handleFrequencyChange();
+        }
+
+        function renderFrequencyOptions(taskStatusMap) {
+            let atrasadas = 0, liberadas = 0, nunca = 0, pendentes = 0;
+            
+            Object.values(taskStatusMap).forEach(s => {
+                if (s.statusCategory === 'ATRASADA') atrasadas++;
+                else if (s.statusCategory === 'LIBERADA') liberadas++;
+                else if (s.statusCategory === 'NUNCA_FEITO') { if (s.intervalDays < 9999) nunca++; }
+                else if (s.statusCategory === 'PENDENTE') { if (s.intervalDays < 9999) pendentes++; }
+            });
+
+            const html = `
+                <div class="frequency-option nunca">
+                    <input type="checkbox" id="freq-nunca" name="frequency" value="NUNCA_FEITO" onchange="handleFrequencyChange()">
+                    <label for="freq-nunca" class="frequency-label">
+                        <span class="freq-name">Nunca</span>
+                        <span class="freq-count">${nunca}</span>
+                    </label>
+                </div>
+                <div class="frequency-option atrasada">
+                    <input type="checkbox" id="freq-atrasada" name="frequency" value="ATRASADA" onchange="handleFrequencyChange()">
+                    <label for="freq-atrasada" class="frequency-label">
+                        <span class="freq-name">Atrasadas</span>
+                        <span class="freq-count">${atrasadas}</span>
+                    </label>
+                </div>
+                <div class="frequency-option liberada">
+                    <input type="checkbox" id="freq-liberada" name="frequency" value="LIBERADA" onchange="handleFrequencyChange()">
+                    <label for="freq-liberada" class="frequency-label">
+                        <span class="freq-name">Liberadas</span>
+                        <span class="freq-count">${liberadas}</span>
+                    </label>
+                </div>
+                <div class="frequency-option pendente">
+                    <input type="checkbox" id="freq-pendente" name="frequency" value="PENDENTE" onchange="handleFrequencyChange()">
+                    <label for="freq-pendente" class="frequency-label">
+                        <span class="freq-name">Próximas</span>
+                        <span class="freq-count">${pendentes}</span>
+                    </label>
+                </div>
+            `;
+            
+            frequencyOptionsContainer.innerHTML = html;
+        }
+
+        function renderChecklist(allTasks, selectedFilters, taskStatus) {
+            maintenanceChecklist.innerHTML = '';
+            
+            if (!selectedFilters || selectedFilters.length === 0) {
+                maintenanceChecklist.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🔍</div>
+                        <p class="empty-state-text">Selecione um filtro acima para ver as tarefas</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tasksToRender = {};
+            for (const freq in allTasks) {
+                allTasks[freq].forEach(task => {
+                    const status = taskStatus[task.id];
+                    if (status && selectedFilters.includes(status.statusCategory)) {
+                        if (!tasksToRender[freq]) tasksToRender[freq] = [];
+                        tasksToRender[freq].push({ task, status });
+                    }
+                });
+            }
+
+            let html = '';
+            let tasksFound = 0;
+            const frequencyKeys = Object.keys(tasksToRender).sort((a, b) => (FREQUENCY_DAYS[a] || 9999) - (FREQUENCY_DAYS[b] || 9999));
+            
+            for (const freq of frequencyKeys) {
+                const tasks = tasksToRender[freq];
+                tasksFound += tasks.length;
+
+                tasks.sort((a, b) => {
+                    const pri = { 'NUNCA_FEITO': 1, 'ATRASADA': 2, 'LIBERADA': 3, 'PENDENTE': 4 };
+                    const pa = pri[a.status.statusCategory] || 9, pb = pri[b.status.statusCategory] || 9;
+                    if (pa !== pb) return pa - pb;
+                    const ta = a.status.overdueDate ? a.status.overdueDate.getTime() : Infinity;
+                    const tb = b.status.overdueDate ? b.status.overdueDate.getTime() : Infinity;
+                    return ta - tb;
+                });
+
+                if (tasks.length > 0) {
+                    html += `<h3 class="section-title">${freq} (${tasks.length})</h3>`;
+                }
+
+                tasks.forEach(({ task, status }) => {
+                    let statusText = '', statusClass = '';
+                    const lastDateStr = formatDate(status.lastDate);
+                    const releaseDateStr = formatDate(status.releaseDate);
+                    const overdueDateStr = formatDate(status.overdueDate);
+                    
+                    if (status.statusCategory === 'ATRASADA') { 
+                        statusClass = 'atrasada'; 
+                        statusText = `⚠️ Venceu: ${overdueDateStr}`; 
+                    } else if (status.statusCategory === 'LIBERADA') { 
+                        statusClass = 'liberada'; 
+                        statusText = `✓ Até: ${overdueDateStr}`; 
+                    } else if (status.statusCategory === 'NUNCA_FEITO') { 
+                        statusClass = 'nunca_feito'; 
+                        statusText = '❗ Nunca realizada'; 
+                    } else if (status.statusCategory === 'PENDENTE') { 
+                        statusClass = 'pendente'; 
+                        statusText = `📅 Libera: ${releaseDateStr}`; 
+                    }
+
+                    const taskCardClasses = (status.statusCategory === 'ATRASADA' || status.statusCategory === 'NUNCA_FEITO') ? 'task-card overdue' : 'task-card';
+                    const savedState = tempTaskState[task.id] || null;
+                    const isChecked = savedState ? 'checked' : '';
+                    const detailVisible = savedState ? 'visible' : '';
+                    const selectedClass = savedState ? 'selected' : '';
+                    const isRequired = savedState ? 'required' : '';
+                    const savedDate = savedState ? savedState.date : '';
+                    const savedTime = savedState ? savedState.time : '';
+                    const savedResponsible = savedState && savedState.responsible ? savedState.responsible : (currentUser ? currentUser.usuario || '' : '');
+
+                    html += `
+                        <div class="${taskCardClasses} ${selectedClass}">
+                            <div class="task-header" onclick="this.querySelector('input[type=checkbox]').click()">
+                                <input type="checkbox" 
+                                       name="task_id" 
+                                       value="${task.id}"
+                                       data-frequency="${status.frequency || ''}"
+                                       ${isChecked}
+                                       onclick="event.stopPropagation(); toggleTaskDetails(this)"
+                                       class="task-checkbox">
+                                
+                                <div class="task-info">
+                                    <div class="task-component ${statusClass}">
+                                        ${escapeHtml(task.componente)}
+                                    </div>
+                                    <div class="task-title">${escapeHtml(task.acao)}</div>
+                                    <div class="task-subtitle">
+                                        👤 ${escapeHtml(task.responsavelSugerido || 'N/A')}
+                                    </div>
+                                    <div class="task-status-badge ${statusClass}">
+                                        ${statusText}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="task-details ${detailVisible}">
+                                <div class="task-details-grid">
+                                    <div class="input-group">
+                                        <label class="input-label">📅 Data</label>
+                                        <input type="date" class="date-input" value="${savedDate}" ${isRequired}>
+                                    </div>
+                                    <div class="input-group">
+                                        <label class="input-label">⏰ Hora</label>
+                                        <input type="time" class="time-input" value="${savedTime}" ${isRequired}>
+                                    </div>
+                                    <div class="input-group">
+                                        <label class="input-label">👤 Responsável</label>
+                                        <input type="text" 
+                                               placeholder="Nome completo" 
+                                               class="responsible-input" 
+                                               value="${savedResponsible}" 
+                                               ${isRequired}>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            if (tasksFound === 0) {
+                html = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">✓</div>
+                        <p class="empty-state-text">Nenhuma tarefa encontrada para os filtros selecionados</p>
+                    </div>
+                `;
+            }
+            
+            maintenanceChecklist.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            if (typeof str !== 'string') return '';
+            return str.replace(/[&<>"'`=\/]/g, function (s) { 
+                return ({ 
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', 
+                    "'": '&#39;', '/': '&#x2F;', '`': '&#x60;', '=': '&#x3D;' 
+                })[s]; 
+            });
+        }
+
+        function handleSubmit(e) {
+            e.preventDefault();
+            setButtonLoading(true);
+            showStatusMessage('Registrando tarefas...', 'info');
+            
+            const selectedPlanKey = maintenancePlanSelect.value;
+            const currentPlan = MAINTENANCE_PLANS[selectedPlanKey];
+            if (!currentPlan) { 
+                handleError(new Error("Nenhum plano selecionado.")); 
+                return; 
+            }
+            
+            const planName = currentPlan.name;
+            const checkedTasks = document.querySelectorAll('input[name="task_id"]:checked');
+            
+            if (checkedTasks.length === 0) { 
+                showStatusMessage('Selecione pelo menos uma tarefa!', 'error'); 
+                setButtonLoading(false); 
+                return; 
+            }
+            
+            const taskDataById = {};
+            for (const freq in currentPlan.tasks) 
+                currentPlan.tasks[freq].forEach(t => taskDataById[t.id] = { ...t, frequency: freq });
+            
+            const tasksToSubmit = [];
+            let formIsValid = true;
+            
+            checkedTasks.forEach(cb => {
+                const taskId = cb.value;
+                const def = taskDataById[taskId];
+                const card = cb.closest('.task-card');
+                const dateInput = card.querySelector('.date-input');
+                const timeInput = card.querySelector('.time-input');
+                const responsibleInput = card.querySelector('.responsible-input');
+                const dateValue = dateInput.value, timeValue = timeInput.value, responsibleValue = responsibleInput.value.trim();
+                
+                if (!dateValue || !timeValue || !responsibleValue) { 
+                    formIsValid = false; 
+                    return; 
+                }
+                
+                const localDate = new Date(`${dateValue}T${timeValue}:00`);
+                tasksToSubmit.push({
+                    planName,
+                    date: localDate.toISOString(),
+                    responsible: responsibleValue,
+                    frequency: def.frequency,
+                    componente: def.componente,
+                    acao: def.acao,
+                    responsavelSugerido: def.responsavelSugerido || ''
+                });
+            });
+
+            if (!formIsValid) { 
+                handleError(new Error("Preencha todos os campos das tarefas selecionadas!")); 
+                return; 
+            }
+
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                google.script.run
+                    .withSuccessHandler(handleSuccess)
+                    .withFailureHandler(handleError)
+                    .recordMaintenance(tasksToSubmit);
+            } else {
+                console.log("Simulando envio:", tasksToSubmit);
+                setTimeout(() => handleSuccess({ status: "OK", totalTasks: tasksToSubmit.length }), 1000);
+            }
+        }
+
+        function showStatusMessage(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type} visible`;
+            
+            setTimeout(() => {
+                if (!statusMessage.textContent.includes('Enviando') && !statusMessage.textContent.includes('Registrando')) {
+                    hideStatusMessage();
+                }
+            }, 3000);
+        }
+
+        function hideStatusMessage() {
+            statusMessage.classList.remove('visible');
+        }
+
+        function setButtonLoading(isLoading) {
+            submitButton.disabled = !!isLoading;
+
+            if (isLoading) {
+                buttonText.textContent = '⏳ Enviando...';
+                loadingSpinner.style.display = 'inline-block';
+            } else {
+                buttonText.textContent = '✓ Registrar Manutenção';
+                loadingSpinner.style.display = 'none';
+                if (maintenancePlanSelect.value) {
+                    submitButton.disabled = false;
+                }
+            }
+        }
+
+        function handleError(err) {
+            console.error(err);
+            setButtonLoading(false);
+            showStatusMessage('❌ ' + (err && err.message ? err.message : String(err)), 'error');
+        }
+
+        function handleSuccess(result) {
+            setButtonLoading(false);
+            tempTaskState = {};
+            
+            if (typeof google !== 'undefined' && google.script && google.script.run) {
+                showStatusMessage('Recarregando dados...', 'info');
+                google.script.run
+                    .withSuccessHandler((newHistory) => {
+                        maintenanceHistory = newHistory || [];
+                        const selectedPlanKey = maintenancePlanSelect.value;
+                        if (selectedPlanKey) { 
+                            currentTaskStatusMap = calculateTaskStatus(selectedPlanKey); 
+                            renderFrequencyOptions(currentTaskStatusMap); 
+                        }
+                        showStatusMessage(`✅ ${result.totalTasks} tarefa(s) registrada(s)!`, 'success');
+                        document.querySelectorAll('input[name="frequency"]').forEach(cb => cb.checked = false);
+                        handleFrequencyChange();
+                    })
+                    .withFailureHandler(handleError)
+                    .getMaintenanceHistory();
+            } else {
+                maintenanceHistory = []; 
+                handleFrequencyChange(); 
+                showStatusMessage('✅ Sucesso (simulado)!', 'success');
+            }
+        }
+
+        var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+        const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+        function voltarPagina() {
+            window.location.href = pageUrl('dashboard', 'token=' + token);
+        }
+    </script>
+</body>
+
+</html>

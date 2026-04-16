@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base target="_top">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: linear-gradient(135deg, #002c74, #30775c);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Fundo animado */
+    body::before {
+      content: '';
+      position: absolute;
+      width: 250%;
+      height: 250%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+      animation: rotate 27s ease-in-out infinite;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 30px 40px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+      border-radius: 0 0 20px 20px;
+    }
+
+    .header img {
+      width: 300px;
+    }
+
+    .header h1 {
+      color: #fff;
+      font-weight: 600;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+    }
+
+    .welcome-msg {
+      position: relative;
+      z-index: 1;
+      /* Mantemos a margem e a altura, garantindo que fique no mesmo lugar */
+      margin: 12px 40px 0; 
+      color: #fff;
+      font-weight: 600;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+      height: 40px; 
+    }
+
+    /* Estilo base para os dois textos */
+    .welcome-title, .welcome-subtitle {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%; /* Ocupa toda a largura disponível... */
+      text-align: center; /* ...para poder centralizar o texto perfeitamente! */
+      opacity: 0; 
+      animation: fadeToggle 8s infinite; 
+    }
+
+    .welcome-title {
+      font-size: 35px;
+    }
+
+    .welcome-subtitle {
+      font-size: 25px; 
+      margin-top: 2px;
+      animation-delay: 4s; 
+    }
+
+    /* Animação de Fade In e Fade Out (inalterada) */
+    @keyframes fadeToggle {
+      0% { opacity: 0; transform: translateY(10px); }   
+      10% { opacity: 1; transform: translateY(0); }     
+      40% { opacity: 1; transform: translateY(0); }     
+      50% { opacity: 0; transform: translateY(-10px); } 
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    @keyframes subtitle-pulse {
+      0% { text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
+      50% { text-shadow: 1px 1px 12px rgba(255, 255, 255, 0.6); }
+      100% { text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
+      padding: 40px;
+    }
+
+    .card {
+      background: rgba(103, 85, 123, 0.16);
+      backdrop-filter: blur(15px);
+      padding: 25px;
+      border-radius: 20px;
+      text-align: center;
+      transition: transform 0.3s cubic-bezier(0.99, 1, 0.38, 1.38), box-shadow 0.3s ease;
+      position: relative;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .card:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Estilo base e transição do ícone */
+    .card .icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+      display: inline-block; /* Necessário para rotação funcionar corretamente */
+      transition: transform 0.2s ease-out; /* Reseta suavemente */
+    }
+
+    /* Animação que faz o ícone balançar ao passar o mouse */
+    .card:hover .icon {
+      animation: icon-wobble 0.8s ease-in-out infinite;
+    }
+
+    @keyframes icon-wobble {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-5deg); }
+      50% { transform: rotate(5deg); }
+      75% { transform: rotate(-3deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .card h3 {
+      color: #fff;
+      margin: 10px 0;
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #f0f0f0;
+      margin-bottom: 10px;
+    }
+
+    .card .stats {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .card a {
+      text-decoration: none;
+      color: white;
+      background: rgba(26, 115, 232, 0.8);
+      padding: 12px 20px;
+      border-radius: 12px;
+      display: inline-block;
+      transition: background 0.3s ease;
+    }
+
+    .card a:hover {
+      background: rgba(26, 115, 232, 1);
+    }
+
+    .card.hidden-by-search {
+      display: none;
+    }
+
+    @media(max-width:500px) {
+      .container {
+        padding: 20px;
+        gap: 15px;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .welcome-msg {
+        height: 30px; /* Ajusta a altura no celular */
+      }
+
+      .welcome-title {
+        font-size: 20px;
+      }
+
+      .welcome-subtitle {
+        font-size: 18px;
+        margin-top: 0;
+      }
+
+      .card h3 {
+        font-size: 18px;
+      }
+
+      .card .icon {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <img src="https://i.imgur.com/F8X7ZMs.png" alt="Logo">
+    <h1>Painel TUBA</h1>
+  </div>
+  <div class="welcome-msg" id="welcomeMsg">
+    <div class="welcome-title">Seja Bem-vindo, <?= (typeof usuarioNome !== 'undefined' && usuarioNome) ? usuarioNome : 'usuário' ?>!</div>
+    <div class="welcome-subtitle">Simplifique processos. Aumente resultados.</div>
+  </div>
+
+
+  <div class="container" id="containerCards">
+
+    <div class="card" data-module-name="gerenciar projetos projetos ativos finalizados">
+      <div class="icon">🗃️</div>
+      <h3>Gerenciar Projetos</h3>
+      <div class="stats" id="statProjetos">0</div>
+      <p>Projetos ativos / finalizados</p>
+      <a id="linkProjetos" href="#">Abrir</a>
+    </div>
+
+    <div class="card" data-module-name="linha de produção tarefas produção kanban">
+      <div class="icon">🏭</div>
+      <h3>Gestão por Processos</h3>
+      <div class="stats" id="statKanban">0</div>
+      <p>Tarefas em produção</p>
+      <a id="linkKanban" href="#">Abrir</a>
+    </div>
+
+    <div class="card" data-module-name="gerador etiquetas etiquetas geradas">
+      <div class="icon">🏷️</div>
+      <h3>Gerador de Etiquetas</h3>
+      <div class="stats" id="statEtiquetas">0</div>
+      <p>Etiquetas geradas</p>
+      <a id="linkGeradorEtiquetas" href="#">Abrir</a>
+    </div>
+
+    <div class="card" data-module-name="controle materia prima mp empresa materiais">
+      <div class="icon">📦</div>
+      <h3>Controle de Materia Prima</h3>
+      <div class="stats" id="statMateriais">0</div>
+      <p>Materiais em estoque</p>
+      <a id="linkMateriais" href="#">Abrir</a>
+    </div>
+
+    <div class="card" data-module-name="produtos cadastrados">
+      <div class="icon">🛍️</div>
+      <h3>Produtos Cadastrados</h3>
+      <div class="stats" id="statProdutos">0</div>
+      <p>Produtos cadastrados</p>
+      <a id="linkProdutos" href="#">Abrir</a>
+    </div>
+
+    <div class="card" data-module-name="administração área reservada">
+      <div class="icon">🔒</div>
+      <h3>Administração</h3>
+      <p>Área reservada</p>
+      <a id="linkTESTE" href="#">Abrir</a>
+    </div>
+
+    <div class="card card-financeiro-resumo" data-module-name="financeiro painel financeiro">
+      <div class="icon">💰</div>
+      <h3>Financeiro</h3>
+      <p>Visão do painel financeiro por completo</p>
+      <a id="linkFinanceiroResumo" href="#">Abrir</a>
+    </div>
+
+    <div class="card" data-module-name="formulário manutenção máquinas">
+      <div class="icon">⚙️</div>
+      <h3>Formulário de Manutenção</h3>
+      <p>Realizar manutenção das máquinas</p>
+      <a id="linkManutencao" href="#">Abrir</a>
+    </div>
+
+  </div>
+
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+    function pageUrl(page, qs) {
+      if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+      return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
+    }
+
+    // Verifica se o token veio na URL, se sim, salva no localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+
+    if (urlToken) {
+      localStorage.setItem('token', urlToken);
+    }
+
+    const token = localStorage.getItem('token');
+
+    if (!token) { window.location.href = pageUrl('login', ''); }
+
+    var setLink = function (id, page, qs) {
+      var el = document.getElementById(id);
+      el.href = pageUrl(page, qs || 'token=' + token);
+      if (baseUrl) el.setAttribute('target', '_top');
+    };
+    setLink('linkProjetos', 'projetos');
+    setLink('linkKanban', 'apresentacao');
+    setLink('linkGeradorEtiquetas', 'geradoretiquetas');
+    setLink('linkTESTE', 'paginasprotegidas');
+    setLink('linkManutencao', 'manutencao');
+    setLink('linkProdutos', 'produtos');
+    setLink('linkFinanceiroResumo', 'painelfinanceiro');
+    setLink('linkMateriais', 'materiais');
+
+    var lastUpdateTime = null;
+
+    // Atualiza estatísticas em tempo real (com tratamento de erro e indicador)
+    function atualizarEstatisticas() {
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          lastUpdateTime = Date.now();
+          document.getElementById('statProjetos').textContent = res.projetos != null ? res.projetos : 0;
+          document.getElementById('statKanban').textContent = res.kanban != null ? res.kanban : 0;
+          document.getElementById('statEtiquetas').textContent = res.etiquetas != null ? res.etiquetas : 0;
+          document.getElementById('statMateriais').textContent = res.materiais != null ? res.materiais : 0;
+          document.getElementById('statProdutos').textContent = res.produtos != null ? res.produtos : 0;
+        })
+        .withFailureHandler(function (err) {
+          console.error('getDashboardStats:', err);
+        })
+        .getDashboardStats();
+    }
+
+    atualizarEstatisticas();
+    setInterval(atualizarEstatisticas, 10000);
+
+  </script>
+
+</body>
+
+</html>

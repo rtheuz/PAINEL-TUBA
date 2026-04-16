@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Dashboard Financeiro — Pedidos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: linear-gradient(145deg, #0c1929 0%, #1a365d 40%, #0d4f4f 100%);
+      --card: rgba(255, 255, 255, 0.97);
+      --muted: #475569;
+      --accent: #0d9488;
+      --accent-light: #5eead4;
+      --danger: #dc2626;
+      --success: #059669;
+      --warning: #d97706;
+      --radius: 14px;
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100vh; font-family: 'DM Sans', system-ui, sans-serif; color: #0f172a; background: var(--bg); overflow-x: hidden; }
+    .page { min-height: 100vh; padding: 20px 16px 40px; max-width: 1400px; margin: 0 auto; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+      padding: 16px 0 24px; border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+    .brand { display: flex; align-items: center; gap: 14px; color: #fff; }
+    .brand img { height: 44px; width: 44px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.25); }
+    .brand h1 { font-size: 22px; font-weight: 700; margin: 0; }
+    .brand-subtitle { font-size: 13px; color: rgba(255,255,255,0.85); margin-top: 2px; }
+    .btn {
+      appearance: none; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; cursor: pointer;
+      display: inline-flex; gap: 8px; align-items: center; font-size: 14px; transition: all 0.2s;
+    }
+    .btn-ghost { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.25); }
+    .btn-ghost:hover { background: rgba(255,255,255,0.25); }
+    .btn-primary { background: linear-gradient(90deg, var(--accent), #0f766e); color: #fff; }
+    .btn-primary:hover { opacity: 0.95; transform: translateY(-1px); }
+
+    /* Filtros */
+    .filters-card {
+      background: var(--card); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; align-items: end;
+    }
+    .filter-group label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .filter-input, .filter-select { width: 100%; padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+    .filter-input:focus, .filter-select:focus { outline: none; border-color: var(--accent); }
+
+    /* KPI cards */
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px;
+    }
+    .kpi-card {
+      background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+      border-left: 4px solid var(--accent);
+    }
+    .kpi-card.danger { border-left-color: var(--danger); }
+    .kpi-card.success { border-left-color: var(--success); }
+    .kpi-card.warning { border-left-color: var(--warning); }
+    .kpi-card .label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .kpi-card .value { font-size: 22px; font-weight: 700; color: #0f172a; }
+    .kpi-card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* Carro-chefe */
+    .carro-chefe {
+      background: var(--card); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow);
+    }
+    .carro-chefe h3 { margin: 0 0 14px 0; font-size: 16px; color: #0f172a; }
+    .carro-chefe-list { list-style: none; padding: 0; margin: 0; }
+    .carro-chefe-list li {
+      display: flex; justify-content: space-between; align-items: center; padding: 10px 0;
+      border-bottom: 1px solid #f1f5f9; font-size: 14px;
+    }
+    .carro-chefe-list li:last-child { border-bottom: none; }
+    .carro-chefe-list .nome { font-weight: 600; color: #0f172a; }
+    .carro-chefe-list .valor { font-weight: 600; color: var(--accent); }
+
+    /* Tabela */
+    .table-card { background: var(--card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); overflow: hidden; }
+    .table-card h3 { margin: 0 0 16px 0; font-size: 16px; color: #0f172a; }
+    .table-wrapper { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: #f8fafc; position: sticky; top: 0; z-index: 5; }
+    th { padding: 12px 10px; text-align: left; font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; white-space: nowrap; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: var(--accent); }
+    td { padding: 11px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+    tr:hover { background: #f8fafc; }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .status-pago { background: #d1fae5; color: #065f46; }
+    .status-pendente { background: #fef3c7; color: #92400e; }
+    .status-atrasado { background: #fee2e2; color: #991b1b; }
+    .status-parcial { background: #dbeafe; color: #1e40af; }
+    .status-averificar { background: #e0e7ff; color: #3730a3; }
+    .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .resumo-footer { margin-top: 16px; padding-top: 16px; border-top: 2px solid #e2e8f0; font-weight: 600; color: #0f172a; }
+    .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 900px) { .two-cols { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand">
+        <img src="https://i.imgur.com/F8X7ZMs.png" alt="TUBA">
+        <div>
+          <h1>Dashboard Financeiro</h1>
+          <div class="brand-subtitle">Visão consolidada de pedidos, saldos e inadimplência</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="voltarPagina()">← Voltar</button>
+        <a class="btn btn-primary" id="linkPedidos" href="#">Abrir Pedidos</a>
+      </div>
+    </div>
+
+    <div class="filters-card">
+      <div class="filter-group" style="grid-column: 1 / -1;">
+        <label>Buscar (cliente, projeto, NF)</label>
+        <input type="text" class="filter-input" id="searchInput" placeholder="Digite para filtrar...">
+      </div>
+      <div class="filter-group">
+        <label>Período (competência)</label>
+        <select class="filter-select" id="filterPeriodo">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status pagamento</label>
+        <select class="filter-select" id="filterStatus">
+          <option value="">Todos</option>
+          <option value="Pago">Pago</option>
+          <option value="Pendente">Pendente</option>
+          <option value="Atrasado">Atrasado</option>
+          <option value="Pago parcialmente">Pago parcialmente</option>
+          <option value="Pago (A VERIFICAR)">Pago (A VERIFICAR)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Tipo (cliente)</label>
+        <select class="filter-select" id="filterTipo">
+          <option value="">Todos</option>
+          <option value="profissional">Profissional (PF)</option>
+          <option value="corporativo">Corporativo (PJ)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <button class="btn btn-primary" onclick="aplicarFiltros()">Aplicar filtros</button>
+      </div>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid">
+      <div class="kpi-card">
+        <div class="label">Saldo consolidado (recebido)</div>
+        <div class="value" id="kpiRecebido">R$ 0,00</div>
+        <div class="sub" id="kpiRecebidoSub">Total pago nos pedidos</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Saldo a receber</div>
+        <div class="value" id="kpiAReceber">R$ 0,00</div>
+        <div class="sub" id="kpiAReceberSub">Pendente + atrasado</div>
+      </div>
+      <div class="kpi-card success">
+        <div class="label">Total em pedidos (filtrado)</div>
+        <div class="value" id="kpiTotalPedidos">R$ 0,00</div>
+        <div class="sub" id="kpiTotalPedidosSub">Soma dos valores</div>
+      </div>
+      <div class="kpi-card warning">
+        <div class="label">Taxa de inadimplência</div>
+        <div class="value" id="kpiInadimplencia">0%</div>
+        <div class="sub" id="kpiInadimplenciaSub">Valor em atraso / a receber</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Quantidade (filtrado)</div>
+        <div class="value" id="kpiQtd">0</div>
+        <div class="sub">pedidos</div>
+      </div>
+    </div>
+
+    <div class="two-cols">
+      <div class="carro-chefe">
+        <h3>🏆 Pedidos carro-chefe (top 10 por valor)</h3>
+        <ul class="carro-chefe-list" id="carroChefeList"></ul>
+      </div>
+      <div class="carro-chefe">
+        <h3>⚠️ Pedidos em atraso</h3>
+        <ul class="carro-chefe-list" id="atrasadosList"></ul>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <h3>Lista de pedidos</h3>
+      <div id="tableContainer">
+        <div class="loading"><div class="spinner"></div>Carregando...</div>
+      </div>
+      <div class="resumo-footer" id="resumoFooter" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script type="application/json" id="pedidos-data"><?!= pedidosData || '[]' ?></script>
+  <script type="application/json" id="clientes-data"><?!= clientesData || '[]' ?></script>
+  <script>
+    const token = '<?= token ?>';
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+    let pedidos = [];
+    let clientes = [];
+    let tipoClienteMap = {}; // CLIENTE nome -> 'profissional' | 'corporativo'
+
+    try {
+      var el = document.getElementById('pedidos-data');
+      if (el && el.textContent) pedidos = JSON.parse(el.textContent);
+    } catch (e) { pedidos = []; }
+    try {
+      var elC = document.getElementById('clientes-data');
+      if (elC && elC.textContent) clientes = JSON.parse(elC.textContent);
+    } catch (e) { clientes = []; }
+
+    function digitos(s) {
+      if (!s) return '';
+      return String(s).replace(/\D/g, '');
+    }
+    function classificarCliente(nome) {
+      if (tipoClienteMap[nome] !== undefined) return tipoClienteMap[nome];
+      var c = clientes.find(function (x) { return (x.nome || '').toString().trim().toLowerCase() === (nome || '').toString().trim().toLowerCase(); });
+      if (!c || !c.cpf) return '';
+      var d = digitos(c.cpf);
+      if (d.length === 11) return 'profissional';
+      if (d.length === 14) return 'corporativo';
+      return '';
+    }
+    function buildTipoMap() {
+      pedidos.forEach(function (p) {
+        var nome = getTextoBusca(p, ['CLIENTE', 'Cliente', 'cliente']);
+        if (nome && tipoClienteMap[nome] === undefined) tipoClienteMap[nome] = classificarCliente(nome);
+      });
+    }
+
+    var isEmbedded = (function() {
+      try { return window.self !== window.top || (new URLSearchParams(window.location.search)).get('embedded') === '1'; } catch (e) { return true; }
+    })();
+
+    function voltarPagina() {
+      if (isEmbedded && window.parent !== window.self) {
+        try { window.parent.postMessage({ type: 'CLOSE_IFRAME' }, '*'); } catch (e) {}
+        return;
+      }
+      window.location.href = pageUrl('painelfinanceiro', 'token=' + token);
+    }
+    document.getElementById('linkPedidos').href = pageUrl('pedidos', 'token=' + token);
+    if (baseUrl || isEmbedded) document.getElementById('linkPedidos').setAttribute('target', '_top');
+
+    function getDataCompetencia(p) { return p._dataCompetencia || p["DATA_COMPETENCIA"] || p.DATA || ""; }
+    /** Formata qualquer valor de data para exibição dd/mm/yyyy (evita "Fri Feb 13 2026 GMT-0300...") */
+    function formatDateDisplay(val) {
+      if (val == null || val === '') return '';
+      var s = (val + '').trim();
+      var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return s;
+      try {
+        var d = new Date(val);
+        if (!isNaN(d.getTime())) {
+          var dd = ('0' + d.getDate()).slice(-2);
+          var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+          return dd + '/' + mm + '/' + d.getFullYear();
+        }
+      } catch (e) {}
+      return s;
+    }
+    function getStatusPagamento(p) { return (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || "Pendente").toString().trim(); }
+    /** Considera a primeira data de vencimento (quando há várias separadas por vírgula/newline) para marcar Atrasado. */
+    function getStatusExibicao(p) {
+      var status = getStatusPagamento(p);
+      if (status === "Pago" || status === "Pago (A VERIFICAR)") return status;
+      var dataVenc = (p._dataVencimento || p["DATA_VENCIMENTO"] || p["DATA DE VENCIMENTO"] || "").toString().trim();
+      if (dataVenc) {
+        var primeiraData = dataVenc.split(/[\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
+        var m = primeiraData.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) {
+          var d = new Date(parseInt(m[3],10), parseInt(m[2],10)-1, parseInt(m[1],10));
+          var hoje = new Date(); hoje.setHours(0,0,0,0); d.setHours(0,0,0,0);
+          if (d.getTime() < hoje.getTime()) return "Atrasado";
+        } else {
+          var iso = primeiraData.match(/^(\d{4})-(\d{2})-(\d{2})/);
+          if (iso) {
+            var d = new Date(parseInt(iso[1],10), parseInt(iso[2],10)-1, parseInt(iso[3],10));
+            var hoje = new Date(); hoje.setHours(0,0,0,0); d.setHours(0,0,0,0);
+            if (d.getTime() < hoje.getTime()) return "Atrasado";
+          }
+        }
+      }
+      return status;
+    }
+    function parseNum(v) {
+      if (v == null || v === '') return 0;
+      if (typeof v === 'number' && !isNaN(v)) return v;
+      var s = (v+'').trim().replace(/[^\d,.]/g,'');
+      if (!s) return 0;
+      var lastC = s.lastIndexOf(','), lastD = s.lastIndexOf('.');
+      if (lastC > lastD) return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+      if (lastD > lastC) return parseFloat(s.replace(/,/g,'')) || 0;
+      return parseFloat(s.replace(',','.')) || 0;
+    }
+    function formatCurrency(n) {
+      if (n == null || isNaN(n)) return '-';
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+    }
+    function getMesAno(dataStr) {
+      if (!dataStr) return '';
+      var m = (dataStr+'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return m[2] + '/' + m[3];
+      try {
+        var d = new Date(dataStr);
+        if (!isNaN(d.getTime())) return ('0'+(d.getMonth()+1)).slice(-2) + '/' + d.getFullYear();
+      } catch (e) {}
+      return '';
+    }
+    function getValorRestante(p) {
+      if (p._valorRestante === null || getStatusPagamento(p) === 'Pago') return null;
+      return p._valorRestante;
+    }
+    /** Retorna valor de texto para busca: aceita várias chaves (planilha pode ter Cliente, CLIENTE, etc.) */
+    function getTextoBusca(p, variantes) {
+      var i, v, val;
+      for (i = 0; i < variantes.length; i++) {
+        v = variantes[i];
+        if (p.hasOwnProperty(v)) {
+          val = p[v];
+          if (val != null && val !== '') return String(val).trim();
+        }
+      }
+      return '';
+    }
+    function matchSearchTerm(p, search) {
+      if (!search) return true;
+      var cliente = getTextoBusca(p, ['CLIENTE', 'Cliente', 'cliente']);
+      var projeto = getTextoBusca(p, ['PROJETO', 'Projeto', 'projeto']);
+      var nf = getTextoBusca(p, ['NF', 'NOTA_FISCAL', 'NOTA FISCAL', 'Nota fiscal', 'Nº']);
+      var clienteL = cliente.toLowerCase();
+      var projetoL = projeto.toLowerCase();
+      var nfL = nf.toLowerCase();
+      return clienteL.indexOf(search) >= 0 || projetoL.indexOf(search) >= 0 || nfL.indexOf(search) >= 0;
+    }
+    function getClienteDisplay(p) { return getTextoBusca(p, ['CLIENTE', 'Cliente', 'cliente']) || '-'; }
+    function getProjetoDisplay(p) { return getTextoBusca(p, ['PROJETO', 'Projeto', 'projeto']) || ''; }
+
+    function getFiltered() {
+      var search = (document.getElementById('searchInput').value || '').toLowerCase().trim();
+      var periodo = (document.getElementById('filterPeriodo').value || '').trim();
+      var status = (document.getElementById('filterStatus').value || '').trim();
+      var tipo = (document.getElementById('filterTipo').value || '').trim();
+      return pedidos.filter(function (p) {
+        var matchSearch = matchSearchTerm(p, search);
+        var matchPeriodo = !periodo || getMesAno(getDataCompetencia(p)) === periodo;
+        var statusExib = getStatusExibicao(p);
+        var matchStatus = !status || statusExib === status;
+        var nomeCliente = getTextoBusca(p, ['CLIENTE', 'Cliente', 'cliente']);
+        var tipoCliente = tipoClienteMap[nomeCliente];
+        if (!tipoCliente && nomeCliente) tipoCliente = classificarCliente(nomeCliente);
+        var matchTipo = !tipo || tipoCliente === tipo;
+        return matchSearch && matchPeriodo && matchStatus && matchTipo;
+      });
+    }
+
+    function aplicarFiltros() {
+      updateKPIs();
+      updateCarroChefeEAtrasados();
+      renderTable();
+    }
+
+    function updateKPIs() {
+      var filtered = getFiltered();
+      var totalPedidos = 0;
+      var totalRecebido = 0;
+      var totalAReceber = 0;
+      var totalAtrasado = 0;
+      filtered.forEach(function (p) {
+        var vt = parseNum(p["VALOR TOTAL"]);
+        totalPedidos += vt;
+        var vp = parseNum(p["VALOR_PAGO"] || p["VALOR PAGO"]);
+        totalRecebido += vp;
+        var restante = getValorRestante(p);
+        if (restante != null) {
+          totalAReceber += restante;
+          if (getStatusExibicao(p) === 'Atrasado') totalAtrasado += restante;
+        }
+      });
+      document.getElementById('kpiRecebido').textContent = formatCurrency(totalRecebido);
+      document.getElementById('kpiRecebidoSub').textContent = filtered.length + ' pedidos no filtro';
+      document.getElementById('kpiAReceber').textContent = formatCurrency(totalAReceber);
+      document.getElementById('kpiAReceberSub').textContent = 'Pendente + atrasado';
+      document.getElementById('kpiTotalPedidos').textContent = formatCurrency(totalPedidos);
+      document.getElementById('kpiTotalPedidosSub').textContent = 'Soma dos valores totais';
+      var taxa = totalAReceber > 0 ? (100 * totalAtrasado / totalAReceber) : 0;
+      document.getElementById('kpiInadimplencia').textContent = taxa.toFixed(1) + '%';
+      document.getElementById('kpiInadimplenciaSub').textContent = totalAtrasado > 0 ? formatCurrency(totalAtrasado) + ' em atraso' : 'Nenhum valor em atraso';
+      document.getElementById('kpiQtd').textContent = filtered.length;
+    }
+
+    function updateCarroChefeEAtrasados() {
+      var filtered = getFiltered();
+      var porValor = filtered.slice().sort(function (a, b) { return parseNum(b["VALOR TOTAL"]) - parseNum(a["VALOR TOTAL"]); });
+      var top10 = porValor.slice(0, 10);
+      var atrasados = filtered.filter(function (p) { return getStatusExibicao(p) === 'Atrasado'; });
+      atrasados.sort(function (a, b) { return parseNum(getValorRestante(b) || 0) - parseNum(getValorRestante(a) || 0); });
+
+      var htmlTop = '';
+      top10.forEach(function (p) {
+        var nome = getClienteDisplay(p) + ' (' + getProjetoDisplay(p) + ')';
+        htmlTop += '<li><span class="nome">' + escapeHtml(nome) + '</span><span class="valor">' + formatCurrency(parseNum(p["VALOR TOTAL"])) + '</span></li>';
+      });
+      document.getElementById('carroChefeList').innerHTML = htmlTop || '<li style="color:var(--muted);">Nenhum pedido no filtro</li>';
+
+      var htmlAtr = '';
+      atrasados.slice(0, 15).forEach(function (p) {
+        var nome = getClienteDisplay(p) + ' — ' + formatCurrency(getValorRestante(p));
+        htmlAtr += '<li><span class="nome">' + escapeHtml(nome) + '</span><span class="valor">' + getProjetoDisplay(p) + '</span></li>';
+      });
+      document.getElementById('atrasadosList').innerHTML = htmlAtr || '<li style="color:var(--muted);">Nenhum pedido em atraso</li>';
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      var div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    function populatePeriodoFilter() {
+      var meses = {};
+      pedidos.forEach(function (p) {
+        var ma = getMesAno(getDataCompetencia(p));
+        if (ma) meses[ma] = true;
+      });
+      var lista = Object.keys(meses).sort(function (a, b) {
+        var [ma, aa] = a.split('/').map(Number);
+        var [mb, ab] = b.split('/').map(Number);
+        return aa !== ab ? ab - aa : mb - ma;
+      });
+      var sel = document.getElementById('filterPeriodo');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Todos</option>';
+      lista.forEach(function (m) {
+        var opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        sel.appendChild(opt);
+      });
+    }
+
+    function renderTable() {
+      var filtered = getFiltered();
+      var container = document.getElementById('tableContainer');
+      var footer = document.getElementById('resumoFooter');
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state">Nenhum pedido corresponde aos filtros.</div>';
+        footer.style.display = 'none';
+        return;
+      }
+      var totalGeral = 0;
+      var recebidoGeral = 0;
+      var aReceberGeral = 0;
+      filtered.forEach(function (p) {
+        totalGeral += parseNum(p["VALOR TOTAL"]);
+        recebidoGeral += parseNum(p["VALOR_PAGO"] || p["VALOR PAGO"]);
+        var r = getValorRestante(p);
+        if (r != null) aReceberGeral += r;
+      });
+      var cols = [
+        { key: 'PROJETO', label: 'Projeto' },
+        { key: 'CLIENTE', label: 'Cliente' },
+        { key: '_dataCompetencia', label: 'Data comp.' },
+        { key: 'VALOR TOTAL', label: 'Valor total' },
+        { key: '_valorRestante', label: 'A receber' },
+        { key: 'STATUS_PAGAMENTO', label: 'Status' }
+      ];
+      var thead = '<tr>' + cols.map(function (c) { return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
+      var tbody = '';
+      filtered.forEach(function (p) {
+        var statusExib = getStatusExibicao(p);
+        var statusClass = 'status-pendente';
+        if (statusExib.indexOf('Pago') >= 0 && statusExib.indexOf('VERIFICAR') >= 0) statusClass = 'status-averificar';
+        else if (statusExib.indexOf('parcial') >= 0) statusClass = 'status-parcial';
+        else if (statusExib === 'Pago') statusClass = 'status-pago';
+        else if (statusExib === 'Atrasado') statusClass = 'status-atrasado';
+        var valorRestante = getValorRestante(p);
+        tbody += '<tr>' +
+          '<td>' + escapeHtml(getProjetoDisplay(p)) + '</td>' +
+          '<td>' + escapeHtml(getClienteDisplay(p) === '-' ? '' : getClienteDisplay(p)) + '</td>' +
+          '<td>' + escapeHtml(formatDateDisplay(getDataCompetencia(p))) + '</td>' +
+          '<td>' + formatCurrency(parseNum(p["VALOR TOTAL"])) + '</td>' +
+          '<td>' + (valorRestante != null ? formatCurrency(valorRestante) : '-') + '</td>' +
+          '<td><span class="status-badge ' + statusClass + '">' + escapeHtml(statusExib) + '</span></td>' +
+          '</tr>';
+      });
+      container.innerHTML = '<div class="table-wrapper"><table><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+      footer.style.display = 'block';
+      footer.innerHTML = 'Total filtrado: ' + formatCurrency(totalGeral) + ' &nbsp;|&nbsp; Recebido: ' + formatCurrency(recebidoGeral) + ' &nbsp;|&nbsp; A receber: ' + formatCurrency(aReceberGeral) + ' &nbsp;(' + filtered.length + ' pedidos)';
+    }
+
+    (function init() {
+      buildTipoMap();
+      populatePeriodoFilter();
+      updateKPIs();
+      updateCarroChefeEAtrasados();
+      renderTable();
+      document.getElementById('searchInput').addEventListener('input', aplicarFiltros);
+      document.getElementById('filterPeriodo').addEventListener('change', aplicarFiltros);
+      document.getElementById('filterStatus').addEventListener('change', aplicarFiltros);
+      document.getElementById('filterTipo').addEventListener('change', aplicarFiltros);
+    })();
+  </script>
+</body>
+</html>
