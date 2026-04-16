@@ -75,7 +75,6 @@ function gerarPdfOrcamento(
 
     if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
       atribuirPRDsUnicos(produtosCadastrados);
-      produtosCadastrados = _consolidarProdutosCadastradosPorCodigo(produtosCadastrados);
     }
 
     const resultados = [];

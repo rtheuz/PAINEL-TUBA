@@ -1842,6 +1842,14 @@
             });
         }
 
+        function confirmarAcaoProjetoExistente(codigoProjeto, novaVersao) {
+            if (!codigoProjetoJaExiste(codigoProjeto)) return true;
+            if (novaVersao) {
+                return confirm("⚠️ Já existe um projeto com o código \"" + codigoProjeto + "\".\n\nComo \"Gerar como nova proposta\" está marcado, será criada uma NOVA VERSÃO de ORÇAMENTO para este projeto.\n\nDeseja continuar?");
+            }
+            return confirm("⚠️ Já existe um projeto com o código \"" + codigoProjeto + "\".\n\nAo continuar, o orçamento/projeto existente será sobrescrito.\n\nDeseja continuar?");
+        }
+
         // Verifica se o código do projeto atual já existe na lista de orçamentos (duplicidade)
         // Só é exibido quando o usuário NÃO carregou um projeto existente (criando um novo)
         function verificarCodigoDuplicado(codigoAtual) {
@@ -2656,7 +2664,7 @@
                 // Se não tem orçamento carregado, verifica se o código já existe antes de salvar.
                 // Faz a checagem diretamente na lista (não depende do estado visual do banner).
                 if (codigoProjetoJaExiste(codigoProjeto)) {
-                    if (!confirm("⚠️ Já existe um projeto com o código \"" + codigoProjeto + "\".\n\nDeseja sobrescrever o projeto existente?")) {
+                    if (!confirmarAcaoProjetoExistente(codigoProjeto, false)) {
                         btn.disabled = originalDisabled;
                         return;
                     }
@@ -3072,11 +3080,10 @@
                 }
             }
 
-            // Verificar duplicidade: se NÃO está editando projeto carregado e for sobrescrever a versão atual,
-            // bloquear o fluxo. Para "nova versão" (v2/v3...), não pode bloquear aqui.
-            if (!apenasPreview && !linhaOrcamentoCarregado && sobrescreverVersao) {
-                if (codigoProjetoJaExiste(codigoProjetoCompleto)) {
-                    alert("⚠️ Já existe um projeto com o código \"" + codigoProjetoCompleto + "\".\n\nUse o projeto existente ou altere Data, Índice e Iniciais. O sistema bloqueou a geração para evitar duplicidade.");
+            // Se já existe um projeto com este código base e não estamos editando um carregado,
+            // avisa o usuário sobre sobrescrita ou criação de nova versão.
+            if (!apenasPreview && !linhaOrcamentoCarregado && codigoProjetoJaExiste(codigoProjetoCompleto)) {
+                if (!confirmarAcaoProjetoExistente(codigoProjetoCompleto, !sobrescreverVersao)) {
                     btn.disabled = false;
                     btn.textContent = textoOriginalBtn;
                     return;

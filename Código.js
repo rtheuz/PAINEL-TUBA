@@ -447,7 +447,7 @@ function getProdutosCadastrados() {
  */
 function getProximoCodigoPRD() {
   try {
-    const reservados = _coletarCodigosPRDReservadosGlobais();
+    const reservados = _coletarCodigosPRDDoCatalogo();
     let maxNumero = 0;
     reservados.forEach(function (codigo) {
       const m = String(codigo || "").match(/^PRD(\d+)$/i);
@@ -540,7 +540,7 @@ function _coletarCodigosPRDReservadosGlobais() {
 
 function _obterMaiorNumeroPRDGlobal() {
   let maxNumero = 0;
-  const reservados = _coletarCodigosPRDReservadosGlobais();
+  const reservados = _coletarCodigosPRDDoCatalogo();
   reservados.forEach(function (codigo) {
     const m = String(codigo || "").match(/^PRD(\d+)$/i);
     if (m && m[1]) {
@@ -584,21 +584,14 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
     return { produtos: produtos || [], alteracoes: 0 };
   }
 
-  const reservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDReservadosGlobais();
+  const reservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDDoCatalogo();
   const usadosNoOrcamento = new Set();
   let alteracoes = 0;
 
-  let poolNovosCodigos = [];
-
   function gerarNovoCodigoLivre() {
     while (true) {
-      if (poolNovosCodigos.length === 0) {
-        poolNovosCodigos = _alocarFaixaPRDAtomica(20);
-      }
-      const codigo = _normalizarCodigoPRD(poolNovosCodigos.shift());
-      if (!reservados.has(codigo) && !usadosNoOrcamento.has(codigo)) {
-        return codigo;
-      }
+      const codigo = _normalizarCodigoPRD(_alocarFaixaPRDAtomica(1)[0]);
+      if (!reservados.has(codigo) && !usadosNoOrcamento.has(codigo)) return codigo;
     }
   }
 
@@ -611,6 +604,7 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
 
     if (disponivelNoOrcamento) {
       produto.codigo = codigoAtual;
+      reservados.add(codigoAtual);
       usadosNoOrcamento.add(codigoAtual);
       return;
     }
@@ -6448,31 +6442,6 @@ function salvarRascunho(nomeRascunho, dados) {
     // Validação: Descrição obrigatória
     if (!descricao || descricao.trim() === "") {
       throw new Error("A descrição do projeto é obrigatória para salvar o rascunho.");
-    }
-
-    // Validação de duplicidade antes de salvar
-    if (codigoProjeto) {
-      const validacao = verificarProjetoDuplicado(codigoProjeto);
-      // Se existe e não é um rascunho sendo editado, retorna erro
-      if (validacao.duplicado) {
-        // Verifica se é edição do mesmo projeto (mesma linha)
-        const sheetProj = SHEET_PROJ;
-        const targetSheet = sheetProj;
-        const linhaExistente = findRowByColumnValue(targetSheet, "PROJETO", codigoProjeto);
-
-        // Se a linha existe, verifica o status
-        if (linhaExistente) {
-          const numCols = PROJETOS_NUM_COLUNAS;
-          const statusIdx = 9; // STATUS_ORCAMENTO ou STATUS (ambos índice 9)
-          const rowData = targetSheet.getRange(linhaExistente, 1, 1, numCols).getValues()[0];
-          const status = rowData[statusIdx];
-
-          // Se não é um rascunho, não permite sobrescrever
-          if (status !== "RASCUNHO") {
-            throw new Error(`Projeto ${codigoProjeto} já existe com status "${status}". Use outra numeração ou edite o projeto existente.`);
-          }
-        }
-      }
     }
 
     // Garante que a pasta do orçamento já exista para este rascunho (SEM criar 01_IN)
