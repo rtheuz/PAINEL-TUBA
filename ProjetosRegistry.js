@@ -46,10 +46,9 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   const listaProds = produtosCadastrados || [];
   atribuirPRDsUnicos(listaProds);
-  var listaProdsConsolidada = _consolidarProdutosCadastradosPorCodigo(listaProds);
-  produtosCadastrados = listaProdsConsolidada;
+  produtosCadastrados = listaProds;
   if (dadosFormularioCompleto && Array.isArray(dadosFormularioCompleto.produtosCadastrados)) {
-    dadosFormularioCompleto.produtosCadastrados = JSON.parse(JSON.stringify(listaProdsConsolidada));
+    dadosFormularioCompleto.produtosCadastrados = JSON.parse(JSON.stringify(listaProds));
   }
 
   function _sincronizarProdutosNaRelacao(produtos, codigoProj, nomeCliente) {

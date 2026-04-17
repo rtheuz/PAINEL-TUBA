@@ -540,6 +540,8 @@ function _coletarCodigosPRDReservadosGlobais() {
 
 function _obterMaiorNumeroPRDGlobal() {
   let maxNumero = 0;
+  // Scan both catalog and JSON_DADOS to get the true global max.
+  // This ensures we never reuse a code that was already allocated in a draft/rascunho.
   const reservados = _coletarCodigosPRDReservadosGlobais();
   reservados.forEach(function (codigo) {
     const m = String(codigo || "").match(/^PRD(\d+)$/i);
@@ -556,18 +558,15 @@ function _alocarFaixaPRDAtomica(qtd) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    const props = PropertiesService.getScriptProperties();
-    const key = "PRD_NEXT_NUMBER";
-
-    let next = parseInt(props.getProperty(key), 10);
+    // Always derive the starting point from the actual data (catalog + JSON_DADOS).
+    // We intentionally do NOT read the PRD_NEXT_NUMBER property here because it may
+    // be stale (set by older code that pre-allocated codes in chunks of 20, leaving gaps).
     const maxGlobal = _obterMaiorNumeroPRDGlobal();
-    if (!Number.isFinite(next) || next <= maxGlobal) {
-      next = maxGlobal + 1;
-    }
+    const inicio = maxGlobal + 1;
+    const fim = maxGlobal + quantidade;
 
-    const inicio = next;
-    const fim = next + quantidade - 1;
-    props.setProperty(key, String(fim + 1));
+    // Write updated value for informational/debugging use (not read back by this function).
+    PropertiesService.getScriptProperties().setProperty("PRD_NEXT_NUMBER", String(fim + 1));
 
     const codigos = [];
     for (let n = inicio; n <= fim; n++) {
@@ -584,22 +583,39 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
     return { produtos: produtos || [], alteracoes: 0 };
   }
 
-  const reservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDReservadosGlobais();
+  // Use a LOCAL copy of the reserved set so we never mutate the caller's shared Set.
+  // Always scan both catalog and JSON_DADOS to avoid reusing codes from drafts.
+  var baseReservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDReservadosGlobais();
+  var reservados = new Set(baseReservados);
   const usadosNoOrcamento = new Set();
   let alteracoes = 0;
 
-  let poolNovosCodigos = [];
-
-  function gerarNovoCodigoLivre() {
-    while (true) {
-      if (poolNovosCodigos.length === 0) {
-        poolNovosCodigos = _alocarFaixaPRDAtomica(20);
-      }
-      const codigo = _normalizarCodigoPRD(poolNovosCodigos.shift());
-      if (!reservados.has(codigo) && !usadosNoOrcamento.has(codigo)) {
-        return codigo;
-      }
+  // First pass: count how many products need a new code so we can allocate them all
+  // in a single atomic lock call instead of one lock call per product.
+  // A product needs a new code when it has no valid PRD or its code is a within-order duplicate.
+  var precisaNovoContagem = 0;
+  var codigosExistentesVistos = new Set();
+  produtos.forEach(function (produto) {
+    if (!produto || typeof produto !== "object") return;
+    var cod = _normalizarCodigoPRD(produto.codigo);
+    if (!_ehCodigoPRDValido(cod) || codigosExistentesVistos.has(cod)) {
+      precisaNovoContagem++;
+    } else {
+      codigosExistentesVistos.add(cod);
     }
+  });
+
+  // Pre-allocate all needed codes in one batch (single lock acquisition).
+  var poolNovosCodigos = precisaNovoContagem > 0 ? _alocarFaixaPRDAtomica(precisaNovoContagem) : [];
+  var poolIdx = 0;
+
+  function proximoCodigoLivre() {
+    while (poolIdx < poolNovosCodigos.length) {
+      var c = _normalizarCodigoPRD(poolNovosCodigos[poolIdx++]);
+      if (!reservados.has(c) && !usadosNoOrcamento.has(c)) return c;
+    }
+    // Fallback: only triggered when pre-allocation underestimated (should not happen normally).
+    return _normalizarCodigoPRD(_alocarFaixaPRDAtomica(1)[0]);
   }
 
   produtos.forEach(function (produto) {
@@ -611,11 +627,12 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
 
     if (disponivelNoOrcamento) {
       produto.codigo = codigoAtual;
+      reservados.add(codigoAtual);
       usadosNoOrcamento.add(codigoAtual);
       return;
     }
 
-    const novoCodigo = gerarNovoCodigoLivre();
+    const novoCodigo = proximoCodigoLivre();
     produto.codigo = novoCodigo;
     reservados.add(novoCodigo);
     usadosNoOrcamento.add(novoCodigo);
@@ -6448,31 +6465,6 @@ function salvarRascunho(nomeRascunho, dados) {
     // Validação: Descrição obrigatória
     if (!descricao || descricao.trim() === "") {
       throw new Error("A descrição do projeto é obrigatória para salvar o rascunho.");
-    }
-
-    // Validação de duplicidade antes de salvar
-    if (codigoProjeto) {
-      const validacao = verificarProjetoDuplicado(codigoProjeto);
-      // Se existe e não é um rascunho sendo editado, retorna erro
-      if (validacao.duplicado) {
-        // Verifica se é edição do mesmo projeto (mesma linha)
-        const sheetProj = SHEET_PROJ;
-        const targetSheet = sheetProj;
-        const linhaExistente = findRowByColumnValue(targetSheet, "PROJETO", codigoProjeto);
-
-        // Se a linha existe, verifica o status
-        if (linhaExistente) {
-          const numCols = PROJETOS_NUM_COLUNAS;
-          const statusIdx = 9; // STATUS_ORCAMENTO ou STATUS (ambos índice 9)
-          const rowData = targetSheet.getRange(linhaExistente, 1, 1, numCols).getValues()[0];
-          const status = rowData[statusIdx];
-
-          // Se não é um rascunho, não permite sobrescrever
-          if (status !== "RASCUNHO") {
-            throw new Error(`Projeto ${codigoProjeto} já existe com status "${status}". Use outra numeração ou edite o projeto existente.`);
-          }
-        }
-      }
     }
 
     // Garante que a pasta do orçamento já exista para este rascunho (SEM criar 01_IN)
