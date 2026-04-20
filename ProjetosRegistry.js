@@ -44,7 +44,12 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
 
   chapas = chapas || [];
 
-  const listaProds = produtosCadastrados || [];
+  const listaProds = (produtosCadastrados || []).map(function (prod) {
+    if (!prod || typeof prod !== "object") return {};
+    return JSON.parse(JSON.stringify(prod));
+  });
+  // Mantém PRD apenas quando o item bate com catálogo;
+  // caso contrário, gera novo no fluxo de gravação do PDF.
   atribuirPRDsUnicos(listaProds);
   produtosCadastrados = listaProds;
   if (dadosFormularioCompleto && Array.isArray(dadosFormularioCompleto.produtosCadastrados)) {

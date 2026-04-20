@@ -540,10 +540,23 @@ function _coletarCodigosPRDReservadosGlobais() {
 
 function _obterMaiorNumeroPRDGlobal() {
   let maxNumero = 0;
-  // Scan both catalog and JSON_DADOS to get the true global max.
-  // This ensures we never reuse a code that was already allocated in a draft/rascunho.
+  // Mantido para compatibilidade com utilitários de manutenção.
+  // A geração normal do PDF usa sequência baseada apenas no catálogo.
   const reservados = _coletarCodigosPRDReservadosGlobais();
   reservados.forEach(function (codigo) {
+    const m = String(codigo || "").match(/^PRD(\d+)$/i);
+    if (m && m[1]) {
+      const n = parseInt(m[1], 10);
+      if (!isNaN(n) && n > maxNumero) maxNumero = n;
+    }
+  });
+  return maxNumero;
+}
+
+function _obterMaiorNumeroPRDDoCatalogo() {
+  let maxNumero = 0;
+  const catalogo = _coletarCodigosPRDDoCatalogo();
+  catalogo.forEach(function (codigo) {
     const m = String(codigo || "").match(/^PRD(\d+)$/i);
     if (m && m[1]) {
       const n = parseInt(m[1], 10);
@@ -558,10 +571,9 @@ function _alocarFaixaPRDAtomica(qtd) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    // Always derive the starting point from the actual data (catalog + JSON_DADOS).
-    // We intentionally do NOT read the PRD_NEXT_NUMBER property here because it may
-    // be stale (set by older code that pre-allocated codes in chunks of 20, leaving gaps).
-    const maxGlobal = _obterMaiorNumeroPRDGlobal();
+    // Regra nova: sequência de PRD vem do último código da aba Relação de produtos.
+    // Não usamos JSON_DADOS de rascunho como base para numeração.
+    const maxGlobal = _obterMaiorNumeroPRDDoCatalogo();
     const inicio = maxGlobal + 1;
     const fim = maxGlobal + quantidade;
 
@@ -583,29 +595,33 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
     return { produtos: produtos || [], alteracoes: 0 };
   }
 
-  // Use a LOCAL copy of the reserved set so we never mutate the caller's shared Set.
-  // Always scan both catalog and JSON_DADOS to avoid reusing codes from drafts.
-  var baseReservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDReservadosGlobais();
+  // Regra nova: base de reserva é o catálogo. Rascunhos não reservam PRD.
+  var baseReservados = codigosReservadosOpt instanceof Set ? codigosReservadosOpt : _coletarCodigosPRDDoCatalogo();
   var reservados = new Set(baseReservados);
   const usadosNoOrcamento = new Set();
   let alteracoes = 0;
+  const assinaturaCatalogo = _mapAssinaturaCatalogoPorPRD_();
 
-  // First pass: count how many products need a new code so we can allocate them all
-  // in a single atomic lock call instead of one lock call per product.
-  // A product needs a new code when it has no valid PRD or its code is a within-order duplicate.
+  function _codigoMantivelNoCatalogo(prod, codigo) {
+    if (!_ehCodigoPRDValido(codigo)) return false;
+    // Se o PRD existe no catálogo, ele é considerado válido para manter.
+    // Isso evita trocar PRDs corretos ao recarregar orçamento e gerar novo PDF.
+    return !!assinaturaCatalogo[codigo];
+  }
+
   var precisaNovoContagem = 0;
   var codigosExistentesVistos = new Set();
   produtos.forEach(function (produto) {
     if (!produto || typeof produto !== "object") return;
     var cod = _normalizarCodigoPRD(produto.codigo);
-    if (!_ehCodigoPRDValido(cod) || codigosExistentesVistos.has(cod)) {
+    var mantivel = _codigoMantivelNoCatalogo(produto, cod);
+    if (!mantivel || codigosExistentesVistos.has(cod)) {
       precisaNovoContagem++;
     } else {
       codigosExistentesVistos.add(cod);
     }
   });
 
-  // Pre-allocate all needed codes in one batch (single lock acquisition).
   var poolNovosCodigos = precisaNovoContagem > 0 ? _alocarFaixaPRDAtomica(precisaNovoContagem) : [];
   var poolIdx = 0;
 
@@ -614,7 +630,6 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
       var c = _normalizarCodigoPRD(poolNovosCodigos[poolIdx++]);
       if (!reservados.has(c) && !usadosNoOrcamento.has(c)) return c;
     }
-    // Fallback: only triggered when pre-allocation underestimated (should not happen normally).
     return _normalizarCodigoPRD(_alocarFaixaPRDAtomica(1)[0]);
   }
 
@@ -622,7 +637,7 @@ function atribuirPRDsUnicos(produtos, codigosReservadosOpt) {
     if (!produto || typeof produto !== "object") return;
 
     const codigoAtual = _normalizarCodigoPRD(produto.codigo);
-    const valido = _ehCodigoPRDValido(codigoAtual);
+    const valido = _codigoMantivelNoCatalogo(produto, codigoAtual);
     const disponivelNoOrcamento = valido && !usadosNoOrcamento.has(codigoAtual);
 
     if (disponivelNoOrcamento) {
@@ -6483,9 +6498,7 @@ function salvarRascunho(nomeRascunho, dados) {
     const agora = new Date();
     const dataBrasil = formatarDataBrasil(agora);
 
-    if (dados.produtosCadastrados && Array.isArray(dados.produtosCadastrados)) {
-      atribuirCodigosPRDAutomaticos(dados.produtosCadastrados);
-    }
+    // Rascunho não recebe PRD; códigos são atribuídos somente na geração do PDF.
 
     const dadosJson = JSON.stringify({
       nome: nomeRascunho,
@@ -6614,9 +6627,7 @@ function atualizarRascunho(linhaOuKey, dados) {
     const agora = new Date();
     const dataBrasil = formatarDataBrasil(agora);
 
-    if (dados.produtosCadastrados && Array.isArray(dados.produtosCadastrados)) {
-      atribuirCodigosPRDAutomaticos(dados.produtosCadastrados);
-    }
+    // Rascunho não recebe PRD; códigos são atribuídos somente na geração do PDF.
 
     // Preservar numeroSequencial ao atualizar: usar do formulário ou do JSON já salvo na linha (evita perder ao "Atualizar versão atual")
     var numeroSequencialSalvar = (dados.numeroSequencial != null && String(dados.numeroSequencial).trim() !== "") ? dados.numeroSequencial : null;

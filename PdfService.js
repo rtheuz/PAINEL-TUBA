@@ -74,6 +74,15 @@ function gerarPdfOrcamento(
     }
 
     if (produtosCadastrados && Array.isArray(produtosCadastrados)) {
+      // Defensive clone: evita itens compartilhando a mesma referência de objeto,
+      // o que pode fazer todos exibirem o mesmo PRD no PDF.
+      produtosCadastrados = produtosCadastrados.map(function (prod) {
+        if (!prod || typeof prod !== "object") return {};
+        return JSON.parse(JSON.stringify(prod));
+      });
+
+      // A função central decide quando manter PRD (item igual ao catálogo)
+      // e quando gerar novo (sem PRD, duplicado ou PRD incompatível com item).
       atribuirPRDsUnicos(produtosCadastrados);
     }
 
