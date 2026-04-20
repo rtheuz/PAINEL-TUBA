@@ -431,6 +431,14 @@ function converterProjetoParaPedido(linha, codigoVersaoSelecionado) {
     Logger.log("Aviso converterProjetoParaPedido/infoPedido: " + (eInfo && eInfo.message ? eInfo.message : eInfo));
   }
 
+  try {
+    if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
+      gerarLancamentosLivroDiarioParaPedido(codigoBase);
+    }
+  } catch (eLivro) {
+    Logger.log("Aviso converterProjetoParaPedido/livroDiario: " + (eLivro && eLivro.message ? eLivro.message : eLivro));
+  }
+
   return {
     sucesso: true,
     url: resultPdf && resultPdf.url ? resultPdf.url : "",

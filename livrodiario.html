@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <base target="_top">
+  <title>Livro Diário - Sistema TUBA</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-1: linear-gradient(135deg, #0f172a 0%, #1e40af 45%, #0ea5a1 100%);
+      --card-bg: rgba(255, 255, 255, 0.97);
+      --radius: 12px;
+      --accent: #0ea5ff;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: Inter, system-ui, sans-serif;
+      color: #0f172a;
+      background: var(--bg-1);
+      overflow: hidden;
+    }
+    .page { position: fixed; inset: 0; display: flex; flex-direction: column; }
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 12px 16px; background: transparent; color: #fff; flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { width: 40px; height: 40px; border-radius: 8px; }
+    .brand h1 { margin: 0; font-size: 20px; }
+    .subtitle { font-size: 12px; opacity: .9; margin-top: 2px; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 0; border-radius: 10px; padding: 10px 14px; font-weight: 600; cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-primary { background: linear-gradient(90deg, #0ea5ff, #3b82f6); color: #fff; }
+    .btn-ghost { background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.25); }
+    .content { flex: 1; overflow: auto; padding: 14px; }
+    .card {
+      background: var(--card-bg); border-radius: var(--radius); padding: 14px;
+      box-shadow: 0 10px 24px rgba(2, 6, 23, .16);
+      min-width: 1200px;
+    }
+    .filters {
+      display: grid; grid-template-columns: repeat(6, minmax(160px, 1fr)); gap: 10px;
+      margin-bottom: 14px;
+    }
+    .field label {
+      display: block; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px;
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%; border: 1px solid #dbe2ea; border-radius: 8px; padding: 9px 10px; font-size: 13px;
+      font-family: inherit;
+    }
+    .cards {
+      display: grid; grid-template-columns: repeat(3, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px;
+    }
+    .date-filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .date-filter-group {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 8px;
+      background: #fff;
+    }
+    .date-filter-group h4 {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: .4px;
+    }
+    .date-filter-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .kpi { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; background: #fff; }
+    .kpi .k { color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 700; }
+    .kpi .v { margin-top: 4px; font-size: 21px; font-weight: 700; }
+    .table-wrap { overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1800px; font-size: 12px; background: #fff; }
+    thead { position: sticky; top: 0; z-index: 3; background: #fff; }
+    th, td { border-bottom: 1px solid #f1f5f9; padding: 8px; text-align: left; white-space: nowrap; }
+    th { font-size: 11px; text-transform: uppercase; color: var(--muted); }
+    tr:hover td { background: #f8fafc; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .valor-pos { color: #065f46; font-weight: 700; }
+    .valor-neg { color: #991b1b; font-weight: 700; }
+    .status { padding: 3px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-weight: 600; }
+    .col-data { font-weight: 700; }
+    .empty { text-align: center; padding: 24px; color: var(--muted); }
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      align-items: center; justify-content: center; z-index: 40;
+    }
+    .modal.open { display: flex; }
+    .modal-box {
+      width: min(920px, 95vw); max-height: 92vh; overflow: auto;
+      background: #fff; border-radius: 12px; padding: 14px;
+    }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .modal-grid { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 10px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div class="brand">
+        <img src="https://i.imgur.com/F8X7ZMs.png" alt="TUBA">
+        <div>
+          <h1>Livro Diário</h1>
+          <div class="subtitle">Lançamentos automáticos de pedidos e lançamentos manuais</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-ghost" id="btnVoltar">Voltar</button>
+        <button class="btn btn-ghost" id="btnUltimoPagamento">Ir para último pagamento</button>
+        <button class="btn btn-ghost" id="btnNovoCadastro">Novo item de cadastro</button>
+        <button class="btn btn-primary" id="btnNovoLancamento">Novo lançamento</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="filters">
+          <div class="field"><label>Cliente</label><input id="fCliente" placeholder="Filtrar cliente"></div>
+          <div class="field"><label>Projeto</label><input id="fProjeto" placeholder="Código do projeto"></div>
+          <div class="field"><label>Status</label><input id="fStatus" placeholder="Status pagamento"></div>
+          <div class="field">
+            <label>Conta financeira (filtro da tabela)</label>
+            <input id="fConta" list="dlContasFinanceirasFiltro" placeholder="Filtrar conta financeira">
+            <datalist id="dlContasFinanceirasFiltro"></datalist>
+          </div>
+          <div class="field">
+            <label>Ordenação</label>
+            <select id="fOrdenacao">
+              <option value="data_pagamento">Data pagamento (depois vencimento)</option>
+              <option value="data_vencimento">Data vencimento (depois pagamento)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Conta para saldo (KPIs de hoje)</label>
+            <input id="fContaSaldo" list="dlContasFinanceirasSaldo" placeholder="Selecione a conta para saldo">
+            <datalist id="dlContasFinanceirasSaldo"></datalist>
+          </div>
+        </div>
+
+        <div class="date-filters">
+          <div class="date-filter-group">
+            <h4>Data Competência</h4>
+            <div class="date-filter-row">
+              <div class="field"><input type="date" id="fDataCompIni" placeholder="De"></div>
+              <div class="field"><input type="date" id="fDataCompFim" placeholder="Até"></div>
+            </div>
+          </div>
+          <div class="date-filter-group">
+            <h4>Data Vencimento</h4>
+            <div class="date-filter-row">
+              <div class="field"><input type="date" id="fDataVencIni" placeholder="De"></div>
+              <div class="field"><input type="date" id="fDataVencFim" placeholder="Até"></div>
+            </div>
+          </div>
+          <div class="date-filter-group">
+            <h4>Data Pagamento</h4>
+            <div class="date-filter-row">
+              <div class="field"><input type="date" id="fDataPagIni" placeholder="De"></div>
+              <div class="field"><input type="date" id="fDataPagFim" placeholder="Até"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="kpi"><div class="k">Saldo conta hoje</div><div class="v" id="kSaldoConta">R$ 0,00</div></div>
+          <div class="kpi"><div class="k">Saldo geral hoje</div><div class="v" id="kSaldoGeral">R$ 0,00</div></div>
+          <div class="kpi"><div class="k">Saldo geral futuro</div><div class="v" id="kSaldoFuturo">R$ 0,00</div></div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ações</th>
+                <th>Data competência</th>
+                <th>Data vencimento</th>
+                <th>Data pagamento</th>
+                <th>Cliente</th>
+                <th>Código projeto</th>
+                <th>Descrição projeto</th>
+                <th>Conta contábil</th>
+                <th>Descrição abreviada</th>
+                <th>Conta financeira</th>
+                <th>Meio pagamento</th>
+                <th>Validade fiscal</th>
+                <th>Valor</th>
+                <th>Saldo conta financeira</th>
+                <th>Saldo geral</th>
+                <th>Status pagamento</th>
+                <th>Responsável</th>
+                <th>Última modificação</th>
+                <th>Observações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td class="empty" colspan="19">Carregando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalLancamento">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3 id="tituloLancamento">Novo lançamento</h3>
+        <button class="btn" id="btnFecharLancamento">Fechar</button>
+      </div>
+      <input type="hidden" id="mRowIndex">
+      <div class="modal-grid">
+        <div class="field"><label>Data competência</label><input id="mDataComp" placeholder="dd/MM/yy"></div>
+        <div class="field"><label>Data vencimento</label><input id="mDataVenc" placeholder="dd/MM/yy"></div>
+        <div class="field"><label>Data pagamento</label><input id="mDataPag" placeholder="dd/MM/yy"></div>
+        <div class="field"><label>Cliente</label><input id="mCliente"></div>
+        <div class="field"><label>Código projeto</label><input id="mProjeto"></div>
+        <div class="field"><label>Descrição projeto</label><input id="mDescricaoProjeto"></div>
+        <div class="field">
+          <label>Conta contábil</label>
+          <input id="mContaContabil" list="dlContaContabil" placeholder="Digite ou selecione">
+          <datalist id="dlContaContabil"></datalist>
+        </div>
+        <div class="field">
+          <label>Descrição abreviada</label>
+          <input id="mDescAbrev" list="dlDescAbrev" placeholder="Digite ou selecione">
+          <datalist id="dlDescAbrev"></datalist>
+        </div>
+        <div class="field">
+          <label>Conta financeira</label>
+          <input id="mContaFinanceira" list="dlContaFinanceira" placeholder="Digite ou selecione">
+          <datalist id="dlContaFinanceira"></datalist>
+        </div>
+        <div class="field">
+          <label>Meio pagamento</label>
+          <input id="mMeio" list="dlMeioPagamento" placeholder="Digite ou selecione">
+          <datalist id="dlMeioPagamento"></datalist>
+        </div>
+        <div class="field">
+          <label>Validade fiscal</label>
+          <input id="mValidade" list="dlValidadeFiscal" placeholder="Digite ou selecione">
+          <datalist id="dlValidadeFiscal"></datalist>
+        </div>
+        <div class="field">
+          <label>Status pagamento</label>
+          <input id="mStatus" list="dlStatusPagamento" placeholder="Digite ou selecione">
+          <datalist id="dlStatusPagamento"></datalist>
+        </div>
+        <div class="field"><label>Tipo do valor</label><select id="mTipoValor"><option value="receita">Receita (+)</option><option value="despesa">Despesa (-)</option></select></div>
+        <div class="field"><label>Valor</label><input id="mValor" type="number" step="0.01"></div>
+        <div class="field" style="grid-column: span 3;"><label>Observações</label><textarea id="mObs" rows="3"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="btnCancelarLancamento">Cancelar</button>
+        <button class="btn btn-primary" id="btnSalvarLancamento">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modalCadastro">
+    <div class="modal-box" style="width:min(680px,95vw);">
+      <div class="modal-head">
+        <h3>Novo item de cadastro</h3>
+        <button class="btn" id="btnFecharCadastro">Fechar</button>
+      </div>
+      <div class="modal-grid">
+        <div class="field"><label>Conta contábil</label><input id="cConta"></div>
+        <div class="field"><label>Descrição abreviada</label><input id="cDesc"></div>
+        <div class="field"><label>Conta financeira</label><input id="cFin"></div>
+        <div class="field"><label>Meio de pagamento</label><input id="cMeio"></div>
+        <div class="field"><label>Validade fiscal</label><input id="cVal"></div>
+        <div class="field"><label>Status pagamento</label><input id="cStatus"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="btnCancelarCadastro">Cancelar</button>
+        <button class="btn btn-primary" id="btnSalvarCadastro">Salvar cadastro</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = '<?= token ?>';
+    var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+    function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
+    function fmtMoney(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function isNegative(n) { return (Number(n) || 0) < 0; }
+
+    let cacheRows = [];
+    let cacheRowsFiltered = [];
+    let cadastro = null;
+
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+
+    function preencherDatalist(datalistId, options) {
+      const dl = document.getElementById(datalistId);
+      if (!dl) return;
+      dl.innerHTML = (options || []).map(v => '<option value="' + esc(v) + '"></option>').join('');
+    }
+
+    function parseDateBrFlexible(s) {
+      const t = String(s || '').trim();
+      if (!t) return null;
+      let m = t.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+      if (m) {
+        const yy = parseInt(m[3], 10);
+        const yyyy = yy >= 70 ? 1900 + yy : 2000 + yy;
+        return new Date(yyyy, parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+      }
+      m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+      return null;
+    }
+
+    function dateToKey(d) {
+      if (!d || isNaN(d.getTime())) return null;
+      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    }
+
+    function parseIsoDateInput(value) {
+      const s = String(value || '').trim();
+      if (!s) return null;
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    }
+
+    function carregarCadastro() {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          cadastro = res || {};
+          preencherDatalist('dlContaContabil', cadastro.contasContabeis || []);
+          preencherDatalist('dlDescAbrev', cadastro.descricoesAbreviadas || []);
+          preencherDatalist('dlContaFinanceira', cadastro.contasFinanceiras || []);
+          preencherDatalist('dlMeioPagamento', cadastro.meiosPagamento || []);
+          preencherDatalist('dlValidadeFiscal', cadastro.validadesFiscais || []);
+          preencherDatalist('dlStatusPagamento', cadastro.statusPagamento || ["Pendente", "Pago", "Atrasado", "Pago parcialmente", "Pago (A VERIFICAR)"]);
+          preencherDatalist('dlContasFinanceirasFiltro', cadastro.contasFinanceiras || []);
+          preencherDatalist('dlContasFinanceirasSaldo', cadastro.contasFinanceiras || []);
+        })
+        .withFailureHandler(function (err) { alert('Erro cadastro: ' + (err && err.message ? err.message : err)); })
+        .getLivroDiarioCadastro();
+    }
+
+    function coletarFiltros() {
+      return {
+        cliente: document.getElementById('fCliente').value || "",
+        projeto: document.getElementById('fProjeto').value || "",
+        status: document.getElementById('fStatus').value || "",
+        contaFinanceira: document.getElementById('fConta').value || "",
+        dataCompIni: document.getElementById('fDataCompIni').value || "",
+        dataCompFim: document.getElementById('fDataCompFim').value || "",
+        dataVencIni: document.getElementById('fDataVencIni').value || "",
+        dataVencFim: document.getElementById('fDataVencFim').value || "",
+        dataPagIni: document.getElementById('fDataPagIni').value || "",
+        dataPagFim: document.getElementById('fDataPagFim').value || ""
+      };
+    }
+
+    function aplicarFiltrosLocais() {
+      const f = coletarFiltros();
+      const fCliente = String(f.cliente || '').toLowerCase().trim();
+      const fProjeto = String(f.projeto || '').toLowerCase().trim();
+      const fStatus = String(f.status || '').toLowerCase().trim();
+      const fConta = String(f.contaFinanceira || '').toLowerCase().trim();
+
+      const dataCompIni = dateToKey(parseIsoDateInput(f.dataCompIni));
+      const dataCompFim = dateToKey(parseIsoDateInput(f.dataCompFim));
+      const dataVencIni = dateToKey(parseIsoDateInput(f.dataVencIni));
+      const dataVencFim = dateToKey(parseIsoDateInput(f.dataVencFim));
+      const dataPagIni = dateToKey(parseIsoDateInput(f.dataPagIni));
+      const dataPagFim = dateToKey(parseIsoDateInput(f.dataPagFim));
+
+      cacheRowsFiltered = (cacheRows || []).filter(function (r) {
+        if (fCliente && String(r["CLIENTE"] || '').toLowerCase().indexOf(fCliente) < 0) return false;
+        if (fProjeto && String(r["CÓDIGO DO PROJETO"] || '').toLowerCase().indexOf(fProjeto) < 0) return false;
+        if (fStatus && String(r["STATUS DO PAGAMENTO"] || '').toLowerCase().indexOf(fStatus) < 0) return false;
+        if (fConta && String(r["CONTA FINANCEIRA"] || '').toLowerCase().indexOf(fConta) < 0) return false;
+
+        const kComp = dateToKey(parseDateBrFlexible(r["DATA COMPETÊNCIA"]));
+        const kVenc = dateToKey(parseDateBrFlexible(r["DATA VENCIMENTO"]));
+        const kPag = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
+
+        if (dataCompIni != null && (kComp == null || kComp < dataCompIni)) return false;
+        if (dataCompFim != null && (kComp == null || kComp > dataCompFim)) return false;
+        if (dataVencIni != null && (kVenc == null || kVenc < dataVencIni)) return false;
+        if (dataVencFim != null && (kVenc == null || kVenc > dataVencFim)) return false;
+        if (dataPagIni != null && (kPag == null || kPag < dataPagIni)) return false;
+        if (dataPagFim != null && (kPag == null || kPag > dataPagFim)) return false;
+        return true;
+      });
+    }
+
+    function calcularResumoLocal() {
+      const conta = document.getElementById('fContaSaldo').value || "";
+      const todayKey = dateToKey(new Date());
+      let saldoContaHoje = 0;
+      let saldoGeralHoje = 0;
+      let saldoFuturoGeral = 0;
+      (cacheRowsFiltered || []).forEach(function (r) {
+        const valor = Number(r["VALOR"]) || 0;
+        saldoFuturoGeral += valor;
+        const kPag = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
+        if (kPag != null && kPag <= todayKey) {
+          saldoGeralHoje += valor;
+          if (!conta || String(r["CONTA FINANCEIRA"] || '').trim() === String(conta).trim()) {
+            saldoContaHoje += valor;
+          }
+        }
+      });
+      document.getElementById('kSaldoConta').textContent = fmtMoney(saldoContaHoje);
+      document.getElementById('kSaldoGeral').textContent = fmtMoney(saldoGeralHoje);
+      document.getElementById('kSaldoFuturo').textContent = fmtMoney(saldoFuturoGeral);
+    }
+
+    function aplicarFiltrosEAtualizarUI() {
+      aplicarFiltrosLocais();
+      renderTabela(cacheRowsFiltered);
+      calcularResumoLocal();
+    }
+
+    function renderTabela(rows) {
+      const tb = document.getElementById('tbody');
+      if (!rows || rows.length === 0) {
+        tb.innerHTML = '<tr><td class="empty" colspan="19">Nenhum lançamento encontrado.</td></tr>';
+        return;
+      }
+      tb.innerHTML = rows.map(function (r) {
+        const valor = Number(r["VALOR"]) || 0;
+        const saldoConta = Number(r["SALDO CONTA FINANCEIRA"]) || 0;
+        const saldoGeral = Number(r["SALDO GERAL"]) || 0;
+        return '<tr data-row-index="' + r.rowIndex + '">'
+          + '<td><button class="btn" onclick="editarLancamento(' + r.rowIndex + ')">Editar</button></td>'
+          + '<td class="mono col-data">' + esc(r["DATA COMPETÊNCIA"]) + '</td>'
+          + '<td class="mono col-data">' + esc(r["DATA VENCIMENTO"]) + '</td>'
+          + '<td class="mono col-data">' + esc(r["DATA PAGAMENTO"]) + '</td>'
+          + '<td>' + esc(r["CLIENTE"]) + '</td>'
+          + '<td class="mono">' + esc(r["CÓDIGO DO PROJETO"]) + '</td>'
+          + '<td>' + esc(r["DESCRIÇÃO DO PROJETO"]) + '</td>'
+          + '<td>' + esc(r["CONTA CONTÁBIL"]) + '</td>'
+          + '<td>' + esc(r["DESCRICAO ABREVIADA da CONTA CONTÁBIL"]) + '</td>'
+          + '<td>' + esc(r["CONTA FINANCEIRA"]) + '</td>'
+          + '<td>' + esc(r["MEIO de PAGAMENTO"]) + '</td>'
+          + '<td>' + esc(r["VALIDADE FISCAL"]) + '</td>'
+          + '<td class="' + (isNegative(valor) ? 'valor-neg' : 'valor-pos') + '">' + fmtMoney(valor) + '</td>'
+          + '<td>' + fmtMoney(saldoConta) + '</td>'
+          + '<td>' + fmtMoney(saldoGeral) + '</td>'
+          + '<td><span class="status">' + esc(r["STATUS DO PAGAMENTO"]) + '</span></td>'
+          + '<td>' + esc(r["RESPONSÁVEL DO LANÇAMENTO"]) + '</td>'
+          + '<td class="mono">' + esc(r["DATA DA ÚLTIMA MOFIFICAÇÃO"]) + '</td>'
+          + '<td>' + esc(r["OBSERVAÇÕES"]) + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    function carregarLancamentos() {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          const payload = res || {};
+          cacheRows = payload.rows || [];
+          const prefs = payload.preferencias || {};
+          if (prefs.modoOrdenacao) document.getElementById('fOrdenacao').value = prefs.modoOrdenacao;
+          if (prefs.contaFinanceiraSaldo != null) document.getElementById('fContaSaldo').value = prefs.contaFinanceiraSaldo;
+          aplicarFiltrosEAtualizarUI();
+        })
+        .withFailureHandler(function (err) { alert('Erro ao carregar lançamentos: ' + (err && err.message ? err.message : err)); })
+        .getLivroDiarioLancamentos({});
+    }
+
+    function aplicarPreferenciasEReload() {
+      const prefs = {
+        modoOrdenacao: document.getElementById('fOrdenacao').value,
+        contaFinanceiraSaldo: document.getElementById('fContaSaldo').value || ""
+      };
+      google.script.run
+        .withSuccessHandler(function () { carregarLancamentos(); })
+        .withFailureHandler(function (err) { alert('Erro preferências: ' + (err && err.message ? err.message : err)); })
+        .salvarLivroDiarioPreferencias(prefs);
+    }
+
+    function preencherCamposPorContaContabil(contaContabil) {
+      const conta = String(contaContabil || '').trim();
+      if (!conta || !cadastro || !Array.isArray(cadastro.linhas)) return;
+      const linha = cadastro.linhas.find(l => String(l.contaContabil || '').trim() === conta);
+      if (!linha) return;
+      document.getElementById('mDescAbrev').value = linha.descricaoAbreviada || '';
+      document.getElementById('mContaFinanceira').value = linha.contaFinanceira || '';
+      document.getElementById('mMeio').value = linha.meioPagamento || '';
+      document.getElementById('mValidade').value = linha.validadeFiscal || '';
+      document.getElementById('mStatus').value = linha.statusPagamento || '';
+    }
+
+    function preencherCamposPorDescAbrev(descAbrev) {
+      const desc = String(descAbrev || '').trim();
+      if (!desc || !cadastro || !Array.isArray(cadastro.linhas)) return;
+      const linha = cadastro.linhas.find(l => String(l.descricaoAbreviada || '').trim() === desc);
+      if (!linha) return;
+      document.getElementById('mContaContabil').value = linha.contaContabil || '';
+      document.getElementById('mContaFinanceira').value = linha.contaFinanceira || '';
+      document.getElementById('mMeio').value = linha.meioPagamento || '';
+      document.getElementById('mValidade').value = linha.validadeFiscal || '';
+      document.getElementById('mStatus').value = linha.statusPagamento || '';
+    }
+
+    function irParaUltimoPagamento() {
+      if (!Array.isArray(cacheRows) || cacheRows.length === 0) {
+        alert('Não há lançamentos para localizar.');
+        return;
+      }
+      let alvo = null;
+      cacheRows.forEach(function (r) {
+        const dt = parseDateBrFlexible(r["DATA PAGAMENTO"]);
+        if (!dt || isNaN(dt.getTime())) return;
+        if (!alvo || dt.getTime() > alvo.data.getTime()) {
+          alvo = { data: dt, rowIndex: r.rowIndex };
+        }
+      });
+      if (!alvo) {
+        alert('Nenhuma Data de Pagamento preenchida encontrada.');
+        return;
+      }
+      const tr = document.querySelector('tr[data-row-index="' + alvo.rowIndex + '"]');
+      if (!tr) {
+        alert('Última data encontrada, mas a linha não está visível com o filtro atual.');
+        return;
+      }
+      tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      tr.style.outline = '2px solid #0ea5ff';
+      setTimeout(function () { tr.style.outline = ''; }, 2200);
+    }
+
+    function novoLancamento() {
+      document.getElementById('tituloLancamento').textContent = 'Novo lançamento';
+      document.getElementById('mRowIndex').value = '';
+      ['mDataComp','mDataVenc','mDataPag','mCliente','mProjeto','mDescricaoProjeto','mObs'].forEach(id => document.getElementById(id).value = '');
+      ['mContaContabil','mDescAbrev','mContaFinanceira','mMeio','mValidade','mStatus'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('mTipoValor').value = 'receita';
+      document.getElementById('mValor').value = '';
+      openModal('modalLancamento');
+    }
+
+    function editarLancamento(rowIndex) {
+      const row = (cacheRows || []).find(r => Number(r.rowIndex) === Number(rowIndex));
+      if (!row) return;
+      document.getElementById('tituloLancamento').textContent = 'Editar lançamento';
+      document.getElementById('mRowIndex').value = row.rowIndex;
+      document.getElementById('mDataComp').value = row["DATA COMPETÊNCIA"] || "";
+      document.getElementById('mDataVenc').value = row["DATA VENCIMENTO"] || "";
+      document.getElementById('mDataPag').value = row["DATA PAGAMENTO"] || "";
+      document.getElementById('mCliente').value = row["CLIENTE"] || "";
+      document.getElementById('mProjeto').value = row["CÓDIGO DO PROJETO"] || "";
+      document.getElementById('mDescricaoProjeto').value = row["DESCRIÇÃO DO PROJETO"] || "";
+      document.getElementById('mContaContabil').value = row["CONTA CONTÁBIL"] || "";
+      document.getElementById('mDescAbrev').value = row["DESCRICAO ABREVIADA da CONTA CONTÁBIL"] || "";
+      document.getElementById('mContaFinanceira').value = row["CONTA FINANCEIRA"] || "";
+      document.getElementById('mMeio').value = row["MEIO de PAGAMENTO"] || "";
+      document.getElementById('mValidade').value = row["VALIDADE FISCAL"] || "";
+      document.getElementById('mStatus').value = row["STATUS DO PAGAMENTO"] || "";
+      const val = Number(row["VALOR"]) || 0;
+      document.getElementById('mTipoValor').value = val < 0 ? 'despesa' : 'receita';
+      document.getElementById('mValor').value = Math.abs(val);
+      document.getElementById('mObs').value = row["OBSERVAÇÕES"] || "";
+      openModal('modalLancamento');
+    }
+
+    function salvarLancamento() {
+      let valor = Number(document.getElementById('mValor').value || 0);
+      if (document.getElementById('mTipoValor').value === 'despesa' && valor > 0) valor = -valor;
+      const payload = {
+        rowIndex: document.getElementById('mRowIndex').value || "",
+        "DATA COMPETÊNCIA": document.getElementById('mDataComp').value || "",
+        "DATA VENCIMENTO": document.getElementById('mDataVenc').value || "",
+        "DATA PAGAMENTO": document.getElementById('mDataPag').value || "",
+        "CLIENTE": document.getElementById('mCliente').value || "",
+        "CÓDIGO DO PROJETO": document.getElementById('mProjeto').value || "",
+        "DESCRIÇÃO DO PROJETO": document.getElementById('mDescricaoProjeto').value || "",
+        "CONTA CONTÁBIL": document.getElementById('mContaContabil').value || "",
+        "DESCRICAO ABREVIADA da CONTA CONTÁBIL": document.getElementById('mDescAbrev').value || "",
+        "CONTA FINANCEIRA": document.getElementById('mContaFinanceira').value || "",
+        "MEIO de PAGAMENTO": document.getElementById('mMeio').value || "",
+        "VALIDADE FISCAL": document.getElementById('mValidade').value || "",
+        "VALOR": valor,
+        "STATUS DO PAGAMENTO": document.getElementById('mStatus').value || "Pendente",
+        "OBSERVAÇÕES": document.getElementById('mObs').value || ""
+      };
+      google.script.run
+        .withSuccessHandler(function () {
+          closeModal('modalLancamento');
+          carregarLancamentos();
+        })
+        .withFailureHandler(function (err) {
+          alert('Erro ao salvar lançamento: ' + (err && err.message ? err.message : err));
+        })
+        .salvarLivroDiarioLancamento(payload, token);
+    }
+
+    function salvarCadastro() {
+      const payload = {
+        contaContabil: document.getElementById('cConta').value || "",
+        descricaoAbreviada: document.getElementById('cDesc').value || "",
+        contaFinanceira: document.getElementById('cFin').value || "",
+        meioPagamento: document.getElementById('cMeio').value || "",
+        validadeFiscal: document.getElementById('cVal').value || "",
+        statusPagamento: document.getElementById('cStatus').value || ""
+      };
+      google.script.run
+        .withSuccessHandler(function () {
+          closeModal('modalCadastro');
+          ['cConta','cDesc','cFin','cMeio','cVal','cStatus'].forEach(id => document.getElementById(id).value = '');
+          carregarCadastro();
+        })
+        .withFailureHandler(function (err) { alert('Erro ao salvar cadastro: ' + (err && err.message ? err.message : err)); })
+        .upsertLivroDiarioCadastroItem(payload, token);
+    }
+
+    document.getElementById('mContaContabil').addEventListener('change', function () {
+      preencherCamposPorContaContabil(this.value);
+    });
+    document.getElementById('mDescAbrev').addEventListener('change', function () {
+      preencherCamposPorDescAbrev(this.value);
+    });
+    document.getElementById('btnVoltar').onclick = function () {
+      window.location.href = pageUrl('dashboardfinanceiro', 'token=' + token);
+    };
+    document.getElementById('btnUltimoPagamento').onclick = irParaUltimoPagamento;
+    document.getElementById('btnNovoLancamento').onclick = novoLancamento;
+    document.getElementById('btnNovoCadastro').onclick = function () { openModal('modalCadastro'); };
+    document.getElementById('btnFecharLancamento').onclick = function () { closeModal('modalLancamento'); };
+    document.getElementById('btnCancelarLancamento').onclick = function () { closeModal('modalLancamento'); };
+    document.getElementById('btnSalvarLancamento').onclick = salvarLancamento;
+    document.getElementById('btnFecharCadastro').onclick = function () { closeModal('modalCadastro'); };
+    document.getElementById('btnCancelarCadastro').onclick = function () { closeModal('modalCadastro'); };
+    document.getElementById('btnSalvarCadastro').onclick = salvarCadastro;
+    document.getElementById('fOrdenacao').addEventListener('change', aplicarPreferenciasEReload);
+    document.getElementById('fContaSaldo').addEventListener('input', calcularResumoLocal);
+    ['fCliente', 'fProjeto', 'fStatus', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
+      document.getElementById(id).addEventListener('input', aplicarFiltrosEAtualizarUI);
+      document.getElementById(id).addEventListener('change', aplicarFiltrosEAtualizarUI);
+    });
+
+    carregarCadastro();
+    carregarLancamentos();
+  </script>
+</body>
+</html>

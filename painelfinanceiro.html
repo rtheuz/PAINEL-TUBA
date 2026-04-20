@@ -181,6 +181,13 @@
     </div>
 
     <div class="card">
+      <div class="icon">📘</div>
+      <h3>Livro Diário</h3>
+      <p>Lançamentos financeiros, parcelas e saldos</p>
+      <a id="linkLivroDiario" href="#">Abrir</a>
+    </div>
+
+    <div class="card">
       <div class="icon">📌</div>
       <h3>Monitoramento de Recebíveis</h3>
       <p>Situação de pagamento de pedidos finalizados</p>
@@ -206,12 +213,15 @@
     document.getElementById('linkDashboardFin').href = pageUrl('painelfinanceiro-dashboard', 'token=' + token);
     document.getElementById('linkPedidos').href = pageUrl('pedidos', 'token=' + token);
     document.getElementById('linkKanbanFin').href = pageUrl('kanbanfinanceiro', 'token=' + token);
+    document.getElementById('linkLivroDiario').href = pageUrl('livrodiario', 'token=' + token);
+
     var linkComp = document.getElementById('linkComprovanteEntrega');
     if (linkComp) linkComp.href = pageUrl('comprovanteentrega', 'token=' + token);
     if (baseUrl) {
       document.getElementById('linkDashboardFin').setAttribute('target', '_top');
       document.getElementById('linkPedidos').setAttribute('target', '_top');
       document.getElementById('linkKanbanFin').setAttribute('target', '_top');
+      document.getElementById('linkLivroDiario').setAttribute('target', '_top');
       if (linkComp) linkComp.setAttribute('target', '_top');
     }
 

@@ -3485,7 +3485,8 @@ function doGet(e) {
     'veiculos_list': ['admin', 'mod', 'usuario', 'visitante'],
     'produtos': ['admin', 'mod', 'usuario'],
     'painelfinanceiro': ['admin', 'mod'],
-    'dashboardfinanceiro': ['admin', 'mod']
+    'dashboardfinanceiro': ['admin', 'mod'],
+    'livrodiario': ['admin', 'mod']
   };
 
   // Helper que constrói a query de redirecionamento,
@@ -3701,6 +3702,15 @@ function doGet(e) {
           templateDashboardFin.clientesData = '[]';
         }
         return templateDashboardFin.evaluate()
+          .setFaviconUrl(FAVICON)
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      }
+
+      case 'livrodiario': {
+        const templateLivroDiario = HtmlService.createTemplateFromFile('livrodiario');
+        templateLivroDiario.token = token;
+        templateLivroDiario.baseUrl = baseUrl;
+        return templateLivroDiario.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
       }

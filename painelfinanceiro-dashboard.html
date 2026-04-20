@@ -116,6 +116,7 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="voltarPagina()">← Voltar</button>
         <a class="btn btn-primary" id="linkPedidos" href="#">Abrir Pedidos</a>
+        <a class="btn btn-primary" id="linkLivroDiario" href="#">Livro Diário</a>
       </div>
     </div>
 
@@ -255,6 +256,8 @@
     }
     document.getElementById('linkPedidos').href = pageUrl('pedidos', 'token=' + token);
     if (baseUrl || isEmbedded) document.getElementById('linkPedidos').setAttribute('target', '_top');
+    document.getElementById('linkLivroDiario').href = pageUrl('livrodiario', 'token=' + token);
+    if (baseUrl || isEmbedded) document.getElementById('linkLivroDiario').setAttribute('target', '_top');
 
     function getDataCompetencia(p) { return p._dataCompetencia || p["DATA_COMPETENCIA"] || p.DATA || ""; }
     /** Formata qualquer valor de data para exibição dd/mm/yyyy (evita "Fri Feb 13 2026 GMT-0300...") */
