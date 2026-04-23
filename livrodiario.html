@@ -45,6 +45,18 @@
       box-shadow: 0 10px 24px rgba(2, 6, 23, .16);
       min-width: 1200px;
     }
+    .sticky-top {
+      position: sticky;
+      top: 0;
+      z-index: 25;
+      background: var(--card-bg);
+      padding-top: 6px;
+      padding-bottom: 12px;
+      margin: -6px -6px 10px -6px;
+      border-bottom: 1px solid #e5e7eb;
+      border-radius: 10px;
+      backdrop-filter: blur(6px);
+    }
     .filters {
       display: grid; grid-template-columns: repeat(6, minmax(160px, 1fr)); gap: 10px;
       margin-bottom: 14px;
@@ -88,16 +100,62 @@
     .kpi .k { color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 700; }
     .kpi .v { margin-top: 4px; font-size: 21px; font-weight: 700; }
     .table-wrap { overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+    /* Esconde a scrollbar horizontal nativa (evita "duas barras") */
+    .table-wrap { scrollbar-width: none; }
+    .table-wrap::-webkit-scrollbar { height: 0px; width: 0px; }
     table { width: 100%; border-collapse: collapse; min-width: 1800px; font-size: 12px; background: #fff; }
     thead { position: sticky; top: 0; z-index: 3; background: #fff; }
     th, td { border-bottom: 1px solid #f1f5f9; padding: 8px; text-align: left; white-space: nowrap; }
     th { font-size: 11px; text-transform: uppercase; color: var(--muted); }
     tr:hover td { background: #f8fafc; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    .valor-pos { color: #065f46; font-weight: 700; }
-    .valor-neg { color: #991b1b; font-weight: 700; }
+    /* Regra: NEGATIVO = receita, POSITIVO = despesa */
+    .valor-pos { color: #991b1b; font-weight: 700; } /* despesa */
+    .valor-neg { color: #065f46; font-weight: 700; } /* receita */
     .status { padding: 3px 8px; border-radius: 999px; background: #eef2ff; color: #3730a3; font-weight: 600; }
     .col-data { font-weight: 700; }
+
+    /* Congelar colunas até CLIENTE (1..5) */
+    table th:nth-child(1), table td:nth-child(1) {
+      position: sticky; left: 0; z-index: 6; background: #fff;
+      min-width: 84px;
+    }
+    table th:nth-child(2), table td:nth-child(2) {
+      position: sticky; left: 84px; z-index: 6; background: #fff;
+      min-width: 120px;
+    }
+    table th:nth-child(3), table td:nth-child(3) {
+      position: sticky; left: 204px; z-index: 6; background: #fff;
+      min-width: 120px;
+    }
+    table th:nth-child(4), table td:nth-child(4) {
+      position: sticky; left: 324px; z-index: 6; background: #fff;
+      min-width: 120px;
+    }
+    table th:nth-child(5), table td:nth-child(5) {
+      position: sticky; left: 444px; z-index: 6; background: #fff;
+      min-width: 220px;
+    }
+    /* Cabeçalho das colunas congeladas acima das células */
+    table thead th:nth-child(-n+5) { z-index: 10; }
+
+    /* Barra horizontal fixa (sempre visível) */
+    .hscrollbar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 14px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      background: rgba(255,255,255,.92);
+      border-top: 1px solid #cbd5e1;
+      z-index: 60;
+    }
+    .hscrollbar-inner { height: 1px; }
+    .hscrollbar::-webkit-scrollbar { height: 12px; }
+    .hscrollbar::-webkit-scrollbar-thumb { background: rgba(100,116,139,.6); border-radius: 10px; }
+    .hscrollbar::-webkit-scrollbar-track { background: rgba(226,232,240,.9); }
     .empty { text-align: center; padding: 24px; color: var(--muted); }
     .modal {
       display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
@@ -111,6 +169,28 @@
     .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .modal-grid { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)); gap: 10px; }
     .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+    .statusbar {
+      display: none;
+      margin: 8px 0 10px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .statusbar.show { display: block; }
+    .statusbar[data-kind="loading"] { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+    .statusbar[data-kind="success"] { background: #ecfdf5; border-color: #bbf7d0; color: #065f46; }
+    .statusbar[data-kind="error"] { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+    .btn[disabled] { opacity: .65; cursor: not-allowed; }
+    select, input, textarea { overflow: visible; }
+    .obs-cell {
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-width: 260px;
+    }
   </style>
 </head>
 <body>
@@ -126,66 +206,95 @@
       <div class="actions">
         <button class="btn btn-ghost" id="btnVoltar">Voltar</button>
         <button class="btn btn-ghost" id="btnUltimoPagamento">Ir para último pagamento</button>
-        <button class="btn btn-ghost" id="btnNovoCadastro">Novo item de cadastro</button>
+        <button class="btn btn-ghost" id="btnNovoCadastro">Cadastrar novo item</button>
         <button class="btn btn-primary" id="btnNovoLancamento">Novo lançamento</button>
       </div>
     </div>
     <div class="content">
       <div class="card">
-        <div class="filters">
-          <div class="field"><label>Cliente</label><input id="fCliente" placeholder="Filtrar cliente"></div>
-          <div class="field"><label>Projeto</label><input id="fProjeto" placeholder="Código do projeto"></div>
-          <div class="field"><label>Status</label><input id="fStatus" placeholder="Status pagamento"></div>
-          <div class="field">
-            <label>Conta financeira (filtro da tabela)</label>
-            <input id="fConta" list="dlContasFinanceirasFiltro" placeholder="Filtrar conta financeira">
-            <datalist id="dlContasFinanceirasFiltro"></datalist>
+        <div class="sticky-top">
+          <div class="statusbar" id="statusBar" data-kind="loading"></div>
+          <div class="filters">
+            <div class="field"><label>Cliente</label><input id="fCliente" placeholder="Filtrar cliente"></div>
+            <div class="field"><label>Projeto</label><input id="fProjeto" placeholder="Código do projeto"></div>
+            <div class="field"><label>Status</label><input id="fStatus" placeholder="Status pagamento"></div>
+            <div class="field">
+              <label>Conta contábil</label>
+              <input id="fContaContabil" list="dlFiltroContaContabil" placeholder="Digite para buscar">
+              <datalist id="dlFiltroContaContabil"></datalist>
+            </div>
+            <div class="field">
+              <label>Conta financeira</label>
+              <select id="fConta">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Ordenação</label>
+              <select id="fOrdenacao">
+                <option value="data_pagamento">Data pagamento (depois vencimento)</option>
+                <option value="data_vencimento">Data vencimento (depois pagamento)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Visualização</label>
+              <select id="fVisao">
+                <option value="">Selecione…</option>
+                <option value="novos">Mostrar novos lançamentos</option>
+                <option value="todos">Mostrar todos lançamentos</option>
+              </select>
+            </div>
           </div>
-          <div class="field">
-            <label>Ordenação</label>
-            <select id="fOrdenacao">
-              <option value="data_pagamento">Data pagamento (depois vencimento)</option>
-              <option value="data_vencimento">Data vencimento (depois pagamento)</option>
-            </select>
+
+          <div class="date-filters">
+            <div class="date-filter-group">
+              <h4>Data Competência</h4>
+              <div class="date-filter-row">
+                <div class="field"><input type="date" id="fDataCompIni" placeholder="De"></div>
+                <div class="field"><input type="date" id="fDataCompFim" placeholder="Até"></div>
+              </div>
+            </div>
+            <div class="date-filter-group">
+              <h4>Data Vencimento</h4>
+              <div class="date-filter-row">
+                <div class="field"><input type="date" id="fDataVencIni" placeholder="De"></div>
+                <div class="field"><input type="date" id="fDataVencFim" placeholder="Até"></div>
+              </div>
+            </div>
+            <div class="date-filter-group">
+              <h4>Data Pagamento</h4>
+              <div class="date-filter-row">
+                <div class="field"><input type="date" id="fDataPagIni" placeholder="De"></div>
+                <div class="field"><input type="date" id="fDataPagFim" placeholder="Até"></div>
+              </div>
+            </div>
           </div>
-          <div class="field">
-            <label>Conta para saldo (KPIs de hoje)</label>
-            <input id="fContaSaldo" list="dlContasFinanceirasSaldo" placeholder="Selecione a conta para saldo">
-            <datalist id="dlContasFinanceirasSaldo"></datalist>
+
+          <div class="filters" style="grid-template-columns: repeat(3, minmax(220px, 1fr)); margin-bottom: 10px;">
+            <div class="field">
+              <label>Conta para saldo (KPIs de hoje)</label>
+              <select id="fContaSaldo">
+                <option value="">Todas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn-ghost" type="button" onclick="irParaUltimoPagamento()">Ir para último pagamento</button>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn-ghost" type="button" onclick="limparFiltrosDatas()">Limpar filtros de data</button>
+            </div>
+          </div>
+
+          <div class="cards">
+            <div class="kpi"><div class="k">Saldo conta hoje</div><div class="v" id="kSaldoConta">R$ 0,00</div></div>
+            <div class="kpi"><div class="k">Saldo geral hoje</div><div class="v" id="kSaldoGeral">R$ 0,00</div></div>
+            <div class="kpi"><div class="k">Saldo geral futuro</div><div class="v" id="kSaldoFuturo">R$ 0,00</div></div>
           </div>
         </div>
 
-        <div class="date-filters">
-          <div class="date-filter-group">
-            <h4>Data Competência</h4>
-            <div class="date-filter-row">
-              <div class="field"><input type="date" id="fDataCompIni" placeholder="De"></div>
-              <div class="field"><input type="date" id="fDataCompFim" placeholder="Até"></div>
-            </div>
-          </div>
-          <div class="date-filter-group">
-            <h4>Data Vencimento</h4>
-            <div class="date-filter-row">
-              <div class="field"><input type="date" id="fDataVencIni" placeholder="De"></div>
-              <div class="field"><input type="date" id="fDataVencFim" placeholder="Até"></div>
-            </div>
-          </div>
-          <div class="date-filter-group">
-            <h4>Data Pagamento</h4>
-            <div class="date-filter-row">
-              <div class="field"><input type="date" id="fDataPagIni" placeholder="De"></div>
-              <div class="field"><input type="date" id="fDataPagFim" placeholder="Até"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="cards">
-          <div class="kpi"><div class="k">Saldo conta hoje</div><div class="v" id="kSaldoConta">R$ 0,00</div></div>
-          <div class="kpi"><div class="k">Saldo geral hoje</div><div class="v" id="kSaldoGeral">R$ 0,00</div></div>
-          <div class="kpi"><div class="k">Saldo geral futuro</div><div class="v" id="kSaldoFuturo">R$ 0,00</div></div>
-        </div>
-
-        <div class="table-wrap">
+        <div class="table-wrap" id="tableWrap">
           <table>
             <thead>
               <tr>
@@ -219,6 +328,10 @@
     </div>
   </div>
 
+  <div class="hscrollbar" id="hScroll">
+    <div class="hscrollbar-inner" id="hScrollInner"></div>
+  </div>
+
   <div class="modal" id="modalLancamento">
     <div class="modal-box">
       <div class="modal-head">
@@ -227,12 +340,13 @@
       </div>
       <input type="hidden" id="mRowIndex">
       <div class="modal-grid">
-        <div class="field"><label>Data competência</label><input id="mDataComp" placeholder="dd/MM/yy"></div>
-        <div class="field"><label>Data vencimento</label><input id="mDataVenc" placeholder="dd/MM/yy"></div>
-        <div class="field"><label>Data pagamento</label><input id="mDataPag" placeholder="dd/MM/yy"></div>
-        <div class="field"><label>Cliente</label><input id="mCliente"></div>
-        <div class="field"><label>Código projeto</label><input id="mProjeto"></div>
-        <div class="field"><label>Descrição projeto</label><input id="mDescricaoProjeto"></div>
+        <div class="field"><label>Data competência</label><input id="mDataComp" type="date"></div>
+        <div class="field"><label>Data vencimento</label><input id="mDataVenc" type="date"></div>
+        <div class="field"><label>Data pagamento</label><input id="mDataPag" type="date"></div>
+        <div class="field"><label>Cliente</label><input id="mCliente" list="dlClientes" placeholder="Digite para sugerir"></div>
+        <datalist id="dlClientes"></datalist>
+        <div class="field"><label>Código projeto</label><input id="mProjeto" placeholder="Digite ou selecione"></div>
+        <div class="field"><label>Descrição projeto</label><input id="mDescricaoProjeto" placeholder="Digite ou selecione"></div>
         <div class="field">
           <label>Conta contábil</label>
           <input id="mContaContabil" list="dlContaContabil" placeholder="Digite ou selecione">
@@ -263,7 +377,7 @@
           <input id="mStatus" list="dlStatusPagamento" placeholder="Digite ou selecione">
           <datalist id="dlStatusPagamento"></datalist>
         </div>
-        <div class="field"><label>Tipo do valor</label><select id="mTipoValor"><option value="receita">Receita (+)</option><option value="despesa">Despesa (-)</option></select></div>
+        <div class="field"><label>Tipo do valor</label><select id="mTipoValor"><option value="receita">Receita (-)</option><option value="despesa">Despesa (+)</option></select></div>
         <div class="field"><label>Valor</label><input id="mValor" type="number" step="0.01"></div>
         <div class="field" style="grid-column: span 3;"><label>Observações</label><textarea id="mObs" rows="3"></textarea></div>
       </div>
@@ -277,20 +391,36 @@
   <div class="modal" id="modalCadastro">
     <div class="modal-box" style="width:min(680px,95vw);">
       <div class="modal-head">
-        <h3>Novo item de cadastro</h3>
+        <h3>Cadastrar novo item</h3>
         <button class="btn" id="btnFecharCadastro">Fechar</button>
       </div>
       <div class="modal-grid">
-        <div class="field"><label>Conta contábil</label><input id="cConta"></div>
-        <div class="field"><label>Descrição abreviada</label><input id="cDesc"></div>
-        <div class="field"><label>Conta financeira</label><input id="cFin"></div>
-        <div class="field"><label>Meio de pagamento</label><input id="cMeio"></div>
-        <div class="field"><label>Validade fiscal</label><input id="cVal"></div>
-        <div class="field"><label>Status pagamento</label><input id="cStatus"></div>
+        <div class="field" style="grid-column: span 3;">
+          <label>Tipo de cadastro</label>
+          <select id="cTipo">
+            <option value="">Selecione…</option>
+            <option value="conta_contabil">Conta contábil</option>
+            <option value="conta_financeira">Conta financeira</option>
+            <option value="meio_pagamento">Meio de Pagamento</option>
+            <option value="status_pagamento">Status PAGAMENTO</option>
+          </select>
+        </div>
+
+        <div id="cadContaContabil" style="display:none; grid-column: span 3;">
+          <div class="modal-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="field"><label>Nome da conta contábil</label><input id="cConta" placeholder="Digite o nome completo"></div>
+            <div class="field"><label>Descrição abreviada</label><input id="cDesc" placeholder="Ex.: TuLa Receita Indústria"></div>
+          </div>
+        </div>
+
+        <div class="field" id="cadItemUnico" style="display:none; grid-column: span 3;">
+          <label>Nome do item</label>
+          <input id="cItemNome" placeholder="Digite o nome completo">
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn" id="btnCancelarCadastro">Cancelar</button>
-        <button class="btn btn-primary" id="btnSalvarCadastro">Salvar cadastro</button>
+        <button class="btn btn-primary" id="btnSalvarCadastro">Salvar</button>
       </div>
     </div>
   </div>
@@ -305,10 +435,40 @@
       return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
     function isNegative(n) { return (Number(n) || 0) < 0; }
+    function parseBrasilNumber(raw) {
+      if (raw === null || raw === undefined || raw === '') return 0;
+      if (typeof raw === 'number') return raw;
+      let s = String(raw).trim();
+      // remove "R$", espaços e outros símbolos comuns
+      s = s.replace(/[R$\s]/g, '');
+      // mantém dígitos, ponto, vírgula e sinal
+      s = s.replace(/[^0-9,.\-]/g, '');
+      // pt-BR: remove milhar e troca vírgula por ponto
+      if (s.indexOf(',') > -1 && s.indexOf('.') > -1) {
+        s = s.replace(/\./g, '').replace(',', '.');
+      } else if (s.indexOf(',') > -1 && s.indexOf('.') === -1) {
+        s = s.replace(',', '.');
+      }
+      const n = Number(s);
+      return isNaN(n) ? 0 : n;
+    }
+
+    // Regra de negócio:
+    // VALOR negativo = receita (aumenta saldo)
+    // VALOR positivo = despesa (reduz saldo)
+    // Portanto, impacto no saldo = -VALOR.
+    function saldoDelta(rawValor) {
+      return -parseBrasilNumber(rawValor);
+    }
 
     let cacheRows = [];
     let cacheRowsFiltered = [];
     let cadastro = null;
+    let _syncingScroll = false;
+    let _telaInicialVazia = true;
+    let _mostrarSomenteSemPagamento = false;
+    let _mostrarSomenteUltimos30Dias = false;
+    let _avisoSelecioneFiltros = true;
 
     function closeModal(id) { document.getElementById(id).classList.remove('open'); }
     function openModal(id) { document.getElementById(id).classList.add('open'); }
@@ -319,9 +479,20 @@
       dl.innerHTML = (options || []).map(v => '<option value="' + esc(v) + '"></option>').join('');
     }
 
+    function preencherSelect(selectId, options, includeAllLabel) {
+      const el = document.getElementById(selectId);
+      if (!el) return;
+      const prev = el.value;
+      const first = '<option value="">' + (includeAllLabel || 'Todas') + '</option>';
+      el.innerHTML = first + (options || []).map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+      if ([...el.options].some(o => o.value === prev)) el.value = prev;
+    }
+
     function parseDateBrFlexible(s) {
-      const t = String(s || '').trim();
+      let t = String(s || '').trim();
       if (!t) return null;
+      // Se vier com hora (ex.: "17/04/26 00:00:00"), usa só a parte da data
+      if (t.length > 10 && t.indexOf(' ') > -1) t = t.split(' ')[0];
       let m = t.match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
       if (m) {
         const yy = parseInt(m[3], 10);
@@ -346,7 +517,171 @@
       return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
     }
 
+    function isoToBr2y(iso) {
+      const d = parseIsoDateInput(iso);
+      if (!d) return "";
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(-2);
+      return dd + "/" + mm + "/" + yy;
+    }
+
+    function brToIso(br) {
+      const d = parseDateBrFlexible(br);
+      if (!d) return "";
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function setStatus(kind, msg, autoHideMs) {
+      const bar = document.getElementById('statusBar');
+      if (!bar) return;
+      if (!msg) {
+        bar.classList.remove('show');
+        bar.textContent = '';
+        return;
+      }
+      bar.dataset.kind = kind || 'loading';
+      bar.textContent = msg;
+      bar.classList.add('show');
+      if (autoHideMs && autoHideMs > 0) {
+        setTimeout(function () {
+          // só esconde se ainda estiver com a mesma mensagem
+          if (bar.textContent === msg) {
+            bar.classList.remove('show');
+          }
+        }, autoHideMs);
+      }
+    }
+
+    function setBtnBusy(btnId, busy, busyText) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      if (busy) {
+        if (!btn.dataset.origText) btn.dataset.origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = busyText || 'Aguarde...';
+      } else {
+        btn.disabled = false;
+        if (btn.dataset.origText) btn.textContent = btn.dataset.origText;
+      }
+    }
+
+    function setSelectTitle(selectId) {
+      const el = document.getElementById(selectId);
+      if (!el) return;
+      el.title = el.value || '';
+    }
+
+    function preencherClientesDatalistFromRows(rows) {
+      const seen = {};
+      const opts = [];
+      (rows || []).forEach(function (r) {
+        const c = String(r["CLIENTE"] || "").trim();
+        if (!c) return;
+        const k = c.toLowerCase();
+        if (seen[k]) return;
+        seen[k] = true;
+        opts.push(c);
+      });
+      opts.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+      preencherDatalist('dlClientes', opts);
+    }
+
+    // Autocomplete custom (para mostrar texto completo e permitir vínculo código↔descrição)
+    let _acPanel = null;
+    let _acActiveInput = null;
+    let _acOptions = [];
+    let _acOnPick = null;
+
+    function _ensureAcPanel_() {
+      if (_acPanel) return _acPanel;
+      _acPanel = document.createElement('div');
+      _acPanel.className = 'ac-panel';
+      _acPanel.style.position = 'fixed';
+      _acPanel.style.zIndex = '9999';
+      _acPanel.style.background = '#fff';
+      _acPanel.style.border = '1px solid #e5e7eb';
+      _acPanel.style.borderRadius = '10px';
+      _acPanel.style.boxShadow = '0 12px 30px rgba(2,6,23,.18)';
+      _acPanel.style.maxHeight = '280px';
+      _acPanel.style.overflow = 'auto';
+      _acPanel.style.display = 'none';
+      document.body.appendChild(_acPanel);
+      document.addEventListener('click', function (e) {
+        if (!_acPanel || _acPanel.style.display === 'none') return;
+        if (_acPanel.contains(e.target)) return;
+        if (_acActiveInput && e.target === _acActiveInput) return;
+        _hideAc_();
+      });
+      return _acPanel;
+    }
+
+    function _hideAc_() {
+      if (_acPanel) _acPanel.style.display = 'none';
+      _acActiveInput = null;
+      _acOptions = [];
+      _acOnPick = null;
+    }
+
+    function _renderAc_(items, inputEl) {
+      const panel = _ensureAcPanel_();
+      panel.innerHTML = '';
+      const rect = inputEl.getBoundingClientRect();
+      panel.style.left = rect.left + 'px';
+      panel.style.top = (rect.bottom + 6) + 'px';
+      panel.style.width = Math.max(rect.width, 520) + 'px';
+      panel.style.display = items.length ? 'block' : 'none';
+
+      items.slice(0, 25).forEach(function (txt) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.all = 'unset';
+        btn.style.display = 'block';
+        btn.style.width = '100%';
+        btn.style.padding = '10px 12px';
+        btn.style.cursor = 'pointer';
+        btn.style.borderBottom = '1px solid #f1f5f9';
+        btn.style.whiteSpace = 'normal';
+        btn.style.wordBreak = 'break-word';
+        btn.textContent = txt;
+        btn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+        btn.addEventListener('click', function () {
+          if (_acOnPick) _acOnPick(txt);
+          _hideAc_();
+        });
+        panel.appendChild(btn);
+      });
+    }
+
+    function attachAutocomplete(inputId, getOptionsFn, onPickFn) {
+      const el = document.getElementById(inputId);
+      if (!el) return;
+      el.setAttribute('autocomplete', 'off');
+
+      function show() {
+        _acActiveInput = el;
+        _acOnPick = onPickFn;
+        const q = String(el.value || '').toLowerCase().trim();
+        const all = (getOptionsFn ? getOptionsFn() : []) || [];
+        const items = q ? all.filter(v => String(v).toLowerCase().indexOf(q) >= 0) : all;
+        _renderAc_(items, el);
+      }
+
+      el.addEventListener('focus', show);
+      el.addEventListener('input', show);
+      el.addEventListener('blur', function () {
+        // não esconde imediatamente para permitir click
+        setTimeout(function () {
+          if (_acActiveInput === el) _hideAc_();
+        }, 180);
+      });
+    }
+
     function carregarCadastro() {
+      setStatus('loading', 'Carregando cadastro...', 0);
       google.script.run
         .withSuccessHandler(function (res) {
           cadastro = res || {};
@@ -356,10 +691,63 @@
           preencherDatalist('dlMeioPagamento', cadastro.meiosPagamento || []);
           preencherDatalist('dlValidadeFiscal', cadastro.validadesFiscais || []);
           preencherDatalist('dlStatusPagamento', cadastro.statusPagamento || ["Pendente", "Pago", "Atrasado", "Pago parcialmente", "Pago (A VERIFICAR)"]);
-          preencherDatalist('dlContasFinanceirasFiltro', cadastro.contasFinanceiras || []);
-          preencherDatalist('dlContasFinanceirasSaldo', cadastro.contasFinanceiras || []);
+          // Filtros do cabeçalho: apenas lista normal (select), sem digitação
+          preencherSelect('fConta', cadastro.contasFinanceiras || [], 'Todas');
+          preencherSelect('fContaSaldo', cadastro.contasFinanceiras || [], 'Todas');
+          // Filtro de conta contábil: digitação permitida para buscar por conta OU descrição
+          const filtroContaOpts = []
+            .concat(cadastro.contasContabeis || [])
+            .concat(cadastro.descricoesAbreviadas || []);
+          const seenConta = {};
+          const filtroContaUnicos = filtroContaOpts.filter(function (x) {
+            const k = String(x || '').trim().toLowerCase();
+            if (!k || seenConta[k]) return false;
+            seenConta[k] = true;
+            return true;
+          });
+          preencherDatalist('dlFiltroContaContabil', filtroContaUnicos);
+          setSelectTitle('fConta');
+          setSelectTitle('fContaSaldo');
+          setStatus('success', 'Cadastro carregado.', 1200);
+
+          // Autocompletes do modal (texto completo)
+          attachAutocomplete('mContaContabil', () => (cadastro.contasContabeis || []), function (v) {
+            document.getElementById('mContaContabil').value = v;
+            preencherCamposPorContaContabil(v);
+          });
+          attachAutocomplete('mDescAbrev', () => (cadastro.descricoesAbreviadas || []), function (v) {
+            document.getElementById('mDescAbrev').value = v;
+            preencherCamposPorDescAbrev(v);
+          });
+          attachAutocomplete('mContaFinanceira', () => (cadastro.contasFinanceiras || []), function (v) {
+            document.getElementById('mContaFinanceira').value = v;
+          });
+          attachAutocomplete('mMeio', () => (cadastro.meiosPagamento || []), function (v) {
+            document.getElementById('mMeio').value = v;
+          });
+          attachAutocomplete('mValidade', () => (cadastro.validadesFiscais || []), function (v) {
+            document.getElementById('mValidade').value = v;
+          });
+          attachAutocomplete('mStatus', () => (cadastro.statusPagamento || []), function (v) {
+            document.getElementById('mStatus').value = v;
+          });
+
+          // Código ↔ Descrição do projeto (novo)
+          attachAutocomplete('mProjeto', () => (cadastro.codigosProjetos || []), function (v) {
+            document.getElementById('mProjeto').value = v;
+            const d = cadastro.mapCodigoParaDescricaoProjeto ? cadastro.mapCodigoParaDescricaoProjeto[v] : '';
+            if (d) document.getElementById('mDescricaoProjeto').value = d;
+          });
+          attachAutocomplete('mDescricaoProjeto', () => (cadastro.descricoesProjetos || []), function (v) {
+            document.getElementById('mDescricaoProjeto').value = v;
+            const c = cadastro.mapDescricaoParaCodigoProjeto ? cadastro.mapDescricaoParaCodigoProjeto[v] : '';
+            if (c) document.getElementById('mProjeto').value = c;
+          });
         })
-        .withFailureHandler(function (err) { alert('Erro cadastro: ' + (err && err.message ? err.message : err)); })
+        .withFailureHandler(function (err) {
+          setStatus('error', 'Erro ao carregar cadastro: ' + (err && err.message ? err.message : err), 6000);
+          alert('Erro cadastro: ' + (err && err.message ? err.message : err));
+        })
         .getLivroDiarioCadastro();
     }
 
@@ -368,6 +756,7 @@
         cliente: document.getElementById('fCliente').value || "",
         projeto: document.getElementById('fProjeto').value || "",
         status: document.getElementById('fStatus').value || "",
+        contaContabil: document.getElementById('fContaContabil').value || "",
         contaFinanceira: document.getElementById('fConta').value || "",
         dataCompIni: document.getElementById('fDataCompIni').value || "",
         dataCompFim: document.getElementById('fDataCompFim').value || "",
@@ -378,12 +767,35 @@
       };
     }
 
+    function _temAlgumFiltroAtivo_(f) {
+      return !!(String(f.cliente || '').trim()
+        || String(f.projeto || '').trim()
+        || String(f.status || '').trim()
+        || String(f.contaContabil || '').trim()
+        || String(f.contaFinanceira || '').trim()
+        || String(f.dataCompIni || '').trim()
+        || String(f.dataCompFim || '').trim()
+        || String(f.dataVencIni || '').trim()
+        || String(f.dataVencFim || '').trim()
+        || String(f.dataPagIni || '').trim()
+        || String(f.dataPagFim || '').trim());
+    }
+
     function aplicarFiltrosLocais() {
       const f = coletarFiltros();
+      if (_telaInicialVazia && !_temAlgumFiltroAtivo_(f) && !_mostrarSomenteSemPagamento) {
+        cacheRowsFiltered = [];
+        _avisoSelecioneFiltros = true;
+        return;
+      }
+      _telaInicialVazia = false;
+      _avisoSelecioneFiltros = false;
+      const todayKey = dateToKey(new Date());
       const fCliente = String(f.cliente || '').toLowerCase().trim();
       const fProjeto = String(f.projeto || '').toLowerCase().trim();
       const fStatus = String(f.status || '').toLowerCase().trim();
       const fConta = String(f.contaFinanceira || '').toLowerCase().trim();
+      const fContaContabil = String(f.contaContabil || '').toLowerCase().trim();
 
       const dataCompIni = dateToKey(parseIsoDateInput(f.dataCompIni));
       const dataCompFim = dateToKey(parseIsoDateInput(f.dataCompFim));
@@ -393,9 +805,29 @@
       const dataPagFim = dateToKey(parseIsoDateInput(f.dataPagFim));
 
       cacheRowsFiltered = (cacheRows || []).filter(function (r) {
+        if (_mostrarSomenteUltimos30Dias) {
+          const raw = String(r["DATA DA ÚLTIMA MOFIFICAÇÃO"] || '').trim();
+          const datePart = raw.substring(0, 10); // dd/MM/yy ou dd/MM/yyyy
+          const dt = parseDateBrFlexible(datePart);
+          const kUlt = dateToKey(dt);
+          if (kUlt == null) return false;
+          const dtMin = new Date();
+          dtMin.setDate(dtMin.getDate() - 30);
+          const kMin = dateToKey(dtMin);
+          if (kUlt < kMin) return false;
+        }
+        if (_mostrarSomenteSemPagamento) {
+          const temPag = String(r["DATA PAGAMENTO"] || '').trim();
+          if (temPag) return false;
+        }
         if (fCliente && String(r["CLIENTE"] || '').toLowerCase().indexOf(fCliente) < 0) return false;
         if (fProjeto && String(r["CÓDIGO DO PROJETO"] || '').toLowerCase().indexOf(fProjeto) < 0) return false;
         if (fStatus && String(r["STATUS DO PAGAMENTO"] || '').toLowerCase().indexOf(fStatus) < 0) return false;
+        if (fContaContabil) {
+          const contaNome = String(r["CONTA CONTÁBIL"] || '').toLowerCase();
+          const contaDesc = String(r["DESCRICAO ABREVIADA da CONTA CONTÁBIL"] || '').toLowerCase();
+          if (contaNome.indexOf(fContaContabil) < 0 && contaDesc.indexOf(fContaContabil) < 0) return false;
+        }
         if (fConta && String(r["CONTA FINANCEIRA"] || '').toLowerCase().indexOf(fConta) < 0) return false;
 
         const kComp = dateToKey(parseDateBrFlexible(r["DATA COMPETÊNCIA"]));
@@ -413,42 +845,133 @@
     }
 
     function calcularResumoLocal() {
-      const conta = document.getElementById('fContaSaldo').value || "";
+      // Se o usuário filtra por Conta Financeira e não escolhe "Conta para saldo",
+      // usamos o filtro como conta do KPI.
+      const contaKpi = (document.getElementById('fContaSaldo').value || document.getElementById('fConta').value || "").trim();
       const todayKey = dateToKey(new Date());
       let saldoContaHoje = 0;
       let saldoGeralHoje = 0;
       let saldoFuturoGeral = 0;
-      (cacheRowsFiltered || []).forEach(function (r) {
-        const valor = Number(r["VALOR"]) || 0;
-        saldoFuturoGeral += valor;
+      const f = coletarFiltros();
+      const usarTudo = !_temAlgumFiltroAtivo_(f) && !_mostrarSomenteSemPagamento; // sem filtros: KPIs usam todas as linhas
+      const base = usarTudo ? (cacheRows || []) : (cacheRowsFiltered || []);
+      base.forEach(function (r) {
+        const delta = saldoDelta(r["VALOR"]);
         const kPag = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
-        if (kPag != null && kPag <= todayKey) {
-          saldoGeralHoje += valor;
-          if (!conta || String(r["CONTA FINANCEIRA"] || '').trim() === String(conta).trim()) {
-            saldoContaHoje += valor;
-          }
+        const isPagoAteHoje = (kPag != null && kPag <= todayKey);
+        const isFuturoOuPendente = (kPag == null || kPag > todayKey);
+
+        // Saldo geral futuro: tudo que ainda não foi pago (ou tem pagamento futuro)
+        if (isFuturoOuPendente) saldoFuturoGeral += delta;
+
+        // Saldo geral hoje: somente pagos até hoje
+        if (isPagoAteHoje) saldoGeralHoje += delta;
+
+        // Saldo conta hoje: somente pagos até hoje da conta selecionada
+        if (contaKpi
+          && isPagoAteHoje
+          && String(r["CONTA FINANCEIRA"] || '').trim() === String(contaKpi).trim()) {
+          saldoContaHoje += delta;
         }
       });
+      if (!contaKpi) saldoContaHoje = 0;
       document.getElementById('kSaldoConta').textContent = fmtMoney(saldoContaHoje);
       document.getElementById('kSaldoGeral').textContent = fmtMoney(saldoGeralHoje);
       document.getElementById('kSaldoFuturo').textContent = fmtMoney(saldoFuturoGeral);
     }
 
+    function limparFiltrosDatas() {
+      ['fDataCompIni','fDataCompFim','fDataVencIni','fDataVencFim','fDataPagIni','fDataPagFim'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      aplicarFiltrosEAtualizarUI();
+    }
+
+    function mostrarNovosLancamentos() {
+      _mostrarSomenteSemPagamento = true;
+      _telaInicialVazia = false;
+      _avisoSelecioneFiltros = false;
+      aplicarFiltrosEAtualizarUI();
+    }
+
+    function mostrarTodosLancamentos() {
+      _mostrarSomenteSemPagamento = false;
+      _telaInicialVazia = false;
+      _avisoSelecioneFiltros = false;
+      aplicarFiltrosEAtualizarUI();
+    }
+
+    function setupScrollbars() {
+      const wrap = document.getElementById('tableWrap');
+      const h = document.getElementById('hScroll');
+      const inner = document.getElementById('hScrollInner');
+      if (!wrap || !h || !inner) return;
+
+      function refresh() {
+        const sw = wrap.scrollWidth;
+        inner.style.width = sw + 'px';
+      }
+      refresh();
+      window.addEventListener('resize', refresh);
+
+      wrap.addEventListener('scroll', function () {
+        if (_syncingScroll) return;
+        _syncingScroll = true;
+        h.scrollLeft = wrap.scrollLeft;
+        _syncingScroll = false;
+      }, { passive: true });
+
+      h.addEventListener('scroll', function () {
+        if (_syncingScroll) return;
+        _syncingScroll = true;
+        wrap.scrollLeft = h.scrollLeft;
+        _syncingScroll = false;
+      }, { passive: true });
+
+      // Atualiza largura sempre que renderizar a tabela
+      setupScrollbars.refresh = refresh;
+    }
+
+    function aplicarSaldoContaFinanceiraLinhaALinha(rows) {
+      // Sempre calcula o saldo linha-a-linha por CADA conta financeira,
+      // para não "sumir" ao mexer em filtros/conta e para ficar como no seu LD antigo.
+      const runningByConta = {};
+      return (rows || []).map(function (r) {
+        const obj = Object.assign({}, r);
+        const conta = String(obj["CONTA FINANCEIRA"] || '').trim();
+        if (!conta) {
+          obj["SALDO CONTA FINANCEIRA"] = "";
+          return obj;
+        }
+        if (runningByConta[conta] == null) runningByConta[conta] = 0;
+        runningByConta[conta] += saldoDelta(obj["VALOR"]);
+        obj["SALDO CONTA FINANCEIRA"] = runningByConta[conta];
+        return obj;
+      });
+    }
+
     function aplicarFiltrosEAtualizarUI() {
       aplicarFiltrosLocais();
-      renderTabela(cacheRowsFiltered);
+      const rowsWithSaldo = aplicarSaldoContaFinanceiraLinhaALinha(cacheRowsFiltered);
+      renderTabela(rowsWithSaldo);
       calcularResumoLocal();
+      if (typeof setupScrollbars.refresh === 'function') setupScrollbars.refresh();
     }
 
     function renderTabela(rows) {
       const tb = document.getElementById('tbody');
       if (!rows || rows.length === 0) {
-        tb.innerHTML = '<tr><td class="empty" colspan="19">Nenhum lançamento encontrado.</td></tr>';
+        if (_avisoSelecioneFiltros) {
+          tb.innerHTML = '<tr><td class="empty" colspan="19">Selecione filtros (ou use "Visualização") para exibir os lançamentos.</td></tr>';
+        } else {
+          tb.innerHTML = '<tr><td class="empty" colspan="19">Nenhum lançamento encontrado para os filtros aplicados.</td></tr>';
+        }
         return;
       }
       tb.innerHTML = rows.map(function (r) {
-        const valor = Number(r["VALOR"]) || 0;
-        const saldoConta = Number(r["SALDO CONTA FINANCEIRA"]) || 0;
+        const valor = parseBrasilNumber(r["VALOR"]);
+        const saldoConta = r["SALDO CONTA FINANCEIRA"] === "" || r["SALDO CONTA FINANCEIRA"] == null ? null : (Number(r["SALDO CONTA FINANCEIRA"]) || 0);
         const saldoGeral = Number(r["SALDO GERAL"]) || 0;
         return '<tr data-row-index="' + r.rowIndex + '">'
           + '<td><button class="btn" onclick="editarLancamento(' + r.rowIndex + ')">Editar</button></td>'
@@ -464,27 +987,45 @@
           + '<td>' + esc(r["MEIO de PAGAMENTO"]) + '</td>'
           + '<td>' + esc(r["VALIDADE FISCAL"]) + '</td>'
           + '<td class="' + (isNegative(valor) ? 'valor-neg' : 'valor-pos') + '">' + fmtMoney(valor) + '</td>'
-          + '<td>' + fmtMoney(saldoConta) + '</td>'
+          + '<td>' + (saldoConta == null ? '' : fmtMoney(saldoConta)) + '</td>'
           + '<td>' + fmtMoney(saldoGeral) + '</td>'
           + '<td><span class="status">' + esc(r["STATUS DO PAGAMENTO"]) + '</span></td>'
           + '<td>' + esc(r["RESPONSÁVEL DO LANÇAMENTO"]) + '</td>'
           + '<td class="mono">' + esc(r["DATA DA ÚLTIMA MOFIFICAÇÃO"]) + '</td>'
-          + '<td>' + esc(r["OBSERVAÇÕES"]) + '</td>'
+          + '<td class="obs-cell">' + esc(r["OBSERVAÇÕES"]) + '</td>'
           + '</tr>';
       }).join('');
     }
 
-    function carregarLancamentos() {
+    function carregarLancamentos(opts) {
+      const options = opts || {};
+      const preserveState = !!options.preserveState;
+      setStatus('loading', 'Carregando lançamentos...', 0);
       google.script.run
         .withSuccessHandler(function (res) {
           const payload = res || {};
           cacheRows = payload.rows || [];
+          preencherClientesDatalistFromRows(cacheRows);
           const prefs = payload.preferencias || {};
           if (prefs.modoOrdenacao) document.getElementById('fOrdenacao').value = prefs.modoOrdenacao;
           if (prefs.contaFinanceiraSaldo != null) document.getElementById('fContaSaldo').value = prefs.contaFinanceiraSaldo;
+          if (!preserveState) {
+            // Estado inicial
+            _telaInicialVazia = true;
+            _mostrarSomenteSemPagamento = false;
+            _mostrarSomenteUltimos30Dias = false;
+            _avisoSelecioneFiltros = true;
+            const visao = document.getElementById('fVisao');
+            if (visao) visao.value = '';
+          }
           aplicarFiltrosEAtualizarUI();
+          if (typeof setupScrollbars.refresh === 'function') setupScrollbars.refresh();
+          setStatus('success', 'Lançamentos carregados.', 1200);
         })
-        .withFailureHandler(function (err) { alert('Erro ao carregar lançamentos: ' + (err && err.message ? err.message : err)); })
+        .withFailureHandler(function (err) {
+          setStatus('error', 'Erro ao carregar lançamentos: ' + (err && err.message ? err.message : err), 6000);
+          alert('Erro ao carregar lançamentos: ' + (err && err.message ? err.message : err));
+        })
         .getLivroDiarioLancamentos({});
     }
 
@@ -493,9 +1034,20 @@
         modoOrdenacao: document.getElementById('fOrdenacao').value,
         contaFinanceiraSaldo: document.getElementById('fContaSaldo').value || ""
       };
+      setStatus('loading', 'Ordenando e recalculando...', 0);
+      const ord = document.getElementById('fOrdenacao');
+      if (ord) ord.disabled = true;
       google.script.run
-        .withSuccessHandler(function () { carregarLancamentos(); })
-        .withFailureHandler(function (err) { alert('Erro preferências: ' + (err && err.message ? err.message : err)); })
+        .withSuccessHandler(function () {
+          if (ord) ord.disabled = false;
+          setStatus('success', 'Ordenação aplicada.', 1200);
+          carregarLancamentos({ preserveState: true });
+        })
+        .withFailureHandler(function (err) {
+          if (ord) ord.disabled = false;
+          setStatus('error', 'Erro ao ordenar: ' + (err && err.message ? err.message : err), 6000);
+          alert('Erro preferências: ' + (err && err.message ? err.message : err));
+        })
         .salvarLivroDiarioPreferencias(prefs);
     }
 
@@ -557,6 +1109,11 @@
       ['mContaContabil','mDescAbrev','mContaFinanceira','mMeio','mValidade','mStatus'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('mTipoValor').value = 'receita';
       document.getElementById('mValor').value = '';
+      // Default: hoje como competência
+      const hoje = new Date();
+      const mm = String(hoje.getMonth() + 1).padStart(2, '0');
+      const dd = String(hoje.getDate()).padStart(2, '0');
+      document.getElementById('mDataComp').value = hoje.getFullYear() + '-' + mm + '-' + dd;
       openModal('modalLancamento');
     }
 
@@ -565,9 +1122,9 @@
       if (!row) return;
       document.getElementById('tituloLancamento').textContent = 'Editar lançamento';
       document.getElementById('mRowIndex').value = row.rowIndex;
-      document.getElementById('mDataComp').value = row["DATA COMPETÊNCIA"] || "";
-      document.getElementById('mDataVenc').value = row["DATA VENCIMENTO"] || "";
-      document.getElementById('mDataPag').value = row["DATA PAGAMENTO"] || "";
+      document.getElementById('mDataComp').value = brToIso(row["DATA COMPETÊNCIA"] || "");
+      document.getElementById('mDataVenc').value = brToIso(row["DATA VENCIMENTO"] || "");
+      document.getElementById('mDataPag').value = brToIso(row["DATA PAGAMENTO"] || "");
       document.getElementById('mCliente').value = row["CLIENTE"] || "";
       document.getElementById('mProjeto').value = row["CÓDIGO DO PROJETO"] || "";
       document.getElementById('mDescricaoProjeto').value = row["DESCRIÇÃO DO PROJETO"] || "";
@@ -578,20 +1135,50 @@
       document.getElementById('mValidade').value = row["VALIDADE FISCAL"] || "";
       document.getElementById('mStatus').value = row["STATUS DO PAGAMENTO"] || "";
       const val = Number(row["VALOR"]) || 0;
-      document.getElementById('mTipoValor').value = val < 0 ? 'despesa' : 'receita';
+      // Regra: NEGATIVO = receita, POSITIVO = despesa
+      document.getElementById('mTipoValor').value = val < 0 ? 'receita' : 'despesa';
       document.getElementById('mValor').value = Math.abs(val);
       document.getElementById('mObs').value = row["OBSERVAÇÕES"] || "";
       openModal('modalLancamento');
     }
 
+    function recomputeSaldoGeralLocal() {
+      let running = 0;
+      (cacheRows || []).forEach(function (r) {
+        running += saldoDelta(r["VALOR"]);
+        r["SALDO GERAL"] = running;
+      });
+    }
+
+    function applySavedLancamentoLocal(result, fallbackPayload) {
+      const rowIndex = Number(result && result.rowIndex ? result.rowIndex : (fallbackPayload && fallbackPayload.rowIndex ? fallbackPayload.rowIndex : 0));
+      const src = (result && result.row) ? result.row : (fallbackPayload || {});
+      const rowObj = Object.assign({}, src, { rowIndex: rowIndex });
+      // Garante campos usados na UI
+      if (rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] == null || rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] === "") {
+        rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] = isoToBr2y(new Date().toISOString().slice(0, 10));
+      }
+      if (rowObj["SALDO CONTA FINANCEIRA"] == null) rowObj["SALDO CONTA FINANCEIRA"] = "";
+      if (rowObj["SALDO GERAL"] == null) rowObj["SALDO GERAL"] = "";
+
+      const idx = (cacheRows || []).findIndex(function (r) { return Number(r.rowIndex) === rowIndex; });
+      if (idx >= 0) {
+        cacheRows[idx] = Object.assign({}, cacheRows[idx], rowObj);
+      } else {
+        cacheRows.push(rowObj);
+      }
+      recomputeSaldoGeralLocal();
+    }
+
     function salvarLancamento() {
       let valor = Number(document.getElementById('mValor').value || 0);
-      if (document.getElementById('mTipoValor').value === 'despesa' && valor > 0) valor = -valor;
+      // Regra: NEGATIVO = receita, POSITIVO = despesa
+      if (document.getElementById('mTipoValor').value === 'receita' && valor > 0) valor = -valor;
       const payload = {
         rowIndex: document.getElementById('mRowIndex').value || "",
-        "DATA COMPETÊNCIA": document.getElementById('mDataComp').value || "",
-        "DATA VENCIMENTO": document.getElementById('mDataVenc').value || "",
-        "DATA PAGAMENTO": document.getElementById('mDataPag').value || "",
+        "DATA COMPETÊNCIA": isoToBr2y(document.getElementById('mDataComp').value || ""),
+        "DATA VENCIMENTO": isoToBr2y(document.getElementById('mDataVenc').value || ""),
+        "DATA PAGAMENTO": isoToBr2y(document.getElementById('mDataPag').value || ""),
         "CLIENTE": document.getElementById('mCliente').value || "",
         "CÓDIGO DO PROJETO": document.getElementById('mProjeto').value || "",
         "DESCRIÇÃO DO PROJETO": document.getElementById('mDescricaoProjeto').value || "",
@@ -604,33 +1191,70 @@
         "STATUS DO PAGAMENTO": document.getElementById('mStatus').value || "Pendente",
         "OBSERVAÇÕES": document.getElementById('mObs').value || ""
       };
+      setBtnBusy('btnSalvarLancamento', true, 'Salvando...');
+      setStatus('loading', 'Salvando lançamento...', 0);
       google.script.run
-        .withSuccessHandler(function () {
+        .withSuccessHandler(function (res) {
+          setBtnBusy('btnSalvarLancamento', false);
           closeModal('modalLancamento');
-          carregarLancamentos();
+          setStatus('success', 'Lançamento salvo.', 1200);
+          applySavedLancamentoLocal(res || {}, payload);
+          preencherClientesDatalistFromRows(cacheRows);
+          aplicarFiltrosEAtualizarUI();
+          // Se o usuário digitou um novo código/descrição, cadastra para aparecer nas sugestões.
+          try {
+            const cod = String(payload["CÓDIGO DO PROJETO"] || '').trim();
+            const desc = String(payload["DESCRIÇÃO DO PROJETO"] || '').trim();
+            if (cod || desc) {
+              google.script.run
+                .withSuccessHandler(function () { carregarCadastro(); })
+                .withFailureHandler(function () { /* não bloqueia */ })
+                .upsertLivroDiarioCadastroItem({ codigoProjeto: cod, descricaoProjeto: desc }, token);
+            }
+          } catch (e) {}
         })
         .withFailureHandler(function (err) {
+          setBtnBusy('btnSalvarLancamento', false);
+          setStatus('error', 'Erro ao salvar lançamento: ' + (err && err.message ? err.message : err), 6000);
           alert('Erro ao salvar lançamento: ' + (err && err.message ? err.message : err));
         })
-        .salvarLivroDiarioLancamento(payload, token);
+        .salvarLivroDiarioLancamento(payload, token, { fast: true });
     }
 
     function salvarCadastro() {
-      const payload = {
-        contaContabil: document.getElementById('cConta').value || "",
-        descricaoAbreviada: document.getElementById('cDesc').value || "",
-        contaFinanceira: document.getElementById('cFin').value || "",
-        meioPagamento: document.getElementById('cMeio').value || "",
-        validadeFiscal: document.getElementById('cVal').value || "",
-        statusPagamento: document.getElementById('cStatus').value || ""
-      };
+      const tipo = String(document.getElementById('cTipo').value || '');
+      let payload = { contaContabil: "", descricaoAbreviada: "", contaFinanceira: "", meioPagamento: "", validadeFiscal: "", statusPagamento: "" };
+      if (tipo === 'conta_contabil') {
+        payload.contaContabil = document.getElementById('cConta').value || "";
+        payload.descricaoAbreviada = document.getElementById('cDesc').value || "";
+      } else if (tipo === 'conta_financeira') {
+        payload.contaFinanceira = document.getElementById('cItemNome').value || "";
+      } else if (tipo === 'meio_pagamento') {
+        payload.meioPagamento = document.getElementById('cItemNome').value || "";
+      } else if (tipo === 'status_pagamento') {
+        payload.statusPagamento = document.getElementById('cItemNome').value || "";
+      } else {
+        alert('Selecione o Tipo de cadastro.');
+        return;
+      }
+
+      setBtnBusy('btnSalvarCadastro', true, 'Salvando...');
+      setStatus('loading', 'Salvando cadastro...', 0);
       google.script.run
         .withSuccessHandler(function () {
           closeModal('modalCadastro');
-          ['cConta','cDesc','cFin','cMeio','cVal','cStatus'].forEach(id => document.getElementById(id).value = '');
+          ['cTipo','cConta','cDesc','cItemNome'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+          document.getElementById('cadContaContabil').style.display = 'none';
+          document.getElementById('cadItemUnico').style.display = 'none';
+          setBtnBusy('btnSalvarCadastro', false);
+          setStatus('success', 'Cadastro salvo.', 1200);
           carregarCadastro();
         })
-        .withFailureHandler(function (err) { alert('Erro ao salvar cadastro: ' + (err && err.message ? err.message : err)); })
+        .withFailureHandler(function (err) {
+          setBtnBusy('btnSalvarCadastro', false);
+          setStatus('error', 'Erro ao salvar cadastro: ' + (err && err.message ? err.message : err), 6000);
+          alert('Erro ao salvar cadastro: ' + (err && err.message ? err.message : err));
+        })
         .upsertLivroDiarioCadastroItem(payload, token);
     }
 
@@ -653,14 +1277,65 @@
     document.getElementById('btnCancelarCadastro').onclick = function () { closeModal('modalCadastro'); };
     document.getElementById('btnSalvarCadastro').onclick = salvarCadastro;
     document.getElementById('fOrdenacao').addEventListener('change', aplicarPreferenciasEReload);
-    document.getElementById('fContaSaldo').addEventListener('input', calcularResumoLocal);
-    ['fCliente', 'fProjeto', 'fStatus', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
+    // "Conta para saldo" NÃO filtra tabela — só recalcula os KPIs.
+    document.getElementById('fContaSaldo').addEventListener('change', function () {
+      calcularResumoLocal();
+    });
+    document.getElementById('fConta').addEventListener('change', function () {
+      // Se o usuário filtra por conta e não escolheu uma conta específica de saldo,
+      // o KPI passa a refletir essa conta.
+      _telaInicialVazia = false;
+      _avisoSelecioneFiltros = false;
+      aplicarFiltrosEAtualizarUI();
+    });
+    document.getElementById('fVisao').addEventListener('change', function () {
+      const v = String(this.value || '');
+      if (v === 'novos') {
+        _mostrarSomenteUltimos30Dias = true;
+        _mostrarSomenteSemPagamento = false;
+        _telaInicialVazia = false;
+        _avisoSelecioneFiltros = false;
+      } else if (v === 'todos') {
+        _mostrarSomenteUltimos30Dias = false;
+        _mostrarSomenteSemPagamento = false;
+        _telaInicialVazia = false;
+        _avisoSelecioneFiltros = false;
+      } else {
+        _mostrarSomenteUltimos30Dias = false;
+        _mostrarSomenteSemPagamento = false;
+        _telaInicialVazia = true;
+        _avisoSelecioneFiltros = true;
+      }
+      aplicarFiltrosEAtualizarUI();
+    });
+    document.getElementById('cTipo').addEventListener('change', function () {
+      const v = String(this.value || '');
+      const blocoConta = document.getElementById('cadContaContabil');
+      const blocoUnico = document.getElementById('cadItemUnico');
+      if (v === 'conta_contabil') {
+        blocoConta.style.display = '';
+        blocoUnico.style.display = 'none';
+      } else if (v === 'conta_financeira' || v === 'meio_pagamento' || v === 'status_pagamento') {
+        blocoConta.style.display = 'none';
+        blocoUnico.style.display = '';
+      } else {
+        blocoConta.style.display = 'none';
+        blocoUnico.style.display = 'none';
+      }
+    });
+    ['fConta', 'fContaSaldo', 'fContaContabil', 'fOrdenacao'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', function () { this.title = this.value || ''; });
+    });
+    ['fCliente', 'fProjeto', 'fStatus', 'fContaContabil', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
       document.getElementById(id).addEventListener('input', aplicarFiltrosEAtualizarUI);
       document.getElementById(id).addEventListener('change', aplicarFiltrosEAtualizarUI);
     });
 
     carregarCadastro();
     carregarLancamentos();
+    setupScrollbars();
   </script>
 </body>
 </html>

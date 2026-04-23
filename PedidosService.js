@@ -88,6 +88,14 @@ function atualizarPedidoNaPlanilha(projeto, dadosAtualizacao, dadosProjeto) {
     } catch (syncErr) {
       Logger.log("Sync Pedidos->Projetos: " + syncErr.message);
     }
+    try {
+      // Mantém Livro Diário em espelho do Pedido (datas, parcelas, status, valores).
+      if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
+        gerarLancamentosLivroDiarioParaPedido(projeto);
+      }
+    } catch (eLivroSync) {
+      Logger.log("Sync Pedidos->LivroDiario: " + (eLivroSync && eLivroSync.message ? eLivroSync.message : eLivroSync));
+    }
     return { sucesso: true };
   } catch (e) {
     Logger.log("atualizarPedidoNaPlanilha error: " + e.message);
