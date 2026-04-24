@@ -1336,7 +1336,7 @@
             setStatus('error', 'Erro na sincronização do mês: ' + (err && err.message ? err.message : err), 8000);
             alert('Erro ao sincronizar pedidos do mês: ' + (err && err.message ? err.message : err));
           })
-          .sincronizarPedidosSemLivroDiarioPorMes(mes, token, { offset: offset, batchSize: 5 });
+          .sincronizarProjetosFaltantesPedidosNoLivroDiario(token, { offset: offset, batchSize: 5, mesCompetencia: mes });
       }
 
       runBatch(0);

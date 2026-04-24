@@ -416,6 +416,25 @@ function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
           if (!out.cliente && dados && dados.cliente && dados.cliente.nome) out.cliente = _normLivro(dados.cliente.nome);
           if (!out.descricaoProjeto && obs && obs.descricao) out.descricaoProjeto = _normLivro(obs.descricao);
           if (!out.processos && obs && obs.processos) out.processos = _normLivro(obs.processos);
+          // Fallback: extrai siglas de processos a partir dos produtos do JSON.
+          if (!out.processos && dados && Array.isArray(dados.produtosCadastrados)) {
+            var procSet = {};
+            dados.produtosCadastrados.forEach(function (p) {
+              if (!p || typeof p !== "object") return;
+              var descProc = p.descricoesProcessos || {};
+              Object.keys(descProc || {}).forEach(function (k) {
+                var sig = _normLivro(k).toUpperCase();
+                if (sig) procSet[sig] = true;
+              });
+              var outros = Array.isArray(p.outrosProcessos) ? p.outrosProcessos : [];
+              outros.forEach(function (op) {
+                var sig2 = _normLivro(op && op.sigla).toUpperCase();
+                if (sig2) procSet[sig2] = true;
+              });
+            });
+            var siglas = Object.keys(procSet).sort();
+            if (siglas.length) out.processos = siglas.join(", ");
+          }
         }
       }
     }
@@ -437,6 +456,36 @@ function _prefixoProcessosProjeto_(processosRaw) {
   if (!parts.length) return "";
   var joined = parts.join(", ").toUpperCase();
   return joined;
+}
+
+function _codigoBaseProjeto_(codigo) {
+  return _normLivro(codigo).replace(/_v\d+$/i, "");
+}
+
+function _extrairProcessosPedidoOuProjeto_(rowPed, metaProj) {
+  // 1) Prioriza o que já vem do projeto (JSON_DADOS)
+  var p = _normLivro(metaProj && metaProj.processos);
+  if (p) return p;
+
+  // 2) Tenta campos explícitos da linha de pedido
+  var candidatos = [
+    rowPed && rowPed.PROCESSOS,
+    rowPed && rowPed.PROCESSO,
+    rowPed && rowPed["PROCESSOS"],
+    rowPed && rowPed["PROCESSO"]
+  ];
+  for (var i = 0; i < candidatos.length; i++) {
+    var c = _normLivro(candidatos[i]);
+    if (c) return c;
+  }
+
+  // 3) Tenta extrair de OBS / OBSERVACOES no formato "processos: CL, D"
+  var obs = _normLivro((rowPed && (rowPed.OBS || rowPed.OBSERVACOES || rowPed["OBSERVAÇÕES"])) || "");
+  if (obs) {
+    var m = obs.match(/processos?\s*[:\-]\s*([A-Za-z0-9,\s\/;|]+)/i);
+    if (m && m[1]) return _normLivro(m[1]);
+  }
+  return "";
 }
 
 function _parseHistoricoParcelasPedido_(rowPed) {
@@ -545,19 +594,39 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
   if (isNaN(batchSize) || batchSize <= 0) batchSize = 5;
   if (batchSize > 20) batchSize = 20;
 
-  var shLivro = ensureLivroDiarioSheet();
-  var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
-  var idxProjLivro = _findHeaderIndexGeneric(headersLivro, "CÓDIGO DO PROJETO");
-  var codigosNoLivro = {};
-  if (idxProjLivro >= 0 && shLivro.getLastRow() >= 2) {
-    var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
-    dataLivro.forEach(function (r) {
-      var c = _normLivro(r[idxProjLivro]);
-      if (c) codigosNoLivro[c] = true;
-    });
+  function _mesCompetenciaFromValue_(v) {
+    if (v == null || v === "") return null;
+    if (Object.prototype.toString.call(v) === "[object Date]") {
+      return isNaN(v.getTime()) ? null : (v.getMonth() + 1);
+    }
+    var s = String(v).trim();
+    if (!s) return null;
+    var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (mBr) return parseInt(mBr[2], 10);
+    var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mIso) return parseInt(mIso[2], 10);
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) return d.getMonth() + 1;
+    return null;
   }
 
   var pedidoMap = (typeof getPedidosSheetMap === "function") ? getPedidosSheetMap() : {};
+  if (!pedidoMap || Object.keys(pedidoMap).length === 0) {
+    return {
+      ok: false,
+      mesCompetencia: mes,
+      offset: offset,
+      nextOffset: offset,
+      batchSize: batchSize,
+      hasMore: false,
+      totalPedidos: 0,
+      processados: 0,
+      inseridosTotal: 0,
+      ignoradosExistentes: 0,
+      ignoradosMes: 0,
+      erros: [{ codigoProjeto: "", erro: "Nenhum pedido encontrado no mapa de pedidos. Verifique se getPedidosSheetMap() está retornando dados válidos." }]
+    };
+  }
   var processados = 0;
   var inseridosTotal = 0;
   var ignoradosExistentes = 0;
@@ -569,25 +638,21 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
   for (var i = offset; i < end; i++) {
     var codigoProjeto = codigos[i];
     var rowPed = pedidoMap[codigoProjeto] || {};
-    var dataComp = _normLivro(rowPed.DATA_COMPETENCIA || rowPed["DATA COMPETÊNCIA"] || rowPed["DATA COMPETENCIA"]);
-    var dComp = _asDateLivro(dataComp);
-    if (!dComp || (dComp.getMonth() + 1) !== mes) {
+    var dataComp = rowPed.DATA_COMPETENCIA || rowPed["DATA COMPETÊNCIA"] || rowPed["DATA COMPETENCIA"];
+    var mesComp = _mesCompetenciaFromValue_(dataComp);
+    if (mesComp == null || mesComp !== mes) {
       ignoradosMes++;
       continue;
     }
 
     var cod = _normLivro(codigoProjeto);
-    if (!cod) return;
-    if (codigosNoLivro[cod]) {
-      ignoradosExistentes++;
-      continue;
-    }
+    if (!cod) continue;
 
     try {
       var r = gerarLancamentosLivroDiarioParaPedido(cod, token, { skipPosProcess: true });
       processados++;
       inseridosTotal += Number((r && r.inseridos) || 0);
-      codigosNoLivro[cod] = true;
+      if (r && Number(r.inseridos || 0) === 0) ignoradosExistentes++;
     } catch (e) {
       erros.push({ codigoProjeto: cod, erro: (e && e.message) ? e.message : String(e) });
     }
@@ -674,7 +739,7 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var metaProj = _getProjetoDadosBasicosPorCodigo(codigoProjeto);
   if (!projetoInfo.cliente && metaProj.cliente) projetoInfo.cliente = metaProj.cliente;
   if (!projetoInfo.descricaoProjeto && metaProj.descricaoProjeto) projetoInfo.descricaoProjeto = metaProj.descricaoProjeto;
-  if (!projetoInfo.processos && metaProj.processos) projetoInfo.processos = metaProj.processos;
+  if (!projetoInfo.processos) projetoInfo.processos = _extrairProcessosPedidoOuProjeto_(rowPed, metaProj);
   if (metaProj.temNotaFiscal === true) projetoInfo.validadeFiscal = "Sim";
   else if (metaProj.temNotaFiscal === false) projetoInfo.validadeFiscal = "Não";
   else {
@@ -766,6 +831,169 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   }
 
   return { ok: true, inseridos: toInsert.length, atualizados: toUpdate.length, removidos: toDelete.length, parcelas: parcelas.length };
+}
+
+function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
+  var opts = options || {};
+  var offset = parseInt(opts.offset, 10);
+  if (isNaN(offset) || offset < 0) offset = 0;
+  var batchSize = parseInt(opts.batchSize, 10);
+  if (isNaN(batchSize) || batchSize <= 0) batchSize = 5;
+  if (batchSize > 20) batchSize = 20;
+  var mesFiltro = parseInt(opts.mesCompetencia, 10);
+  if (isNaN(mesFiltro) || mesFiltro < 1 || mesFiltro > 12) mesFiltro = null; // sem filtro por padrão
+
+  function _mesCompetenciaFromValue_(v) {
+    if (v == null || v === "") return null;
+    if (Object.prototype.toString.call(v) === "[object Date]") {
+      return isNaN(v.getTime()) ? null : (v.getMonth() + 1);
+    }
+    var s = String(v).trim();
+    if (!s) return null;
+    var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+    if (mBr) return parseInt(mBr[2], 10);
+    var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mIso) return parseInt(mIso[2], 10);
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) return d.getMonth() + 1;
+    return null;
+  }
+
+  var shLivro = ensureLivroDiarioSheet();
+  var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
+  var idxProjLivro = _findHeaderIndexGeneric(headersLivro, "CÓDIGO DO PROJETO");
+  var existentes = {};
+  if (idxProjLivro >= 0 && shLivro.getLastRow() >= 2) {
+    var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
+    dataLivro.forEach(function (r) {
+      var cod = _normLivro(r[idxProjLivro]);
+      var base = _codigoBaseProjeto_(cod);
+      if (cod) existentes[cod] = true;
+      if (base) existentes[base] = true;
+    });
+  }
+
+  // Usa a mesma base da página de pedidos (getPedidos), com fallback para aba Pedidos.
+  var pedRows = [];
+  if (typeof getPedidos === "function") {
+    try {
+      var pedidosLista = getPedidos() || [];
+      pedidosLista.forEach(function (p) {
+        var codP = _normLivro(p.PROJETO || p["PROJETO"] || "");
+        if (!codP) return;
+        var dataCompP = p.DATA_COMPETENCIA || p["DATA COMPETÊNCIA"] || p["DATA_COMPETENCIA"] || p.DATA || "";
+        pedRows.push({
+          codigo: codP,
+          mesCompetencia: _mesCompetenciaFromValue_(dataCompP)
+        });
+      });
+    } catch (eGetP) {
+      // segue para fallback abaixo
+    }
+  }
+
+  if (!pedRows.length) {
+    var shPed = (typeof ensurePedidosSheet === "function") ? ensurePedidosSheet() : null;
+    if (!shPed || shPed.getLastRow() < 2) {
+      return {
+        ok: true, offset: offset, nextOffset: offset, batchSize: batchSize, hasMore: false, totalPedidos: 0,
+        processados: 0, inseridosTotal: 0, ignoradosExistentes: 0, ignoradosMes: 0,
+        erros: [{ codigoProjeto: "", erro: "Sem dados em getPedidos() e aba Pedidos vazia." }]
+      };
+    }
+    var pedData = shPed.getDataRange().getValues();
+    var pedHeaders = pedData[0] || [];
+    function _findPedCol_(names) {
+      var norm = function (x) {
+        return String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+      };
+      var map = {};
+      for (var i = 0; i < pedHeaders.length; i++) map[norm(pedHeaders[i])] = i;
+      for (var j = 0; j < names.length; j++) {
+        var idx = map[norm(names[j])];
+        if (idx != null) return idx;
+      }
+      return -1;
+    }
+    var idxProj = _findPedCol_(["PROJETO", "Código", "Código do projeto"]);
+    var idxDataComp = _findPedCol_(["DATA_COMPETENCIA", "DATA COMPETENCIA", "DATA COMPETÊNCIA"]);
+    if (idxProj < 0) {
+      return {
+        ok: true, offset: offset, nextOffset: offset, batchSize: batchSize, hasMore: false, totalPedidos: 0,
+        processados: 0, inseridosTotal: 0, ignoradosExistentes: 0, ignoradosMes: 0,
+        erros: [{ codigoProjeto: "", erro: "Coluna PROJETO não encontrada em Pedidos." }]
+      };
+    }
+    for (var r0 = 1; r0 < pedData.length; r0++) {
+      var rr = pedData[r0];
+      var codRow = _normLivro(rr[idxProj]);
+      if (!codRow) continue;
+      pedRows.push({
+        codigo: codRow,
+        mesCompetencia: _mesCompetenciaFromValue_(idxDataComp >= 0 ? rr[idxDataComp] : "")
+      });
+    }
+  }
+  pedRows.sort(function (a, b) { return a.codigo.localeCompare(b.codigo); });
+  var end = Math.min(offset + batchSize, pedRows.length);
+  var processados = 0;
+  var inseridosTotal = 0;
+  var ignoradosExistentes = 0;
+  var ignoradosMes = 0;
+  var erros = [];
+
+  for (var i = offset; i < end; i++) {
+    var codRaw = _normLivro(pedRows[i].codigo);
+    if (!codRaw) continue;
+    var baseRaw = _codigoBaseProjeto_(codRaw);
+    if (mesFiltro != null) {
+      var mesComp = pedRows[i].mesCompetencia;
+      if (mesComp == null || mesComp !== mesFiltro) {
+        ignoradosMes++;
+        continue;
+      }
+    }
+
+    if (existentes[codRaw] || existentes[baseRaw]) {
+      ignoradosExistentes++;
+      continue;
+    }
+
+    try {
+      var r = gerarLancamentosLivroDiarioParaPedido(codRaw, token, { skipPosProcess: true });
+      processados++;
+      inseridosTotal += Number((r && r.inseridos) || 0);
+      existentes[codRaw] = true;
+      existentes[baseRaw] = true;
+    } catch (e) {
+      erros.push({ codigoProjeto: codRaw, erro: (e && e.message) ? e.message : String(e) });
+    }
+  }
+
+  var hasMore = end < pedRows.length;
+  if (processados > 0) {
+    try {
+      var prefsPos = _getLivroDiarioPrefs();
+      ordenarLivroDiario(prefsPos.modoOrdenacao);
+      recalcularSaldosLivroDiario(prefsPos.contaFinanceiraSaldo);
+    } catch (ePos) {
+      erros.push({ codigoProjeto: "", erro: "Pos-processamento do lote: " + (ePos && ePos.message ? ePos.message : ePos) });
+    }
+  }
+
+  return {
+    ok: true,
+    offset: offset,
+    nextOffset: end,
+    batchSize: batchSize,
+    hasMore: hasMore,
+    totalPedidos: pedRows.length,
+    processados: processados,
+    inseridosTotal: inseridosTotal,
+    ignoradosExistentes: ignoradosExistentes,
+    ignoradosMes: ignoradosMes,
+    erros: erros
+  };
 }
 
 function _validarVinculoConta(payload) {
