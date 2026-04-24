@@ -558,6 +558,22 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
   }
 
   var pedidoMap = (typeof getPedidosSheetMap === "function") ? getPedidosSheetMap() : {};
+  if (!pedidoMap || Object.keys(pedidoMap).length === 0) {
+    return {
+      ok: false,
+      mesCompetencia: mes,
+      offset: offset,
+      nextOffset: offset,
+      batchSize: batchSize,
+      hasMore: false,
+      totalPedidos: 0,
+      processados: 0,
+      inseridosTotal: 0,
+      ignoradosExistentes: 0,
+      ignoradosMes: 0,
+      erros: [{ codigoProjeto: "", erro: "Nenhum pedido encontrado no mapa de pedidos. Verifique se getPedidosSheetMap() está retornando dados válidos." }]
+    };
+  }
   var processados = 0;
   var inseridosTotal = 0;
   var ignoradosExistentes = 0;
@@ -577,7 +593,7 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
     }
 
     var cod = _normLivro(codigoProjeto);
-    if (!cod) return;
+    if (!cod) continue;
     if (codigosNoLivro[cod]) {
       ignoradosExistentes++;
       continue;
