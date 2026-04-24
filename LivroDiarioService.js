@@ -580,6 +580,36 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
   var ignoradosMes = 0;
   var erros = [];
 
+  // Mapa fallback: código do projeto → DATA bruta da aba Projetos.
+  // A página de Pedidos usa exatamente esta mesma cadeia de fallback para exibir a data de competência:
+  //   1. Pedidos.DATA_COMPETENCIA → 2. Pedidos.DATA_ENTREGA → 3. Projetos.DATA
+  // A sincronização precisa seguir a mesma lógica para encontrar os mesmos pedidos.
+  var projetosDataMap = {};
+  try {
+    if (typeof SHEET_PROJ !== "undefined" && SHEET_PROJ) {
+      var projData = SheetCache.getData(SHEET_PROJ);
+      if (projData && projData.length > 1) {
+        var projHeaders = projData[0];
+        var idxProjCode = -1, idxProjDate = -1;
+        for (var ph = 0; ph < projHeaders.length; ph++) {
+          var phStr = String(projHeaders[ph] || "").trim().toUpperCase();
+          if (phStr === "PROJETO") idxProjCode = ph;
+          if (phStr === "DATA") idxProjDate = ph;
+        }
+        if (idxProjCode >= 0 && idxProjDate >= 0) {
+          for (var pr = 1; pr < projData.length; pr++) {
+            var prow = projData[pr];
+            var pcode = String(prow[idxProjCode] || "").trim();
+            var pdate = prow[idxProjDate];
+            if (pcode && pdate != null && pdate !== "") {
+              projetosDataMap[pcode] = pdate;
+            }
+          }
+        }
+      }
+    }
+  } catch (eProjMap) { /* continua sem o fallback de Projetos */ }
+
   var codigos = Object.keys(pedidoMap || {}).sort();
   var end = Math.min(offset + batchSize, codigos.length);
   for (var i = offset; i < end; i++) {
@@ -587,25 +617,33 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
     var rowPed = pedidoMap[codigoProjeto] || {};
     var dataComp = _normLivro(rowPed.DATA_COMPETENCIA || rowPed["DATA COMPETÊNCIA"] || rowPed["DATA COMPETENCIA"]);
     if (!dataComp) {
-      // Se DATA_COMPETENCIA não estiver preenchida, usa DATA_ENTREGA como fallback
-      // (consistente com o comportamento de _buildLancamentoFromPedido)
       dataComp = _normLivro(rowPed.DATA_ENTREGA || rowPed["DATA ENTREGA"] || "");
     }
     var dComp = _asDateLivro(dataComp);
+    // Fallback final: DATA da aba Projetos — mesma lógica que a página de Pedidos usa para exibir a data
+    if (!dComp && projetosDataMap[codigoProjeto] != null) {
+      dComp = _asDateLivro(projetosDataMap[codigoProjeto]);
+    }
     if (!dComp || (dComp.getMonth() + 1) !== mes) {
       ignoradosMes++;
       continue;
     }
 
     var cod = _normLivro(codigoProjeto);
-    if (!cod) continue;
+    if (!cod) { ignoradosMes++; continue; }
     if (codigosNoLivro[cod]) {
       ignoradosExistentes++;
       continue;
     }
 
     try {
-      var r = gerarLancamentosLivroDiarioParaPedido(cod, token, { skipPosProcess: true });
+      // Passa o valor bruto do campo DATA de Projetos quando DATA_COMPETENCIA não estava
+      // presente na aba Pedidos, para que o lancamento gerado tenha a data correta.
+      var dataCompFallback = !dataComp ? (projetosDataMap[codigoProjeto] || null) : null;
+      var r = gerarLancamentosLivroDiarioParaPedido(cod, token, {
+        skipPosProcess: true,
+        dataCompFallback: dataCompFallback
+      });
       processados++;
       inseridosTotal += Number((r && r.inseridos) || 0);
       codigosNoLivro[cod] = true;
@@ -651,6 +689,11 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var valorTotal = _numLivro(rowPed.VALOR_TOTAL);
   var condicoes = _normLivro(rowPed.CONDICOES_PAGAMENTO);
   var dataComp = _normLivro(rowPed.DATA_COMPETENCIA);
+  // Quando DATA_COMPETENCIA não está na aba Pedidos, usa o fallback fornecido pelo chamador
+  // (normalmente o campo DATA da aba Projetos — mesma lógica da página de Pedidos)
+  if (!dataComp && opts.dataCompFallback != null) {
+    dataComp = _formatDateLivro2y(opts.dataCompFallback);
+  }
   var dataEntrega = _normLivro(rowPed.DATA_ENTREGA);
   var dataVenc = _normLivro(rowPed.DATA_VENCIMENTO);
   // Regra: parcelas/vencimento baseadas na data de entrega.
