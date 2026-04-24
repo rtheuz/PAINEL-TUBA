@@ -39,6 +39,12 @@
     }
     .btn-primary { background: linear-gradient(90deg, #0ea5ff, #3b82f6); color: #fff; }
     .btn-ghost { background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.25); }
+    /* Botões "ghost" dentro do card (fundo claro) */
+    .sticky-top .btn-ghost {
+      background: #eef2ff;
+      color: #1e3a8a;
+      border: 1px solid #c7d2fe;
+    }
     .content { flex: 1; overflow: auto; padding: 14px; }
     .card {
       background: var(--card-bg); border-radius: var(--radius); padding: 14px;
@@ -207,6 +213,7 @@
         <button class="btn btn-ghost" id="btnVoltar">Voltar</button>
         <button class="btn btn-ghost" id="btnUltimoPagamento">Ir para último pagamento</button>
         <button class="btn btn-ghost" id="btnNovoCadastro">Cadastrar novo item</button>
+        <button class="btn btn-ghost" id="btnSyncPedidosMes">Sincronizar pedidos do mês</button>
         <button class="btn btn-primary" id="btnNovoLancamento">Novo lançamento</button>
       </div>
     </div>
@@ -279,11 +286,35 @@
             </div>
             <div class="field">
               <label>&nbsp;</label>
-              <button class="btn btn-ghost" type="button" onclick="irParaUltimoPagamento()">Ir para último pagamento</button>
+              <button class="btn" type="button" onclick="irParaUltimoPagamento()">Ir para último pagamento</button>
             </div>
             <div class="field">
               <label>&nbsp;</label>
-              <button class="btn btn-ghost" type="button" onclick="limparFiltrosDatas()">Limpar filtros de data</button>
+              <button class="btn" type="button" onclick="limparFiltrosDatas()">Limpar filtros de data</button>
+            </div>
+          </div>
+
+          <div class="filters" style="grid-template-columns: repeat(3, minmax(220px, 1fr)); margin-bottom: 10px;">
+            <div class="field">
+              <label>Mês competência (sync pedidos)</label>
+              <select id="fMesSync">
+                <option value="1">1 - Janeiro</option>
+                <option value="2">2 - Fevereiro</option>
+                <option value="3">3 - Março</option>
+                <option value="4" selected>4 - Abril</option>
+                <option value="5">5 - Maio</option>
+                <option value="6">6 - Junho</option>
+                <option value="7">7 - Julho</option>
+                <option value="8">8 - Agosto</option>
+                <option value="9">9 - Setembro</option>
+                <option value="10">10 - Outubro</option>
+                <option value="11">11 - Novembro</option>
+                <option value="12">12 - Dezembro</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn-ghost" type="button" id="btnExecutarSyncMes">Executar sincronização do mês</button>
             </div>
           </div>
 
@@ -1258,6 +1289,59 @@
         .upsertLivroDiarioCadastroItem(payload, token);
     }
 
+    function sincronizarPedidosDoMes() {
+      const mes = Number(document.getElementById('fMesSync').value || 4);
+      const btnTop = document.getElementById('btnSyncPedidosMes');
+      const btnExec = document.getElementById('btnExecutarSyncMes');
+      if (btnTop) btnTop.disabled = true;
+      if (btnExec) btnExec.disabled = true;
+      const acc = {
+        processados: 0,
+        inseridosTotal: 0,
+        ignoradosExistentes: 0,
+        ignoradosMes: 0,
+        erros: 0
+      };
+
+      function runBatch(offset) {
+        setStatus('loading', 'Sincronizando mês ' + mes + '... lote a partir de ' + offset, 0);
+        google.script.run
+          .withSuccessHandler(function (res) {
+            const r = res || {};
+            acc.processados += (r.processados || 0);
+            acc.inseridosTotal += (r.inseridosTotal || 0);
+            acc.ignoradosExistentes += (r.ignoradosExistentes || 0);
+            acc.ignoradosMes += (r.ignoradosMes || 0);
+            acc.erros += ((r.erros && r.erros.length) || 0);
+
+            if (r.hasMore) {
+              runBatch(Number(r.nextOffset || 0));
+              return;
+            }
+
+            if (btnTop) btnTop.disabled = false;
+            if (btnExec) btnExec.disabled = false;
+            const msg = 'Sync concluído (mês ' + mes + '): '
+              + 'processados=' + acc.processados
+              + ', inseridos=' + acc.inseridosTotal
+              + ', já existentes=' + acc.ignoradosExistentes
+              + ', fora do mês=' + acc.ignoradosMes
+              + (acc.erros ? (', erros=' + acc.erros) : '');
+            setStatus(acc.erros ? 'error' : 'success', msg, 9000);
+            carregarLancamentos({ preserveState: true });
+          })
+          .withFailureHandler(function (err) {
+            if (btnTop) btnTop.disabled = false;
+            if (btnExec) btnExec.disabled = false;
+            setStatus('error', 'Erro na sincronização do mês: ' + (err && err.message ? err.message : err), 8000);
+            alert('Erro ao sincronizar pedidos do mês: ' + (err && err.message ? err.message : err));
+          })
+          .sincronizarPedidosSemLivroDiarioPorMes(mes, token, { offset: offset, batchSize: 5 });
+      }
+
+      runBatch(0);
+    }
+
     document.getElementById('mContaContabil').addEventListener('change', function () {
       preencherCamposPorContaContabil(this.value);
     });
@@ -1270,6 +1354,8 @@
     document.getElementById('btnUltimoPagamento').onclick = irParaUltimoPagamento;
     document.getElementById('btnNovoLancamento').onclick = novoLancamento;
     document.getElementById('btnNovoCadastro').onclick = function () { openModal('modalCadastro'); };
+    document.getElementById('btnSyncPedidosMes').onclick = sincronizarPedidosDoMes;
+    document.getElementById('btnExecutarSyncMes').onclick = sincronizarPedidosDoMes;
     document.getElementById('btnFecharLancamento').onclick = function () { closeModal('modalLancamento'); };
     document.getElementById('btnCancelarLancamento').onclick = function () { closeModal('modalLancamento'); };
     document.getElementById('btnSalvarLancamento').onclick = salvarLancamento;

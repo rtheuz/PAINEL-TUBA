@@ -41,6 +41,7 @@ const LIVRO_DIARIO_CAD_HEADERS = [
 const LIVRO_DIARIO_PREFS_KEY = "LIVRO_DIARIO_PREFS_V1";
 const LIVRO_DIARIO_CONTA_CONTABIL_PADRAO_PEDIDO = "TUBA Laser _ Receita _ Operacional _ Indústria";
 const LIVRO_DIARIO_DESC_PADRAO_PEDIDO = "TuLa Receita Indústria";
+const LIVRO_DIARIO_DATA_VENC_FICTICIA = "31/12/99";
 
 function _findHeaderIndexGeneric(headers, targetName) {
   if (!headers || !headers.length) return -1;
@@ -427,10 +428,14 @@ function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
 function _prefixoProcessosProjeto_(processosRaw) {
   var s = _normLivro(processosRaw);
   if (!s) return "";
-  // Ex.: "CL, D" -> "CL/D"
-  var parts = s.split(/[,;|]+|\s+/).map(function (p) { return String(p || "").trim(); }).filter(function (p) { return !!p; });
+  // Ex.: "CL, D" -> "CL, D"
+  // Mantém formato legível com vírgula no Livro Diário.
+  var parts = s
+    .split(/[,;|\/]+|\s{2,}/)
+    .map(function (p) { return String(p || "").trim(); })
+    .filter(function (p) { return !!p; });
   if (!parts.length) return "";
-  var joined = parts.join("/").toUpperCase();
+  var joined = parts.join(", ").toUpperCase();
   return joined;
 }
 
@@ -484,11 +489,23 @@ function _buildLancamentoFromPedido(codigoProjeto, parcela, projetoInfo) {
       dataVenc = _formatDateLivro2y(projetoInfo.dataEntrega);
     }
   }
+  // Garante visibilidade no Livro Diário mesmo sem vencimento real.
+  // Quando a DATA_ENTREGA/vencto real for preenchida no Pedido,
+  // a sincronização automática substitui este valor fictício.
+  if (!dataVenc) dataVenc = LIVRO_DIARIO_DATA_VENC_FICTICIA;
   var obsAuto = "[AUTO_PEDIDO_PARCELA_" + parcela.numero + "_DE_" + parcela.total + "]";
   var prefix = _prefixoProcessosProjeto_(projetoInfo.processos);
   var desc = _normLivro(projetoInfo.descricaoProjeto);
-  if (prefix && desc) desc = prefix + " - " + desc;
-  var valorParcela = Number(parcela.valor) || 0;
+  if (prefix && desc) {
+    // Evita duplicar o prefixo em sincronizações subsequentes
+    var pref = prefix.toUpperCase() + " - ";
+    if (String(desc).toUpperCase().indexOf(pref) !== 0) {
+      desc = prefix + " - " + desc;
+    }
+  }
+  // Regra de negócio: pedido (receita) deve entrar NEGATIVO no Livro Diário.
+  var valorParcelaBruto = Number(parcela.valor) || 0;
+  var valorParcela = -Math.abs(valorParcelaBruto);
   var pagoInfo = parcela.pagamentoInfo || { valorPago: 0, dataPagamento: "" };
   var pagoAbs = Math.abs(_numLivro(pagoInfo.valorPago));
   var parcelaAbs = Math.abs(valorParcela);
@@ -518,7 +535,93 @@ function _buildLancamentoFromPedido(codigoProjeto, parcela, projetoInfo) {
   };
 }
 
-function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token) {
+function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) {
+  var mes = parseInt(mesCompetencia, 10);
+  if (isNaN(mes) || mes < 1 || mes > 12) mes = 4; // padrão: abril
+  var opts = options || {};
+  var offset = parseInt(opts.offset, 10);
+  if (isNaN(offset) || offset < 0) offset = 0;
+  var batchSize = parseInt(opts.batchSize, 10);
+  if (isNaN(batchSize) || batchSize <= 0) batchSize = 5;
+  if (batchSize > 20) batchSize = 20;
+
+  var shLivro = ensureLivroDiarioSheet();
+  var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
+  var idxProjLivro = _findHeaderIndexGeneric(headersLivro, "CÓDIGO DO PROJETO");
+  var codigosNoLivro = {};
+  if (idxProjLivro >= 0 && shLivro.getLastRow() >= 2) {
+    var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
+    dataLivro.forEach(function (r) {
+      var c = _normLivro(r[idxProjLivro]);
+      if (c) codigosNoLivro[c] = true;
+    });
+  }
+
+  var pedidoMap = (typeof getPedidosSheetMap === "function") ? getPedidosSheetMap() : {};
+  var processados = 0;
+  var inseridosTotal = 0;
+  var ignoradosExistentes = 0;
+  var ignoradosMes = 0;
+  var erros = [];
+
+  var codigos = Object.keys(pedidoMap || {}).sort();
+  var end = Math.min(offset + batchSize, codigos.length);
+  for (var i = offset; i < end; i++) {
+    var codigoProjeto = codigos[i];
+    var rowPed = pedidoMap[codigoProjeto] || {};
+    var dataComp = _normLivro(rowPed.DATA_COMPETENCIA || rowPed["DATA COMPETÊNCIA"] || rowPed["DATA COMPETENCIA"]);
+    var dComp = _asDateLivro(dataComp);
+    if (!dComp || (dComp.getMonth() + 1) !== mes) {
+      ignoradosMes++;
+      continue;
+    }
+
+    var cod = _normLivro(codigoProjeto);
+    if (!cod) return;
+    if (codigosNoLivro[cod]) {
+      ignoradosExistentes++;
+      continue;
+    }
+
+    try {
+      var r = gerarLancamentosLivroDiarioParaPedido(cod, token, { skipPosProcess: true });
+      processados++;
+      inseridosTotal += Number((r && r.inseridos) || 0);
+      codigosNoLivro[cod] = true;
+    } catch (e) {
+      erros.push({ codigoProjeto: cod, erro: (e && e.message) ? e.message : String(e) });
+    }
+  }
+
+  var hasMore = end < codigos.length;
+  if (processados > 0) {
+    try {
+      var prefsPos = _getLivroDiarioPrefs();
+      ordenarLivroDiario(prefsPos.modoOrdenacao);
+      recalcularSaldosLivroDiario(prefsPos.contaFinanceiraSaldo);
+    } catch (ePos) {
+      erros.push({ codigoProjeto: "", erro: "Pos-processamento do lote: " + (ePos && ePos.message ? ePos.message : ePos) });
+    }
+  }
+
+  return {
+    ok: true,
+    mesCompetencia: mes,
+    offset: offset,
+    nextOffset: end,
+    batchSize: batchSize,
+    hasMore: hasMore,
+    totalPedidos: codigos.length,
+    processados: processados,
+    inseridosTotal: inseridosTotal,
+    ignoradosExistentes: ignoradosExistentes,
+    ignoradosMes: ignoradosMes,
+    erros: erros
+  };
+}
+
+function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
+  var opts = options || {};
   if (!codigoProjeto) throw new Error("Código do projeto é obrigatório.");
   var pedidoMap = (typeof getPedidosSheetMap === "function") ? getPedidosSheetMap() : {};
   var rowPed = pedidoMap[codigoProjeto] || pedidoMap[String(codigoProjeto).replace(/_v\d+$/i, "")];
@@ -656,9 +759,11 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token) {
     sh.deleteRow(rowIdx);
   });
 
-  var prefs = _getLivroDiarioPrefs();
-  ordenarLivroDiario(prefs.modoOrdenacao);
-  recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+  if (!opts.skipPosProcess) {
+    var prefs = _getLivroDiarioPrefs();
+    ordenarLivroDiario(prefs.modoOrdenacao);
+    recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+  }
 
   return { ok: true, inseridos: toInsert.length, atualizados: toUpdate.length, removidos: toDelete.length, parcelas: parcelas.length };
 }
