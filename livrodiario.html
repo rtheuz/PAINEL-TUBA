@@ -1300,7 +1300,8 @@
         inseridosTotal: 0,
         ignoradosExistentes: 0,
         ignoradosMes: 0,
-        erros: 0
+        erros: 0,
+        totalPedidos: 0
       };
 
       function runBatch(offset) {
@@ -1313,6 +1314,7 @@
             acc.ignoradosExistentes += (r.ignoradosExistentes || 0);
             acc.ignoradosMes += (r.ignoradosMes || 0);
             acc.erros += ((r.erros && r.erros.length) || 0);
+            if ((r.totalPedidos || 0) > acc.totalPedidos) acc.totalPedidos = r.totalPedidos;
 
             if (r.hasMore) {
               runBatch(Number(r.nextOffset || 0));
@@ -1322,12 +1324,13 @@
             if (btnTop) btnTop.disabled = false;
             if (btnExec) btnExec.disabled = false;
             const msg = 'Sync concluído (mês ' + mes + '): '
-              + 'processados=' + acc.processados
+              + 'total no mês=' + acc.processados
               + ', inseridos=' + acc.inseridosTotal
               + ', já existentes=' + acc.ignoradosExistentes
-              + ', fora do mês=' + acc.ignoradosMes
+              + ', sem data/fora do mês=' + acc.ignoradosMes
+              + ', total pedidos=' + acc.totalPedidos
               + (acc.erros ? (', erros=' + acc.erros) : '');
-            setStatus(acc.erros ? 'error' : 'success', msg, 9000);
+            setStatus(acc.erros ? 'error' : 'success', msg, 12000);
             carregarLancamentos({ preserveState: true });
           })
           .withFailureHandler(function (err) {

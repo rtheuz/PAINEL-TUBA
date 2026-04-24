@@ -586,6 +586,11 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
     var codigoProjeto = codigos[i];
     var rowPed = pedidoMap[codigoProjeto] || {};
     var dataComp = _normLivro(rowPed.DATA_COMPETENCIA || rowPed["DATA COMPETÊNCIA"] || rowPed["DATA COMPETENCIA"]);
+    if (!dataComp) {
+      // Se DATA_COMPETENCIA não estiver preenchida, usa DATA_ENTREGA como fallback
+      // (consistente com o comportamento de _buildLancamentoFromPedido)
+      dataComp = _normLivro(rowPed.DATA_ENTREGA || rowPed["DATA ENTREGA"] || "");
+    }
     var dComp = _asDateLivro(dataComp);
     if (!dComp || (dComp.getMonth() + 1) !== mes) {
       ignoradosMes++;
