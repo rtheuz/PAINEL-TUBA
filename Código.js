@@ -4351,15 +4351,26 @@ function _parseCurrency(val) {
 
 /**
  * Calcula parcelas a partir do texto de pagamento (ex: "30/60/90", "Á Vista / 30 / 45", ou "70% no pedido, 30% na entrega").
- * dataBase = data de entrega (prioridade) ou data de competência para cálculo dos vencimentos.
+ * dataBase = data de entrega para cálculo dos vencimentos normais.
+ * dataBaseComp = data de competência usada para "pagamento adiantado" (condição "No pedido").
+ *   - Pagamento adiantado: 1ª parcela (ou qualquer "No pedido") usa dataBaseComp; demais usam dataBase.
+ *   - Pagamento normal: todas as parcelas usam dataBase.
  * Retorna array de { numero, dias, valor, dataVencimento, condicao? } ou null se à vista / parcela única.
  */
-function _calcularParcelasPedidos(textoPagamento, valorTotal, dataBase) {
+function _calcularParcelasPedidos(textoPagamento, valorTotal, dataBase, dataBaseComp) {
   if (!textoPagamento || !textoPagamento.trim()) return null;
   var texto = textoPagamento.trim().replace(/\s+/g, " ");
   var textoUpper = texto.toUpperCase();
 
-  var dBase = _parseBrDate(dataBase);
+  // Usa _asDateLivro se disponível (suporta Date objects, dd/mm/yy, dd/mm/yyyy, yyyy-mm-dd),
+  // caso contrário usa _parseBrDate (somente dd/mm/yyyy).
+  function _parseDate(v) {
+    if (typeof _asDateLivro === "function") return _asDateLivro(v);
+    return _parseBrDate(v);
+  }
+
+  var dBase = _parseDate(dataBase);
+  var dComp = dataBaseComp ? _parseDate(dataBaseComp) : null;
 
   // --- Percentual por condição (ex: 70% no pedido, 30% na entrega) ---
   var temPedidoOuEntrega = /pedido|entrega/i.test(texto);
@@ -4376,11 +4387,18 @@ function _calcularParcelasPedidos(textoPagamento, valorTotal, dataBase) {
     }
     if (percentuais.length >= 1) {
       return percentuais.map(function (item, idx) {
+        // Pagamento adiantado: "No pedido" usa DATA_COMPETENCIA; "Na entrega" usa DATA_ENTREGA.
+        var dataVencimento = item.condicao;
+        if (item.condicao === "No pedido" && dComp) {
+          dataVencimento = _formatBrDate(dComp);
+        } else if (item.condicao === "Na entrega" && dBase) {
+          dataVencimento = _formatBrDate(dBase);
+        }
         return {
           numero: idx + 1,
           dias: null,
           valor: valorTotal * (item.pct / 100),
-          dataVencimento: item.condicao,
+          dataVencimento: dataVencimento,
           condicao: item.condicao
         };
       });
@@ -5622,16 +5640,72 @@ function excluirProjeto(linha) {
       throw new Error('Índice de linha inválido para exclusão: ' + linha);
     }
 
-    // Tenta usar aba Projetos primeiro
     const sheetProj = SHEET_PROJ;
-    const targetSheet = sheetProj;
+    if (!sheetProj) throw new Error("Nenhuma aba de projetos encontrada");
 
-    if (!targetSheet) {
-      throw new Error("Nenhuma aba de projetos encontrada");
+    // Captura o código do projeto antes de deletar a linha
+    var codigoProjeto = "";
+    try {
+      var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+      var idxProj = _findHeaderIndexProjetos(headers, "PROJETO");
+      if (idxProj >= 0) {
+        codigoProjeto = String(sheetProj.getRange(linha, idxProj + 1).getValue() || "").trim();
+      }
+    } catch (eCode) {
+      Logger.log("excluirProjeto: não foi possível obter código: " + eCode.message);
     }
 
-    targetSheet.deleteRow(linha);
-    SheetCache.invalidate(targetSheet);
+    // Exclusão em cascata: remove entradas automáticas do Livro Diário
+    if (codigoProjeto) {
+      try {
+        var shLivro = (typeof ensureLivroDiarioSheet === "function") ? ensureLivroDiarioSheet() : null;
+        if (shLivro && shLivro.getLastRow() >= 2) {
+          var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
+          var idxProjLivro = _findHeaderIndex(headersLivro, "CÓDIGO DO PROJETO");
+          var idxObsLivro = _findHeaderIndex(headersLivro, "OBSERVAÇÕES");
+          if (idxProjLivro >= 0) {
+            var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
+            var rowsToDelete = [];
+            dataLivro.forEach(function (r, i) {
+              var cod = String(r[idxProjLivro] || "").trim();
+              var obs = idxObsLivro >= 0 ? String(r[idxObsLivro] || "") : "";
+              if (cod === codigoProjeto && obs.indexOf("[AUTO_PEDIDO_PARCELA_") === 0) {
+                rowsToDelete.push(i + 2);
+              }
+            });
+            rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) {
+              shLivro.deleteRow(rowIdx);
+            });
+          }
+        }
+      } catch (eLivro) {
+        Logger.log("excluirProjeto: erro ao limpar Livro Diário: " + eLivro.message);
+      }
+
+      // Exclusão em cascata: remove linha da aba Pedidos
+      try {
+        var shPed = (typeof ensurePedidosSheet === "function") ? ensurePedidosSheet() : null;
+        if (shPed && shPed.getLastRow() >= 2) {
+          var dataPed = shPed.getDataRange().getValues();
+          var headersPed = dataPed[0] || [];
+          var colProjPed = headersPed.indexOf("PROJETO");
+          if (colProjPed >= 0) {
+            for (var r = dataPed.length - 1; r >= 1; r--) {
+              if (String(dataPed[r][colProjPed] || "").trim() === codigoProjeto) {
+                shPed.deleteRow(r + 1);
+                SheetCache.invalidate(shPed);
+                break;
+              }
+            }
+          }
+        }
+      } catch (ePed) {
+        Logger.log("excluirProjeto: erro ao limpar Pedidos: " + ePed.message);
+      }
+    }
+
+    sheetProj.deleteRow(linha);
+    SheetCache.invalidate(sheetProj);
     return { success: true };
   } catch (e) {
     Logger.log('excluirProjeto error (linha=%s): %s', linha, e.message);
@@ -7076,8 +7150,66 @@ function deletarRascunho(linhaOuKey) {
       throw new Error("Rascunho não encontrado");
     }
 
-    // ALTERADO: Permite deletar qualquer orçamento (não apenas rascunhos)
-    // A confirmação extra para orçamentos enviados é feita no frontend
+    // Captura o código do projeto para exclusão em cascata
+    var codigoProjeto = "";
+    try {
+      var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+      var idxProj = _findHeaderIndexProjetos(headers, "PROJETO");
+      if (idxProj >= 0) {
+        codigoProjeto = String(sheetProj.getRange(linha, idxProj + 1).getValue() || "").trim();
+      }
+    } catch (eCode) {
+      Logger.log("deletarRascunho: não foi possível obter código: " + eCode.message);
+    }
+
+    // Exclusão em cascata: remove entradas automáticas do Livro Diário
+    if (codigoProjeto) {
+      try {
+        var shLivro = (typeof ensureLivroDiarioSheet === "function") ? ensureLivroDiarioSheet() : null;
+        if (shLivro && shLivro.getLastRow() >= 2) {
+          var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
+          var idxProjLivro = _findHeaderIndex(headersLivro, "CÓDIGO DO PROJETO");
+          var idxObsLivro = _findHeaderIndex(headersLivro, "OBSERVAÇÕES");
+          if (idxProjLivro >= 0) {
+            var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
+            var rowsToDelete = [];
+            dataLivro.forEach(function (r, i) {
+              var cod = String(r[idxProjLivro] || "").trim();
+              var obs = idxObsLivro >= 0 ? String(r[idxObsLivro] || "") : "";
+              if (cod === codigoProjeto && obs.indexOf("[AUTO_PEDIDO_PARCELA_") === 0) {
+                rowsToDelete.push(i + 2);
+              }
+            });
+            rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) {
+              shLivro.deleteRow(rowIdx);
+            });
+          }
+        }
+      } catch (eLivro) {
+        Logger.log("deletarRascunho: erro ao limpar Livro Diário: " + eLivro.message);
+      }
+
+      // Exclusão em cascata: remove linha da aba Pedidos
+      try {
+        var shPed = (typeof ensurePedidosSheet === "function") ? ensurePedidosSheet() : null;
+        if (shPed && shPed.getLastRow() >= 2) {
+          var dataPed = shPed.getDataRange().getValues();
+          var headersPed = dataPed[0] || [];
+          var colProjPed = headersPed.indexOf("PROJETO");
+          if (colProjPed >= 0) {
+            for (var r = dataPed.length - 1; r >= 1; r--) {
+              if (String(dataPed[r][colProjPed] || "").trim() === codigoProjeto) {
+                shPed.deleteRow(r + 1);
+                SheetCache.invalidate(shPed);
+                break;
+              }
+            }
+          }
+        }
+      } catch (ePed) {
+        Logger.log("deletarRascunho: erro ao limpar Pedidos: " + ePed.message);
+      }
+    }
 
     // Remove a linha da planilha
     sheetProj.deleteRow(linha);
@@ -7542,5 +7674,151 @@ function deletarMensagemApresentacao(id) {
   } catch (e) {
     Logger.log("Erro ao deletar mensagem: " + e.message);
     return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Exclui um pedido da aba Pedidos e, em cascata, o projeto relacionado
+ * e as entradas automáticas do Livro Diário.
+ * @param {string} codigoProjeto - Código do projeto do pedido a excluir
+ * @returns {{ success: boolean }}
+ */
+function excluirPedidoCascata(codigoProjeto) {
+  codigoProjeto = String(codigoProjeto || "").trim();
+  if (!codigoProjeto) throw new Error("Código do projeto é obrigatório.");
+
+  // 1. Remove entradas automáticas do Livro Diário
+  try {
+    var shLivro = (typeof ensureLivroDiarioSheet === "function") ? ensureLivroDiarioSheet() : null;
+    if (shLivro && shLivro.getLastRow() >= 2) {
+      var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
+      var idxProjLivro = headersLivro.indexOf("CÓDIGO DO PROJETO");
+      var idxObsLivro = headersLivro.indexOf("OBSERVAÇÕES");
+      if (idxProjLivro >= 0) {
+        var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
+        var rowsToDelete = [];
+        dataLivro.forEach(function (r, i) {
+          var cod = String(r[idxProjLivro] || "").trim();
+          var obs = idxObsLivro >= 0 ? String(r[idxObsLivro] || "") : "";
+          if (cod === codigoProjeto && obs.indexOf("[AUTO_PEDIDO_PARCELA_") === 0) {
+            rowsToDelete.push(i + 2);
+          }
+        });
+        rowsToDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) {
+          shLivro.deleteRow(rowIdx);
+        });
+      }
+    }
+  } catch (eLivro) {
+    Logger.log("excluirPedidoCascata: erro ao limpar Livro Diário: " + eLivro.message);
+  }
+
+  // 2. Remove linha da aba Pedidos
+  try {
+    var shPed = (typeof ensurePedidosSheet === "function") ? ensurePedidosSheet() : null;
+    if (shPed && shPed.getLastRow() >= 2) {
+      var dataPed = shPed.getDataRange().getValues();
+      var headersPed = dataPed[0] || [];
+      var colProjPed = headersPed.indexOf("PROJETO");
+      if (colProjPed >= 0) {
+        for (var r = dataPed.length - 1; r >= 1; r--) {
+          if (String(dataPed[r][colProjPed] || "").trim() === codigoProjeto) {
+            shPed.deleteRow(r + 1);
+            SheetCache.invalidate(shPed);
+            break;
+          }
+        }
+      }
+    }
+  } catch (ePed) {
+    Logger.log("excluirPedidoCascata: erro ao limpar Pedidos: " + ePed.message);
+  }
+
+  // 3. Remove linha do projeto na aba Projetos
+  try {
+    var shProj = SHEET_PROJ;
+    if (shProj && shProj.getLastRow() >= 2) {
+      var linhaProj = findRowByColumnValue(shProj, "PROJETO", codigoProjeto);
+      if (linhaProj >= 2) {
+        shProj.deleteRow(linhaProj);
+        SheetCache.invalidate(shProj);
+      }
+    }
+  } catch (eProj) {
+    Logger.log("excluirPedidoCascata: erro ao limpar Projetos: " + eProj.message);
+  }
+
+  return { success: true };
+}
+
+/**
+ * Trigger simples do Google Apps Script para sincronização bidirecional em tempo real.
+ * Quando uma linha é editada na aba Projetos, sincroniza o Pedido correspondente.
+ * Quando uma linha é editada na aba Pedidos, sincroniza o Projeto e o Livro Diário.
+ * IMPORTANTE: registre este trigger como "onEdit" nas configurações do projeto GAS.
+ */
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    var sheet = e.range.getSheet();
+    var sheetName = sheet.getName().toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    var linha = e.range.getRow();
+    if (linha < 2) return; // ignora cabeçalho
+
+    if (sheetName === "projetos") {
+      // Projetos → sincroniza Pedido (apenas se o projeto já é um pedido)
+      try {
+        var headersProj = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+        var idxStatus = _findHeaderIndexProjetos(headersProj, "STATUS_ORCAMENTO");
+        var idxProj = _findHeaderIndexProjetos(headersProj, "PROJETO");
+        if (idxStatus >= 0 && idxProj >= 0) {
+          var rowData = sheet.getRange(linha, 1, 1, sheet.getLastColumn()).getValues()[0];
+          var status = String(rowData[idxStatus] || "").trim();
+          var codigo = String(rowData[idxProj] || "").trim();
+          if (status === "Convertido em Pedido" && codigo) {
+            ensurePedidoRow(linha);
+          }
+        }
+      } catch (eSyncProj) {
+        Logger.log("onEdit Projetos->Pedidos: " + eSyncProj.message);
+      }
+
+    } else if (sheetName === "pedidos") {
+      // Pedidos → sincroniza Projeto e Livro Diário
+      try {
+        var shPedEdit = sheet;
+        var headersPedEdit = shPedEdit.getRange(1, 1, 1, shPedEdit.getLastColumn()).getValues()[0];
+        var idxProjPed = headersPedEdit.indexOf("PROJETO");
+        if (idxProjPed >= 0) {
+          var rowPedEdit = shPedEdit.getRange(linha, 1, 1, shPedEdit.getLastColumn()).getValues()[0];
+          var codigoPedEdit = String(rowPedEdit[idxProjPed] || "").trim();
+          if (codigoPedEdit) {
+            // Sincroniza Pedido → Projeto (JSON_DADOS)
+            var linhaProj = SHEET_PROJ ? findRowByColumnValue(SHEET_PROJ, "PROJETO", codigoPedEdit) : null;
+            if (linhaProj >= 2) {
+              var dadosAtualizacao = {};
+              var idx2 = {};
+              headersPedEdit.forEach(function (h, i) { idx2[h] = i; });
+              if (idx2["CONDICOES_PAGAMENTO"] !== undefined) dadosAtualizacao.CONDICOES_PAGAMENTO = rowPedEdit[idx2["CONDICOES_PAGAMENTO"]];
+              if (idx2["DATA_ENTREGA"] !== undefined) dadosAtualizacao.DATA_ENTREGA = rowPedEdit[idx2["DATA_ENTREGA"]];
+              if (idx2["DATA_VENCIMENTO"] !== undefined) dadosAtualizacao.DATA_VENCIMENTO = rowPedEdit[idx2["DATA_VENCIMENTO"]];
+              if (idx2["STATUS_PAGAMENTO"] !== undefined) dadosAtualizacao.STATUS_PAGAMENTO = rowPedEdit[idx2["STATUS_PAGAMENTO"]];
+              if (Object.keys(dadosAtualizacao).length > 0) {
+                atualizarProjetoNaPlanilha(linhaProj, dadosAtualizacao, { apenasJsonDados: true });
+              }
+            }
+            // Sincroniza Pedido → Livro Diário
+            if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
+              gerarLancamentosLivroDiarioParaPedido(codigoPedEdit);
+            }
+          }
+        }
+      } catch (eSyncPed) {
+        Logger.log("onEdit Pedidos->Projetos/LivroDiario: " + eSyncPed.message);
+      }
+    }
+  } catch (eGlobal) {
+    Logger.log("onEdit error: " + eGlobal.message);
   }
 }

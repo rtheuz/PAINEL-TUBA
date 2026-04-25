@@ -524,18 +524,19 @@ function _parseHistoricoParcelasPedido_(rowPed) {
 
 function _buildLancamentoFromPedido(codigoProjeto, parcela, projetoInfo) {
   var dataComp = _formatDateLivro2y(projetoInfo.dataCompetencia || projetoInfo.dataEntrega || "");
-  // Regra: vencimento só existe quando há data de entrega.
+  // Regra: vencimento só existe quando há data de entrega (ou competência para parcelas adiantadas).
   var dataVenc = "";
-  if (projetoInfo.dataEntrega) {
+  if (projetoInfo.dataEntrega || projetoInfo.dataCompetencia) {
     dataVenc = _formatDateLivro2y(parcela.dataVencimento || projetoInfo.dataVencimento || projetoInfo.dataEntrega || "");
   }
-  if (projetoInfo.dataEntrega && !dataVenc && parcela.condicao) {
+  if (!dataVenc && parcela.condicao) {
     var cond = String(parcela.condicao).toLowerCase();
-    // À vista/pedido: vencimento na própria entrega
+    // "No pedido" (pagamento adiantado): vencimento na DATA_COMPETENCIA
     if (cond.indexOf("pedido") >= 0 || cond.indexOf("avista") >= 0 || cond.indexOf("a vista") >= 0) {
-      dataVenc = _formatDateLivro2y(projetoInfo.dataEntrega);
+      dataVenc = _formatDateLivro2y(projetoInfo.dataCompetencia || projetoInfo.dataEntrega || "");
     } else if (cond.indexOf("entrega") >= 0) {
-      dataVenc = _formatDateLivro2y(projetoInfo.dataEntrega);
+      // "Na entrega": vencimento na DATA_ENTREGA
+      dataVenc = _formatDateLivro2y(projetoInfo.dataEntrega || "");
     }
   }
   // Garante visibilidade no Livro Diário mesmo sem vencimento real.
@@ -697,20 +698,28 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var dataComp = _normLivro(rowPed.DATA_COMPETENCIA);
   var dataEntrega = _normLivro(rowPed.DATA_ENTREGA);
   var dataVenc = _normLivro(rowPed.DATA_VENCIMENTO);
-  // Regra: parcelas/vencimento baseadas na data de entrega.
+  // Regra: parcelas/vencimento baseadas na data de entrega;
+  // para "pagamento adiantado" a 1ª parcela ("No pedido") usa DATA_COMPETENCIA.
   var dataBase = dataEntrega || "";
   var parcelas = null;
   if (typeof _calcularParcelasPedidos === "function") {
-    try { parcelas = _calcularParcelasPedidos(condicoes, valorTotal, dataBase); } catch (e) { parcelas = null; }
+    try { parcelas = _calcularParcelasPedidos(condicoes, valorTotal, dataBase, dataComp || ""); } catch (e) { parcelas = null; }
   }
   if (!parcelas || !parcelas.length) {
     parcelas = [{ numero: 1, valor: valorTotal, dataVencimento: dataEntrega ? (dataVenc || dataEntrega) : "", total: 1 }];
   } else {
     parcelas = parcelas.map(function (p) { return Object.assign({}, p); });
     parcelas.forEach(function (p, i) { p.numero = i + 1; p.total = parcelas.length; });
-    // Sem data de entrega, não preenche vencimento ainda.
+    // Sem data de entrega: preserva vencimento calculado para parcelas "adiantadas" (No pedido),
+    // mas limpa o vencimento das demais para indicar que falta definir a data de entrega.
     if (!dataEntrega) {
-      parcelas.forEach(function (p) { p.dataVencimento = ""; });
+      parcelas.forEach(function (p) {
+        var cond = String(p.condicao || "").toLowerCase();
+        var isPedidoAdiant = cond.indexOf("pedido") >= 0;
+        // Parcela "No pedido" já tem data calculada a partir de DATA_COMPETENCIA; mantém.
+        // Parcela "Na entrega" ou sem condição: sem data de entrega, deixa em branco.
+        if (!isPedidoAdiant) p.dataVencimento = "";
+      });
     }
   }
   if (parcelas.length === 1 && !parcelas[0].total) parcelas[0].total = 1;
