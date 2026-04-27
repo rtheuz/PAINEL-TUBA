@@ -912,7 +912,7 @@
                     btnRelatorio + ' ' +
                     (p['LINK DO PDF'] ? '<a href="' + String(p['LINK DO PDF']).replace(/"/g, '&quot;') + '" target="_blank" class="btn btn-small" style="margin-right:0;" title="Orçamento PDF">📄</a> ' : '') +
                     '<button type="button" class="btn btn-small btn-primary" onclick="editPedido(' + linha + ')" title="Editar">✏️</button> <button type="button" class="btn btn-small btn-pasta" onclick="abrirPastaProjeto(this)" data-projeto="' + String(p.PROJETO != null ? p.PROJETO : '').replace(/"/g, '&quot;') + '" title="Pasta Drive">📁</button>' +
-                    ' <button type="button" class="btn btn-small" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;" onclick="excluirPedidoCascataUI(\'' + String(p.PROJETO != null ? p.PROJETO : '').replace(/'/g, "\\'") + '\')" title="Excluir pedido e projeto relacionado">🗑️</button>' +
+                    ' <button type="button" class="btn btn-small" style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;" onclick="excluirPedidoCascataUI(this)" data-projeto="' + String(p.PROJETO != null ? p.PROJETO : '').replace(/"/g, '&quot;') + '" title="Excluir pedido e projeto relacionado">🗑️</button>' +
                     '</div>';
                 html += '<tr data-linha="' + linha + '">' +
                     '<td>' + (p._numeroSequencial != null && p._numeroSequencial !== '' ? p._numeroSequencial : '') + '</td>' +
@@ -1296,7 +1296,8 @@
                 .getUrlPastaProjeto(codigo);
         }
 
-        function excluirPedidoCascataUI(codigoProjeto) {
+        function excluirPedidoCascataUI(btn) {
+            var codigoProjeto = (btn && btn.getAttribute && btn.getAttribute('data-projeto')) || '';
             if (!codigoProjeto) { alert('Código do projeto não informado.'); return; }
             if (!confirm('Excluir o pedido "' + codigoProjeto + '" e o projeto relacionado?\n\nIsso também removerá os lançamentos automáticos no Livro Diário. Esta ação não pode ser desfeita.')) return;
             google.script.run

@@ -7692,8 +7692,8 @@ function excluirPedidoCascata(codigoProjeto) {
     var shLivro = (typeof ensureLivroDiarioSheet === "function") ? ensureLivroDiarioSheet() : null;
     if (shLivro && shLivro.getLastRow() >= 2) {
       var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
-      var idxProjLivro = headersLivro.indexOf("CÓDIGO DO PROJETO");
-      var idxObsLivro = headersLivro.indexOf("OBSERVAÇÕES");
+      var idxProjLivro = _findHeaderIndex(headersLivro, "CÓDIGO DO PROJETO");
+      var idxObsLivro = _findHeaderIndex(headersLivro, "OBSERVAÇÕES");
       if (idxProjLivro >= 0) {
         var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
         var rowsToDelete = [];
@@ -7719,7 +7719,7 @@ function excluirPedidoCascata(codigoProjeto) {
     if (shPed && shPed.getLastRow() >= 2) {
       var dataPed = shPed.getDataRange().getValues();
       var headersPed = dataPed[0] || [];
-      var colProjPed = headersPed.indexOf("PROJETO");
+      var colProjPed = _findHeaderIndex(headersPed, "PROJETO");
       if (colProjPed >= 0) {
         for (var r = dataPed.length - 1; r >= 1; r--) {
           if (String(dataPed[r][colProjPed] || "").trim() === codigoProjeto) {
@@ -7752,10 +7752,11 @@ function excluirPedidoCascata(codigoProjeto) {
 }
 
 /**
- * Trigger simples do Google Apps Script para sincronização bidirecional em tempo real.
+ * Simple trigger do Google Apps Script para sincronização bidirecional em tempo real.
  * Quando uma linha é editada na aba Projetos, sincroniza o Pedido correspondente.
  * Quando uma linha é editada na aba Pedidos, sincroniza o Projeto e o Livro Diário.
- * IMPORTANTE: registre este trigger como "onEdit" nas configurações do projeto GAS.
+ * Por ser um simple trigger, é executado automaticamente pelo GAS sem necessidade de
+ * registro manual — basta que a função se chame exatamente "onEdit".
  */
 function onEdit(e) {
   try {
