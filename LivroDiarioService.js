@@ -488,6 +488,63 @@ function _extrairProcessosPedidoOuProjeto_(rowPed, metaProj) {
   return "";
 }
 
+function _calcularParcelasLivroDiario_(condicoes, valorTotal, dataEntrega, dataCompetencia) {
+  var cond = _normLivro(condicoes);
+  var total = _numLivro(valorTotal);
+  if (!cond) return null;
+
+  // 1) tenta reaproveitar o cálculo central já existente
+  if (typeof _calcularParcelasPedidos === "function") {
+    try {
+      var baseTry = _normLivro(dataEntrega) || _normLivro(dataCompetencia) || "";
+      var p = _calcularParcelasPedidos(cond, total, baseTry);
+      if (p && p.length) return p.map(function (x, i) {
+        return {
+          numero: i + 1,
+          total: p.length,
+          valor: _numLivro(x.valor),
+          dataVencimento: x.dataVencimento || "",
+          condicao: x.condicao || ""
+        };
+      });
+    } catch (e) {}
+  }
+
+  // 2) fallback robusto para formatos "30 / 45 / 60"
+  var dias = [];
+  if (cond.indexOf("/") >= 0) {
+    cond.split(/\s*\/\s*/).forEach(function (part) {
+      var t = _normLivro(part).toLowerCase();
+      if (!t) return;
+      if (t.indexOf("vista") >= 0) dias.push(0);
+      else {
+        var n = parseInt(t.replace(/\D/g, ""), 10);
+        if (!isNaN(n)) dias.push(n);
+      }
+    });
+  }
+  if (!dias.length) {
+    var nums = cond.match(/\d+/g);
+    if (nums && nums.length > 1) dias = nums.map(function (n) { return parseInt(n, 10); });
+  }
+  if (!dias.length) return null;
+
+  var adiantado = /adiant/i.test(cond);
+  var qtd = dias.length;
+  var valorParcela = qtd > 0 ? (total / qtd) : total;
+  return dias.map(function (d, i) {
+    var base = (adiantado && i === 0) ? (_normLivro(dataCompetencia) || _normLivro(dataEntrega))
+                                       : (_normLivro(dataEntrega) || _normLivro(dataCompetencia));
+    var dt = _asDateLivro(base);
+    var venc = "";
+    if (dt) {
+      dt.setDate(dt.getDate() + (isNaN(d) ? 0 : d));
+      venc = _formatDateLivro2y(dt);
+    }
+    return { numero: i + 1, total: qtd, valor: valorParcela, dataVencimento: venc };
+  });
+}
+
 function _parseHistoricoParcelasPedido_(rowPed) {
   var out = { byParcela: {}, totalPago: 0 };
   try {
@@ -699,10 +756,7 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var dataVenc = _normLivro(rowPed.DATA_VENCIMENTO);
   // Regra: parcelas/vencimento baseadas na data de entrega.
   var dataBase = dataEntrega || "";
-  var parcelas = null;
-  if (typeof _calcularParcelasPedidos === "function") {
-    try { parcelas = _calcularParcelasPedidos(condicoes, valorTotal, dataBase); } catch (e) { parcelas = null; }
-  }
+  var parcelas = _calcularParcelasLivroDiario_(condicoes, valorTotal, dataEntrega, dataComp);
   if (!parcelas || !parcelas.length) {
     parcelas = [{ numero: 1, valor: valorTotal, dataVencimento: dataEntrega ? (dataVenc || dataEntrega) : "", total: 1 }];
   } else {
@@ -875,12 +929,15 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
 
   // Usa a mesma base da página de pedidos (getPedidos), com fallback para aba Pedidos.
   var pedRows = [];
+  var seenCod = {};
   if (typeof getPedidos === "function") {
     try {
       var pedidosLista = getPedidos() || [];
       pedidosLista.forEach(function (p) {
         var codP = _normLivro(p.PROJETO || p["PROJETO"] || "");
         if (!codP) return;
+        if (seenCod[codP]) return;
+        seenCod[codP] = true;
         var dataCompP = p.DATA_COMPETENCIA || p["DATA COMPETÊNCIA"] || p["DATA_COMPETENCIA"] || p.DATA || "";
         pedRows.push({
           codigo: codP,
@@ -928,6 +985,8 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
       var rr = pedData[r0];
       var codRow = _normLivro(rr[idxProj]);
       if (!codRow) continue;
+      if (seenCod[codRow]) continue;
+      seenCod[codRow] = true;
       pedRows.push({
         codigo: codRow,
         mesCompetencia: _mesCompetenciaFromValue_(idxDataComp >= 0 ? rr[idxDataComp] : "")
