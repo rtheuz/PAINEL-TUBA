@@ -486,6 +486,44 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
   } catch (err) {
     Logger.log("Erro ao registrarOrcamento (atualizar/inserir): " + err);
     try {
+      // Fallback seguro para nova versão: nunca cria nova linha/overwrite da base.
+      if (codigoProjeto && /_v\d+$/i.test(String(codigoProjeto))) {
+        const sheetProjV = SHEET_PROJ;
+        const codigoFullV = String(codigoProjeto).trim();
+        const codigoBaseV = codigoFullV.replace(/_v\d+$/i, "").trim();
+        if (!sheetProjV) throw new Error("Aba Projetos não encontrada para fallback de versão.");
+        var linhaBaseV = findRowByColumnValue(sheetProjV, "PROJETO", codigoBaseV) || 0;
+        if (!linhaBaseV) throw new Error("Projeto base não encontrado no fallback para versão.");
+        var hdrsV = sheetProjV.getRange(1, 1, 1, sheetProjV.getLastColumn()).getValues()[0];
+        var idxJsonV = _findHeaderIndex(hdrsV, "JSON_DADOS");
+        if (idxJsonV < 0) throw new Error("Coluna JSON_DADOS não encontrada no fallback para versão.");
+        var idxLinkV = _findHeaderIndex(hdrsV, "LINK DO PDF");
+        var rawJsonV = String(sheetProjV.getRange(linhaBaseV, idxJsonV + 1).getValue() || "{}");
+        var parsedV = {};
+        try { parsedV = JSON.parse(rawJsonV); } catch (eJv) { parsedV = {}; }
+        if (!Array.isArray(parsedV.versoes)) parsedV.versoes = [];
+        var nomeVersaoV = (dadosFormularioCompleto && dadosFormularioCompleto.nomeVersao != null) ? String(dadosFormularioCompleto.nomeVersao).trim() : "";
+        var dadosVV = dadosFormularioCompleto ? JSON.parse(JSON.stringify(dadosFormularioCompleto)) : {};
+        if (dadosVV.observacoes) dadosVV.observacoes.projeto = codigoFullV;
+        var entradaV = {
+          codigo: codigoFullV,
+          dataSalvo: new Date().toISOString(),
+          numeroSequencial: (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial != null) ? dadosFormularioCompleto.numeroSequencial : null,
+          urlPdf: urlPdf || "",
+          nomeVersao: nomeVersaoV,
+          tipoPdf: isPedido ? "Pedido" : "Proposta",
+          dados: dadosVV
+        };
+        var idxVersaoV = parsedV.versoes.findIndex(function (v) { return v && v.codigo === codigoFullV; });
+        if (idxVersaoV >= 0) parsedV.versoes[idxVersaoV] = entradaV;
+        else parsedV.versoes.push(entradaV);
+        parsedV.nome = codigoBaseV;
+        sheetProjV.getRange(linhaBaseV, idxJsonV + 1).setValue(JSON.stringify(parsedV));
+        if (idxLinkV >= 0 && urlPdf) sheetProjV.getRange(linhaBaseV, idxLinkV + 1).setValue(urlPdf);
+        Logger.log("✅ Fallback versão " + codigoFullV + " salva em versoes[] na linha base " + linhaBaseV + ".");
+        return;
+      }
+
       const numeroSequencial = (dadosFormularioCompleto && dadosFormularioCompleto.numeroSequencial) || null;
       const dadosParaJson = dadosFormularioCompleto ? { ...dadosFormularioCompleto } : {};
       const codigoBaseFallback = String(codigoProjeto || "").replace(/_v\d+$/i, "").trim() || String(codigoProjeto || "").trim();
@@ -520,7 +558,12 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
           "OBSERVAÇÕES": observacoesKanbanFallback,
           "JSON_DADOS": dadosJson
         };
-        var linhaFallback = (codigoProjeto && findRowByColumnValue(sheetProj, "PROJETO", codigoProjeto)) || null;
+        var codigoFallback = String(codigoProjeto || "").trim();
+        var codigoBaseFallback2 = codigoFallback.replace(/_v\d+$/i, "").trim();
+        var linhaFallback = (codigoFallback && findRowByColumnValue(sheetProj, "PROJETO", codigoFallback)) || null;
+        if (!linhaFallback && codigoBaseFallback2) {
+          linhaFallback = findRowByColumnValue(sheetProj, "PROJETO", codigoBaseFallback2) || null;
+        }
         if (linhaFallback) {
           _escreverLinhaProjetosPorCabecalho(sheetProj, linhaFallback, dadosObjFallback, true);
         } else {

@@ -401,9 +401,11 @@ function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
     var headers = SHEET_PROJ.getRange(1, 1, 1, SHEET_PROJ.getLastColumn()).getValues()[0];
     var idxCliente = _findHeaderIndexGeneric(headers, "CLIENTE");
     var idxDesc = _findHeaderIndexGeneric(headers, "DESCRIÇÃO");
+    var idxProc = _findHeaderIndexGeneric(headers, "PROCESSOS");
     var idxJson = _findHeaderIndexGeneric(headers, "JSON_DADOS");
     if (idxCliente >= 0) out.cliente = _normLivro(SHEET_PROJ.getRange(linha, idxCliente + 1).getValue());
     if (idxDesc >= 0) out.descricaoProjeto = _normLivro(SHEET_PROJ.getRange(linha, idxDesc + 1).getValue());
+    if (idxProc >= 0) out.processos = _normLivro(SHEET_PROJ.getRange(linha, idxProc + 1).getValue());
     if (idxJson >= 0) {
       var cell = SHEET_PROJ.getRange(linha, idxJson + 1).getValue();
       if (cell && String(cell).trim()) {
@@ -653,11 +655,16 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
 
   function _mesCompetenciaFromValue_(v) {
     if (v == null || v === "") return null;
+    var dNorm = _asDateLivro(v);
+    if (dNorm) return dNorm.getMonth() + 1;
     if (Object.prototype.toString.call(v) === "[object Date]") {
       return isNaN(v.getTime()) ? null : (v.getMonth() + 1);
     }
     var s = String(v).trim();
     if (!s) return null;
+    // Aceita datas com sufixo de hora, ex.: "24/04/2026 00:00:00"
+    var mBrPrefix = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+    if (mBrPrefix) return parseInt(mBrPrefix[2], 10);
     var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
     if (mBr) return parseInt(mBr[2], 10);
     var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -745,11 +752,18 @@ function sincronizarPedidosSemLivroDiarioPorMes(mesCompetencia, token, options) 
 function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var opts = options || {};
   if (!codigoProjeto) throw new Error("Código do projeto é obrigatório.");
-  var pedidoMap = (typeof getPedidosSheetMap === "function") ? getPedidosSheetMap() : {};
-  var rowPed = pedidoMap[codigoProjeto] || pedidoMap[String(codigoProjeto).replace(/_v\d+$/i, "")];
+  var rowPed = opts.rowPedOverride || null;
+  if (!rowPed) {
+    var pedidoMap = (typeof getPedidosSheetMap === "function") ? getPedidosSheetMap() : {};
+    rowPed = pedidoMap[codigoProjeto] || pedidoMap[String(codigoProjeto).replace(/_v\d+$/i, "")];
+  }
   if (!rowPed) return { ok: true, inseridos: 0, motivo: "Pedido não encontrado" };
 
-  var valorTotal = _numLivro(rowPed.VALOR_TOTAL);
+  var valorTotal = _numLivro(
+    rowPed.VALOR_TOTAL != null && rowPed.VALOR_TOTAL !== "" ? rowPed.VALOR_TOTAL :
+    (rowPed["VALOR TOTAL"] != null && rowPed["VALOR TOTAL"] !== "" ? rowPed["VALOR TOTAL"] :
+      (rowPed.valorTotal != null ? rowPed.valorTotal : 0))
+  );
   var condicoes = _normLivro(rowPed.CONDICOES_PAGAMENTO);
   var dataComp = _normLivro(rowPed.DATA_COMPETENCIA);
   var dataEntrega = _normLivro(rowPed.DATA_ENTREGA);
@@ -816,13 +830,19 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var idxResp = _findHeaderIndexGeneric(headers, "RESPONSÁVEL DO LANÇAMENTO");
   var idxDum = _findHeaderIndexGeneric(headers, "DATA DA ÚLTIMA MOFIFICAÇÃO");
   var existing = {};
+  var codigoAtual = _normLivro(codigoProjeto);
+  var baseAtual = _codigoBaseProjeto_(codigoAtual);
   var allRows = [];
   if (sh.getLastRow() >= 2 && idxProjeto >= 0 && idxObs >= 0) {
     allRows = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
     allRows.forEach(function (r, i) {
       var p = _normLivro(r[idxProjeto]);
+      var pBase = _codigoBaseProjeto_(p);
       var o = _normLivro(r[idxObs]);
       if (!p || !o) return;
+      // IMPORTANT: isola apenas as linhas automáticas do projeto atual.
+      // Sem esse filtro, sincronizar um projeto pode remover autos de outros.
+      if (!(p === codigoAtual || pBase === baseAtual)) return;
       if (o.indexOf("[AUTO_PEDIDO_PARCELA_") === 0) {
         existing[p + "|" + o] = { rowIndex: i + 2, row: r };
       }
@@ -941,7 +961,8 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
         var dataCompP = p.DATA_COMPETENCIA || p["DATA COMPETÊNCIA"] || p["DATA_COMPETENCIA"] || p.DATA || "";
         pedRows.push({
           codigo: codP,
-          mesCompetencia: _mesCompetenciaFromValue_(dataCompP)
+          mesCompetencia: _mesCompetenciaFromValue_(dataCompP),
+          rowPed: p
         });
       });
     } catch (eGetP) {
@@ -949,48 +970,83 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
     }
   }
 
-  if (!pedRows.length) {
+  // Sempre complementa com a aba Pedidos (fonte canônica de colunas),
+  // mesmo quando getPedidos() já retornou dados.
+  {
     var shPed = (typeof ensurePedidosSheet === "function") ? ensurePedidosSheet() : null;
     if (!shPed || shPed.getLastRow() < 2) {
+      if (pedRows.length) {
+        // segue apenas com o que veio de getPedidos()
+      } else {
       return {
         ok: true, offset: offset, nextOffset: offset, batchSize: batchSize, hasMore: false, totalPedidos: 0,
         processados: 0, inseridosTotal: 0, ignoradosExistentes: 0, ignoradosMes: 0,
         erros: [{ codigoProjeto: "", erro: "Sem dados em getPedidos() e aba Pedidos vazia." }]
       };
-    }
-    var pedData = shPed.getDataRange().getValues();
-    var pedHeaders = pedData[0] || [];
-    function _findPedCol_(names) {
-      var norm = function (x) {
-        return String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-      };
-      var map = {};
-      for (var i = 0; i < pedHeaders.length; i++) map[norm(pedHeaders[i])] = i;
-      for (var j = 0; j < names.length; j++) {
-        var idx = map[norm(names[j])];
-        if (idx != null) return idx;
       }
-      return -1;
-    }
-    var idxProj = _findPedCol_(["PROJETO", "Código", "Código do projeto"]);
-    var idxDataComp = _findPedCol_(["DATA_COMPETENCIA", "DATA COMPETENCIA", "DATA COMPETÊNCIA"]);
-    if (idxProj < 0) {
-      return {
-        ok: true, offset: offset, nextOffset: offset, batchSize: batchSize, hasMore: false, totalPedidos: 0,
-        processados: 0, inseridosTotal: 0, ignoradosExistentes: 0, ignoradosMes: 0,
-        erros: [{ codigoProjeto: "", erro: "Coluna PROJETO não encontrada em Pedidos." }]
-      };
-    }
-    for (var r0 = 1; r0 < pedData.length; r0++) {
-      var rr = pedData[r0];
-      var codRow = _normLivro(rr[idxProj]);
-      if (!codRow) continue;
-      if (seenCod[codRow]) continue;
-      seenCod[codRow] = true;
-      pedRows.push({
-        codigo: codRow,
-        mesCompetencia: _mesCompetenciaFromValue_(idxDataComp >= 0 ? rr[idxDataComp] : "")
-      });
+    } else {
+      var pedData = shPed.getDataRange().getValues();
+      var pedHeaders = pedData[0] || [];
+      function _rowPedFromSheetRow_(rr) {
+        function norm(x) {
+          return String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        }
+        var out = {};
+        for (var i = 0; i < pedHeaders.length; i++) {
+          out[String(pedHeaders[i] || "").trim()] = rr[i];
+        }
+        // campos canônicos usados no LivroDiarioService
+        var map = {};
+        for (var j = 0; j < pedHeaders.length; j++) map[norm(pedHeaders[j])] = rr[j];
+        out.PROJETO = out.PROJETO || map["projeto"] || "";
+        out.CLIENTE = out.CLIENTE || map["cliente"] || "";
+        out.CONDICOES_PAGAMENTO = out.CONDICOES_PAGAMENTO || map["condicoespagamento"] || "";
+        out.DATA_COMPETENCIA = out.DATA_COMPETENCIA || map["datacompetencia"] || "";
+        out.DATA_ENTREGA = out.DATA_ENTREGA || map["dataentrega"] || "";
+        out.DATA_VENCIMENTO = out.DATA_VENCIMENTO || map["datavencimento"] || map["datavenc"] || "";
+        out.VALOR_TOTAL = out.VALOR_TOTAL || map["valortotal"] || 0;
+        out.PROCESSOS = out.PROCESSOS || map["processos"] || "";
+        out.STATUS_PAGAMENTO = out.STATUS_PAGAMENTO || map["statuspagamento"] || "";
+        out.PARCELAS_E_PGTOS = out.PARCELAS_E_PGTOS || map["parcelasepgtos"] || map["historicopagamentos"] || "";
+        out.NF = out.NF || map["nf"] || "";
+        return out;
+      }
+      function _findPedCol_(names) {
+        var norm = function (x) {
+          return String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        };
+        var map = {};
+        for (var i = 0; i < pedHeaders.length; i++) map[norm(pedHeaders[i])] = i;
+        for (var j = 0; j < names.length; j++) {
+          var idx = map[norm(names[j])];
+          if (idx != null) return idx;
+        }
+        return -1;
+      }
+      var idxProj = _findPedCol_(["PROJETO", "Código", "Código do projeto"]);
+      var idxDataComp = _findPedCol_(["DATA_COMPETENCIA", "DATA COMPETENCIA", "DATA COMPETÊNCIA"]);
+      if (idxProj < 0) {
+        if (!pedRows.length) {
+          return {
+            ok: true, offset: offset, nextOffset: offset, batchSize: batchSize, hasMore: false, totalPedidos: 0,
+            processados: 0, inseridosTotal: 0, ignoradosExistentes: 0, ignoradosMes: 0,
+            erros: [{ codigoProjeto: "", erro: "Coluna PROJETO não encontrada em Pedidos." }]
+          };
+        }
+      } else {
+        for (var r0 = 1; r0 < pedData.length; r0++) {
+          var rr = pedData[r0];
+          var codRow = _normLivro(rr[idxProj]);
+          if (!codRow) continue;
+          if (seenCod[codRow]) continue;
+          seenCod[codRow] = true;
+          pedRows.push({
+            codigo: codRow,
+            mesCompetencia: _mesCompetenciaFromValue_(idxDataComp >= 0 ? rr[idxDataComp] : ""),
+            rowPed: _rowPedFromSheetRow_(rr)
+          });
+        }
+      }
     }
   }
   pedRows.sort(function (a, b) { return a.codigo.localeCompare(b.codigo); });
@@ -1019,7 +1075,7 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
     }
 
     try {
-      var r = gerarLancamentosLivroDiarioParaPedido(codRaw, token, { skipPosProcess: true });
+      var r = gerarLancamentosLivroDiarioParaPedido(codRaw, token, { skipPosProcess: true, rowPedOverride: pedRows[i].rowPed });
       processados++;
       inseridosTotal += Number((r && r.inseridos) || 0);
       existentes[codRaw] = true;
@@ -1112,6 +1168,23 @@ function salvarLivroDiarioLancamento(lancamento, token, options) {
     recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
   }
   return { ok: true, rowIndex: rowIndex, row: payload };
+}
+
+function excluirLivroDiarioLancamento(rowIndex, options) {
+  var sh = ensureLivroDiarioSheet();
+  var idx = parseInt(rowIndex, 10);
+  if (isNaN(idx) || idx < 2 || idx > sh.getLastRow()) {
+    throw new Error("Linha inválida para exclusão no Livro Diário.");
+  }
+  sh.deleteRow(idx);
+
+  var opts = options || {};
+  if (!opts.fast) {
+    var prefs = _getLivroDiarioPrefs();
+    ordenarLivroDiario(prefs.modoOrdenacao);
+    recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+  }
+  return { ok: true, rowIndex: idx };
 }
 
 function getLivroDiarioLancamentos(filtros) {
@@ -1403,4 +1476,25 @@ function onEdit(e) {
   } catch (err) {
     Logger.log("onEdit LivroDiario: " + (err && err.message ? err.message : err));
   }
+}
+
+function removerLancamentosLivroDiarioPorProjeto(codigoProjeto) {
+  var cod = _normLivro(codigoProjeto);
+  if (!cod) return { ok: true, removidos: 0 };
+  var base = _codigoBaseProjeto_(cod);
+  var sh = ensureLivroDiarioSheet();
+  if (sh.getLastRow() < 2) return { ok: true, removidos: 0 };
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var idxProjeto = _findHeaderIndexGeneric(headers, "CÓDIGO DO PROJETO");
+  if (idxProjeto < 0) return { ok: true, removidos: 0 };
+  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var toDelete = [];
+  data.forEach(function (r, i) {
+    var p = _normLivro(r[idxProjeto]);
+    if (!p) return;
+    var pBase = _codigoBaseProjeto_(p);
+    if (p === cod || pBase === base) toDelete.push(i + 2);
+  });
+  toDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) { sh.deleteRow(rowIdx); });
+  return { ok: true, removidos: toDelete.length };
 }

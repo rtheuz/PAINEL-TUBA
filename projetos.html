@@ -1716,7 +1716,7 @@
             <td>${formatCurrency(projeto['VALOR TOTAL'])}</td>
             <td>${projeto.PROCESSOS || ''}</td>
             <td>
-              <select class="status-select" data-field="STATUS_ORCAMENTO" data-linha="${linha}" onchange="updateStatus(this)">
+              <select class="status-select" data-field="STATUS_ORCAMENTO" data-linha="${linha}" data-prev-value="${projeto.STATUS_ORCAMENTO || ''}" onchange="updateStatus(this)">
                 <option value="RASCUNHO" ${projeto.STATUS_ORCAMENTO === 'RASCUNHO' ? 'selected' : ''}>Rascunho</option>
                 <option value="Enviado" ${projeto.STATUS_ORCAMENTO === 'Enviado' ? 'selected' : ''}>Enviado</option>
                 <option value="Convertido em Pedido" ${projeto.STATUS_ORCAMENTO === 'Convertido em Pedido' ? 'selected' : ''}>Convertido</option>
@@ -1840,7 +1840,7 @@
             const btn = document.querySelector('#versaoPedidoModal .btn.btn-primary');
             if (btn) {
                 btn.disabled = true;
-                btn.textContent = 'Confirmando...';
+                btn.textContent = 'Convertendo...';
             }
             const timeoutId = setTimeout(function () {
                 if (btn) {
@@ -1876,12 +1876,16 @@
 
             // RF005: converter em pedido depende da versão escolhida
             if (ehConversaoPelaColuna) {
+                // Evita ficar visualmente "Convertido" antes da confirmação real.
+                const prev = (select.dataset && select.dataset.prevValue != null) ? select.dataset.prevValue : '';
+                select.value = prev;
                 openVersaoPedidoModal(linha);
                 return;
             }
 
             google.script.run
                 .withSuccessHandler(function () {
+                    if (select && select.dataset) select.dataset.prevValue = value;
                     loadProjetos();
                 })
                 .withFailureHandler(function (error) {

@@ -91,7 +91,8 @@ function atualizarPedidoNaPlanilha(projeto, dadosAtualizacao, dadosProjeto) {
     try {
       // Mantém Livro Diário em espelho do Pedido (datas, parcelas, status, valores).
       if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
-        gerarLancamentosLivroDiarioParaPedido(projeto);
+        // Modo rápido para não bloquear fluxos críticos (ex.: geração de PDF).
+        gerarLancamentosLivroDiarioParaPedido(projeto, null, { skipPosProcess: true });
       }
     } catch (eLivroSync) {
       Logger.log("Sync Pedidos->LivroDiario: " + (eLivroSync && eLivroSync.message ? eLivroSync.message : eLivroSync));
@@ -441,7 +442,8 @@ function converterProjetoParaPedido(linha, codigoVersaoSelecionado) {
 
   try {
     if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
-      gerarLancamentosLivroDiarioParaPedido(codigoBase);
+      // Modo rápido para evitar timeout no retorno ao formulário.
+      gerarLancamentosLivroDiarioParaPedido(codigoBase, null, { skipPosProcess: true });
     }
   } catch (eLivro) {
     Logger.log("Aviso converterProjetoParaPedido/livroDiario: " + (eLivro && eLivro.message ? eLivro.message : eLivro));

@@ -5310,6 +5310,8 @@ function gerarRelatorioProjeto(linha) {
 
   const idxProjeto = _findHeaderIndex(headers, "PROJETO");
   const idxJson = _findHeaderIndex(headers, "JSON_DADOS");
+  const idxCliente = _findHeaderIndex(headers, "CLIENTE");
+  const idxValorTotal = _findHeaderIndex(headers, "VALOR TOTAL");
   const idxData = _findHeaderIndex(headers, "DATA");
   const idxProcessosProjeto = _findHeaderIndex(headers, "PROCESSOS");
   if (idxProjeto < 0) throw new Error("Coluna PROJETO não encontrada.");
@@ -5630,13 +5632,104 @@ function excluirProjeto(linha) {
       throw new Error("Nenhuma aba de projetos encontrada");
     }
 
+    var headers = targetSheet.getRange(1, 1, 1, targetSheet.getLastColumn()).getValues()[0];
+    var idxProjeto = _findHeaderIndex(headers, "PROJETO");
+    var codigoProjeto = "";
+    if (idxProjeto >= 0 && linha <= targetSheet.getLastRow()) {
+      codigoProjeto = String(targetSheet.getRange(linha, idxProjeto + 1).getValue() || "").trim();
+    }
+
     targetSheet.deleteRow(linha);
     SheetCache.invalidate(targetSheet);
+
+    // Exclusão em cascata: Pedidos e Livro Diário.
+    if (codigoProjeto) {
+      try {
+        excluirPedidoEProjeto(codigoProjeto, { manterProjeto: true });
+      } catch (eCascade) {
+        Logger.log("excluirProjeto cascade warning: " + (eCascade && eCascade.message ? eCascade.message : eCascade));
+      }
+    }
     return { success: true };
   } catch (e) {
     Logger.log('excluirProjeto error (linha=%s): %s', linha, e.message);
     throw new Error('excluirProjeto failed: ' + (e.message || 'erro desconhecido'));
   }
+}
+
+function excluirPedidoEProjeto(codigoProjeto, options) {
+  var cod = String(codigoProjeto || "").trim();
+  if (!cod) throw new Error("Código do projeto é obrigatório.");
+  var opts = options || {};
+  var base = cod.replace(/_v\d+$/i, "");
+  var removidosProjetos = 0;
+  var removidosPedidos = 0;
+  var removidosLivro = 0;
+
+  // 1) Pedidos
+  try {
+    var shPed = (typeof ensurePedidosSheet === "function") ? ensurePedidosSheet() : null;
+    if (shPed && shPed.getLastRow() >= 2) {
+      var pedData = shPed.getDataRange().getValues();
+      var pedHeaders = pedData[0] || [];
+      var idxPedProjeto = _findHeaderIndex(pedHeaders, "PROJETO");
+      if (idxPedProjeto >= 0) {
+        var delPed = [];
+        for (var i = 1; i < pedData.length; i++) {
+          var p = String(pedData[i][idxPedProjeto] || "").trim();
+          var pBase = p.replace(/_v\d+$/i, "");
+          if (p && (p === cod || pBase === base)) delPed.push(i + 1);
+        }
+        delPed.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) { shPed.deleteRow(rowIdx); });
+        removidosPedidos = delPed.length;
+      }
+    }
+  } catch (ePed) {
+    Logger.log("excluirPedidoEProjeto/pedidos: " + (ePed && ePed.message ? ePed.message : ePed));
+  }
+
+  // 2) Projetos (exceto quando já foi removido por excluirProjeto)
+  if (!opts.manterProjeto) {
+    try {
+      var shProj = SHEET_PROJ;
+      if (shProj && shProj.getLastRow() >= 2) {
+        var projData = shProj.getDataRange().getValues();
+        var projHeaders = projData[0] || [];
+        var idxProjProjeto = _findHeaderIndex(projHeaders, "PROJETO");
+        if (idxProjProjeto >= 0) {
+          var delProj = [];
+          for (var j = 1; j < projData.length; j++) {
+            var pj = String(projData[j][idxProjProjeto] || "").trim();
+            var pjBase = pj.replace(/_v\d+$/i, "");
+            if (pj && (pj === cod || pjBase === base)) delProj.push(j + 1);
+          }
+          delProj.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) { shProj.deleteRow(rowIdx); });
+          removidosProjetos = delProj.length;
+          if (delProj.length) SheetCache.invalidate(shProj);
+        }
+      }
+    } catch (eProj) {
+      Logger.log("excluirPedidoEProjeto/projetos: " + (eProj && eProj.message ? eProj.message : eProj));
+    }
+  }
+
+  // 3) Livro Diário
+  try {
+    if (typeof removerLancamentosLivroDiarioPorProjeto === "function") {
+      var rLivro = removerLancamentosLivroDiarioPorProjeto(cod);
+      removidosLivro = Number((rLivro && rLivro.removidos) || 0);
+    }
+  } catch (eLivro) {
+    Logger.log("excluirPedidoEProjeto/livro: " + (eLivro && eLivro.message ? eLivro.message : eLivro));
+  }
+
+  return {
+    ok: true,
+    codigoProjeto: cod,
+    removidosProjetos: removidosProjetos,
+    removidosPedidos: removidosPedidos,
+    removidosLivro: removidosLivro
+  };
 }
 
 /**
@@ -5913,9 +6006,39 @@ function salvarComprovanteEntrega(linha, fileData) {
   if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
   parsed.dados.infoPedido.comprovanteEntregaUrl = url;
   parsed.dados.infoPedido.temComprovanteEntrega = true;
+  // Regra: ao anexar comprovante, o projeto deve ficar Finalizado.
+  var tz = ss.getSpreadsheetTimeZone() || "America/Sao_Paulo";
+  var hojeStr = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+  parsed.dados.infoPedido.dataEntrega = hojeStr;
+  if (!parsed.dados.infoPedido.statusDates) parsed.dados.infoPedido.statusDates = {};
+  parsed.dados.infoPedido.statusDates.finalizado = hojeStr;
 
   sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
+  try {
+    var idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+    var idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+    var idxPrazo = _findHeaderIndex(headers, "PRAZO");
+    if (idxStatusOrc >= 0) sheetProj.getRange(linha, idxStatusOrc + 1).setValue("Convertido em Pedido");
+    if (idxStatusPed >= 0) sheetProj.getRange(linha, idxStatusPed + 1).setValue("Finalizado");
+    if (idxPrazo >= 0) sheetProj.getRange(linha, idxPrazo + 1).setValue(hojeStr);
+  } catch (eSt) {
+    Logger.log("salvarComprovanteEntrega/status update: " + (eSt && eSt.message ? eSt.message : eSt));
+  }
   SheetCache.invalidate(sheetProj);
+
+  // Sincroniza aba Pedidos + Livro Diário com o novo status finalizado.
+  try {
+    atualizarPedidoNaPlanilha(codigoBase, {
+      STATUS_PAGAMENTO: "Pago",
+      DATA_ENTREGA: hojeStr
+    }, {
+      CLIENTE: (idxCliente >= 0 ? row[idxCliente] : ""),
+      "VALOR TOTAL": (idxValorTotal >= 0 ? row[idxValorTotal] : ""),
+      _linhaPlanilha: linha
+    });
+  } catch (eSync) {
+    Logger.log("salvarComprovanteEntrega/sync pedido: " + (eSync && eSync.message ? eSync.message : eSync));
+  }
 
   return { sucesso: true, url: url };
 }

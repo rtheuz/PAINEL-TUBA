@@ -247,7 +247,7 @@
               <label>Visualização</label>
               <select id="fVisao">
                 <option value="">Selecione…</option>
-                <option value="novos">Mostrar novos lançamentos</option>
+                <option value="novos">Mostrar últimos modificados (30 dias)</option>
                 <option value="todos">Mostrar todos lançamentos</option>
               </select>
             </div>
@@ -321,7 +321,10 @@
           <div class="cards">
             <div class="kpi"><div class="k">Saldo conta hoje</div><div class="v" id="kSaldoConta">R$ 0,00</div></div>
             <div class="kpi"><div class="k">Saldo geral hoje</div><div class="v" id="kSaldoGeral">R$ 0,00</div></div>
-            <div class="kpi"><div class="k">Saldo geral futuro</div><div class="v" id="kSaldoFuturo">R$ 0,00</div></div>
+            <div class="kpi">
+              <div class="k" title="Soma direta da coluna VALOR (coluna L), conforme regra atual.">Saldo geral futuro</div>
+              <div class="v" id="kSaldoFuturo" title="Soma direta da coluna VALOR (coluna L), conforme regra atual.">R$ 0,00</div>
+            </div>
           </div>
         </div>
 
@@ -814,9 +817,15 @@
 
     function aplicarFiltrosLocais() {
       const f = coletarFiltros();
-      if (_telaInicialVazia && !_temAlgumFiltroAtivo_(f) && !_mostrarSomenteSemPagamento) {
+      const visao = String((document.getElementById('fVisao') && document.getElementById('fVisao').value) || '');
+      const mostrarTodos = visao === 'todos';
+      const mostrarNovos = visao === 'novos';
+      const semFiltros = !_temAlgumFiltroAtivo_(f);
+
+      if (semFiltros && !mostrarTodos && !mostrarNovos) {
         cacheRowsFiltered = [];
         _avisoSelecioneFiltros = true;
+        _telaInicialVazia = true;
         return;
       }
       _telaInicialVazia = false;
@@ -836,16 +845,16 @@
       const dataPagFim = dateToKey(parseIsoDateInput(f.dataPagFim));
 
       cacheRowsFiltered = (cacheRows || []).filter(function (r) {
-        if (_mostrarSomenteUltimos30Dias) {
-          const raw = String(r["DATA DA ÚLTIMA MOFIFICAÇÃO"] || '').trim();
-          const datePart = raw.substring(0, 10); // dd/MM/yy ou dd/MM/yyyy
-          const dt = parseDateBrFlexible(datePart);
-          const kUlt = dateToKey(dt);
-          if (kUlt == null) return false;
+        if (_mostrarSomenteUltimos30Dias || mostrarNovos) {
+          // "Mostrar ultimos modificados (30 dias)": somente por DUM.
+          const rawDum = String(r["DATA DA ÚLTIMA MOFIFICAÇÃO"] || '').trim();
+          const dtDum = parseDateBrFlexible(rawDum.substring(0, 10));
+          const kDum = dateToKey(dtDum);
+          if (kDum == null) return false;
           const dtMin = new Date();
           dtMin.setDate(dtMin.getDate() - 30);
           const kMin = dateToKey(dtMin);
-          if (kUlt < kMin) return false;
+          if (kDum < kMin) return false;
         }
         if (_mostrarSomenteSemPagamento) {
           const temPag = String(r["DATA PAGAMENTO"] || '').trim();
@@ -888,12 +897,12 @@
       const base = usarTudo ? (cacheRows || []) : (cacheRowsFiltered || []);
       base.forEach(function (r) {
         const delta = saldoDelta(r["VALOR"]);
+        const valorColunaL = parseBrasilNumber(r["VALOR"]);
         const kPag = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
         const isPagoAteHoje = (kPag != null && kPag <= todayKey);
-        const isFuturoOuPendente = (kPag == null || kPag > todayKey);
-
-        // Saldo geral futuro: tudo que ainda não foi pago (ou tem pagamento futuro)
-        if (isFuturoOuPendente) saldoFuturoGeral += delta;
+        
+        // Regra solicitada: saldo geral futuro = soma direta da coluna VALOR (coluna L).
+        saldoFuturoGeral += valorColunaL;
 
         // Saldo geral hoje: somente pagos até hoje
         if (isPagoAteHoje) saldoGeralHoje += delta;
@@ -1005,7 +1014,7 @@
         const saldoConta = r["SALDO CONTA FINANCEIRA"] === "" || r["SALDO CONTA FINANCEIRA"] == null ? null : (Number(r["SALDO CONTA FINANCEIRA"]) || 0);
         const saldoGeral = Number(r["SALDO GERAL"]) || 0;
         return '<tr data-row-index="' + r.rowIndex + '">'
-          + '<td><button class="btn" onclick="editarLancamento(' + r.rowIndex + ')">Editar</button></td>'
+          + '<td><button class="btn" onclick="editarLancamento(' + r.rowIndex + ')">Editar</button> <button class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626;" onclick="excluirLancamento(' + r.rowIndex + ')">Excluir</button></td>'
           + '<td class="mono col-data">' + esc(r["DATA COMPETÊNCIA"]) + '</td>'
           + '<td class="mono col-data">' + esc(r["DATA VENCIMENTO"]) + '</td>'
           + '<td class="mono col-data">' + esc(r["DATA PAGAMENTO"]) + '</td>'
@@ -1171,6 +1180,24 @@
       document.getElementById('mValor').value = Math.abs(val);
       document.getElementById('mObs').value = row["OBSERVAÇÕES"] || "";
       openModal('modalLancamento');
+    }
+
+    function excluirLancamento(rowIndex) {
+      const idx = Number(rowIndex || 0);
+      if (!idx) return;
+      if (!confirm('Deseja excluir este lançamento do Livro Diário?')) return;
+      setStatus('loading', 'Excluindo lançamento...', 0);
+      google.script.run
+        .withSuccessHandler(function () {
+          setStatus('success', 'Lançamento excluído.', 1200);
+          // Recarrega para manter rowIndex/saldos consistentes após deleteRow.
+          carregarLancamentos({ preserveState: true });
+        })
+        .withFailureHandler(function (err) {
+          setStatus('error', 'Erro ao excluir lançamento: ' + (err && err.message ? err.message : err), 6000);
+          alert('Erro ao excluir lançamento: ' + (err && err.message ? err.message : err));
+        })
+        .excluirLivroDiarioLancamento(idx, { fast: true });
     }
 
     function recomputeSaldoGeralLocal() {
@@ -1393,6 +1420,22 @@
         _avisoSelecioneFiltros = true;
       }
       aplicarFiltrosEAtualizarUI();
+    });
+    ['fCliente', 'fProjeto', 'fStatus', 'fContaContabil', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const restoreOriginalView = function () {
+        if (_temAlgumFiltroAtivo_(coletarFiltros())) return;
+        const visaoEl = document.getElementById('fVisao');
+        const visaoAtual = String((visaoEl && visaoEl.value) || '');
+        if (visaoAtual === 'todos') return; // só mantém todos quando explicitamente selecionado
+        _mostrarSomenteUltimos30Dias = false;
+        _mostrarSomenteSemPagamento = false;
+        _telaInicialVazia = true;
+        _avisoSelecioneFiltros = true;
+      };
+      el.addEventListener('change', restoreOriginalView);
+      el.addEventListener('input', restoreOriginalView);
     });
     document.getElementById('cTipo').addEventListener('change', function () {
       const v = String(this.value || '');
