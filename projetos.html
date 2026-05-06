@@ -1108,7 +1108,8 @@
 
                     <div class="modal-actions">
                         <button type="button" class="btn btn-cancel" onclick="closeComprovanteEntregaModal()">Cancelar</button>
-                        <button type="button" class="btn btn-primary" onclick="enviarComprovanteEntrega()">Salvar</button>
+                        <button type="button" class="btn" id="btnFinalizarComprovante" style="background:#0f766e;color:#fff;" onclick="finalizarPedidoComprovante()">Finalizar pedido</button>
+                        <button type="button" class="btn btn-primary" id="btnSalvarComprovante" onclick="enviarComprovanteEntrega()">Salvar</button>
                     </div>
                 </div>
             </div>
@@ -1843,12 +1844,30 @@
                 btn.textContent = 'Convertendo...';
             }
             const timeoutId = setTimeout(function () {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.textContent = 'Confirmar';
-                }
-                alert('A conversão está demorando mais do que o esperado. Verifique se o pedido foi gerado e tente novamente se necessário.');
-            }, 30000);
+                google.script.run
+                    .withSuccessHandler(function (r) {
+                        const convertido = !!(r && r.convertido);
+                        if (convertido) {
+                            clearTimeout(timeoutId);
+                            closeVersaoPedidoModal();
+                            loadProjetos();
+                            return;
+                        }
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = 'Confirmar';
+                        }
+                        alert('A conversão está demorando mais do que o esperado. Ainda não foi confirmada no sistema.');
+                    })
+                    .withFailureHandler(function () {
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = 'Confirmar';
+                        }
+                        alert('A conversão está demorando mais do que o esperado. Verifique se o pedido foi gerado e tente novamente.');
+                    })
+                    .isProjetoConvertidoPedido(linha);
+            }, 45000);
 
             google.script.run
                 .withSuccessHandler(function () {
@@ -2280,7 +2299,7 @@
             const file = input.files[0];
             const reader = new FileReader();
 
-            const btn = document.querySelector('#comprovanteEntregaModal .btn.btn-primary');
+            const btn = document.getElementById('btnSalvarComprovante');
             if (btn) {
                 btn.disabled = true;
                 btn.textContent = 'Enviando...';
@@ -2297,19 +2316,18 @@
 
                 google.script.run
                     .withSuccessHandler(function () {
-                        closeComprovanteEntregaModal();
-                        google.script.run
-                            .withSuccessHandler(function () {
-                                alert('Comprovante de entrega enviado com sucesso.');
-                                loadProjetos();
-                            })
-                            .withFailureHandler(function (err) {
-                                alert('Comprovante enviado, mas não foi possível atualizar o status para Finalizado: ' + (err && err.message ? err.message : err));
-                                loadProjetos();
-                            })
-                            .atualizarProjetoNaPlanilha(linha, { STATUS_PEDIDO: 'Finalizado' });
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = 'Salvar';
+                        }
+                        alert('Comprovante de entrega enviado com sucesso.');
+                        loadProjetos();
                     })
                     .withFailureHandler(function (err) {
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.textContent = 'Salvar';
+                        }
                         alert('Erro ao enviar comprovante: ' + (err && err.message ? err.message : err));
                     })
                     .salvarComprovanteEntrega(linha, fileData);
@@ -2324,6 +2342,38 @@
             };
 
             reader.readAsDataURL(file);
+        }
+
+        function finalizarPedidoComprovante() {
+            const linha = parseInt(document.getElementById('comprovanteEntregaLinha').value, 10);
+            if (!linha || linha < 2) {
+                alert('Linha do projeto inválida.');
+                return;
+            }
+            if (!confirm('Confirmar mudança de status para Finalizado?')) return;
+            const btn = document.getElementById('btnFinalizarComprovante');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Finalizando...';
+            }
+            google.script.run
+                .withSuccessHandler(function () {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Finalizar pedido';
+                    }
+                    closeComprovanteEntregaModal();
+                    alert('Pedido finalizado com sucesso.');
+                    loadProjetos();
+                })
+                .withFailureHandler(function (err) {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Finalizar pedido';
+                    }
+                    alert('Erro ao finalizar pedido: ' + (err && err.message ? err.message : err));
+                })
+                .finalizarPedidoComComprovante(linha);
         }
 
         // Editar projeto (abre modal de edição)

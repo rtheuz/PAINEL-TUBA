@@ -1252,6 +1252,8 @@ function detectarPastaExistente(codigoProjeto, data) {
     const dia = data;
 
     Logger.log("🔍 Buscando pasta para projeto: " + codigoProjeto + " na data: " + dia);
+    var codigoNorm = String(codigoProjeto || "").trim();
+    var codigoBase = codigoNorm.replace(/_v\d+$/i, "");
 
     // Tenta estrutura nova: PROJ
     try {
@@ -1274,8 +1276,9 @@ function detectarPastaExistente(codigoProjeto, data) {
                 const pasta = pastas.next();
                 const nomePasta = pasta.getName();
 
-                // Verifica se o nome começa com o código do projeto seguido de espaço
-                if (nomePasta.startsWith(codigoProjeto + " ")) {
+                // Verifica se o nome começa com o código completo OU código base seguido de espaço.
+                // Isso evita duplicação de pasta quando vem código de versão (_v2, _v3...).
+                if (nomePasta.startsWith(codigoNorm + " ") || nomePasta.startsWith(codigoBase + " ")) {
                   const tipo = nomePasta.includes(" PED ") ? "PED" : "COT";
                   Logger.log("✅ Pasta encontrada: " + nomePasta + " (tipo: " + tipo + ")");
                   return { pasta: pasta, tipo: tipo, estrutura: "PROJ" };
@@ -1310,7 +1313,7 @@ function detectarPastaExistente(codigoProjeto, data) {
                 const pasta = pastas.next();
                 const nomePasta = pasta.getName();
 
-                if (nomePasta.startsWith(codigoProjeto + " ")) {
+                if (nomePasta.startsWith(codigoNorm + " ") || nomePasta.startsWith(codigoBase + " ")) {
                   const tipo = nomePasta.includes(" PED ") ? "PED" : "COT";
                   Logger.log("✅ Pasta encontrada (estrutura antiga): " + nomePasta + " (tipo: " + tipo + ")");
                   return { pasta: pasta, tipo: tipo, estrutura: "COM" };
@@ -2245,10 +2248,8 @@ function gerarPdfOrdemCompra(linhaOuKey, itensComValor, fornecedor) {
       "</body></html>";
 
     var blob = Utilities.newBlob(htmlContent, "text/html", "ordem_compra.html");
-    var nomePdf = "Ordem_Compra_" + codigoProjeto + ".pdf";
+    var nomePdf = _getNextSequentialFileNameInFolder_(comSubFolder, "Ordem_Compra_" + codigoProjeto, ".pdf");
     var pdf = blob.getAs("application/pdf").setName(nomePdf);
-    var arquivosCom = comSubFolder.getFilesByName(nomePdf);
-    while (arquivosCom.hasNext()) { arquivosCom.next().setTrashed(true); }
     var file = comSubFolder.createFile(pdf);
     var fileUrl = file.getUrl();
 
@@ -5968,21 +5969,12 @@ function salvarComprovanteEntrega(linha, fileData) {
   const workFolder = getOrCreateSubFolder(pastaInfo.pasta, "02_WORK");
   const comFolder = getOrCreateSubFolder(workFolder, "COM");
 
-  // Nome exigido: Comprovante_Entrega_<codigoProjeto>
+  // Nome com sufixo sequencial quando já existir:
+  // Comprovante_Entrega_<codigoProjeto>, _2, _3...
   const codigoProjetoFull = codigoProjeto || codigoBase;
   const extMatch = (fileData.name || "").match(/(\.[^.]+)$/);
   const ext = extMatch ? extMatch[1] : "";
-  const nomeComprovante = "Comprovante_Entrega_" + codigoProjetoFull + ext;
-
-  // Atualiza comprovante se já existir com o mesmo nome
-  try {
-    const oldFiles = comFolder.getFilesByName(nomeComprovante);
-    while (oldFiles.hasNext()) {
-      oldFiles.next().setTrashed(true);
-    }
-  } catch (eTrash) {
-    // ignora
-  }
+  const nomeComprovante = _getNextSequentialFileNameInFolder_(comFolder, "Comprovante_Entrega_" + codigoProjetoFull, ext);
 
   const base64 = String(fileData.base64).replace(/^data:[^;]+;base64,/, "");
   const blob = Utilities.newBlob(
@@ -6006,29 +5998,77 @@ function salvarComprovanteEntrega(linha, fileData) {
   if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
   parsed.dados.infoPedido.comprovanteEntregaUrl = url;
   parsed.dados.infoPedido.temComprovanteEntrega = true;
-  // Regra: ao anexar comprovante, o projeto deve ficar Finalizado.
-  var tz = ss.getSpreadsheetTimeZone() || "America/Sao_Paulo";
-  var hojeStr = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
-  parsed.dados.infoPedido.dataEntrega = hojeStr;
-  if (!parsed.dados.infoPedido.statusDates) parsed.dados.infoPedido.statusDates = {};
-  parsed.dados.infoPedido.statusDates.finalizado = hojeStr;
 
   sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
-  try {
-    var idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
-    var idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
-    var idxPrazo = _findHeaderIndex(headers, "PRAZO");
-    if (idxStatusOrc >= 0) sheetProj.getRange(linha, idxStatusOrc + 1).setValue("Convertido em Pedido");
-    if (idxStatusPed >= 0) sheetProj.getRange(linha, idxStatusPed + 1).setValue("Finalizado");
-    if (idxPrazo >= 0) sheetProj.getRange(linha, idxPrazo + 1).setValue(hojeStr);
-  } catch (eSt) {
-    Logger.log("salvarComprovanteEntrega/status update: " + (eSt && eSt.message ? eSt.message : eSt));
-  }
   SheetCache.invalidate(sheetProj);
 
-  // Sincroniza aba Pedidos + Livro Diário com o novo status finalizado.
+  return { sucesso: true, url: url };
+}
+
+function _escapeRegex_(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function _getNextSequentialFileNameInFolder_(folder, baseName, extWithDot) {
+  var base = String(baseName || "").trim();
+  var ext = String(extWithDot || "");
+  if (!folder || !base) return base + ext;
+  var rx = new RegExp("^" + _escapeRegex_(base) + "(?:_(\\d+))?" + _escapeRegex_(ext) + "$", "i");
+  var maxN = 0;
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    var name = String(files.next().getName() || "");
+    var m = name.match(rx);
+    if (!m) continue;
+    var n = m[1] ? parseInt(m[1], 10) : 1; // sem sufixo = 1
+    if (!isNaN(n) && n > maxN) maxN = n;
+  }
+  if (maxN <= 0) return base + ext;
+  return base + "_" + (maxN + 1) + ext;
+}
+
+function finalizarPedidoComComprovante(linha) {
+  linha = Number(linha);
+  if (!linha || linha < 2) throw new Error("Linha inválida.");
+  var sheetProj = SHEET_PROJ;
+  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
+  if (linha > sheetProj.getLastRow()) throw new Error("Projeto não encontrado.");
+
+  var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  var row = sheetProj.getRange(linha, 1, linha, sheetProj.getLastColumn()).getValues()[0];
+  var idxJson = _findHeaderIndex(headers, "JSON_DADOS");
+  var idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+  var idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
+  var idxProjeto = _findHeaderIndex(headers, "PROJETO");
+  var idxCliente = _findHeaderIndex(headers, "CLIENTE");
+  var idxValorTotal = _findHeaderIndex(headers, "VALOR TOTAL");
+  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
+
+  var parsed = {};
+  try { parsed = JSON.parse(String(row[idxJson] || "{}")); } catch (e) { parsed = { dados: {} }; }
+  if (!parsed.dados) parsed.dados = {};
+  if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
+  var info = parsed.dados.infoPedido;
+  var comprovanteUrl = String(info.comprovanteEntregaUrl || "").trim();
+  var temComprovante = !!(comprovanteUrl || info.temComprovanteEntrega);
+  if (!temComprovante) throw new Error("Envie o comprovante antes de finalizar o pedido.");
+
+  var tz = ss.getSpreadsheetTimeZone() || "America/Sao_Paulo";
+  var hojeStr = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+  info.temComprovanteEntrega = true;
+  info.dataEntrega = hojeStr;
+  if (!info.statusDates) info.statusDates = {};
+  info.statusDates.finalizado = hojeStr;
+  sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
+
+  if (idxStatusOrc >= 0) sheetProj.getRange(linha, idxStatusOrc + 1).setValue("Convertido em Pedido");
+  if (idxStatusPed >= 0) sheetProj.getRange(linha, idxStatusPed + 1).setValue("Finalizado");
+  SheetCache.invalidate(sheetProj);
+
   try {
-    atualizarPedidoNaPlanilha(codigoBase, {
+    var codigoProjeto = idxProjeto >= 0 ? String(row[idxProjeto] || "").trim() : "";
+    var codigoBase = codigoProjeto.replace(/_v\d+$/i, "");
+    atualizarPedidoNaPlanilha(codigoBase || codigoProjeto, {
       STATUS_PAGAMENTO: "Pago",
       DATA_ENTREGA: hojeStr
     }, {
@@ -6037,10 +6077,22 @@ function salvarComprovanteEntrega(linha, fileData) {
       _linhaPlanilha: linha
     });
   } catch (eSync) {
-    Logger.log("salvarComprovanteEntrega/sync pedido: " + (eSync && eSync.message ? eSync.message : eSync));
+    Logger.log("finalizarPedidoComComprovante/sync pedido: " + (eSync && eSync.message ? eSync.message : eSync));
   }
 
-  return { sucesso: true, url: url };
+  return { sucesso: true };
+}
+
+function isProjetoConvertidoPedido(linha) {
+  linha = Number(linha);
+  if (!linha || linha < 2) return { convertido: false };
+  var sheetProj = SHEET_PROJ;
+  if (!sheetProj || linha > sheetProj.getLastRow()) return { convertido: false };
+  var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+  var idxOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+  if (idxOrc < 0) return { convertido: false };
+  var status = String(sheetProj.getRange(linha, idxOrc + 1).getValue() || "").trim();
+  return { convertido: status === "Convertido em Pedido", status: status };
 }
 
 /**

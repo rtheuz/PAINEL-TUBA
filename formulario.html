@@ -313,7 +313,13 @@
 
             /* área de ações (Gerar PDF, etc.) */
             .form-actions-wrap {
-                padding: 12px 0;
+                position: static;
+                width: 100%;
+                margin: 0 0 14px 0 !important;
+                padding: 12px 0 calc(12px + env(safe-area-inset-bottom)) !important;
+                background: transparent;
+                border-top: 0;
+                box-shadow: none;
             }
 
             .form-actions-options {
@@ -1278,19 +1284,44 @@
             const buscaInput = div.querySelector(".produtoBusca");
             const datalist = div.querySelector(".produtosDatalist");
             const hiddenIndex = div.querySelector(".produtoSelectIndex");
+            const MAX_DATALIST_OPTIONS = 80;
+            const IS_MOBILE = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            function debounceProduto(fn, wait) {
+                let t = null;
+                return function () {
+                    const ctx = this;
+                    const args = arguments;
+                    clearTimeout(t);
+                    t = setTimeout(function () { fn.apply(ctx, args); }, wait);
+                };
+            }
 
             // Função para filtrar produtos e atualizar datalist
             function filtrarProdutos(termo) {
-                if (!termo || termo.length < 1) {
-                    // Mostra todos os produtos
-                    datalist.innerHTML = produtosCatalogo.map((p, idx) =>
+                const termoTxt = String(termo || '').trim();
+                if (!termoTxt || termoTxt.length < 1) {
+                    // Em mobile, evita listar o catálogo inteiro (pode travar a página).
+                    if (IS_MOBILE) {
+                        datalist.innerHTML = '';
+                        buscaInput.style.background = "";
+                        return;
+                    }
+                    // Desktop: mostra apenas uma amostra inicial.
+                    datalist.innerHTML = produtosCatalogo.slice(0, MAX_DATALIST_OPTIONS).map((p, idx) =>
                         `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${idx}">${p.codigo} - ${p.descricao}</option>`
                     ).join('');
                     buscaInput.style.background = "";
                     return;
                 }
 
-                const termoLower = termo.toLowerCase();
+                // Em mobile, inicia filtro somente a partir de 2 caracteres.
+                if (IS_MOBILE && termoTxt.length < 2) {
+                    datalist.innerHTML = '';
+                    buscaInput.style.background = "";
+                    return;
+                }
+
+                const termoLower = termoTxt.toLowerCase();
                 // Divide o termo em palavras (separadas por espaços)
                 const palavras = termoLower.trim().split(/\s+/).filter(p => p.length > 0);
 
@@ -1313,7 +1344,7 @@
                 });
 
                 // Atualiza o datalist com produtos filtrados
-                datalist.innerHTML = produtosFiltrados.map((p, idx) => {
+                datalist.innerHTML = produtosFiltrados.slice(0, MAX_DATALIST_OPTIONS).map((p, idx) => {
                     const originalIdx = produtosCatalogo.indexOf(p);
                     return `<option value="${p.codigo} - ${p.descricao} (${p.familia || 'N/A'})" data-index="${originalIdx}">${p.codigo} - ${p.descricao}</option>`;
                 }).join('');
@@ -1405,7 +1436,7 @@
             }
 
             // Listener para quando o usuário digita - APENAS FILTRA, não preenche
-            buscaInput.addEventListener("input", function () {
+            const onInputProduto = debounceProduto(function () {
                 const valor = this.value.trim();
                 // Se o usuário está digitando algo diferente do item selecionado, desvincula do catálogo
                 // para evitar reutilizar PRD de outro produto por engano.
@@ -1423,7 +1454,8 @@
                 } catch (e) { /* ignora */ }
                 // Apenas filtra a lista, não preenche automaticamente
                 filtrarProdutos(valor);
-            });
+            }, IS_MOBILE ? 180 : 100);
+            buscaInput.addEventListener("input", onInputProduto);
 
             // Listener para quando o usuário seleciona uma opção do datalist (evento change)
             buscaInput.addEventListener("change", function () {
@@ -1840,6 +1872,17 @@
                 var nomeBase = String(r.nome || "").split(" - ")[0].trim().replace(/_v\d+$/, "").toLowerCase();
                 return nomeBase === base;
             });
+        }
+
+        function codigoProjetoOriginalBase() {
+            if (_originalProjetoData === null && _originalProjetoIndice === null && _originalProjetoIniciais === null) return "";
+            return (String(_originalProjetoData || "") + String(_originalProjetoIndice || "") + String(_originalProjetoIniciais || "")).trim().toLowerCase();
+        }
+
+        function editandoMesmoCodigoBase(codigoProjeto) {
+            var baseAtual = String(codigoProjeto || "").trim().replace(/_v\d+$/i, "").toLowerCase();
+            var baseOrig = codigoProjetoOriginalBase();
+            return !!(baseAtual && baseOrig && baseAtual === baseOrig);
         }
 
         function confirmarAcaoProjetoExistente(codigoProjeto, novaVersao) {
@@ -2663,7 +2706,7 @@
             } else {
                 // Se não tem orçamento carregado, verifica se o código já existe antes de salvar.
                 // Faz a checagem diretamente na lista (não depende do estado visual do banner).
-                if (codigoProjetoJaExiste(codigoProjeto)) {
+                if (codigoProjetoJaExiste(codigoProjeto) && !editandoMesmoCodigoBase(codigoProjeto)) {
                     if (!confirmarAcaoProjetoExistente(codigoProjeto, false)) {
                         btn.disabled = originalDisabled;
                         return;
@@ -3082,7 +3125,7 @@
 
             // Se já existe um projeto com este código base e não estamos editando um carregado,
             // avisa o usuário sobre sobrescrita ou criação de nova versão.
-            if (!apenasPreview && !linhaOrcamentoCarregado && codigoProjetoJaExiste(codigoProjetoCompleto)) {
+            if (!apenasPreview && codigoProjetoJaExiste(codigoProjetoCompleto) && !editandoMesmoCodigoBase(codigoProjetoCompleto)) {
                 if (!confirmarAcaoProjetoExistente(codigoProjetoCompleto, !sobrescreverVersao)) {
                     btn.disabled = false;
                     btn.textContent = textoOriginalBtn;

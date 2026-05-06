@@ -91,8 +91,8 @@ function atualizarPedidoNaPlanilha(projeto, dadosAtualizacao, dadosProjeto) {
     try {
       // Mantém Livro Diário em espelho do Pedido (datas, parcelas, status, valores).
       if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
-        // Modo rápido para não bloquear fluxos críticos (ex.: geração de PDF).
-        gerarLancamentosLivroDiarioParaPedido(projeto, null, { skipPosProcess: true });
+        // Recalcula/ordena imediatamente para manter colunas M/N atualizadas na planilha.
+        gerarLancamentosLivroDiarioParaPedido(projeto);
       }
     } catch (eLivroSync) {
       Logger.log("Sync Pedidos->LivroDiario: " + (eLivroSync && eLivroSync.message ? eLivroSync.message : eLivroSync));
@@ -256,6 +256,24 @@ function converterProjetoParaPedido(linha, codigoVersaoSelecionado) {
   const codigoProjetoCol = idxProjeto >= 0 ? String(row[idxProjeto] || "").trim() : "";
   const codigoBase = codigoProjetoCol.replace(/_v\d+$/i, "").trim() || codigoProjetoCol.trim();
   if (!codigoBase) throw new Error("Código base do projeto não encontrado.");
+  const idxStatusOrc = _findHeaderIndexProjetos(headers, "STATUS_ORCAMENTO");
+  const statusOrcAtual = idxStatusOrc >= 0 ? String(row[idxStatusOrc] || "").trim() : "";
+  // Idempotência: se já está convertido, evita refazer toda a geração (lento) e retorna sucesso rápido.
+  if (statusOrcAtual === "Convertido em Pedido") {
+    try {
+      const tzFast = ss.getSpreadsheetTimeZone() || "America/Sao_Paulo";
+      const dataCompetenciaFast = Utilities.formatDate(new Date(), tzFast, "dd/MM/yyyy");
+      atualizarPedidoNaPlanilha(codigoBase, { DATA_COMPETENCIA: dataCompetenciaFast }, {
+        CLIENTE: row[_findHeaderIndexProjetos(headers, "CLIENTE")] || "",
+        "VALOR TOTAL": row[_findHeaderIndexProjetos(headers, "VALOR TOTAL")] || "",
+        _dataCompetencia: dataCompetenciaFast,
+        _linhaPlanilha: linha
+      });
+    } catch (eFast) {
+      Logger.log("converterProjetoParaPedido/idempotencia: " + (eFast && eFast.message ? eFast.message : eFast));
+    }
+    return { sucesso: true, jaConvertido: true, codigoProjeto: codigoBase };
+  }
 
   let parsed;
   try { parsed = JSON.parse(String(row[idxJson] || "{}")); } catch (e) { parsed = null; }
@@ -442,8 +460,8 @@ function converterProjetoParaPedido(linha, codigoVersaoSelecionado) {
 
   try {
     if (typeof gerarLancamentosLivroDiarioParaPedido === "function") {
-      // Modo rápido para evitar timeout no retorno ao formulário.
-      gerarLancamentosLivroDiarioParaPedido(codigoBase, null, { skipPosProcess: true });
+      // Recalcula/ordena imediatamente para manter colunas M/N atualizadas na planilha.
+      gerarLancamentosLivroDiarioParaPedido(codigoBase);
     }
   } catch (eLivro) {
     Logger.log("Aviso converterProjetoParaPedido/livroDiario: " + (eLivro && eLivro.message ? eLivro.message : eLivro));

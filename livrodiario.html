@@ -105,6 +105,11 @@
     .kpi { border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; background: #fff; }
     .kpi .k { color: var(--muted); font-size: 11px; text-transform: uppercase; font-weight: 700; }
     .kpi .v { margin-top: 4px; font-size: 21px; font-weight: 700; }
+    .kpi-split { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+    .kpi-split .half { padding: 8px; background: #fff; }
+    .kpi-split .half + .half { border-left: 1px solid #e5e7eb; }
+    .kpi-split .hk { color: var(--muted); font-size: 10px; text-transform: uppercase; font-weight: 700; line-height: 1.2; }
+    .kpi-split .hv { margin-top: 4px; font-size: 16px; font-weight: 700; }
     .table-wrap { overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
     /* Esconde a scrollbar horizontal nativa (evita "duas barras") */
     .table-wrap { scrollbar-width: none; }
@@ -279,7 +284,7 @@
 
           <div class="filters" style="grid-template-columns: repeat(3, minmax(220px, 1fr)); margin-bottom: 10px;">
             <div class="field">
-              <label>Conta para saldo (KPIs de hoje)</label>
+              <label style="color: red;">Selecionar conta para cálculo de Movimentação/Saldo</label>
               <select id="fContaSaldo">
                 <option value="">Todas</option>
               </select>
@@ -316,14 +321,42 @@
               <label>&nbsp;</label>
               <button class="btn btn-ghost" type="button" id="btnExecutarSyncMes">Executar sincronização do mês</button>
             </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button class="btn btn-ghost" type="button" id="btnRecalcularMN">Recalcular M/N agora</button>
+            </div>
           </div>
 
           <div class="cards">
-            <div class="kpi"><div class="k">Saldo conta hoje</div><div class="v" id="kSaldoConta">R$ 0,00</div></div>
-            <div class="kpi"><div class="k">Saldo geral hoje</div><div class="v" id="kSaldoGeral">R$ 0,00</div></div>
             <div class="kpi">
-              <div class="k" title="Soma direta da coluna VALOR (coluna L), conforme regra atual.">Saldo geral futuro</div>
-              <div class="v" id="kSaldoFuturo" title="Soma direta da coluna VALOR (coluna L), conforme regra atual.">R$ 0,00</div>
+              <div class="k" style="text-align: center;font-size: 14px;">Conta Financeira</div>
+              <div class="kpi-split">
+                <div class="half">
+                  <div class="hk">Movimentação</div>
+                  <div class="hv" id="kMovContaPeriodo">R$ 0,00</div>
+                </div>
+                <div class="half">
+                  <div class="hk">Saldo</div>
+                  <div class="hv" id="kSaldoContaAteFim">R$ 0,00</div>
+                </div>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="k" style="text-align: center;font-size: 14px;">Contas Gerais</div>
+              <div class="kpi-split">
+                <div class="half">
+                  <div class="hk">Movimentação</div>
+                  <div class="hv" id="kMovGeralPeriodo">R$ 0,00</div>
+                </div>
+                <div class="half">
+                  <div class="hk">Saldo</div>
+                  <div class="hv" id="kSaldoGeralAteFim">R$ 0,00</div>
+                </div>
+              </div>
+            </div>
+            <div class="kpi">
+              <div class="k" style="text-align: center;font-size: 14px;">Saldo geral futuro</div><br>
+              <div class="v" style="text-align: center;" id="kSaldoFuturo">R$ 0,00</div>
             </div>
           </div>
         </div>
@@ -567,6 +600,14 @@
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       const dd = String(d.getDate()).padStart(2, '0');
       return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function todayBr2yLocal() {
+      const d = new Date();
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(-2);
+      return dd + "/" + mm + "/" + yy;
     }
 
     function setStatus(kind, msg, autoHideMs) {
@@ -885,38 +926,83 @@
     }
 
     function calcularResumoLocal() {
-      // Se o usuário filtra por Conta Financeira e não escolhe "Conta para saldo",
-      // usamos o filtro como conta do KPI.
       const contaKpi = (document.getElementById('fContaSaldo').value || document.getElementById('fConta').value || "").trim();
-      const todayKey = dateToKey(new Date());
-      let saldoContaHoje = 0;
-      let saldoGeralHoje = 0;
-      let saldoFuturoGeral = 0;
       const f = coletarFiltros();
+      const baseAll = (cacheRows || []);
+      const maxDataPagamentoKey = baseAll.reduce(function (acc, r) {
+        const k = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
+        return (k != null && (acc == null || k > acc)) ? k : acc;
+      }, null);
+      const todayKey = dateToKey(new Date());
+      // Sem data final informada, usa a data de pagamento mais recente.
+      const periodoFimKey = dateToKey(parseIsoDateInput(f.dataPagFim)) || maxDataPagamentoKey || todayKey;
+
+      let movContaPeriodo = 0;
+      let movGeralPeriodo = 0;
+      let saldoContaAteFim = 0;
+      let saldoGeralAteFim = 0;
+      let saldoFuturoGeral = 0;
+
       const usarTudo = !_temAlgumFiltroAtivo_(f) && !_mostrarSomenteSemPagamento; // sem filtros: KPIs usam todas as linhas
-      const base = usarTudo ? (cacheRows || []) : (cacheRowsFiltered || []);
-      base.forEach(function (r) {
+      const basePeriodo = usarTudo ? (cacheRows || []) : (cacheRowsFiltered || []); // já filtrado no período
+      let deltaFuturo = 0;
+
+      // 1) Movimentação do período (respeita filtros aplicados na tabela)
+      basePeriodo.forEach(function (r) {
         const delta = saldoDelta(r["VALOR"]);
-        const valorColunaL = parseBrasilNumber(r["VALOR"]);
-        const kPag = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
-        const isPagoAteHoje = (kPag != null && kPag <= todayKey);
-        
-        // Regra solicitada: saldo geral futuro = soma direta da coluna VALOR (coluna L).
-        saldoFuturoGeral += valorColunaL;
-
-        // Saldo geral hoje: somente pagos até hoje
-        if (isPagoAteHoje) saldoGeralHoje += delta;
-
-        // Saldo conta hoje: somente pagos até hoje da conta selecionada
-        if (contaKpi
-          && isPagoAteHoje
-          && String(r["CONTA FINANCEIRA"] || '').trim() === String(contaKpi).trim()) {
-          saldoContaHoje += delta;
+        movGeralPeriodo += delta;
+        if (contaKpi && String(r["CONTA FINANCEIRA"] || '').trim() === String(contaKpi).trim()) {
+          movContaPeriodo += delta;
         }
       });
-      if (!contaKpi) saldoContaHoje = 0;
-      document.getElementById('kSaldoConta').textContent = fmtMoney(saldoContaHoje);
-      document.getElementById('kSaldoGeral').textContent = fmtMoney(saldoGeralHoje);
+
+      // 2) Saldos acumulados até fim do período (não limitados ao início do período)
+      // Mantém filtros de dimensão (cliente/projeto/status/contas), mas ignora janela de DATA PAGAMENTO inicial.
+      const fCliente = String(f.cliente || '').toLowerCase().trim();
+      const fProjeto = String(f.projeto || '').toLowerCase().trim();
+      const fStatus = String(f.status || '').toLowerCase().trim();
+      const fConta = String(f.contaFinanceira || '').toLowerCase().trim();
+      const fContaContabil = String(f.contaContabil || '').toLowerCase().trim();
+
+      baseAll.forEach(function (r) {
+        if (fCliente && String(r["CLIENTE"] || '').toLowerCase().indexOf(fCliente) < 0) return;
+        if (fProjeto && String(r["CÓDIGO DO PROJETO"] || '').toLowerCase().indexOf(fProjeto) < 0) return;
+        if (fStatus && String(r["STATUS DO PAGAMENTO"] || '').toLowerCase().indexOf(fStatus) < 0) return;
+        if (fConta && String(r["CONTA FINANCEIRA"] || '').toLowerCase().indexOf(fConta) < 0) return;
+        if (fContaContabil) {
+          const contaNome = String(r["CONTA CONTÁBIL"] || '').toLowerCase();
+          const contaDesc = String(r["DESCRICAO ABREVIADA da CONTA CONTÁBIL"] || '').toLowerCase();
+          if (contaNome.indexOf(fContaContabil) < 0 && contaDesc.indexOf(fContaContabil) < 0) return;
+        }
+
+        const delta = saldoDelta(r["VALOR"]);
+        const kPag = dateToKey(parseDateBrFlexible(r["DATA PAGAMENTO"]));
+        const isPagoAteFimPeriodo = (kPag != null && kPag <= periodoFimKey);
+        const isFuturoPosPeriodo = (kPag == null || kPag > periodoFimKey);
+
+        if (isPagoAteFimPeriodo) {
+          saldoGeralAteFim += delta;
+          if (contaKpi && String(r["CONTA FINANCEIRA"] || '').trim() === String(contaKpi).trim()) {
+            saldoContaAteFim += delta;
+          }
+        }
+
+        // Saldo futuro: projeção de saldo após o fim do período.
+        if (isFuturoPosPeriodo) {
+          deltaFuturo += delta;
+        }
+      });
+      saldoFuturoGeral = saldoGeralAteFim + deltaFuturo;
+
+      if (!contaKpi) {
+        movContaPeriodo = 0;
+        saldoContaAteFim = 0;
+      }
+
+      document.getElementById('kMovContaPeriodo').textContent = fmtMoney(movContaPeriodo);
+      document.getElementById('kSaldoContaAteFim').textContent = fmtMoney(saldoContaAteFim);
+      document.getElementById('kMovGeralPeriodo').textContent = fmtMoney(movGeralPeriodo);
+      document.getElementById('kSaldoGeralAteFim').textContent = fmtMoney(saldoGeralAteFim);
       document.getElementById('kSaldoFuturo').textContent = fmtMoney(saldoFuturoGeral);
     }
 
@@ -929,9 +1015,14 @@
     }
 
     function mostrarNovosLancamentos() {
-      _mostrarSomenteSemPagamento = true;
+      _mostrarSomenteSemPagamento = false;
       _telaInicialVazia = false;
       _avisoSelecioneFiltros = false;
+      // Evita conflito com janelas de data já preenchidas ao trocar para "últimos modificados".
+      ['fDataCompIni','fDataCompFim','fDataVencIni','fDataVencFim','fDataPagIni','fDataPagFim'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
       aplicarFiltrosEAtualizarUI();
     }
 
@@ -1214,7 +1305,7 @@
       const rowObj = Object.assign({}, src, { rowIndex: rowIndex });
       // Garante campos usados na UI
       if (rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] == null || rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] === "") {
-        rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] = isoToBr2y(new Date().toISOString().slice(0, 10));
+        rowObj["DATA DA ÚLTIMA MOFIFICAÇÃO"] = todayBr2yLocal();
       }
       if (rowObj["SALDO CONTA FINANCEIRA"] == null) rowObj["SALDO CONTA FINANCEIRA"] = "";
       if (rowObj["SALDO GERAL"] == null) rowObj["SALDO GERAL"] = "";
@@ -1276,7 +1367,7 @@
           setStatus('error', 'Erro ao salvar lançamento: ' + (err && err.message ? err.message : err), 6000);
           alert('Erro ao salvar lançamento: ' + (err && err.message ? err.message : err));
         })
-        .salvarLivroDiarioLancamento(payload, token, { fast: true });
+        .salvarLivroDiarioLancamento(payload, token);
     }
 
     function salvarCadastro() {
@@ -1369,6 +1460,33 @@
       runBatch(0);
     }
 
+    function recalcularMNAhora() {
+      const contaSel = String(document.getElementById('fContaSaldo').value || '').trim();
+      const modo = String(document.getElementById('fOrdenacao').value || 'data_pagamento');
+      const btn = document.getElementById('btnRecalcularMN');
+      if (btn) btn.disabled = true;
+      setStatus('loading', 'Recalculando colunas M/N na planilha...', 0);
+      google.script.run
+        .withSuccessHandler(function () {
+          google.script.run
+            .withSuccessHandler(function () {
+              if (btn) btn.disabled = false;
+              setStatus('success', 'M/N recalculadas com sucesso.', 1800);
+              carregarLancamentos({ preserveState: true });
+            })
+            .withFailureHandler(function (err) {
+              if (btn) btn.disabled = false;
+              setStatus('error', 'Erro ao recalcular saldos: ' + (err && err.message ? err.message : err), 7000);
+            })
+            .recalcularSaldosLivroDiario(contaSel);
+        })
+        .withFailureHandler(function (err) {
+          if (btn) btn.disabled = false;
+          setStatus('error', 'Erro ao ordenar antes do recálculo: ' + (err && err.message ? err.message : err), 7000);
+        })
+        .ordenarLivroDiario(modo);
+    }
+
     document.getElementById('mContaContabil').addEventListener('change', function () {
       preencherCamposPorContaContabil(this.value);
     });
@@ -1383,6 +1501,7 @@
     document.getElementById('btnNovoCadastro').onclick = function () { openModal('modalCadastro'); };
     document.getElementById('btnSyncPedidosMes').onclick = sincronizarPedidosDoMes;
     document.getElementById('btnExecutarSyncMes').onclick = sincronizarPedidosDoMes;
+    document.getElementById('btnRecalcularMN').onclick = recalcularMNAhora;
     document.getElementById('btnFecharLancamento').onclick = function () { closeModal('modalLancamento'); };
     document.getElementById('btnCancelarLancamento').onclick = function () { closeModal('modalLancamento'); };
     document.getElementById('btnSalvarLancamento').onclick = salvarLancamento;

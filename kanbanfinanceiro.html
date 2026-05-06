@@ -106,7 +106,7 @@
             return (p._dataVencimento || p.DATA_VENCIMENTO || p['DATA DE VENCIMENTO'] || '').toString().trim();
         }
         function getStatusPagamento(p) {
-            return (p.STATUS_PAGAMENTO || p['STATUS PAGAMENTO'] || 'Pendente').toString().trim();
+            return (p.STATUS_PAGAMENTO || p['STATUS PAGAMENTO'] || 'À pagar').toString().trim();
         }
         function parsePrimeiroVencDate(p) {
             var v = getDataVencimento(p);
@@ -126,7 +126,7 @@
         }
         function getStatusExibicao(p) {
             var status = getStatusPagamento(p);
-            if (status === 'Pago' || status === 'Pago (A VERIFICAR)') return status;
+            if (status === 'Pago' || status === 'À pagar - CONFIRMAR VALOR !!') return status;
             var dataVenc = getDataVencimento(p);
             if (dataVenc) {
                 var primeiraData = (dataVenc + '').trim().split(/[\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || '';
@@ -151,7 +151,7 @@
         function isFinalizado(p) {
             return (p.STATUS_PEDIDO || '').toString().trim().toLowerCase() === 'finalizado';
         }
-        function valorPendenteNum(p) {
+        function valorAPagarNum(p) {
             var sp = getStatusPagamento(p);
             if (sp === 'Pago') return 0;
             var vt = parseNum(p['VALOR TOTAL']);
@@ -186,16 +186,16 @@
         function bucket(p) {
             var sp = getStatusPagamento(p);
             if (sp === 'Pago') return null;
-            if (sp === 'Pago (A VERIFICAR)') return 'verificar';
+            if (sp === 'À pagar - CONFIRMAR VALOR !!') return 'verificar';
             if (sp === 'Pago parcialmente') return 'parcial';
             if (getStatusExibicao(p) === 'Atrasado') return 'atrasado';
-            return 'pendente';
+            return 'apagar';
         }
         function sortKeyAtrasado(p) {
             var d = diasDesdePrimeiroVenc(p);
             return d == null ? -999 : d;
         }
-        function sortKeyPendente(p) {
+        function sortKeyAPagar(p) {
             var d = diasAtePrimeiroVenc(p);
             if (d == null) return 99999;
             return d;
@@ -203,7 +203,7 @@
         function renderCard(p, tipoCol) {
             var proj = (p.PROJETO || '').toString();
             var cli = (p.CLIENTE || '').toString();
-            var pend = valorPendenteNum(p);
+            var pend = valorAPagarNum(p);
             var venc = getDataVencimento(p) || '—';
             var diasA = diasDesdePrimeiroVenc(p);
             var border = '#94a3b8';
@@ -212,7 +212,7 @@
                 border = corBordaAtraso(diasA);
                 var c = corBadgeAtraso(diasA);
                 badge = '<span class="badge-dias" style="background:' + c.bg + ';color:' + c.fg + ';">Atraso: ' + diasA + ' dia(s)</span>';
-            } else if (tipoCol === 'pendente') {
+            } else if (tipoCol === 'apagar') {
                 var ate = diasAtePrimeiroVenc(p);
                 if (ate != null && ate >= 0) {
                     border = ate <= 7 ? '#38bdf8' : '#94a3b8';
@@ -231,31 +231,31 @@
             return '<div class="card-k" style="border-left-color:' + border + ';">' +
                 '<strong>' + proj.replace(/</g, '&lt;') + '</strong>' +
                 '<div class="meta">' + cli.replace(/</g, '&lt;') + '</div>' +
-                '<div class="meta">Pendente: ' + formatCurrency(pend) + '</div>' +
+                '<div class="meta">À pagar: ' + formatCurrency(pend) + '</div>' +
                 '<div class="meta">Venc.: ' + String(venc).replace(/</g, '&lt;').split('\n').join(' · ') + '</div>' +
                 badge + '</div>';
         }
         function renderBoard() {
             var list = (pedidos || []).filter(isFinalizado);
-            var cols = { atrasado: [], pendente: [], parcial: [], verificar: [] };
+            var cols = { atrasado: [], apagar: [], parcial: [], verificar: [] };
             list.forEach(function (p) {
                 var b = bucket(p);
                 if (b && cols[b]) cols[b].push(p);
             });
             cols.atrasado.sort(function (a, b) { return sortKeyAtrasado(b) - sortKeyAtrasado(a); });
-            cols.pendente.sort(function (a, b) { return sortKeyPendente(a) - sortKeyPendente(b); });
+            cols.apagar.sort(function (a, b) { return sortKeyAPagar(a) - sortKeyAPagar(b); });
             cols.parcial.sort(function (a, b) {
-                var da = sortKeyAtrasado(a) > 0 ? 10000 + sortKeyAtrasado(a) : sortKeyPendente(a);
-                var db = sortKeyAtrasado(b) > 0 ? 10000 + sortKeyAtrasado(b) : sortKeyPendente(b);
+                var da = sortKeyAtrasado(a) > 0 ? 10000 + sortKeyAtrasado(a) : sortKeyAPagar(a);
+                var db = sortKeyAtrasado(b) > 0 ? 10000 + sortKeyAtrasado(b) : sortKeyAPagar(b);
                 return da - db;
             });
             cols.verificar.sort(function (a, b) { return (a.PROJETO || '').localeCompare(b.PROJETO || ''); });
 
             var defs = [
                 { id: 'atrasado', title: 'Atrasado', items: cols.atrasado },
-                { id: 'pendente', title: 'Pendente', items: cols.pendente },
+                { id: 'apagar', title: 'À pagar', items: cols.apagar },
                 { id: 'parcial', title: 'Pago parcialmente', items: cols.parcial },
-                { id: 'verificar', title: 'Pago (a verificar)', items: cols.verificar }
+                { id: 'verificar', title: 'À pagar - CONFIRMAR VALOR !!', items: cols.verificar }
             ];
             var html = '';
             defs.forEach(function (d) {

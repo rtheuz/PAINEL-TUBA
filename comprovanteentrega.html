@@ -153,6 +153,7 @@
                     <input type="file" id="arquivoComp" accept="image/*,application/pdf,.pdf">
                 </div>
                 <button type="button" class="btn btn-primary" id="btnEnviar" onclick="enviarArquivo()">Enviar comprovante</button>
+                <button type="button" class="btn" id="btnFinalizar" style="background:#0f766e;color:#fff;" onclick="finalizarPedido()">Finalizar pedido</button>
             </div>
         </div>
     </div>
@@ -304,6 +305,31 @@
                 alert('Não foi possível ler o arquivo.');
             };
             reader.readAsDataURL(file);
+        }
+
+        function finalizarPedido() {
+            if (!selecionado || !selecionado.linha) {
+                alert('Selecione um projeto.');
+                return;
+            }
+            if (!confirm('Confirmar mudança de status para Finalizado?')) return;
+            var btn = document.getElementById('btnFinalizar');
+            btn.disabled = true;
+            btn.textContent = 'Finalizando…';
+            google.script.run
+                .withSuccessHandler(function () {
+                    btn.disabled = false;
+                    btn.textContent = 'Finalizar pedido';
+                    alert('Pedido finalizado com sucesso.');
+                    voltarBusca();
+                    document.getElementById('painelResultados').style.display = 'none';
+                })
+                .withFailureHandler(function (err) {
+                    btn.disabled = false;
+                    btn.textContent = 'Finalizar pedido';
+                    alert('Erro ao finalizar: ' + (err && err.message ? err.message : err));
+                })
+                .finalizarPedidoComComprovante(selecionado.linha);
         }
     </script>
 </body>

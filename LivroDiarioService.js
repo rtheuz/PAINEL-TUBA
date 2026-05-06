@@ -112,12 +112,20 @@ function _asDateLivro(value) {
     return isNaN(value.getTime()) ? null : new Date(value.getFullYear(), value.getMonth(), value.getDate());
   }
   if (typeof value === "number" && !isNaN(value)) {
-    var ms = (value - 25569) * 86400 * 1000;
-    var dNum = new Date(ms);
-    return isNaN(dNum.getTime()) ? null : new Date(dNum.getFullYear(), dNum.getMonth(), dNum.getDate());
+    // Converte serial de data do Sheets sem deriva de timezone (evita +/-1 dia).
+    var excelEpochUtc = Date.UTC(1899, 11, 30);
+    var msUtc = excelEpochUtc + Math.round(value * 86400 * 1000);
+    var dNum = new Date(msUtc);
+    return isNaN(dNum.getTime()) ? null : new Date(dNum.getUTCFullYear(), dNum.getUTCMonth(), dNum.getUTCDate());
   }
   var s = String(value).trim();
   if (!s) return null;
+  // Remove hora quando vier "dd/MM/yyyy HH:mm:ss" ou "yyyy-MM-ddTHH:mm:ss".
+  if (s.length > 10) {
+    var mIsoDateTime = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s].*$/);
+    if (mIsoDateTime) s = mIsoDateTime[1] + "-" + mIsoDateTime[2] + "-" + mIsoDateTime[3];
+    else if (s.indexOf(" ") > -1) s = s.split(" ")[0];
+  }
   var mBr4 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (mBr4) return new Date(parseInt(mBr4[3], 10), parseInt(mBr4[2], 10) - 1, parseInt(mBr4[1], 10));
   var mBr2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
@@ -144,6 +152,12 @@ function _dateKeyLivro(value) {
   var d = _asDateLivro(value);
   if (!d) return null;
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+function _buildLivroRowBySheetHeaders_(sheetHeaders, rowObj) {
+  var headers = Array.isArray(sheetHeaders) ? sheetHeaders : [];
+  var src = rowObj || {};
+  return headers.map(function (h) { return src[h] != null ? src[h] : ""; });
 }
 
 function _numLivro(v) {
@@ -862,7 +876,7 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
     if (existing[key]) {
       toUpdate.push({ key: key, rowObj: rowObj, existing: existing[key] });
     } else {
-      toInsert.push(LIVRO_DIARIO_HEADERS.map(function (h) { return rowObj[h] != null ? rowObj[h] : ""; }));
+      toInsert.push(_buildLivroRowBySheetHeaders_(headers, rowObj));
     }
   });
 
@@ -886,7 +900,7 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   });
 
   if (toInsert.length > 0) {
-    sh.getRange(sh.getLastRow() + 1, 1, toInsert.length, LIVRO_DIARIO_HEADERS.length).setValues(toInsert);
+    sh.getRange(sh.getLastRow() + 1, 1, toInsert.length, headers.length).setValues(toInsert);
   }
 
   // Remove parcelas automáticas antigas que não existem mais no pedido atual.
@@ -1134,6 +1148,7 @@ function _validarVinculoConta(payload) {
 
 function salvarLivroDiarioLancamento(lancamento, token, options) {
   var sh = ensureLivroDiarioSheet();
+  var sheetHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
   var payloadIn = lancamento || {};
   var userName = _usuarioLancamentoPorToken(token);
   var payload = {};
@@ -1152,11 +1167,11 @@ function salvarLivroDiarioLancamento(lancamento, token, options) {
   _validarVinculoConta(payload);
 
   var rowIndex = parseInt(payloadIn.rowIndex, 10);
-  var values = LIVRO_DIARIO_HEADERS.map(function (h) { return payload[h] != null ? payload[h] : ""; });
+  var values = _buildLivroRowBySheetHeaders_(sheetHeaders, payload);
   if (!isNaN(rowIndex) && rowIndex >= 2 && rowIndex <= sh.getLastRow()) {
     sh.getRange(rowIndex, 1, 1, values.length).setValues([values]);
   } else {
-    sh.appendRow(values);
+    sh.getRange(sh.getLastRow() + 1, 1, 1, values.length).setValues([values]);
     rowIndex = sh.getLastRow();
   }
 
@@ -1222,12 +1237,17 @@ function getLivroDiarioLancamentos(filtros) {
 function ordenarLivroDiario(modo) {
   var sh = ensureLivroDiarioSheet();
   if (sh.getLastRow() < 3) return { ok: true, rows: Math.max(0, sh.getLastRow() - 1) };
-  var selectedMode = (modo === "data_vencimento") ? "data_vencimento" : "data_pagamento";
+  // Regra única solicitada:
+  // 1) DATA PAGAMENTO ascendente (linhas com pagamento)
+  // 2) restante (sem pagamento) por DATA VENCIMENTO ascendente
+  var selectedMode = "data_pagamento";
   _setLivroDiarioPrefs({ modoOrdenacao: selectedMode });
 
   var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var idxDataComp = _findHeaderIndexGeneric(headers, "DATA COMPETÊNCIA");
   var idxDataVenc = _findHeaderIndexGeneric(headers, "DATA VENCIMENTO");
   var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
+  var idxDum = _findHeaderIndexGeneric(headers, "DATA DA ÚLTIMA MOFIFICAÇÃO");
   var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
 
   data.sort(function (a, b) {
@@ -1238,21 +1258,23 @@ function ordenarLivroDiario(modo) {
     var hasPagA = kpA != null;
     var hasPagB = kpB != null;
 
-    if (selectedMode === "data_pagamento") {
-      if (hasPagA && hasPagB) {
-        if (kpA !== kpB) return kpA - kpB;
-        if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
-        return 0;
-      }
-      if (hasPagA && !hasPagB) return -1;
-      if (!hasPagA && hasPagB) return 1;
+    if (hasPagA && hasPagB) {
+      if (kpA !== kpB) return kpA - kpB;
       if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
       return 0;
     }
-
+    if (hasPagA && !hasPagB) return -1;
+    if (!hasPagA && hasPagB) return 1;
     if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
-    if ((kpA || 99999999) !== (kpB || 99999999)) return (kpA || 99999999) - (kpB || 99999999);
     return 0;
+  });
+
+  // Evita deriva de timezone ao regravar linhas: persiste datas em formato BR textual.
+  data.forEach(function (r) {
+    if (idxDataComp >= 0) r[idxDataComp] = _formatDateLivro2y(r[idxDataComp]);
+    if (idxDataVenc >= 0) r[idxDataVenc] = _formatDateLivro2y(r[idxDataVenc]);
+    if (idxDataPag >= 0) r[idxDataPag] = _formatDateLivro2y(r[idxDataPag]);
+    if (idxDum >= 0) r[idxDum] = _formatDateLivro2y(r[idxDum]);
   });
 
   sh.getRange(2, 1, data.length, sh.getLastColumn()).setValues(data);
@@ -1271,6 +1293,7 @@ function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
 
   var prefs = _getLivroDiarioPrefs();
   var contaSel = _normLivro(contaFinanceiraSelecionada != null ? contaFinanceiraSelecionada : prefs.contaFinanceiraSaldo);
+  var contaSelKey = _normKeyLivro_(contaSel);
   if (contaFinanceiraSelecionada != null) _setLivroDiarioPrefs({ contaFinanceiraSaldo: contaSel });
 
   var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
@@ -1280,28 +1303,34 @@ function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
   var saldoGeralHoje = 0;
   var saldoContaHoje = 0;
   var saldoFuturoGeral = 0;
+  var outSaldoConta = [];
+  var outSaldoGeral = [];
 
   data.forEach(function (r) {
     var delta = _saldoDeltaLivro(r[idxValor]);
     saldoGeral += delta;
-    if (contaSel && _normLivro(r[idxConta]) === contaSel) {
+    var contaRowKey = _normKeyLivro_(r[idxConta]);
+    if (contaSelKey && contaRowKey === contaSelKey) {
       saldoConta += delta;
-      r[idxSaldoConta] = saldoConta;
+      outSaldoConta.push([saldoConta]);
     } else {
-      r[idxSaldoConta] = contaSel ? r[idxSaldoConta] || "" : "";
+      // Evita manter saldo antigo/stale de outro filtro de conta selecionada.
+      outSaldoConta.push([""]);
     }
-    r[idxSaldoGeral] = saldoGeral;
+    // Coluna N: saldo geral acumulado linha a linha (impacto = -VALOR).
+    outSaldoGeral.push([saldoGeral]);
     saldoFuturoGeral += delta;
 
     var kp = _dateKeyLivro(r[idxDataPag]);
     if (kp != null && kp <= todayKey) {
       saldoGeralHoje += delta;
-      if (contaSel && _normLivro(r[idxConta]) === contaSel) saldoContaHoje += delta;
+      if (contaSelKey && contaRowKey === contaSelKey) saldoContaHoje += delta;
     }
   });
 
   if (data.length > 0) {
-    sh.getRange(2, 1, data.length, sh.getLastColumn()).setValues(data);
+    if (idxSaldoConta >= 0) sh.getRange(2, idxSaldoConta + 1, data.length, 1).setValues(outSaldoConta);
+    if (idxSaldoGeral >= 0) sh.getRange(2, idxSaldoGeral + 1, data.length, 1).setValues(outSaldoGeral);
   }
   return {
     ok: true,

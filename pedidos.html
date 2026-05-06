@@ -133,7 +133,7 @@
         .valor-pago { color: #065f46; font-weight: 600; }
 
         .status-pago { background: #d1fae5; color: #065f46; }
-        .status-pendente { background: #fef3c7; color: #92400e; }
+        .status-apagar { background: #fef3c7; color: #92400e; }
         .status-atrasado { background: #fee2e2; color: #991b1b; }
         .status-parcial { background: #dbeafe; color: #1e40af; }
         .status-averificar { background: #e0e7ff; color: #3730a3; }
@@ -178,9 +178,9 @@
         .celula-multilinha .parcela-linha { margin-bottom: 2px; }
         .celula-vencimento { min-width: 120px; }
         .venc-line { display: block; line-height: 1.4; white-space: nowrap; }
-        .celula-valor-pendente { min-width: 160px; line-height: 1.5; }
+        .celula-valor-apagar { min-width: 160px; line-height: 1.5; }
         table td.col-parcelas, table th.col-parcelas { min-width: 220px; }
-        table td.col-valor-pendente, table th.col-valor-pendente { min-width: 160px; }
+        table td.col-valor-apagar, table th.col-valor-apagar { min-width: 160px; }
         table td.col-obs, table th.col-obs { min-width: 120px; max-width: 200px; }
         .status-inline-select { font-size: 12px; max-width: 168px; padding: 5px 8px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: inherit; background: #fff; }
         .status-inline-hint { display: block; font-size: 10px; color: #64748b; margin-top: 4px; max-width: 168px; }
@@ -249,11 +249,11 @@
                     <div class="form-group">
                         <label>Status de pagamento</label>
                         <select id="editStatusPagamento">
-                            <option value="Pendente">Pendente</option>
+                            <option value="À pagar">À pagar</option>
                             <option value="Pago">Pago</option>
                             <option value="Atrasado">Atrasado</option>
                             <option value="Pago parcialmente">Pago parcialmente</option>
-                            <option value="Pago (A VERIFICAR)">Pago (A VERIFICAR)</option>
+                            <option value="À pagar - CONFIRMAR VALOR !!">À pagar - CONFIRMAR VALOR !!</option>
                         </select>
                     </div>
                     <div class="form-group historico-pagamentos-group">
@@ -322,10 +322,10 @@
                     <label>Status de pagamento (múltipla escolha)</label>
                     <div class="filter-checkboxes" id="statusPagFilterGroup">
                         <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago"> Pago</label>
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pendente"> Pendente</label>
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="À pagar"> À pagar</label>
                         <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Atrasado"> Atrasado</label>
                         <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago parcialmente"> Pago parcialmente</label>
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago (A VERIFICAR)"> Pago (A VERIFICAR)</label>
+                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="À pagar - CONFIRMAR VALOR !!"> À pagar - CONFIRMAR VALOR !!</label>
                     </div>
                 </div>
             </div>
@@ -345,7 +345,7 @@
         const token = '<?= token ?>';
         var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-        var STATUS_PAGAMENTO_OPTIONS = ['Pendente', 'Pago', 'Atrasado', 'Pago parcialmente', 'Pago (A VERIFICAR)'];
+        var STATUS_PAGAMENTO_OPTIONS = ['À pagar', 'Pago', 'Atrasado', 'Pago parcialmente', 'À pagar - CONFIRMAR VALOR !!'];
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
         function escapeHtmlAttr(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -456,7 +456,7 @@
             return (p._dataVencimento || p["DATA_VENCIMENTO"] || p["DATA DE VENCIMENTO"] || "").toString().trim();
         }
         function getStatusPagamento(p) {
-            return (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "Pendente").toString().trim();
+            return (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "À pagar").toString().trim();
         }
         function getNotaFiscal(p) {
             return (p["NF"] || p["NOTA_FISCAL"] || p["NOTA FISCAL"] || "").toString().trim();
@@ -626,7 +626,7 @@
 
         function getStatusExibicao(p) {
             var status = getStatusPagamento(p);
-            if (status === "Pago" || status === "Pago (A VERIFICAR)") return status;
+            if (status === "Pago" || status === "À pagar - CONFIRMAR VALOR !!") return status;
             var dataVenc = getDataVencimento(p);
             if (dataVenc) {
                 var primeiraData = (dataVenc + "").trim().split(/[\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean)[0] || "";
@@ -705,11 +705,11 @@
         function getStatusPagamentoClass(status) {
             if (!status) return '';
             var s = (status || "").toLowerCase();
-            if (s.indexOf('pago') >= 0 && s.indexOf('verificar') >= 0) return 'status-averificar';
+            if (s.indexOf('pago') >= 0 && s.indexOf('confirmar') >= 0) return 'status-averificar';
             if (s.indexOf('pago') >= 0 && s.indexOf('parcial') >= 0) return 'status-parcial';
             if (s.indexOf('pago') >= 0) return 'status-pago';
             if (s.indexOf('atrasado') >= 0) return 'status-atrasado';
-            return 'status-pendente';
+            return 'status-apagar';
         }
 
         function populateMesFilter() {
@@ -766,7 +766,7 @@
                 return na - nb;
             }
             if (key === 'STATUS_PAGAMENTO') {
-                var orderStatus = ['Pendente', 'Atrasado', 'Pago parcialmente', 'Pago (A VERIFICAR)', 'Pago'];
+                var orderStatus = ['À pagar', 'Atrasado', 'Pago parcialmente', 'À pagar - CONFIRMAR VALOR !!', 'Pago'];
                 var ia = orderStatus.indexOf(getStatusExibicao(a) || '');
                 var ib = orderStatus.indexOf(getStatusExibicao(b) || '');
                 if (ia < 0) ia = 999;
@@ -878,7 +878,7 @@
                 { key: '_dataEntrega', label: 'Data entrega', sortable: true, colClass: '' },
                 { key: '_dataVencimento', label: 'Data venc.', sortable: true, colClass: 'celula-vencimento' },
                 { key: '_historicoPagamentos', label: 'Parcelas e pgtos.', sortable: true, colClass: 'col-parcelas parcelas-resumo celula-multilinha' },
-                { key: '_valorRestante', label: 'Valor pendente', sortable: true, colClass: 'col-valor-pendente celula-valor-pendente' },
+                { key: '_valorRestante', label: 'Valor à pagar', sortable: true, colClass: 'col-valor-apagar celula-valor-apagar' },
                 { key: 'STATUS_PAGAMENTO', label: 'Status pgto. pedido', sortable: true, colClass: '' },
                 { key: '_obs', label: 'OBS', sortable: false, colClass: 'col-obs' },
                 { key: '', label: 'Ações', sortable: false, colClass: '' }
@@ -897,9 +897,9 @@
                 var valorPagoNum = parseNum(p["VALOR_PAGO"] || p["VALOR PAGO"]) || 0;
                 var valorTotalNum = parseNum(p["VALOR TOTAL"]) || 0;
                 var pagoLabel = 'Pago: ' + (valorPagoNum > 0 ? formatCurrency(valorPagoNum) : '-');
-                var valorPendenteCell = getValorRestante(p) === null
+                var valorapagarCell = getValorRestante(p) === null
                     ? 'Pago: ' + formatCurrency(valorTotalNum)
-                    : pagoLabel + '<br>Pendente: ' + formatCurrency(p._valorRestante);
+                    : pagoLabel + '<br>À pagar: ' + formatCurrency(p._valorRestante);
                 var dataVencStr = getDataVencimentoMultilinha(p);
                 var dataVencCellHtml = (dataVencStr === '-' || dataVencStr.indexOf('\n') < 0)
                     ? dataVencStr
@@ -941,7 +941,7 @@
                     '<td>' + formatDateDisplay(getDataEntrega(p)) + '</td>' +
                     '<td class="celula-multilinha celula-vencimento">' + dataVencCellHtml + '</td>' +
                     '<td class="col-parcelas parcelas-resumo celula-multilinha">' + parcelasCellHtml + '</td>' +
-                    '<td class="col-valor-pendente celula-valor-pendente">' + valorPendenteCell + '</td>' +
+                    '<td class="col-valor-apagar celula-valor-apagar">' + valorapagarCell + '</td>' +
                     '<td>' + statusCellHtml + '</td>' +
                     '<td class="col-obs">' + (p.OBS != null ? String(p.OBS).replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/&/g, '&amp;') : '') + '</td>' +
                     '<td>' + acoesHtml + '</td>' +
@@ -1087,7 +1087,7 @@
             else if (somaHistorico >= valorTotal - 0.01) novoStatus = 'Pago';
             else if (somaHistorico > 0) novoStatus = 'Pago parcialmente';
             else {
-                // Pendente sem pagamento: verificar se há vencimento no passado para exibir Atrasado (igual à tabela)
+                // À pagar sem pagamento: verificar se há vencimento no passado para exibir Atrasado (igual à tabela)
                 var vencEl = document.getElementById('editDataVencimento');
                 var vencStr = (vencEl && vencEl.value) ? (vencEl.value + '').trim().split(/[\n,]+/)[0] : '';
                 var m = vencStr && vencStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -1097,8 +1097,8 @@
                     hoje.setHours(0, 0, 0, 0);
                     d.setHours(0, 0, 0, 0);
                     if (d.getTime() < hoje.getTime()) novoStatus = 'Atrasado';
-                    else novoStatus = 'Pendente';
-                } else novoStatus = 'Pendente';
+                    else novoStatus = 'À pagar';
+                } else novoStatus = 'À pagar';
             }
             sel.value = novoStatus;
         }
@@ -1148,7 +1148,7 @@
             }
             var valorTotalNum = parseNum(p["VALOR TOTAL"]);
             // Usar status de exibição (ex.: Atrasado quando vencimento passou) para manter consistência com a tabela
-            document.getElementById('editStatusPagamento').value = getStatusExibicao(p) || getStatusPagamento(p) || 'Pendente';
+            document.getElementById('editStatusPagamento').value = getStatusExibicao(p) || getStatusPagamento(p) || 'À pagar';
             document.getElementById('editPedidoModal').setAttribute('data-valor-total', String(valorTotalNum));
 
             editHistoricoPagamentos = (p._historicoPagamentos || []).map(function (x, i) {
@@ -1204,7 +1204,7 @@
             } else {
                 updates.VALOR_PAGO = '';
             }
-            updates.STATUS_PAGAMENTO = statusPagamento || 'Pendente';
+            updates.STATUS_PAGAMENTO = statusPagamento || 'À pagar';
             updates.HISTORICO_PAGAMENTOS = JSON.stringify(editHistoricoPagamentos);
             var editObsEl = document.getElementById('editObs');
             updates.OBS = (editObsEl && editObsEl.value) ? editObsEl.value.trim() : '';
