@@ -289,8 +289,7 @@
                         btn.disabled = false;
                         btn.textContent = 'Enviar comprovante';
                         alert('Comprovante salvo com sucesso.');
-                        voltarBusca();
-                        document.getElementById('painelResultados').style.display = 'none';
+                        document.getElementById('arquivoComp').value = '';
                     })
                     .withFailureHandler(function (err) {
                         btn.disabled = false;
@@ -321,8 +320,6 @@
                     btn.disabled = false;
                     btn.textContent = 'Finalizar pedido';
                     alert('Pedido finalizado com sucesso.');
-                    voltarBusca();
-                    document.getElementById('painelResultados').style.display = 'none';
                 })
                 .withFailureHandler(function (err) {
                     btn.disabled = false;

@@ -3309,6 +3309,7 @@ const USUARIOS = {
   "IcaroFerreira": { senha: "if6258", nivel: "usuario" },
   "AndreGomes": { senha: "ag7043", nivel: "mod" },
   "Bruna": { senha: "bbbraga123", nivel: "mod" },
+  "TUBA": { senha: "Tuba0102", nivel: "admin" },
   "TV": { senha: "tv123", nivel: "usuario" },
   "Visitante": { senha: "visitante", nivel: "visitante" }
 };

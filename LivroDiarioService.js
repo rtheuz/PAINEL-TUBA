@@ -26,16 +26,10 @@ const LIVRO_DIARIO_CAD_HEADERS = [
   "MEIO de PAGAMENTO",
   "VALIDADE FISCAL",
   "STATUS DO PAGAMENTO",
-  // Cadastro complementar de projetos (para autocomplete e vínculo Código↔Descrição)
+  // Cadastro complementar usado no Livro Diário (mantido mínimo para evitar expansão indevida de colunas)
   "CÓDIGO DO PROJETO",
   "DESCRIÇÃO do PROJETO",
-  "PARCEIRO/CLIENTE",
-  "NATUREZA do PROJETO",
-  "OBSERVAÇÕES",
-  "STATUS",
-  "LANÇAMENTO RESPONSÁVEL",
-  "LANÇAMENTO DATA",
-  "DATA da ÚLTIMA MOFIFICAÇÃO (DUM)"
+  "PARCEIRO/CLIENTE"
 ];
 
 const LIVRO_DIARIO_PREFS_KEY = "LIVRO_DIARIO_PREFS_V1";
@@ -139,6 +133,46 @@ function _asDateLivro(value) {
   return null;
 }
 
+function _parseMesPtBr_(s) {
+  var t = String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  var map = {
+    janeiro: 1, jan: 1,
+    fevereiro: 2, fev: 2,
+    marco: 3, mar: 3,
+    abril: 4, abr: 4,
+    maio: 5, mai: 5,
+    junho: 6, jun: 6,
+    julho: 7, jul: 7,
+    agosto: 8, ago: 8,
+    setembro: 9, set: 9,
+    outubro: 10, out: 10,
+    novembro: 11, nov: 11,
+    dezembro: 12, dez: 12
+  };
+  var ks = Object.keys(map);
+  for (var i = 0; i < ks.length; i++) {
+    if (t.indexOf(ks[i]) >= 0) return map[ks[i]];
+  }
+  return null;
+}
+
+function _safeSetRowValues_(sheet, rowIndex, values) {
+  var rg = sheet.getRange(rowIndex, 1, 1, values.length);
+  try {
+    rg.setValues([values]);
+  } catch (e) {
+    var msg = String((e && e.message) || e || "");
+    if (msg.toLowerCase().indexOf("valida") >= 0) {
+      // Em algumas planilhas há validações herdadas em colunas editáveis do Livro Diário.
+      // Para gravação vinda da UI, removemos validação da linha-alvo e gravamos.
+      rg.clearDataValidations();
+      rg.setValues([values]);
+      return;
+    }
+    throw e;
+  }
+}
+
 function _formatDateLivro2y(value) {
   var d = _asDateLivro(value);
   if (!d) return "";
@@ -154,10 +188,55 @@ function _dateKeyLivro(value) {
   return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 }
 
+function _normHeaderKeyLivro_(v) {
+  return String(v == null ? "" : v)
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function _resolveLivroValueByHeader_(header, rowObj) {
+  var src = rowObj || {};
+  if (src[header] != null) return src[header];
+  var hk = _normHeaderKeyLivro_(header);
+  var aliases = {
+    datacompetencia: ["DATA COMPETÊNCIA", "DATA COMPETENCIA", "DATA_COMPETENCIA"],
+    datavencimento: ["DATA VENCIMENTO", "DATA_VENCIMENTO", "DATA VENC"],
+    datapagamento: ["DATA PAGAMENTO", "DATA_PAGAMENTO", "DATA CAIXA"],
+    cliente: ["CLIENTE", "PARCEIRO/CLIENTE", "PARCEIRO CLIENTE"],
+    codigodoprojeto: ["CÓDIGO DO PROJETO", "CODIGO DO PROJETO", "PROJETO", "CÓDIGO", "CODIGO"],
+    descricaodoprojeto: ["DESCRIÇÃO DO PROJETO", "DESCRICAO DO PROJETO"],
+    contacontabil: ["CONTA CONTÁBIL", "CONTA CONTABIL"],
+    descricaoabreviadadacontacontabil: ["DESCRICAO ABREVIADA da CONTA CONTÁBIL", "DESCRICAO ABREVIADA DA CONTA CONTABIL", "DESCRICAO ABREVIADA"],
+    contafinanceira: ["CONTA FINANCEIRA"],
+    meiodepagamento: ["MEIO de PAGAMENTO", "MEIO DE PAGAMENTO"],
+    validadefiscal: ["VALIDADE FISCAL"],
+    valor: ["VALOR", "VALOR TOTAL", "VALOR_TOTAL"],
+    saldocontafinanceira: ["SALDO CONTA FINANCEIRA"],
+    saldogeral: ["SALDO GERAL"],
+    statusdopagamento: ["STATUS DO PAGAMENTO", "STATUS PAGAMENTO"],
+    responsaveldolancamento: ["RESPONSÁVEL DO LANÇAMENTO", "RESPONSAVEL DO LANCAMENTO", "LANÇAMENTO RESPONSÁVEL"],
+    datadaultimamofificacao: ["DATA DA ÚLTIMA MOFIFICAÇÃO", "DATA DA ULTIMA MODIFICACAO", "DATA da ÚLTIMA MOFIFICAÇÃO (DUM)"],
+    observacoes: ["OBSERVAÇÕES", "OBSERVACOES", "OBS"]
+  };
+  var cands = aliases[hk] || [];
+  for (var i = 0; i < cands.length; i++) {
+    var k = cands[i];
+    if (src[k] != null) return src[k];
+  }
+  var srcKeys = Object.keys(src);
+  for (var j = 0; j < srcKeys.length; j++) {
+    if (_normHeaderKeyLivro_(srcKeys[j]) === hk) return src[srcKeys[j]];
+  }
+  return "";
+}
+
 function _buildLivroRowBySheetHeaders_(sheetHeaders, rowObj) {
   var headers = Array.isArray(sheetHeaders) ? sheetHeaders : [];
   var src = rowObj || {};
-  return headers.map(function (h) { return src[h] != null ? src[h] : ""; });
+  return headers.map(function (h) {
+    return _resolveLivroValueByHeader_(h, src);
+  });
 }
 
 function _numLivro(v) {
@@ -944,6 +1023,8 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
     if (mIso) return parseInt(mIso[2], 10);
     var d = new Date(s);
     if (!isNaN(d.getTime())) return d.getMonth() + 1;
+    var mPt = _parseMesPtBr_(s);
+    if (mPt != null) return mPt;
     return null;
   }
 
@@ -972,7 +1053,16 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
         if (!codP) return;
         if (seenCod[codP]) return;
         seenCod[codP] = true;
-        var dataCompP = p.DATA_COMPETENCIA || p["DATA COMPETÊNCIA"] || p["DATA_COMPETENCIA"] || p.DATA || "";
+        var dataCompP =
+          p.DATA_COMPETENCIA ||
+          p["DATA COMPETÊNCIA"] ||
+          p["DATA_COMPETENCIA"] ||
+          p.DATA ||
+          p.DATA_ENTREGA ||
+          p["DATA ENTREGA"] ||
+          p.DATA_VENCIMENTO ||
+          p["DATA VENCIMENTO"] ||
+          "";
         pedRows.push({
           codigo: codP,
           mesCompetencia: _mesCompetenciaFromValue_(dataCompP),
@@ -1054,9 +1144,15 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
           if (!codRow) continue;
           if (seenCod[codRow]) continue;
           seenCod[codRow] = true;
+          var dataCompRaw = (idxDataComp >= 0 ? rr[idxDataComp] : "");
+          if (!dataCompRaw) {
+            var idxDataEnt = _findPedCol_(["DATA_ENTREGA", "DATA ENTREGA"]);
+            var idxDataVenc0 = _findPedCol_(["DATA_VENCIMENTO", "DATA VENCIMENTO", "DATA VENC"]);
+            dataCompRaw = idxDataEnt >= 0 ? rr[idxDataEnt] : (idxDataVenc0 >= 0 ? rr[idxDataVenc0] : "");
+          }
           pedRows.push({
             codigo: codRow,
-            mesCompetencia: _mesCompetenciaFromValue_(idxDataComp >= 0 ? rr[idxDataComp] : ""),
+            mesCompetencia: _mesCompetenciaFromValue_(dataCompRaw),
             rowPed: _rowPedFromSheetRow_(rr)
           });
         }
@@ -1169,9 +1265,9 @@ function salvarLivroDiarioLancamento(lancamento, token, options) {
   var rowIndex = parseInt(payloadIn.rowIndex, 10);
   var values = _buildLivroRowBySheetHeaders_(sheetHeaders, payload);
   if (!isNaN(rowIndex) && rowIndex >= 2 && rowIndex <= sh.getLastRow()) {
-    sh.getRange(rowIndex, 1, 1, values.length).setValues([values]);
+    _safeSetRowValues_(sh, rowIndex, values);
   } else {
-    sh.getRange(sh.getLastRow() + 1, 1, 1, values.length).setValues([values]);
+    _safeSetRowValues_(sh, sh.getLastRow() + 1, values);
     rowIndex = sh.getLastRow();
   }
 
@@ -1237,10 +1333,8 @@ function getLivroDiarioLancamentos(filtros) {
 function ordenarLivroDiario(modo) {
   var sh = ensureLivroDiarioSheet();
   if (sh.getLastRow() < 3) return { ok: true, rows: Math.max(0, sh.getLastRow() - 1) };
-  // Regra única solicitada:
-  // 1) DATA PAGAMENTO ascendente (linhas com pagamento)
-  // 2) restante (sem pagamento) por DATA VENCIMENTO ascendente
-  var selectedMode = "data_pagamento";
+  var selectedMode = String(modo || "data_pagamento");
+  if (selectedMode !== "data_vencimento") selectedMode = "data_pagamento";
   _setLivroDiarioPrefs({ modoOrdenacao: selectedMode });
 
   var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
@@ -1248,7 +1342,64 @@ function ordenarLivroDiario(modo) {
   var idxDataVenc = _findHeaderIndexGeneric(headers, "DATA VENCIMENTO");
   var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
   var idxDum = _findHeaderIndexGeneric(headers, "DATA DA ÚLTIMA MOFIFICAÇÃO");
+  var idxProjeto = _findHeaderIndexGeneric(headers, "CÓDIGO DO PROJETO");
+  var idxObs = _findHeaderIndexGeneric(headers, "OBSERVAÇÕES");
   var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+
+  // Blindagem: remove duplicados de lançamentos automáticos de parcela
+  // (mesmo CÓDIGO DO PROJETO + mesmo marcador [AUTO_PEDIDO_PARCELA_X_Y] em OBSERVAÇÕES).
+  if (idxProjeto >= 0 && idxObs >= 0) {
+    var bestByAutoKey = {};
+    var orderedKeys = [];
+    function _rowScore_(r) {
+      var s = 0;
+      for (var c = 0; c < r.length; c++) {
+        if (r[c] !== "" && r[c] != null) s++;
+      }
+      // Prioriza manter linha com data de pagamento preenchida.
+      if (idxDataPag >= 0 && _normLivro(r[idxDataPag])) s += 10;
+      // Prioriza linha com DUM mais recente.
+      if (idxDum >= 0) {
+        var k = _dateKeyLivro(r[idxDum]);
+        if (k != null) s += (k / 1000000);
+      }
+      return s;
+    }
+    data.forEach(function (r) {
+      var cod = _normLivro(r[idxProjeto]);
+      var obs = _normLivro(r[idxObs]);
+      var isAuto = obs.indexOf("[AUTO_PEDIDO_PARCELA_") === 0;
+      if (!cod || !isAuto) return;
+      var key = cod + "|" + obs;
+      if (!bestByAutoKey[key]) {
+        bestByAutoKey[key] = { row: r, score: _rowScore_(r) };
+        orderedKeys.push(key);
+        return;
+      }
+      var scoreNew = _rowScore_(r);
+      if (scoreNew > bestByAutoKey[key].score) {
+        bestByAutoKey[key] = { row: r, score: scoreNew };
+      }
+    });
+    if (orderedKeys.length) {
+      var used = {};
+      var deduped = [];
+      data.forEach(function (r) {
+        var cod = _normLivro(r[idxProjeto]);
+        var obs = _normLivro(r[idxObs]);
+        var isAuto = cod && obs.indexOf("[AUTO_PEDIDO_PARCELA_") === 0;
+        if (!isAuto) {
+          deduped.push(r);
+          return;
+        }
+        var key = cod + "|" + obs;
+        if (used[key]) return;
+        used[key] = true;
+        deduped.push(bestByAutoKey[key].row);
+      });
+      data = deduped;
+    }
+  }
 
   data.sort(function (a, b) {
     var kpA = _dateKeyLivro(a[idxDataPag]);
@@ -1258,15 +1409,23 @@ function ordenarLivroDiario(modo) {
     var hasPagA = kpA != null;
     var hasPagB = kpB != null;
 
-    if (hasPagA && hasPagB) {
-      if (kpA !== kpB) return kpA - kpB;
+    if (selectedMode === "data_vencimento") {
+      if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
+      if (hasPagA && hasPagB) return kpA - kpB;
+      if (hasPagA && !hasPagB) return -1;
+      if (!hasPagA && hasPagB) return 1;
+      return 0;
+    } else {
+      if (hasPagA && hasPagB) {
+        if (kpA !== kpB) return kpA - kpB;
+        if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
+        return 0;
+      }
+      if (hasPagA && !hasPagB) return -1;
+      if (!hasPagA && hasPagB) return 1;
       if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
       return 0;
     }
-    if (hasPagA && !hasPagB) return -1;
-    if (!hasPagA && hasPagB) return 1;
-    if ((kvA || 99999999) !== (kvB || 99999999)) return (kvA || 99999999) - (kvB || 99999999);
-    return 0;
   });
 
   // Evita deriva de timezone ao regravar linhas: persiste datas em formato BR textual.
@@ -1277,8 +1436,25 @@ function ordenarLivroDiario(modo) {
     if (idxDum >= 0) r[idxDum] = _formatDateLivro2y(r[idxDum]);
   });
 
+  if (sh.getLastRow() - 1 > data.length) {
+    sh.getRange(data.length + 2, 1, (sh.getLastRow() - 1) - data.length, sh.getLastColumn()).clearContent();
+  }
   sh.getRange(2, 1, data.length, sh.getLastColumn()).setValues(data);
   return { ok: true, rows: data.length, modoOrdenacao: selectedMode };
+}
+
+function ordenarLivroDiarioPorDataPagamento() {
+  var r = ordenarLivroDiario("data_pagamento");
+  var prefs = _getLivroDiarioPrefs();
+  recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+  return r;
+}
+
+function ordenarLivroDiarioPorDataVencimento() {
+  var r = ordenarLivroDiario("data_vencimento");
+  var prefs = _getLivroDiarioPrefs();
+  recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+  return r;
 }
 
 function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
@@ -1498,9 +1674,53 @@ function onEdit(e) {
     var c1 = c0 + e.range.getNumColumns() - 1;
 
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var idxDataComp = _findHeaderIndexGeneric(headers, "DATA COMPETÊNCIA");
+    var idxDataVenc = _findHeaderIndexGeneric(headers, "DATA VENCIMENTO");
+    var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
+    var idxContaFin = _findHeaderIndexGeneric(headers, "CONTA FINANCEIRA");
+    var idxValor = _findHeaderIndexGeneric(headers, "VALOR");
+    var idxSaldoConta = _findHeaderIndexGeneric(headers, "SALDO CONTA FINANCEIRA");
     var maps = _getLivroCadastroMapsCached_();
     for (var r = r0; r < r0 + numRows; r++) {
       _syncLivroDiarioLinhaComCadastro_(sheet, r, headers, maps, c0, c1);
+    }
+
+    // Formatação rápida de data digitada sem separador (ex.: 100525 -> 10/05/25)
+    if (numRows === 1 && e.range.getNumColumns() === 1) {
+      var col0 = c0 - 1;
+      var isDateCol = (col0 === idxDataComp || col0 === idxDataVenc || col0 === idxDataPag);
+      if (isDateCol && e.value != null && e.value !== "") {
+        var raw = String(e.value).replace(/\D/g, "");
+        if (raw.length >= 4 && raw.length <= 8) {
+          var dia = "", mes = "", anoNum = null;
+          if (raw.length === 4) {
+            dia = raw.slice(0, 2); mes = raw.slice(2, 4); anoNum = new Date().getFullYear();
+          } else if (raw.length === 6) {
+            dia = raw.slice(0, 2); mes = raw.slice(2, 4);
+            var yy = parseInt(raw.slice(4, 6), 10);
+            anoNum = yy < 80 ? 2000 + yy : 1900 + yy;
+          } else if (raw.length === 8) {
+            dia = raw.slice(0, 2); mes = raw.slice(2, 4); anoNum = parseInt(raw.slice(4, 8), 10);
+          }
+          var d0 = parseInt(dia, 10), m0 = parseInt(mes, 10);
+          if (!isNaN(d0) && !isNaN(m0) && d0 >= 1 && d0 <= 31 && m0 >= 1 && m0 <= 12 && anoNum) {
+            var dt = new Date(anoNum, m0 - 1, d0, 12, 0, 0);
+            if (!isNaN(dt.getTime())) {
+              e.range.setValue(dt).setNumberFormat("dd/MM/yy");
+            }
+          }
+        }
+      }
+    }
+
+    // Edição direta na planilha que afeta saldos: recalcula automaticamente.
+    var touchedSaldoCols = [idxContaFin, idxValor, idxDataPag, idxSaldoConta]
+      .filter(function (i) { return i >= 0; })
+      .map(function (i) { return i + 1; });
+    var touchedSaldo = touchedSaldoCols.some(function (c) { return c >= c0 && c <= c1; });
+    if (touchedSaldo) {
+      var prefs = _getLivroDiarioPrefs();
+      recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
     }
   } catch (err) {
     Logger.log("onEdit LivroDiario: " + (err && err.message ? err.message : err));
@@ -1526,4 +1746,63 @@ function removerLancamentosLivroDiarioPorProjeto(codigoProjeto) {
   });
   toDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) { sh.deleteRow(rowIdx); });
   return { ok: true, removidos: toDelete.length };
+}
+
+function recalcularLivroDiarioAgora() {
+  var prefs = _getLivroDiarioPrefs();
+  return recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+}
+
+function onOpenMenuLivroDiario() {
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.createMenu("Livro Diario")
+      .addItem("📅 Ordenar por data de pagamento", "ordenarLivroDiarioPorDataPagamento")
+      .addItem("📅 Ordenar por data de vencimento", "ordenarLivroDiarioPorDataVencimento")
+      .addSeparator()
+      .addItem("💰 Recalcular saldos M/N agora", "recalcularLivroDiarioAgora")
+      .addToUi();
+  } catch (e) {
+    Logger.log("onOpen LivroDiario menu: " + (e && e.message ? e.message : e));
+  }
+}
+
+function onOpen(e) {
+  onOpenMenuLivroDiario(e);
+}
+
+function onInstall(e) {
+  onOpenMenuLivroDiario(e);
+}
+
+function instalarTriggerOnOpenLivroDiario() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error("Planilha ativa não encontrada para instalar trigger.");
+  var ssId = ss.getId();
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    var t = triggers[i];
+    var h = t.getHandlerFunction();
+    if (h === "onOpen" || h === "onOpenMenuLivroDiario") {
+      try { ScriptApp.deleteTrigger(t); } catch (eDel) {}
+    }
+  }
+  ScriptApp.newTrigger("onOpenMenuLivroDiario").forSpreadsheet(ssId).onOpen().create();
+  return { ok: true, spreadsheetId: ssId, triggersCriados: 1 };
+}
+
+function diagnosticarTriggerOnOpenLivroDiario() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ssId = ss ? ss.getId() : "";
+  var list = ScriptApp.getProjectTriggers().map(function (t) {
+    return {
+      funcao: t.getHandlerFunction(),
+      evento: String(t.getEventType()),
+      origem: String(t.getTriggerSource())
+    };
+  });
+  return {
+    spreadsheetIdAtiva: ssId,
+    triggers: list
+  };
 }
