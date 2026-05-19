@@ -37,6 +37,16 @@ const LIVRO_DIARIO_CONTA_CONTABIL_PADRAO_PEDIDO = "TUBA Laser _ Receita _ Operac
 const LIVRO_DIARIO_DESC_PADRAO_PEDIDO = "TuLa Receita Indústria";
 const LIVRO_DIARIO_DATA_VENC_FICTICIA = "31/12/99";
 
+// Layout da aba "Livro Diário":
+// Linha 1 = topo de menus/saldo (Saldo Geral Hoje + dropdown de Conta Financeira)
+// Linha 2 = cabeçalho
+// Linha 3 = primeira linha de dados
+const LIVRO_DIARIO_TOPO_ROW = 1;
+const LIVRO_DIARIO_HEADER_ROW = 2;
+const LIVRO_DIARIO_FIRST_DATA_ROW = 3;
+const LIVRO_DIARIO_TOPO_LABEL_SALDO = "Saldo Geral Hoje";
+const LIVRO_DIARIO_TOPO_LABEL_CONTA = "Conta Financeira";
+
 function _findHeaderIndexGeneric(headers, targetName) {
   if (!headers || !headers.length) return -1;
   if (typeof _findHeaderIndex === "function") return _findHeaderIndex(headers, targetName);
@@ -93,7 +103,240 @@ function _ensureSheetWithHeaders(sheetName, headers, aliases) {
 }
 
 function ensureLivroDiarioSheet() {
-  return _ensureSheetWithHeaders("Livro Diário", LIVRO_DIARIO_HEADERS, ["Livro Diario"]);
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = _getSheetByNames_(["Livro Diário", "Livro Diario"]);
+  var criadaAgora = false;
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet("Livro Diário");
+    sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, LIVRO_DIARIO_HEADERS.length).setValues([LIVRO_DIARIO_HEADERS]);
+    criadaAgora = true;
+  } else {
+    _migrarLivroDiarioParaTopoMenus_(sheet);
+    _ensureLivroDiarioHeaderColumns_(sheet);
+  }
+  try {
+    if (criadaAgora) {
+      _aplicarTopoMenusLivroDiarioCompleto_(sheet);
+    } else {
+      _aplicarTopoMenusLivroDiario_(sheet);
+    }
+  } catch (eTopo) {
+    Logger.log("Aplicar topo LivroDiario: " + (eTopo && eTopo.message ? eTopo.message : eTopo));
+  }
+  return sheet;
+}
+
+function _migrarLivroDiarioParaTopoMenus_(sheet) {
+  if (!sheet) return;
+  if (sheet.getLastRow() < 1 || sheet.getLastColumn() < 1) {
+    sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, LIVRO_DIARIO_HEADERS.length).setValues([LIVRO_DIARIO_HEADERS]);
+    return;
+  }
+  var row1 = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var row1HasHeaders =
+    _findHeaderIndexGeneric(row1, "DATA COMPETÊNCIA") >= 0 ||
+    _findHeaderIndexGeneric(row1, "DATA VENCIMENTO") >= 0 ||
+    _findHeaderIndexGeneric(row1, "CÓDIGO DO PROJETO") >= 0 ||
+    _findHeaderIndexGeneric(row1, "VALOR") >= 0;
+  if (row1HasHeaders) {
+    sheet.insertRowBefore(1);
+  }
+}
+
+function _ensureLivroDiarioHeaderColumns_(sheet) {
+  if (!sheet) return;
+  var currentHeaders = [];
+  if (sheet.getLastColumn() >= 1) {
+    currentHeaders = sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  var hasAny = currentHeaders.some(function (v) { return _normLivro(v); });
+  if (!hasAny) {
+    sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, LIVRO_DIARIO_HEADERS.length).setValues([LIVRO_DIARIO_HEADERS]);
+    return;
+  }
+  var changed = false;
+  LIVRO_DIARIO_HEADERS.forEach(function (h) {
+    if (_findHeaderIndexGeneric(currentHeaders, h) < 0) {
+      currentHeaders.push(h);
+      changed = true;
+    }
+  });
+  if (changed) {
+    sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, currentHeaders.length).setValues([currentHeaders]);
+  }
+}
+
+function _coletarContasFinanceirasLivroDiario_(sheet) {
+  var contas = {};
+  try {
+    if (typeof getLivroDiarioCadastro === "function") {
+      var cad = getLivroDiarioCadastro();
+      (cad && cad.contasFinanceiras ? cad.contasFinanceiras : []).forEach(function (c) {
+        var v = _normLivro(c);
+        if (v) contas[v] = true;
+      });
+    }
+  } catch (eCad) {
+    Logger.log("Coletar contas (cadastro): " + (eCad && eCad.message ? eCad.message : eCad));
+  }
+  try {
+    if (sheet && sheet.getLastRow() >= LIVRO_DIARIO_FIRST_DATA_ROW && sheet.getLastColumn() >= 1) {
+      var headers = sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0];
+      var idxConta = _findHeaderIndexGeneric(headers, "CONTA FINANCEIRA");
+      if (idxConta >= 0) {
+        var nRows = sheet.getLastRow() - LIVRO_DIARIO_FIRST_DATA_ROW + 1;
+        var values = sheet.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, idxConta + 1, nRows, 1).getValues();
+        values.forEach(function (r) {
+          var v = _normLivro(r[0]);
+          if (v) contas[v] = true;
+        });
+      }
+    }
+  } catch (eAba) {
+    Logger.log("Coletar contas (aba): " + (eAba && eAba.message ? eAba.message : eAba));
+  }
+  return Object.keys(contas).sort();
+}
+
+// ----------------------------------------------------------------------------------
+// Detecta dinamicamente o layout do topo (linha 1), inspecionando A1:F1:
+// - Procura célula com data validation de lista -> coluna do dropdown da Conta Financeira
+// - Procura células com texto "Saldo Geral" / "Saldo da Conta" como labels
+// - O valor de cada saldo é escrito na célula imediatamente à direita do label/dropdown
+// ----------------------------------------------------------------------------------
+function _detectarTopoLivroDiario_(sheet) {
+  var info = {
+    saldoGeralLabelCol: -1,
+    saldoGeralValueCol: -1,
+    saldoContaLabelCol: -1,
+    contaDropdownCol: -1,
+    saldoContaValueCol: -1
+  };
+  if (!sheet) return info;
+  try {
+    var maxCol = Math.max(6, sheet.getLastColumn() || 6);
+    if (maxCol > 26) maxCol = 26;
+    var rng = sheet.getRange(LIVRO_DIARIO_TOPO_ROW, 1, 1, maxCol);
+    var vals = rng.getValues()[0];
+    var rules = [];
+    try { rules = rng.getDataValidations()[0]; } catch (e) { rules = []; }
+
+    function _normTopo(v) {
+      return String(v == null ? "" : v)
+        .toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    for (var i = 0; i < maxCol; i++) {
+      var rule = rules ? rules[i] : null;
+      if (rule && info.contaDropdownCol < 0) {
+        try {
+          var ctype = String(rule.getCriteriaType());
+          if (ctype === "VALUE_IN_LIST" || ctype === "VALUE_IN_RANGE") {
+            info.contaDropdownCol = i + 1;
+          }
+        } catch (eR) {}
+      }
+      var t = _normTopo(vals[i]);
+      if (info.saldoGeralLabelCol < 0 && t.indexOf("saldo geral") >= 0) {
+        info.saldoGeralLabelCol = i + 1;
+      }
+      if (info.saldoContaLabelCol < 0 && t.indexOf("saldo da conta") >= 0) {
+        info.saldoContaLabelCol = i + 1;
+      }
+    }
+  } catch (eDet) {
+    Logger.log("Detectar topo: " + (eDet && eDet.message ? eDet.message : eDet));
+  }
+
+  // Fallbacks compatíveis com layout padrão (Saldo Geral em A1/B1, dropdown em D1/E1):
+  if (info.saldoGeralValueCol < 0 && info.saldoGeralLabelCol > 0) {
+    info.saldoGeralValueCol = info.saldoGeralLabelCol + 1;
+  }
+  if (info.saldoGeralValueCol < 0) info.saldoGeralValueCol = 2; // B1
+  if (info.contaDropdownCol > 0) {
+    info.saldoContaValueCol = info.contaDropdownCol + 1;
+  }
+  return info;
+}
+
+// ----------------------------------------------------------------------------------
+// Aplicação "silenciosa" do topo:
+// - Só garante o rótulo "Saldo Geral Hoje" em A1 quando estiver em branco
+// - Mantém qualquer validação/formatação que o usuário tenha criado
+// ----------------------------------------------------------------------------------
+function _aplicarTopoMenusLivroDiario_(sheet) {
+  if (!sheet) return;
+  try {
+    var a1 = sheet.getRange(LIVRO_DIARIO_TOPO_ROW, 1);
+    if (_normLivro(a1.getValue()) === "") {
+      a1.setValue(LIVRO_DIARIO_TOPO_LABEL_SALDO);
+    }
+  } catch (e) {
+    Logger.log("Topo silencioso: " + (e && e.message ? e.message : e));
+  }
+}
+
+// Aplicação completa: invocada manualmente (menu) ou na criação inicial.
+// Cria layout padrão: A1 = "Saldo Geral Hoje", B1 = valor, C1 = dropdown contas, D1 = saldo conta.
+function _aplicarTopoMenusLivroDiarioCompleto_(sheet) {
+  if (!sheet) return;
+  var a1 = sheet.getRange(LIVRO_DIARIO_TOPO_ROW, 1);
+  if (_normLivro(a1.getValue()) === "") a1.setValue(LIVRO_DIARIO_TOPO_LABEL_SALDO);
+  a1.setFontWeight("bold").setHorizontalAlignment("right");
+
+  var b1 = sheet.getRange(LIVRO_DIARIO_TOPO_ROW, 2);
+  b1.setNumberFormat('"R$" #,##0.00').setHorizontalAlignment("left");
+
+  // C1 = dropdown da Conta Financeira
+  var c1 = sheet.getRange(LIVRO_DIARIO_TOPO_ROW, 3);
+  c1.setHorizontalAlignment("left");
+  _atualizarValidationContas_(c1, /*forcar=*/true);
+
+  // D1 = saldo da conta selecionada
+  var d1 = sheet.getRange(LIVRO_DIARIO_TOPO_ROW, 4);
+  d1.setNumberFormat('"R$" #,##0.00').setHorizontalAlignment("left");
+
+  try { sheet.setFrozenRows(LIVRO_DIARIO_HEADER_ROW); } catch (eFr) {}
+}
+
+function _atualizarValidationContas_(cell, forcar) {
+  try {
+    var sheet = cell.getSheet();
+    var contas = _coletarContasFinanceirasLivroDiario_(sheet);
+    if (!contas || !contas.length) {
+      if (forcar) {
+        try { cell.clearDataValidations(); } catch (eClr) {}
+      }
+      return;
+    }
+    if (!forcar) {
+      var current = cell.getDataValidation();
+      var sameList = false;
+      try {
+        if (current) {
+          var crit = current.getCriteriaValues();
+          var listaAtual = (crit && crit[0]) ? crit[0] : [];
+          if (Array.isArray(listaAtual) && listaAtual.length === contas.length) {
+            sameList = true;
+            for (var i = 0; i < listaAtual.length; i++) {
+              if (_normLivro(listaAtual[i]) !== _normLivro(contas[i])) { sameList = false; break; }
+            }
+          }
+        }
+      } catch (eC) { sameList = false; }
+      if (sameList) return;
+    }
+    var rule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(contas, true)
+      .setAllowInvalid(false)
+      .build();
+    cell.setDataValidation(rule);
+  } catch (eDv) {
+    Logger.log("Atualizar validation contas: " + (eDv && eDv.message ? eDv.message : eDv));
+  }
 }
 
 function ensureLivroDiarioCadastroSheet() {
@@ -286,8 +529,13 @@ function getLivroDiarioPreferencias() {
 }
 
 function salvarLivroDiarioPreferencias(prefs) {
+  var anterior = _getLivroDiarioPrefs();
   var next = _setLivroDiarioPrefs(prefs || {});
-  ordenarLivroDiario(next.modoOrdenacao);
+  // Só reordena (operação destrutiva para filtros nativos) quando o usuário
+  // explicitamente alterou o modo de ordenação. Mudar apenas a conta para
+  // ver saldo não deve mexer na ordem das linhas nem desfazer filtros.
+  var modoMudou = String(anterior.modoOrdenacao || "") !== String(next.modoOrdenacao || "");
+  if (modoMudou) ordenarLivroDiario(next.modoOrdenacao);
   recalcularSaldosLivroDiario(next.contaFinanceiraSaldo);
   return next;
 }
@@ -447,12 +695,14 @@ function upsertLivroDiarioCadastroItem(item, token) {
         // se faltava descrição, completa na mesma linha
         if (vDescProj && idxDescProj >= 0 && !curDesc) {
           sh.getRange(i + 2, idxDescProj + 1).setValue(vDescProj);
+          _invalidateLivroCadastroMapsCache_();
         }
         return { ok: true, rowIndex: i + 2, duplicado: true, usuario: _usuarioLancamentoPorToken(token) };
       }
       if (vDescProj && curDesc && curDesc === vDescProj) {
         if (vCodProj && idxCodProj >= 0 && !curCod) {
           sh.getRange(i + 2, idxCodProj + 1).setValue(vCodProj);
+          _invalidateLivroCadastroMapsCache_();
         }
         return { ok: true, rowIndex: i + 2, duplicado: true, usuario: _usuarioLancamentoPorToken(token) };
       }
@@ -460,28 +710,15 @@ function upsertLivroDiarioCadastroItem(item, token) {
   }
 
   sh.appendRow(row);
+  _invalidateLivroCadastroMapsCache_();
   return { ok: true, rowIndex: sh.getLastRow(), duplicado: false, usuario: _usuarioLancamentoPorToken(token) };
 }
 
-function _getDescricaoProjetoPorCodigo(codigoProjeto) {
-  try {
-    if (!SHEET_PROJ || !codigoProjeto) return "";
-    var linha = findRowByColumnValue(SHEET_PROJ, "PROJETO", codigoProjeto);
-    if (!linha) {
-      var base = String(codigoProjeto).replace(/_v\d+$/i, "");
-      linha = findRowByColumnValue(SHEET_PROJ, "PROJETO", base);
-    }
-    if (!linha) return "";
-    var headers = SHEET_PROJ.getRange(1, 1, 1, SHEET_PROJ.getLastColumn()).getValues()[0];
-    var idxDesc = _findHeaderIndexGeneric(headers, "DESCRIÇÃO");
-    if (idxDesc < 0) return "";
-    return _normLivro(SHEET_PROJ.getRange(linha, idxDesc + 1).getValue());
-  } catch (e) {
-    return "";
-  }
-}
-
-function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
+/**
+ * Lê CLIENTE, DESCRIÇÃO, PROCESSOS e temNotaFiscal da aba Projetos em um único
+ * findRow + uma leitura de linha (evita N getValue e dois findRow no fluxo do Livro).
+ */
+function _getProjetoLivroMeta_(codigoProjeto) {
   var out = { cliente: "", descricaoProjeto: "", processos: "", temNotaFiscal: null };
   try {
     if (!SHEET_PROJ || !codigoProjeto) return out;
@@ -491,16 +728,18 @@ function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
       linha = findRowByColumnValue(SHEET_PROJ, "PROJETO", base);
     }
     if (!linha) return out;
-    var headers = SHEET_PROJ.getRange(1, 1, 1, SHEET_PROJ.getLastColumn()).getValues()[0];
+    var lastCol = SHEET_PROJ.getLastColumn();
+    var headers = SHEET_PROJ.getRange(1, 1, 1, lastCol).getValues()[0];
+    var row = SHEET_PROJ.getRange(linha, 1, 1, lastCol).getValues()[0];
     var idxCliente = _findHeaderIndexGeneric(headers, "CLIENTE");
     var idxDesc = _findHeaderIndexGeneric(headers, "DESCRIÇÃO");
     var idxProc = _findHeaderIndexGeneric(headers, "PROCESSOS");
     var idxJson = _findHeaderIndexGeneric(headers, "JSON_DADOS");
-    if (idxCliente >= 0) out.cliente = _normLivro(SHEET_PROJ.getRange(linha, idxCliente + 1).getValue());
-    if (idxDesc >= 0) out.descricaoProjeto = _normLivro(SHEET_PROJ.getRange(linha, idxDesc + 1).getValue());
-    if (idxProc >= 0) out.processos = _normLivro(SHEET_PROJ.getRange(linha, idxProc + 1).getValue());
+    if (idxCliente >= 0) out.cliente = _normLivro(row[idxCliente]);
+    if (idxDesc >= 0) out.descricaoProjeto = _normLivro(row[idxDesc]);
+    if (idxProc >= 0) out.processos = _normLivro(row[idxProc]);
     if (idxJson >= 0) {
-      var cell = SHEET_PROJ.getRange(linha, idxJson + 1).getValue();
+      var cell = row[idxJson];
       if (cell && String(cell).trim()) {
         var parsed = null;
         try { parsed = JSON.parse(String(cell).trim()); } catch (e) { parsed = null; }
@@ -511,7 +750,6 @@ function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
           if (!out.cliente && dados && dados.cliente && dados.cliente.nome) out.cliente = _normLivro(dados.cliente.nome);
           if (!out.descricaoProjeto && obs && obs.descricao) out.descricaoProjeto = _normLivro(obs.descricao);
           if (!out.processos && obs && obs.processos) out.processos = _normLivro(obs.processos);
-          // Fallback: extrai siglas de processos a partir dos produtos do JSON.
           if (!out.processos && dados && Array.isArray(dados.produtosCadastrados)) {
             var procSet = {};
             dados.produtosCadastrados.forEach(function (p) {
@@ -534,9 +772,17 @@ function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
       }
     }
   } catch (e) {
-    // ignore and keep fallback object
+    // ignore
   }
   return out;
+}
+
+function _getDescricaoProjetoPorCodigo(codigoProjeto) {
+  return _getProjetoLivroMeta_(codigoProjeto).descricaoProjeto || "";
+}
+
+function _getProjetoDadosBasicosPorCodigo(codigoProjeto) {
+  return _getProjetoLivroMeta_(codigoProjeto);
 }
 
 function _prefixoProcessosProjeto_(processosRaw) {
@@ -555,6 +801,12 @@ function _prefixoProcessosProjeto_(processosRaw) {
 
 function _codigoBaseProjeto_(codigo) {
   return _normLivro(codigo).replace(/_v\d+$/i, "");
+}
+
+/** Despesas manuais (material, despejo, etc.) entram com valor positivo; receita de pedido é negativa. */
+function _isLivroLinhaDespesaManual_(row, idxValor) {
+  if (idxValor < 0 || !row) return false;
+  return _numLivro(row[idxValor]) > 0;
 }
 
 function _extrairProcessosPedidoOuProjeto_(rowPed, metaProj) {
@@ -888,16 +1140,16 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   });
 
   var statusPed = _normLivro(rowPed.STATUS_PAGAMENTO || rowPed["STATUS PAGAMENTO"] || rowPed["STATUS DE PAGAMENTO"] || "");
+  var metaProj = _getProjetoLivroMeta_(codigoProjeto);
   var projetoInfo = {
     cliente: rowPed.CLIENTE || "",
-    descricaoProjeto: _getDescricaoProjetoPorCodigo(codigoProjeto),
+    descricaoProjeto: metaProj.descricaoProjeto || "",
     dataCompetencia: dataComp,
     dataEntrega: dataEntrega,
     dataVencimento: dataVenc,
     // Regra fixa para automáticos
     statusPagamento: statusPed || "À pagar"
   };
-  var metaProj = _getProjetoDadosBasicosPorCodigo(codigoProjeto);
   if (!projetoInfo.cliente && metaProj.cliente) projetoInfo.cliente = metaProj.cliente;
   if (!projetoInfo.descricaoProjeto && metaProj.descricaoProjeto) projetoInfo.descricaoProjeto = metaProj.descricaoProjeto;
   if (!projetoInfo.processos) projetoInfo.processos = _extrairProcessosPedidoOuProjeto_(rowPed, metaProj);
@@ -909,7 +1161,7 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   }
 
   var sh = ensureLivroDiarioSheet();
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var headers = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
   var idxProjeto = _findHeaderIndexGeneric(headers, "CÓDIGO DO PROJETO");
   var idxObs = _findHeaderIndexGeneric(headers, "OBSERVAÇÕES");
   var idxDataComp = _findHeaderIndexGeneric(headers, "DATA COMPETÊNCIA");
@@ -923,11 +1175,12 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
   var idxResp = _findHeaderIndexGeneric(headers, "RESPONSÁVEL DO LANÇAMENTO");
   var idxDum = _findHeaderIndexGeneric(headers, "DATA DA ÚLTIMA MOFIFICAÇÃO");
   var existing = {};
+  var manualExisting = [];
   var codigoAtual = _normLivro(codigoProjeto);
   var baseAtual = _codigoBaseProjeto_(codigoAtual);
   var allRows = [];
-  if (sh.getLastRow() >= 2 && idxProjeto >= 0 && idxObs >= 0) {
-    allRows = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  if (sh.getLastRow() >= LIVRO_DIARIO_FIRST_DATA_ROW && idxProjeto >= 0 && idxObs >= 0) {
+    allRows = sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW, sh.getLastColumn()).getValues();
     allRows.forEach(function (r, i) {
       var p = _normLivro(r[idxProjeto]);
       var pBase = _codigoBaseProjeto_(p);
@@ -937,7 +1190,9 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
       // Sem esse filtro, sincronizar um projeto pode remover autos de outros.
       if (!(p === codigoAtual || pBase === baseAtual)) return;
       if (o.indexOf("[AUTO_PEDIDO_PARCELA_") === 0) {
-        existing[p + "|" + o] = { rowIndex: i + 2, row: r };
+        existing[p + "|" + o] = { rowIndex: i + LIVRO_DIARIO_FIRST_DATA_ROW, row: r };
+      } else {
+        manualExisting.push({ rowIndex: i + LIVRO_DIARIO_FIRST_DATA_ROW, row: r });
       }
     });
   }
@@ -959,24 +1214,63 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
     }
   });
 
+  // Compatibilidade com lançamentos manuais legados de RECEITA (sem marcador AUTO).
+  // Despesas manuais (valor > 0) não entram aqui — convivem com linhas AUTO do pedido.
+  var hasAutoRows = Object.keys(existing).length > 0;
+  var manualReceitaLegacy = manualExisting.filter(function (m) {
+    return !_isLivroLinhaDespesaManual_(m.row, idxValor);
+  });
+  if (!hasAutoRows && manualReceitaLegacy.length > 0) {
+    toUpdate = [];
+    toInsert = [];
+    var limit = Math.min(parcelas.length, manualReceitaLegacy.length);
+    for (var mi = 0; mi < limit; mi++) {
+      var parcManual = parcelas[mi];
+      if (!parcManual.total) parcManual.total = parcelas.length || 1;
+      var rowObjManual = _buildLancamentoFromPedido(codigoProjeto, parcManual, projetoInfo);
+      rowObjManual["RESPONSÁVEL DO LANÇAMENTO"] = userName || "Sistema";
+      toUpdate.push({ rowObj: rowObjManual, existing: manualReceitaLegacy[mi], preserveObs: true, manualLegacy: true });
+    }
+  }
+
   // Atualiza linhas automáticas existentes (espelho do pedido),
   // preservando campos que o usuário completa manualmente.
+  var patchedRows = [];
   toUpdate.forEach(function (u) {
     var r = u.existing.row;
     var rowObj = u.rowObj;
-    if (idxDataComp >= 0) r[idxDataComp] = rowObj["DATA COMPETÊNCIA"];
-    if (idxDataVenc >= 0) r[idxDataVenc] = rowObj["DATA VENCIMENTO"];
+    // Em linhas manuais legadas, altera apenas status/pagamento e metadados.
+    var isManualLegacy = !!u.manualLegacy;
+    var isDespesaManual = isManualLegacy && _isLivroLinhaDespesaManual_(r, idxValor);
+    if (!isManualLegacy && idxDataComp >= 0) r[idxDataComp] = rowObj["DATA COMPETÊNCIA"];
+    if (!isManualLegacy && idxDataVenc >= 0) r[idxDataVenc] = rowObj["DATA VENCIMENTO"];
     // DATA PAGAMENTO só sobrescreve se vier preenchida do pedido.
     if (idxDataPag >= 0 && rowObj["DATA PAGAMENTO"]) r[idxDataPag] = rowObj["DATA PAGAMENTO"];
-    if (idxCliente >= 0) r[idxCliente] = rowObj["CLIENTE"];
-    if (idxDescProjeto >= 0) r[idxDescProjeto] = rowObj["DESCRIÇÃO DO PROJETO"];
-    if (idxValidade >= 0) r[idxValidade] = rowObj["VALIDADE FISCAL"];
-    if (idxValor >= 0) r[idxValor] = rowObj["VALOR"];
-    if (idxStatus >= 0) r[idxStatus] = rowObj["STATUS DO PAGAMENTO"];
-    if (idxResp >= 0) r[idxResp] = rowObj["RESPONSÁVEL DO LANÇAMENTO"];
+    if (!isManualLegacy && idxCliente >= 0) r[idxCliente] = rowObj["CLIENTE"];
+    if (!isManualLegacy && idxDescProjeto >= 0) r[idxDescProjeto] = rowObj["DESCRIÇÃO DO PROJETO"];
+    if (!isManualLegacy && idxValidade >= 0) r[idxValidade] = rowObj["VALIDADE FISCAL"];
+    if (!isManualLegacy && idxValor >= 0) r[idxValor] = rowObj["VALOR"];
+    if (idxStatus >= 0 && !isDespesaManual) r[idxStatus] = rowObj["STATUS DO PAGAMENTO"];
+    if (idxResp >= 0 && !isDespesaManual) r[idxResp] = rowObj["RESPONSÁVEL DO LANÇAMENTO"];
     if (idxDum >= 0) r[idxDum] = _formatDateLivro2y(new Date());
-    sh.getRange(u.existing.rowIndex, 1, 1, r.length).setValues([r]);
+    while (r.length < headers.length) r.push("");
+    patchedRows.push({ rowIndex: u.existing.rowIndex, r: r });
   });
+
+  // Grava atualizações em blocos contíguos (1 setValues por bloco em vez de 1 por linha).
+  patchedRows.sort(function (a, b) { return a.rowIndex - b.rowIndex; });
+  var writeW = headers.length;
+  var pr = 0;
+  while (pr < patchedRows.length) {
+    var startRow = patchedRows[pr].rowIndex;
+    var block = [patchedRows[pr].r];
+    pr++;
+    while (pr < patchedRows.length && patchedRows[pr].rowIndex === startRow + block.length) {
+      block.push(patchedRows[pr].r);
+      pr++;
+    }
+    sh.getRange(startRow, 1, block.length, writeW).setValues(block);
+  }
 
   if (toInsert.length > 0) {
     sh.getRange(sh.getLastRow() + 1, 1, toInsert.length, headers.length).setValues(toInsert);
@@ -984,16 +1278,24 @@ function gerarLancamentosLivroDiarioParaPedido(codigoProjeto, token, options) {
 
   // Remove parcelas automáticas antigas que não existem mais no pedido atual.
   var toDelete = [];
-  Object.keys(existing).forEach(function (k) {
-    if (!usedKeys[k]) toDelete.push(existing[k].rowIndex);
-  });
-  toDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) {
-    sh.deleteRow(rowIdx);
-  });
+  if (hasAutoRows) {
+    Object.keys(existing).forEach(function (k) {
+      if (!usedKeys[k]) toDelete.push(existing[k].rowIndex);
+    });
+    toDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) {
+      sh.deleteRow(rowIdx);
+    });
+  }
 
   if (!opts.skipPosProcess) {
     var prefs = _getLivroDiarioPrefs();
-    ordenarLivroDiario(prefs.modoOrdenacao);
+    // Por padrão, NÃO reordena toda a aba (operações automáticas como
+    // atualização de pedido não devem mexer na ordem visível ao usuário,
+    // o que resetaria filtros aplicados manualmente na planilha). O
+    // recalcular saldos é cirúrgico (só M/N que mudaram).
+    if (opts.fullSort) {
+      ordenarLivroDiario(prefs.modoOrdenacao);
+    }
     recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
   }
 
@@ -1029,11 +1331,11 @@ function sincronizarProjetosFaltantesPedidosNoLivroDiario(token, options) {
   }
 
   var shLivro = ensureLivroDiarioSheet();
-  var headersLivro = shLivro.getRange(1, 1, 1, shLivro.getLastColumn()).getValues()[0];
+  var headersLivro = shLivro.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, shLivro.getLastColumn()).getValues()[0];
   var idxProjLivro = _findHeaderIndexGeneric(headersLivro, "CÓDIGO DO PROJETO");
   var existentes = {};
-  if (idxProjLivro >= 0 && shLivro.getLastRow() >= 2) {
-    var dataLivro = shLivro.getRange(2, 1, shLivro.getLastRow() - 1, shLivro.getLastColumn()).getValues();
+  if (idxProjLivro >= 0 && shLivro.getLastRow() >= LIVRO_DIARIO_FIRST_DATA_ROW) {
+    var dataLivro = shLivro.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, shLivro.getLastRow() - LIVRO_DIARIO_HEADER_ROW, shLivro.getLastColumn()).getValues();
     dataLivro.forEach(function (r) {
       var cod = _normLivro(r[idxProjLivro]);
       var base = _codigoBaseProjeto_(cod);
@@ -1244,7 +1546,7 @@ function _validarVinculoConta(payload) {
 
 function salvarLivroDiarioLancamento(lancamento, token, options) {
   var sh = ensureLivroDiarioSheet();
-  var sheetHeaders = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var sheetHeaders = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
   var payloadIn = lancamento || {};
   var userName = _usuarioLancamentoPorToken(token);
   var payload = {};
@@ -1258,24 +1560,33 @@ function salvarLivroDiarioLancamento(lancamento, token, options) {
   payload["DATA DA ÚLTIMA MOFIFICAÇÃO"] = _formatDateLivro2y(new Date());
   payload["RESPONSÁVEL DO LANÇAMENTO"] = userName || "Sistema";
   payload["VALOR"] = _numLivro(payload["VALOR"]);
-  payload["STATUS DO PAGAMENTO"] = _normLivro(payload["STATUS DO PAGAMENTO"]) || "Pendente";
+  payload["STATUS DO PAGAMENTO"] = _normLivro(payload["STATUS DO PAGAMENTO"]) || "À pagar";
 
   _validarVinculoConta(payload);
 
   var rowIndex = parseInt(payloadIn.rowIndex, 10);
   var values = _buildLivroRowBySheetHeaders_(sheetHeaders, payload);
-  if (!isNaN(rowIndex) && rowIndex >= 2 && rowIndex <= sh.getLastRow()) {
+  if (!isNaN(rowIndex) && rowIndex >= LIVRO_DIARIO_FIRST_DATA_ROW && rowIndex <= sh.getLastRow()) {
     _safeSetRowValues_(sh, rowIndex, values);
   } else {
-    _safeSetRowValues_(sh, sh.getLastRow() + 1, values);
-    rowIndex = sh.getLastRow();
+    var nextRow = Math.max(sh.getLastRow() + 1, LIVRO_DIARIO_FIRST_DATA_ROW);
+    _safeSetRowValues_(sh, nextRow, values);
+    rowIndex = nextRow;
   }
 
   var opts = options || {};
-  // Modo rápido para reduzir latência do modal (UI já recalcula localmente)
-  if (!opts.fast) {
+  // Importante: NÃO disparar ordenarLivroDiario automaticamente aqui — o
+  // ordenar reescreve toda a aba e reseta filtros que o usuário esteja
+  // aplicando diretamente na planilha. O recalcularSaldosLivroDiario é
+  // cirúrgico (atualiza só M/N que mudaram) e preserva filtros nativos.
+  // Para reordenar, use o menu "Livro Diario" da planilha ou o botão
+  // de recalcular M/N na página web.
+  if (opts.fullSort) {
+    var prefsFS = _getLivroDiarioPrefs();
+    ordenarLivroDiario(prefsFS.modoOrdenacao);
+    recalcularSaldosLivroDiario(prefsFS.contaFinanceiraSaldo);
+  } else if (!opts.fast) {
     var prefs = _getLivroDiarioPrefs();
-    ordenarLivroDiario(prefs.modoOrdenacao);
     recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
   }
   return { ok: true, rowIndex: rowIndex, row: payload };
@@ -1284,15 +1595,18 @@ function salvarLivroDiarioLancamento(lancamento, token, options) {
 function excluirLivroDiarioLancamento(rowIndex, options) {
   var sh = ensureLivroDiarioSheet();
   var idx = parseInt(rowIndex, 10);
-  if (isNaN(idx) || idx < 2 || idx > sh.getLastRow()) {
+  if (isNaN(idx) || idx < LIVRO_DIARIO_FIRST_DATA_ROW || idx > sh.getLastRow()) {
     throw new Error("Linha inválida para exclusão no Livro Diário.");
   }
   sh.deleteRow(idx);
 
   var opts = options || {};
-  if (!opts.fast) {
+  if (opts.fullSort) {
+    var prefsFS = _getLivroDiarioPrefs();
+    ordenarLivroDiario(prefsFS.modoOrdenacao);
+    recalcularSaldosLivroDiario(prefsFS.contaFinanceiraSaldo);
+  } else if (!opts.fast) {
     var prefs = _getLivroDiarioPrefs();
-    ordenarLivroDiario(prefs.modoOrdenacao);
     recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
   }
   return { ok: true, rowIndex: idx };
@@ -1301,16 +1615,17 @@ function excluirLivroDiarioLancamento(rowIndex, options) {
 function getLivroDiarioLancamentos(filtros) {
   var sh = ensureLivroDiarioSheet();
   var prefs = _getLivroDiarioPrefs();
-  if (sh.getLastRow() < 2) return { rows: [], preferencias: prefs };
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  if (sh.getLastRow() < LIVRO_DIARIO_FIRST_DATA_ROW) return { rows: [], preferencias: prefs };
+  var headers = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
+  var data = sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW, sh.getLastColumn()).getValues();
   var f = filtros || {};
   var fCliente = _normLivro(f.cliente).toLowerCase();
   var fProjeto = _normLivro(f.projeto).toLowerCase();
   var fStatus = _normLivro(f.status).toLowerCase();
   var fConta = _normLivro(f.contaFinanceira).toLowerCase();
+  var fResp = _normLivro(f.responsavel).toLowerCase();
   var rows = data.map(function (r, i) {
-    var obj = { rowIndex: i + 2 };
+    var obj = { rowIndex: i + LIVRO_DIARIO_FIRST_DATA_ROW };
     headers.forEach(function (h, c) { obj[h] = r[c]; });
     obj["DATA COMPETÊNCIA"] = _formatDateLivro2y(obj["DATA COMPETÊNCIA"]);
     obj["DATA VENCIMENTO"] = _formatDateLivro2y(obj["DATA VENCIMENTO"]);
@@ -1325,6 +1640,7 @@ function getLivroDiarioLancamentos(filtros) {
     if (fProjeto && _normLivro(obj["CÓDIGO DO PROJETO"]).toLowerCase().indexOf(fProjeto) < 0) return false;
     if (fStatus && _normLivro(obj["STATUS DO PAGAMENTO"]).toLowerCase().indexOf(fStatus) < 0) return false;
     if (fConta && _normLivro(obj["CONTA FINANCEIRA"]).toLowerCase().indexOf(fConta) < 0) return false;
+    if (fResp && _normLivro(obj["RESPONSÁVEL DO LANÇAMENTO"]).toLowerCase().indexOf(fResp) < 0) return false;
     return true;
   });
   return { rows: rows, preferencias: prefs };
@@ -1332,19 +1648,23 @@ function getLivroDiarioLancamentos(filtros) {
 
 function ordenarLivroDiario(modo) {
   var sh = ensureLivroDiarioSheet();
-  if (sh.getLastRow() < 3) return { ok: true, rows: Math.max(0, sh.getLastRow() - 1) };
+  if (sh.getLastRow() < LIVRO_DIARIO_FIRST_DATA_ROW + 1) {
+    return { ok: true, rows: Math.max(0, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW) };
+  }
   var selectedMode = String(modo || "data_pagamento");
-  if (selectedMode !== "data_vencimento") selectedMode = "data_pagamento";
+  if (selectedMode !== "data_vencimento" && selectedMode !== "ultima_modificacao" && selectedMode !== "ultima_modificacao_asc") {
+    selectedMode = "data_pagamento";
+  }
   _setLivroDiarioPrefs({ modoOrdenacao: selectedMode });
 
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var headers = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
   var idxDataComp = _findHeaderIndexGeneric(headers, "DATA COMPETÊNCIA");
   var idxDataVenc = _findHeaderIndexGeneric(headers, "DATA VENCIMENTO");
   var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
   var idxDum = _findHeaderIndexGeneric(headers, "DATA DA ÚLTIMA MOFIFICAÇÃO");
   var idxProjeto = _findHeaderIndexGeneric(headers, "CÓDIGO DO PROJETO");
   var idxObs = _findHeaderIndexGeneric(headers, "OBSERVAÇÕES");
-  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var data = sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW, sh.getLastColumn()).getValues();
 
   // Blindagem: remove duplicados de lançamentos automáticos de parcela
   // (mesmo CÓDIGO DO PROJETO + mesmo marcador [AUTO_PEDIDO_PARCELA_X_Y] em OBSERVAÇÕES).
@@ -1402,6 +1722,14 @@ function ordenarLivroDiario(modo) {
   }
 
   data.sort(function (a, b) {
+    if (selectedMode === "ultima_modificacao" || selectedMode === "ultima_modificacao_asc") {
+      var kdA = idxDum >= 0 ? _dateKeyLivro(a[idxDum]) : null;
+      var kdB = idxDum >= 0 ? _dateKeyLivro(b[idxDum]) : null;
+      var va = kdA != null ? kdA : 0;
+      var vb = kdB != null ? kdB : 0;
+      if (selectedMode === "ultima_modificacao") return vb - va;
+      return va - vb;
+    }
     var kpA = _dateKeyLivro(a[idxDataPag]);
     var kpB = _dateKeyLivro(b[idxDataPag]);
     var kvA = _dateKeyLivro(a[idxDataVenc]);
@@ -1436,10 +1764,13 @@ function ordenarLivroDiario(modo) {
     if (idxDum >= 0) r[idxDum] = _formatDateLivro2y(r[idxDum]);
   });
 
-  if (sh.getLastRow() - 1 > data.length) {
-    sh.getRange(data.length + 2, 1, (sh.getLastRow() - 1) - data.length, sh.getLastColumn()).clearContent();
+  var existingDataRows = sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW;
+  if (existingDataRows > data.length) {
+    sh.getRange(data.length + LIVRO_DIARIO_FIRST_DATA_ROW, 1, existingDataRows - data.length, sh.getLastColumn()).clearContent();
   }
-  sh.getRange(2, 1, data.length, sh.getLastColumn()).setValues(data);
+  if (data.length > 0) {
+    sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, data.length, sh.getLastColumn()).setValues(data);
+  }
   return { ok: true, rows: data.length, modoOrdenacao: selectedMode };
 }
 
@@ -1459,8 +1790,12 @@ function ordenarLivroDiarioPorDataVencimento() {
 
 function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
   var sh = ensureLivroDiarioSheet();
-  if (sh.getLastRow() < 2) return { ok: true, saldoContaHoje: 0, saldoGeralHoje: 0, saldoFuturoGeral: 0 };
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var topo = _detectarTopoLivroDiario_(sh);
+  if (sh.getLastRow() < LIVRO_DIARIO_FIRST_DATA_ROW) {
+    _aplicarTopoSaldos_(sh, topo, 0, 0);
+    return { ok: true, saldoContaHoje: 0, saldoGeralHoje: 0, saldoFuturoGeral: 0 };
+  }
+  var headers = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
   var idxConta = _findHeaderIndexGeneric(headers, "CONTA FINANCEIRA");
   var idxValor = _findHeaderIndexGeneric(headers, "VALOR");
   var idxSaldoConta = _findHeaderIndexGeneric(headers, "SALDO CONTA FINANCEIRA");
@@ -1468,11 +1803,21 @@ function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
   var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
 
   var prefs = _getLivroDiarioPrefs();
-  var contaSel = _normLivro(contaFinanceiraSelecionada != null ? contaFinanceiraSelecionada : prefs.contaFinanceiraSaldo);
+  var contaTopo = "";
+  if (topo.contaDropdownCol > 0) {
+    contaTopo = _normLivro(sh.getRange(LIVRO_DIARIO_TOPO_ROW, topo.contaDropdownCol).getValue());
+  }
+  // Importante: o dropdown do topo (C1) é a verdade primária. Só usamos o
+  // parâmetro explícito quando o topo estiver vazio. Isso evita que chamadas
+  // internas como recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo)
+  // limpem a coluna M caso prefs esteja vazio.
+  var paramConta = _normLivro(contaFinanceiraSelecionada);
+  var contaSel = contaTopo || paramConta || _normLivro(prefs.contaFinanceiraSaldo);
   var contaSelKey = _normKeyLivro_(contaSel);
-  if (contaFinanceiraSelecionada != null) _setLivroDiarioPrefs({ contaFinanceiraSaldo: contaSel });
+  // Persiste para que outras telas/funções vejam a mesma conta selecionada.
+  if (contaSel) _setLivroDiarioPrefs({ contaFinanceiraSaldo: contaSel });
 
-  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var data = sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW, sh.getLastColumn()).getValues();
   var saldoGeral = 0;
   var saldoConta = 0;
   var todayKey = _dateKeyLivro(new Date());
@@ -1504,10 +1849,33 @@ function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
     }
   });
 
+  // Escrita cirúrgica: só atualiza células das colunas M (SALDO CONTA FINANCEIRA)
+  // e N (SALDO GERAL) que realmente mudaram. Isso preserva filtros básicos /
+  // views de filtro que o usuário aplicar na aba: o Sheets só re-aplica o
+  // filtro quando os valores das células dentro do range filtrado mudam,
+  // então minimizar escritas evita resets de filtro perceptíveis.
   if (data.length > 0) {
-    if (idxSaldoConta >= 0) sh.getRange(2, idxSaldoConta + 1, data.length, 1).setValues(outSaldoConta);
-    if (idxSaldoGeral >= 0) sh.getRange(2, idxSaldoGeral + 1, data.length, 1).setValues(outSaldoGeral);
+    var atualConta = null;
+    var atualGeral = null;
+    if (idxSaldoConta >= 0 || idxSaldoGeral >= 0) {
+      atualConta = idxSaldoConta >= 0 ? [] : null;
+      atualGeral = idxSaldoGeral >= 0 ? [] : null;
+      for (var ri = 0; ri < data.length; ri++) {
+        var rw = data[ri];
+        if (atualConta) atualConta.push([rw[idxSaldoConta]]);
+        if (atualGeral) atualGeral.push([rw[idxSaldoGeral]]);
+      }
+    }
+    if (idxSaldoConta >= 0 && atualConta) {
+      _gravarColunaSeMudou_(sh, LIVRO_DIARIO_FIRST_DATA_ROW, idxSaldoConta + 1, atualConta, outSaldoConta);
+    }
+    if (idxSaldoGeral >= 0 && atualGeral) {
+      _gravarColunaSeMudou_(sh, LIVRO_DIARIO_FIRST_DATA_ROW, idxSaldoGeral + 1, atualGeral, outSaldoGeral);
+    }
   }
+
+  _aplicarTopoSaldos_(sh, topo, saldoGeralHoje, saldoContaHoje);
+
   return {
     ok: true,
     contaFinanceiraSelecionada: contaSel,
@@ -1515,6 +1883,76 @@ function recalcularSaldosLivroDiario(contaFinanceiraSelecionada) {
     saldoGeralHoje: saldoGeralHoje,
     saldoFuturoGeral: saldoFuturoGeral
   };
+}
+
+/**
+ * Grava em uma coluna apenas as células cujo valor mudou, em "runs" contínuos
+ * (intervalos consecutivos de linhas alteradas). Evita o setValues massivo
+ * que poderia desfazer/reaplicar filtros nativos do Sheets na aba quando o
+ * usuário está com filtros aplicados manualmente.
+ *
+ * @param {Sheet} sh - aba alvo
+ * @param {number} firstRow - linha da primeira célula do range
+ * @param {number} col - coluna 1-based
+ * @param {Array<Array<*>>} atual - valores atualmente lidos do range (Nx1)
+ * @param {Array<Array<*>>} novo - valores desejados (Nx1)
+ */
+function _gravarColunaSeMudou_(sh, firstRow, col, atual, novo) {
+  if (!sh || !Array.isArray(atual) || !Array.isArray(novo)) return;
+  var n = Math.min(atual.length, novo.length);
+  function normalize(v) {
+    if (v == null || v === "") return "";
+    if (typeof v === "number") return v;
+    var num = Number(v);
+    if (!isNaN(num) && isFinite(num) && String(v).trim() !== "") return num;
+    return String(v).trim();
+  }
+  var i = 0;
+  while (i < n) {
+    var atualVal = normalize(atual[i] && atual[i][0]);
+    var novoVal = normalize(novo[i] && novo[i][0]);
+    if (atualVal === novoVal) { i++; continue; }
+    var runStart = i;
+    var runValues = [];
+    while (i < n) {
+      var a = normalize(atual[i] && atual[i][0]);
+      var b = normalize(novo[i] && novo[i][0]);
+      if (a === b) break;
+      runValues.push([novo[i][0]]);
+      i++;
+    }
+    if (runValues.length > 0) {
+      sh.getRange(firstRow + runStart, col, runValues.length, 1).setValues(runValues);
+    }
+  }
+}
+
+function _aplicarTopoSaldos_(sh, topo, saldoGeralHoje, saldoContaHoje) {
+  if (!sh) return;
+  try {
+    if (topo && topo.saldoGeralValueCol > 0) {
+      var cellGeral = sh.getRange(LIVRO_DIARIO_TOPO_ROW, topo.saldoGeralValueCol);
+      cellGeral.setValue(Number(saldoGeralHoje) || 0);
+      var nfG = String(cellGeral.getNumberFormat() || "");
+      if (!nfG || nfG === "0" || nfG === "General" || nfG.toLowerCase().indexOf("text") >= 0) {
+        cellGeral.setNumberFormat('"R$" #,##0.00');
+      }
+    }
+  } catch (e1) {
+    Logger.log("Aplicar topo saldo geral: " + (e1 && e1.message ? e1.message : e1));
+  }
+  try {
+    if (topo && topo.saldoContaValueCol > 0) {
+      var cellConta = sh.getRange(LIVRO_DIARIO_TOPO_ROW, topo.saldoContaValueCol);
+      cellConta.setValue(Number(saldoContaHoje) || 0);
+      var nfC = String(cellConta.getNumberFormat() || "");
+      if (!nfC || nfC === "0" || nfC === "General" || nfC.toLowerCase().indexOf("text") >= 0) {
+        cellConta.setNumberFormat('"R$" #,##0.00');
+      }
+    }
+  } catch (e2) {
+    Logger.log("Aplicar topo saldo conta: " + (e2 && e2.message ? e2.message : e2));
+  }
 }
 
 function getLivroDiarioResumo(contaFinanceiraSelecionada) {
@@ -1525,6 +1963,181 @@ function getLivroDiarioResumo(contaFinanceiraSelecionada) {
     saldoGeralHoje: result.saldoGeralHoje || 0,
     saldoFuturoGeral: result.saldoFuturoGeral || 0
   };
+}
+
+/**
+ * Extrato realizado de uma conta financeira: só lançamentos com DATA PAGAMENTO,
+ * até a última data de pagamento preenchida na conta (sem ultrapassar hoje).
+ * Mesma regra do KPI "Saldo conta até fim" na tela do Livro Diário.
+ *
+ * @param {string} contaFinanceira
+ * @param {number} [ano] - se informado, retorna breakdown mês a mês do ano
+ */
+function calcularExtratoContaFinanceira(contaFinanceira, ano) {
+  var contaSel = _normLivro(contaFinanceira);
+  var contaKey = _normKeyLivro_(contaSel);
+  if (!contaKey) throw new Error("Informe a conta financeira.");
+
+  var sh = ensureLivroDiarioSheet();
+  if (sh.getLastRow() < LIVRO_DIARIO_FIRST_DATA_ROW) {
+    return {
+      ok: true,
+      contaFinanceira: contaSel,
+      ultimaDataPagamento: "",
+      ultimaDataPagamentoKey: null,
+      saldoRealizado: 0,
+      saldoAntesAno: 0,
+      meses: []
+    };
+  }
+
+  var headers = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
+  var idxConta = _findHeaderIndexGeneric(headers, "CONTA FINANCEIRA");
+  var idxValor = _findHeaderIndexGeneric(headers, "VALOR");
+  var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
+  var idxDataVenc = _findHeaderIndexGeneric(headers, "DATA VENCIMENTO");
+  var data = sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW, sh.getLastColumn()).getValues();
+
+  var maxK = null;
+  data.forEach(function (r) {
+    if (_normKeyLivro_(r[idxConta]) !== contaKey) return;
+    var kp = _dateKeyLivro(r[idxDataPag]);
+    if (kp != null && (maxK == null || kp > maxK)) maxK = kp;
+  });
+
+  var todayKey = _dateKeyLivro(new Date());
+  var cutoff = maxK;
+  if (cutoff != null && todayKey != null && cutoff > todayKey) cutoff = todayKey;
+
+  var realizadas = [];
+  data.forEach(function (r, i) {
+    if (_normKeyLivro_(r[idxConta]) !== contaKey) return;
+    var kp = _dateKeyLivro(r[idxDataPag]);
+    if (kp == null || cutoff == null || kp > cutoff) return;
+    realizadas.push({
+      rowIndex: i + LIVRO_DIARIO_FIRST_DATA_ROW,
+      dataPagamentoKey: kp,
+      dataVencimentoKey: _dateKeyLivro(r[idxDataVenc]),
+      delta: _saldoDeltaLivro(r[idxValor])
+    });
+  });
+
+  realizadas.sort(function (a, b) {
+    if (a.dataPagamentoKey !== b.dataPagamentoKey) return a.dataPagamentoKey - b.dataPagamentoKey;
+    var kvA = a.dataVencimentoKey != null ? a.dataVencimentoKey : 99999999;
+    var kvB = b.dataVencimentoKey != null ? b.dataVencimentoKey : 99999999;
+    return kvA - kvB;
+  });
+
+  var anoNum = parseInt(ano, 10);
+  var temAno = !isNaN(anoNum) && anoNum >= 2000 && anoNum <= 2100;
+  var keyJanAno = temAno ? (anoNum * 10000 + 101) : null;
+
+  var saldoAntesAno = 0;
+  var saldoRealizado = 0;
+  realizadas.forEach(function (item) {
+    saldoRealizado += item.delta;
+    if (keyJanAno != null && item.dataPagamentoKey < keyJanAno) {
+      saldoAntesAno += item.delta;
+    }
+  });
+
+  var mesNomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  var meses = [];
+  var acum = saldoAntesAno;
+
+  if (temAno) {
+    for (var m = 1; m <= 12; m++) {
+      var ent = 0, sai = 0, qtd = 0;
+      realizadas.forEach(function (item) {
+        var y = Math.floor(item.dataPagamentoKey / 10000);
+        var mo = Math.floor((item.dataPagamentoKey % 10000) / 100);
+        if (y !== anoNum || mo !== m) return;
+        qtd++;
+        if (item.delta >= 0) ent += item.delta;
+        else sai += Math.abs(item.delta);
+        acum += item.delta;
+      });
+      meses.push({
+        label: mesNomes[m - 1] + "/" + anoNum,
+        mes: m,
+        qtd: qtd,
+        entradas: ent,
+        saidas: sai,
+        liquido: ent - sai,
+        saldoAcumulado: acum
+      });
+    }
+  }
+
+  return {
+    ok: true,
+    contaFinanceira: contaSel,
+    ultimaDataPagamentoKey: cutoff,
+    ultimaDataPagamento: _formatDateKeyLivro_(cutoff),
+    saldoRealizado: saldoRealizado,
+    saldoAntesAno: saldoAntesAno,
+    saldoFimAno: temAno ? acum : saldoRealizado,
+    meses: meses
+  };
+}
+
+function _formatDateKeyLivro_(k) {
+  if (k == null) return "";
+  var y = Math.floor(k / 10000);
+  var mo = Math.floor((k % 10000) / 100);
+  var d = k % 100;
+  if (!y || !mo || !d) return "";
+  return Utilities.formatDate(new Date(y, mo - 1, d), "America/Sao_Paulo", "dd/MM/yyyy");
+}
+
+/**
+ * Lançamentos realizados (DATA PAGAMENTO preenchida), até a última data de
+ * pagamento da conta ou geral, sem ultrapassar hoje.
+ *
+ * @param {Array<Object>} rows - objetos de getLivroDiarioLancamentos
+ * @param {Object} [opts] - { contaFinanceira, ateDataKey }
+ */
+function prepararLancamentosRealizadosLinhas(rows, opts) {
+  opts = opts || {};
+  var contaKey = opts.contaFinanceira ? _normKeyLivro_(_normLivro(opts.contaFinanceira)) : null;
+  var todayKey = _dateKeyLivro(new Date());
+  var maxK = null;
+  (rows || []).forEach(function (row) {
+    if (contaKey && _normKeyLivro_(row["CONTA FINANCEIRA"]) !== contaKey) return;
+    var kp = _dateKeyLivro(row["DATA PAGAMENTO"]);
+    if (kp != null && (maxK == null || kp > maxK)) maxK = kp;
+  });
+  var cutoff = maxK;
+  if (cutoff != null && todayKey != null && cutoff > todayKey) cutoff = todayKey;
+  if (opts.ateDataKey != null && cutoff != null && opts.ateDataKey < cutoff) cutoff = opts.ateDataKey;
+
+  var linhas = (rows || []).filter(function (row) {
+    if (contaKey && _normKeyLivro_(row["CONTA FINANCEIRA"]) !== contaKey) return false;
+    var kp = _dateKeyLivro(row["DATA PAGAMENTO"]);
+    return kp != null && cutoff != null && kp <= cutoff;
+  });
+  linhas.sort(function (a, b) {
+    var kpA = _dateKeyLivro(a["DATA PAGAMENTO"]);
+    var kpB = _dateKeyLivro(b["DATA PAGAMENTO"]);
+    if (kpA !== kpB) return kpA - kpB;
+    var kvA = _dateKeyLivro(a["DATA VENCIMENTO"]) || 99999999;
+    var kvB = _dateKeyLivro(b["DATA VENCIMENTO"]) || 99999999;
+    return kvA - kvB;
+  });
+  return {
+    linhas: linhas,
+    cutoffKey: cutoff,
+    ultimaDataPagamento: _formatDateKeyLivro_(cutoff)
+  };
+}
+
+function somarSaldoRealizadoLinhas(linhas) {
+  var s = 0;
+  (linhas || []).forEach(function (row) {
+    s += _saldoDeltaLivro(row["VALOR"]);
+  });
+  return s;
 }
 
 function _normKeyLivro_(v) {
@@ -1563,6 +2176,12 @@ function _buildLivroCadastroMapsNormalized_() {
     }
   });
   return maps;
+}
+
+function _invalidateLivroCadastroMapsCache_() {
+  try {
+    CacheService.getScriptCache().remove("LIVRO_DIARIO_CAD_MAPS_V1");
+  } catch (eInv) { /* noop */ }
 }
 
 function _getLivroCadastroMapsCached_() {
@@ -1652,11 +2271,20 @@ function _syncLivroDiarioLinhaComCadastro_(sheet, row, headers, maps, editedColS
   // Remove duplicidade de update na mesma coluna (fica o último valor calculado)
   var dedup = {};
   updates.forEach(function (u) { dedup[u.col] = u.value; });
-  var cols = Object.keys(dedup);
-  if (!cols.length) return false;
-  cols.forEach(function (c) {
-    sheet.getRange(row, Number(c)).setValue(dedup[c]);
-  });
+  var colsNum = Object.keys(dedup).map(Number).sort(function (a, b) { return a - b; });
+  if (!colsNum.length) return false;
+  // 1 setValues por bloco de colunas consecutivas (em vez de 1 setValue por célula).
+  var ci = 0;
+  while (ci < colsNum.length) {
+    var startCol = colsNum[ci];
+    var blockVals = [dedup[startCol]];
+    ci++;
+    while (ci < colsNum.length && colsNum[ci] === colsNum[ci - 1] + 1) {
+      blockVals.push(dedup[colsNum[ci]]);
+      ci++;
+    }
+    sheet.getRange(row, startCol, 1, blockVals.length).setValues([blockVals]);
+  }
   return true;
 }
 
@@ -1669,11 +2297,25 @@ function onEdit(e) {
 
     var r0 = e.range.getRow();
     var numRows = e.range.getNumRows();
-    if (r0 < 2) return;
     var c0 = e.range.getColumn();
     var c1 = c0 + e.range.getNumColumns() - 1;
 
-    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    // Topo: edição na coluna do dropdown de Conta Financeira recalcula saldos para a conta selecionada.
+    if (r0 === LIVRO_DIARIO_TOPO_ROW) {
+      var topoEdit = _detectarTopoLivroDiario_(sheet);
+      if (topoEdit.contaDropdownCol > 0 && c0 <= topoEdit.contaDropdownCol && c1 >= topoEdit.contaDropdownCol) {
+        var contaTopo = _normLivro(sheet.getRange(LIVRO_DIARIO_TOPO_ROW, topoEdit.contaDropdownCol).getValue());
+        recalcularSaldosLivroDiario(contaTopo);
+        return;
+      }
+      // Outras edições na linha 1 (formatação, labels, etc.) — não processa demais regras.
+      return;
+    }
+
+    // Bloqueia processamento na linha de topo e linha do cabeçalho.
+    if (r0 < LIVRO_DIARIO_FIRST_DATA_ROW) return;
+
+    var headers = sheet.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0];
     var idxDataComp = _findHeaderIndexGeneric(headers, "DATA COMPETÊNCIA");
     var idxDataVenc = _findHeaderIndexGeneric(headers, "DATA VENCIMENTO");
     var idxDataPag = _findHeaderIndexGeneric(headers, "DATA PAGAMENTO");
@@ -1691,6 +2333,11 @@ function onEdit(e) {
       var isDateCol = (col0 === idxDataComp || col0 === idxDataVenc || col0 === idxDataPag);
       if (isDateCol && e.value != null && e.value !== "") {
         var raw = String(e.value).replace(/\D/g, "");
+        // Quando o usuário digita data sem separador iniciando com zero
+        // (ex.: 020226), o Sheets pode entregar e.value sem o zero à esquerda (20226).
+        // Recompõe o formato esperado para manter a conversão automática.
+        if (raw.length === 5) raw = ("0" + raw);      // ddmmyy
+        if (raw.length === 7) raw = ("0" + raw);      // ddmmyyyy
         if (raw.length >= 4 && raw.length <= 8) {
           var dia = "", mes = "", anoNum = null;
           if (raw.length === 4) {
@@ -1732,17 +2379,17 @@ function removerLancamentosLivroDiarioPorProjeto(codigoProjeto) {
   if (!cod) return { ok: true, removidos: 0 };
   var base = _codigoBaseProjeto_(cod);
   var sh = ensureLivroDiarioSheet();
-  if (sh.getLastRow() < 2) return { ok: true, removidos: 0 };
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  if (sh.getLastRow() < LIVRO_DIARIO_FIRST_DATA_ROW) return { ok: true, removidos: 0 };
+  var headers = sh.getRange(LIVRO_DIARIO_HEADER_ROW, 1, 1, sh.getLastColumn()).getValues()[0];
   var idxProjeto = _findHeaderIndexGeneric(headers, "CÓDIGO DO PROJETO");
   if (idxProjeto < 0) return { ok: true, removidos: 0 };
-  var data = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  var data = sh.getRange(LIVRO_DIARIO_FIRST_DATA_ROW, 1, sh.getLastRow() - LIVRO_DIARIO_HEADER_ROW, sh.getLastColumn()).getValues();
   var toDelete = [];
   data.forEach(function (r, i) {
     var p = _normLivro(r[idxProjeto]);
     if (!p) return;
     var pBase = _codigoBaseProjeto_(p);
-    if (p === cod || pBase === base) toDelete.push(i + 2);
+    if (p === cod || pBase === base) toDelete.push(i + LIVRO_DIARIO_FIRST_DATA_ROW);
   });
   toDelete.sort(function (a, b) { return b - a; }).forEach(function (rowIdx) { sh.deleteRow(rowIdx); });
   return { ok: true, removidos: toDelete.length };
@@ -1761,10 +2408,22 @@ function onOpenMenuLivroDiario() {
       .addItem("📅 Ordenar por data de vencimento", "ordenarLivroDiarioPorDataVencimento")
       .addSeparator()
       .addItem("💰 Recalcular saldos M/N agora", "recalcularLivroDiarioAgora")
+      .addItem("⬇️ Aplicar/atualizar topo de menus (linha 1)", "aplicarTopoMenusLivroDiarioManual")
       .addToUi();
   } catch (e) {
     Logger.log("onOpen LivroDiario menu: " + (e && e.message ? e.message : e));
   }
+}
+
+function aplicarTopoMenusLivroDiarioManual() {
+  var sh = ensureLivroDiarioSheet();
+  _aplicarTopoMenusLivroDiarioCompleto_(sh);
+  var prefs = _getLivroDiarioPrefs();
+  recalcularSaldosLivroDiario(prefs.contaFinanceiraSaldo);
+  try {
+    SpreadsheetApp.getActive().toast("✅ Topo do Livro Diário atualizado.", "Livro Diario", 4);
+  } catch (e) {}
+  return { ok: true, sheet: sh.getName() };
 }
 
 function onOpen(e) {

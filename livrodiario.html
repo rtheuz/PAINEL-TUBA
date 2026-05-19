@@ -230,8 +230,10 @@
             <div class="field"><label>Cliente</label><input id="fCliente" placeholder="Filtrar cliente"></div>
             <div class="field"><label>Projeto</label><input id="fProjeto" placeholder="Código do projeto"></div>
             <div class="field"><label>Status</label><input id="fStatus" placeholder="Status pagamento"></div>
+            <div class="field"><label>Responsável</label><input id="fResponsavel" list="dlResponsaveis" placeholder="Filtrar responsável"></div>
+            <datalist id="dlResponsaveis"></datalist>
             <div class="field">
-              <label>Conta contábil</label>
+              <label>Conta contábil/Descrição abreviada</label>
               <input id="fContaContabil" list="dlFiltroContaContabil" placeholder="Digite para buscar">
               <datalist id="dlFiltroContaContabil"></datalist>
             </div>
@@ -246,6 +248,8 @@
               <select id="fOrdenacao">
                 <option value="data_pagamento">Data pagamento (depois vencimento)</option>
                 <option value="data_vencimento">Data vencimento (depois pagamento)</option>
+                <option value="ultima_modificacao">Última modificação (mais recente primeiro)</option>
+                <option value="ultima_modificacao_asc">Última modificação (mais antigo primeiro)</option>
               </select>
             </div>
             <div class="field">
@@ -665,6 +669,21 @@
       preencherDatalist('dlClientes', opts);
     }
 
+    function preencherResponsaveisDatalistFromRows(rows) {
+      const seen = {};
+      const opts = [];
+      (rows || []).forEach(function (r) {
+        const c = String(r["RESPONSÁVEL DO LANÇAMENTO"] || "").trim();
+        if (!c) return;
+        const k = c.toLowerCase();
+        if (seen[k]) return;
+        seen[k] = true;
+        opts.push(c);
+      });
+      opts.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+      preencherDatalist('dlResponsaveis', opts);
+    }
+
     // Autocomplete custom (para mostrar texto completo e permitir vínculo código↔descrição)
     let _acPanel = null;
     let _acActiveInput = null;
@@ -831,6 +850,7 @@
         cliente: document.getElementById('fCliente').value || "",
         projeto: document.getElementById('fProjeto').value || "",
         status: document.getElementById('fStatus').value || "",
+        responsavel: document.getElementById('fResponsavel').value || "",
         contaContabil: document.getElementById('fContaContabil').value || "",
         contaFinanceira: document.getElementById('fConta').value || "",
         dataCompIni: document.getElementById('fDataCompIni').value || "",
@@ -846,6 +866,7 @@
       return !!(String(f.cliente || '').trim()
         || String(f.projeto || '').trim()
         || String(f.status || '').trim()
+        || String(f.responsavel || '').trim()
         || String(f.contaContabil || '').trim()
         || String(f.contaFinanceira || '').trim()
         || String(f.dataCompIni || '').trim()
@@ -875,6 +896,7 @@
       const fCliente = String(f.cliente || '').toLowerCase().trim();
       const fProjeto = String(f.projeto || '').toLowerCase().trim();
       const fStatus = String(f.status || '').toLowerCase().trim();
+      const fResp = String(f.responsavel || '').toLowerCase().trim();
       const fConta = String(f.contaFinanceira || '').toLowerCase().trim();
       const fContaContabil = String(f.contaContabil || '').toLowerCase().trim();
 
@@ -904,6 +926,7 @@
         if (fCliente && String(r["CLIENTE"] || '').toLowerCase().indexOf(fCliente) < 0) return false;
         if (fProjeto && String(r["CÓDIGO DO PROJETO"] || '').toLowerCase().indexOf(fProjeto) < 0) return false;
         if (fStatus && String(r["STATUS DO PAGAMENTO"] || '').toLowerCase().indexOf(fStatus) < 0) return false;
+        if (fResp && String(r["RESPONSÁVEL DO LANÇAMENTO"] || '').toLowerCase().indexOf(fResp) < 0) return false;
         if (fContaContabil) {
           const contaNome = String(r["CONTA CONTÁBIL"] || '').toLowerCase();
           const contaDesc = String(r["DESCRICAO ABREVIADA da CONTA CONTÁBIL"] || '').toLowerCase();
@@ -961,6 +984,7 @@
       const fCliente = String(f.cliente || '').toLowerCase().trim();
       const fProjeto = String(f.projeto || '').toLowerCase().trim();
       const fStatus = String(f.status || '').toLowerCase().trim();
+      const fResp = String(f.responsavel || '').toLowerCase().trim();
       const fConta = String(f.contaFinanceira || '').toLowerCase().trim();
       const fContaContabil = String(f.contaContabil || '').toLowerCase().trim();
 
@@ -968,6 +992,7 @@
         if (fCliente && String(r["CLIENTE"] || '').toLowerCase().indexOf(fCliente) < 0) return;
         if (fProjeto && String(r["CÓDIGO DO PROJETO"] || '').toLowerCase().indexOf(fProjeto) < 0) return;
         if (fStatus && String(r["STATUS DO PAGAMENTO"] || '').toLowerCase().indexOf(fStatus) < 0) return;
+        if (fResp && String(r["RESPONSÁVEL DO LANÇAMENTO"] || '').toLowerCase().indexOf(fResp) < 0) return;
         if (fConta && String(r["CONTA FINANCEIRA"] || '').toLowerCase().indexOf(fConta) < 0) return;
         if (fContaContabil) {
           const contaNome = String(r["CONTA CONTÁBIL"] || '').toLowerCase();
@@ -1137,6 +1162,7 @@
           const payload = res || {};
           cacheRows = payload.rows || [];
           preencherClientesDatalistFromRows(cacheRows);
+          preencherResponsaveisDatalistFromRows(cacheRows);
           const prefs = payload.preferencias || {};
           if (prefs.modoOrdenacao) document.getElementById('fOrdenacao').value = prefs.modoOrdenacao;
           if (prefs.contaFinanceiraSaldo != null) document.getElementById('fContaSaldo').value = prefs.contaFinanceiraSaldo;
@@ -1349,6 +1375,7 @@
           setStatus('success', 'Lançamento salvo.', 1200);
           applySavedLancamentoLocal(res || {}, payload);
           preencherClientesDatalistFromRows(cacheRows);
+          preencherResponsaveisDatalistFromRows(cacheRows);
           aplicarFiltrosEAtualizarUI();
           // Se o usuário digitou um novo código/descrição, cadastra para aparecer nas sugestões.
           try {
@@ -1540,7 +1567,7 @@
       }
       aplicarFiltrosEAtualizarUI();
     });
-    ['fCliente', 'fProjeto', 'fStatus', 'fContaContabil', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
+    ['fCliente', 'fProjeto', 'fStatus', 'fResponsavel', 'fContaContabil', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
       const el = document.getElementById(id);
       if (!el) return;
       const restoreOriginalView = function () {
@@ -1576,9 +1603,11 @@
       if (!el) return;
       el.addEventListener('change', function () { this.title = this.value || ''; });
     });
-    ['fCliente', 'fProjeto', 'fStatus', 'fContaContabil', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
-      document.getElementById(id).addEventListener('input', aplicarFiltrosEAtualizarUI);
-      document.getElementById(id).addEventListener('change', aplicarFiltrosEAtualizarUI);
+    ['fCliente', 'fProjeto', 'fStatus', 'fResponsavel', 'fContaContabil', 'fConta', 'fDataCompIni', 'fDataCompFim', 'fDataVencIni', 'fDataVencFim', 'fDataPagIni', 'fDataPagFim'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', aplicarFiltrosEAtualizarUI);
+      el.addEventListener('change', aplicarFiltrosEAtualizarUI);
     });
 
     carregarCadastro();

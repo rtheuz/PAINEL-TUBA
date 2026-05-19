@@ -468,6 +468,59 @@
             margin-right: 6px;
         }
 
+        /* Toast notifications (canto inferior direito) */
+        #toastContainer {
+            position: fixed;
+            right: 16px;
+            bottom: 16px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: #1f2937;
+            color: #fff;
+            border-radius: 8px;
+            padding: 10px 14px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            max-width: 360px;
+            pointer-events: auto;
+            transform: translateY(8px);
+            opacity: 0;
+            transition: opacity 0.18s ease, transform 0.18s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .toast.success {
+            background: #15803d;
+        }
+
+        .toast.error {
+            background: #b91c1c;
+        }
+
+        .toast .toast-close {
+            margin-left: auto;
+            background: transparent;
+            border: 0;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 0 0 6px;
+            line-height: 1;
+        }
+
         /* Modal styles */
         .modal {
             display: none;
@@ -1357,6 +1410,71 @@
                 if (baseUrl) lc.setAttribute('target', '_top');
             }
         })();
+
+        /* ---------- VALIDAÇÃO: caracteres incompatíveis com pasta no Drive/CAD ---------- */
+        // Proibidos pelo Drive: \ / : * ? " < > |
+        // Conflitam com CAD ao abrir caminhos: & % ` ; { } [ ] @ ! $ ^ ~ = +
+        // Permitidos: # _ ' (nome da pasta / descrição do projeto)
+        var REGEX_CARACTERES_PROBLEMATICOS_PASTA = /[\\\/:*?"<>|&%;{}\[\]@!$^~=+]/g;
+
+        function caracteresProblematicosPasta(texto) {
+            if (!texto || typeof texto !== 'string') return [];
+            var matches = texto.match(REGEX_CARACTERES_PROBLEMATICOS_PASTA);
+            if (!matches) return [];
+            var seen = {}, out = [];
+            for (var i = 0; i < matches.length; i++) {
+                if (!seen[matches[i]]) { seen[matches[i]] = 1; out.push(matches[i]); }
+            }
+            return out;
+        }
+
+        function validarTextoPasta(texto, idCampoFocus, rotuloCampo) {
+            var chars = caracteresProblematicosPasta(texto || "");
+            if (chars.length === 0) return true;
+            alert((rotuloCampo || "Campo") + " contém caracteres que podem causar conflito ao abrir a pasta no CAD: "
+                + chars.join(" ") + "\n\nRemova esses caracteres antes de salvar.");
+            if (idCampoFocus) {
+                var el = document.getElementById(idCampoFocus);
+                if (el) el.focus();
+            }
+            return false;
+        }
+
+        /** Atualiza o aviso visual abaixo do campo conforme o usuário digita. */
+        function _atualizarAvisoCaracteresPasta(input, hint) {
+            var chars = caracteresProblematicosPasta(input.value || "");
+            if (chars.length === 0) {
+                hint.style.display = "none";
+                hint.textContent = "";
+                input.style.borderColor = "";
+            } else {
+                hint.textContent = "⚠ Caracteres incompatíveis com CAD/pasta: "
+                    + chars.join(" ") + " — remova antes de salvar.";
+                hint.style.display = "block";
+                hint.style.color = "#b91c1c";
+                input.style.borderColor = "#b91c1c";
+            }
+        }
+
+        /** Instala aviso em tempo real abaixo do campo informado. */
+        function instalarAvisoCaracteresPasta(idCampo) {
+            var input = document.getElementById(idCampo);
+            if (!input || input.dataset.avisoPastaInstalado === "1") return;
+            input.dataset.avisoPastaInstalado = "1";
+            var hint = document.createElement("small");
+            hint.className = "note caracteres-pasta-aviso";
+            hint.style.cssText = "display:block; margin-top:4px; font-weight:600;";
+            hint.style.display = "none";
+            input.insertAdjacentElement("afterend", hint);
+            input.addEventListener("input", function () {
+                _atualizarAvisoCaracteresPasta(input, hint);
+            });
+            _atualizarAvisoCaracteresPasta(input, hint);
+        }
+
+        // Campos que compõem o nome da pasta (Novo Projeto Rápido + Editar Projeto).
+        ['rapidoDescricao', 'rapidoCliente', 'rapidoClienteNomeAbreviado',
+         'editDescricao', 'editCliente'].forEach(instalarAvisoCaracteresPasta);
         function voltarPagina() {
             if (!token) {
                 alert("Token não encontrado. Por favor, recarregue a página.");
@@ -1776,6 +1894,63 @@
             _elTableContainer.innerHTML = html;
         }
 
+        // ======= Toast helpers =======
+        // Toasts não-bloqueantes (canto inferior direito). Suporta variantes
+        // "info" (padrão), "success" e "error". Retorna o elemento para que
+        // o chamador possa atualizá-lo ou removê-lo manualmente.
+        function showToast(message, opts) {
+            opts = opts || {};
+            const container = document.getElementById('toastContainer');
+            if (!container) return null;
+            const el = document.createElement('div');
+            el.className = 'toast' + (opts.type ? ' ' + opts.type : '');
+            const hasSpinner = !!opts.spinner;
+            const html =
+                (hasSpinner ? '<span class="spinner-small" style="margin:0 6px 0 0;"></span>' : '') +
+                '<span class="toast-msg"></span>' +
+                (opts.closable === false ? '' : '<button type="button" class="toast-close" aria-label="Fechar">×</button>');
+            el.innerHTML = html;
+            el.querySelector('.toast-msg').textContent = message || '';
+            const closeBtn = el.querySelector('.toast-close');
+            if (closeBtn) closeBtn.addEventListener('click', function () { dismissToast(el); });
+            container.appendChild(el);
+            // Anima entrada no próximo frame.
+            requestAnimationFrame(function () { el.classList.add('show'); });
+            const timeoutMs = (typeof opts.timeout === 'number') ? opts.timeout : 4000;
+            if (timeoutMs > 0) {
+                el._autoHideId = setTimeout(function () { dismissToast(el); }, timeoutMs);
+            }
+            return el;
+        }
+
+        function updateToast(el, message, opts) {
+            if (!el) return;
+            opts = opts || {};
+            if (typeof message === 'string') {
+                const msgEl = el.querySelector('.toast-msg');
+                if (msgEl) msgEl.textContent = message;
+            }
+            if (opts.type) {
+                el.classList.remove('success', 'error');
+                if (opts.type === 'success' || opts.type === 'error') el.classList.add(opts.type);
+            }
+            if (opts.spinner === false) {
+                const sp = el.querySelector('.spinner-small');
+                if (sp) sp.remove();
+            }
+            if (el._autoHideId) { clearTimeout(el._autoHideId); el._autoHideId = null; }
+            if (typeof opts.timeout === 'number' && opts.timeout > 0) {
+                el._autoHideId = setTimeout(function () { dismissToast(el); }, opts.timeout);
+            }
+        }
+
+        function dismissToast(el) {
+            if (!el) return;
+            if (el._autoHideId) { clearTimeout(el._autoHideId); el._autoHideId = null; }
+            el.classList.remove('show');
+            setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 200);
+        }
+
         // RF005: Modal para confirmar qual versão do orçamento virou pedido
         function openVersaoPedidoModal(linha) {
             const modal = document.getElementById('versaoPedidoModal');
@@ -1837,51 +2012,59 @@
                 return;
             }
 
-            // Desabilita para evitar clique duplo
-            const btn = document.querySelector('#versaoPedidoModal .btn.btn-primary');
-            if (btn) {
-                btn.disabled = true;
-                btn.textContent = 'Convertendo...';
-            }
-            const timeoutId = setTimeout(function () {
+            // Captura uma "etiqueta" do projeto p/ exibir no toast antes de fechar o modal.
+            // Usa a label da versão escolhida ("Proposta_260512aSR_…") como fallback amigável.
+            var labelProjeto = '';
+            try {
+                var opt = select && select.options ? select.options[select.selectedIndex] : null;
+                labelProjeto = opt && opt.textContent ? String(opt.textContent).trim() : '';
+            } catch (_) { /* noop */ }
+
+            // UX otimista: fecha o modal IMEDIATAMENTE para que o usuário não fique
+            // travado esperando o backend terminar (geração de PDF + livro diário
+            // costuma levar alguns segundos). O resultado vem via toast e refresh
+            // da tabela quando o servidor responder.
+            closeVersaoPedidoModal();
+
+            var toast = showToast(
+                labelProjeto
+                    ? 'Convertendo em pedido: ' + labelProjeto + '…'
+                    : 'Convertendo projeto em pedido…',
+                { spinner: true, timeout: 0, closable: false }
+            );
+
+            // Polling defensivo: se o servidor demorar > 45s sem responder, verifica
+            // diretamente se a conversão já foi efetivada e atualiza o toast/tabela.
+            var pollingId = setTimeout(function () {
                 google.script.run
                     .withSuccessHandler(function (r) {
-                        const convertido = !!(r && r.convertido);
+                        var convertido = !!(r && r.convertido);
                         if (convertido) {
-                            clearTimeout(timeoutId);
-                            closeVersaoPedidoModal();
+                            updateToast(toast, 'Pedido convertido com sucesso.', { type: 'success', spinner: false, timeout: 3500 });
                             loadProjetos();
-                            return;
+                        } else {
+                            updateToast(toast, 'A conversão ainda não foi confirmada. Recarregando lista…', { type: 'error', spinner: false, timeout: 5000 });
+                            loadProjetos();
                         }
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.textContent = 'Confirmar';
-                        }
-                        alert('A conversão está demorando mais do que o esperado. Ainda não foi confirmada no sistema.');
                     })
                     .withFailureHandler(function () {
-                        if (btn) {
-                            btn.disabled = false;
-                            btn.textContent = 'Confirmar';
-                        }
-                        alert('A conversão está demorando mais do que o esperado. Verifique se o pedido foi gerado e tente novamente.');
+                        updateToast(toast, 'A conversão demorou demais — recarregue a página se o status não atualizar.', { type: 'error', spinner: false, timeout: 6000 });
                     })
                     .isProjetoConvertidoPedido(linha);
             }, 45000);
 
             google.script.run
                 .withSuccessHandler(function () {
-                    clearTimeout(timeoutId);
-                    closeVersaoPedidoModal();
+                    clearTimeout(pollingId);
+                    updateToast(toast, 'Pedido convertido com sucesso.', { type: 'success', spinner: false, timeout: 3500 });
                     loadProjetos();
                 })
                 .withFailureHandler(function (err) {
-                    clearTimeout(timeoutId);
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = 'Confirmar';
-                    }
-                    alert('Erro ao converter projeto para pedido: ' + (err && err.message ? err.message : err));
+                    clearTimeout(pollingId);
+                    var msg = (err && err.message) ? err.message : String(err || '');
+                    updateToast(toast, 'Erro ao converter em pedido: ' + msg, { type: 'error', spinner: false, timeout: 6000 });
+                    // Recarrega para garantir consistência visual após falha.
+                    loadProjetos();
                 })
                 .converterProjetoParaPedido(linha, codigoVersao);
         }
@@ -1898,6 +2081,18 @@
                 // Evita ficar visualmente "Convertido" antes da confirmação real.
                 const prev = (select.dataset && select.dataset.prevValue != null) ? select.dataset.prevValue : '';
                 select.value = prev;
+                // UX: avisa quando o projeto está em RASCUNHO (sem PDF/numeroSequencial)
+                // antes de abrir o modal. O backend (converterProjetoParaPedido) já tem
+                // fallback para gerar o número sequencial automaticamente, mas o aviso
+                // deixa claro para o usuário que o orçamento será gerado nesse passo.
+                if (String(prev || '').toUpperCase() === 'RASCUNHO') {
+                    const seguir = confirm(
+                        'Este projeto está como RASCUNHO (orçamento/PDF ainda não gerado).\n\n' +
+                        'Ao convertê-lo em pedido, o sistema irá atribuir um número sequencial novo e gerar o PDF do orçamento agora.\n\n' +
+                        'Deseja continuar?'
+                    );
+                    if (!seguir) return;
+                }
                 openVersaoPedidoModal(linha);
                 return;
             }
@@ -2633,6 +2828,16 @@
                 document.getElementById('editDescricao').focus();
                 return;
             }
+            // Bloqueia caracteres especiais que conflitam com o nome da pasta no Drive/CAD.
+            if (!validarTextoPasta(descricaoEdit, 'editDescricao', 'Descrição do projeto')) {
+                isSavingEditProject = false;
+                return;
+            }
+            var clienteEditVal = (document.getElementById('editCliente').value || '').trim();
+            if (!validarTextoPasta(clienteEditVal, 'editCliente', 'Cliente')) {
+                isSavingEditProject = false;
+                return;
+            }
 
             const linha = parseInt(document.getElementById('editLinha').value, 10);
             const clienteNome = document.getElementById('editCliente').value.trim();
@@ -2922,6 +3127,86 @@
         function closeNovoProjetoRapidoModal() {
             getRpf().modal.classList.remove('active');
         }
+
+        /** Envia arquivos selecionados no modal rápido para a subpasta 01_IN (pasta já criada no Drive). */
+        function enviarArquivosRapidoParaPasta(codigoProjeto, descricao, dataProj, callback) {
+            var inputArquivos = document.getElementById('rapidoArquivos');
+            var files = inputArquivos && inputArquivos.files ? inputArquivos.files : null;
+            if (!files || files.length === 0) {
+                callback(true, 0, 0);
+                return;
+            }
+            var total = files.length;
+            var completed = 0;
+            var totalSaved = 0;
+            var hasError = false;
+
+            function enviarUm(idx) {
+                if (idx >= total) {
+                    callback(!hasError, totalSaved, total);
+                    return;
+                }
+                var file = files[idx];
+                var reader = new FileReader();
+                reader.onload = function () {
+                    var dataUrl = reader.result;
+                    var base64 = (dataUrl && dataUrl.indexOf('base64,') >= 0) ? dataUrl.split('base64,')[1] : dataUrl;
+                    var fileData = {
+                        base64: base64 || dataUrl,
+                        name: file.name || 'arquivo',
+                        mimeType: file.type || 'application/octet-stream'
+                    };
+                    google.script.run
+                        .withSuccessHandler(function (res) {
+                            completed++;
+                            if (res && res.ok) totalSaved++;
+                            enviarUm(idx + 1);
+                        })
+                        .withFailureHandler(function () {
+                            hasError = true;
+                            completed++;
+                            enviarUm(idx + 1);
+                        })
+                        .salvarArquivoClienteUnico(codigoProjeto, descricao, dataProj, fileData);
+                };
+                reader.onerror = function () {
+                    hasError = true;
+                    completed++;
+                    enviarUm(idx + 1);
+                };
+                reader.readAsDataURL(file);
+            }
+            enviarUm(0);
+        }
+
+        function finalizarNovoProjetoRapido(codigoProjeto, descricao, btn) {
+            var dataProj = codigoProjeto.substring(0, 6);
+            var inputArquivos = document.getElementById('rapidoArquivos');
+            var temArquivos = inputArquivos && inputArquivos.files && inputArquivos.files.length > 0;
+
+            function concluir(mensagem) {
+                btn.disabled = false;
+                btn.textContent = 'Criar projeto';
+                closeNovoProjetoRapidoModal();
+                loadProjetos();
+                alert(mensagem);
+            }
+
+            if (!temArquivos) {
+                concluir('Projeto criado com sucesso.');
+                return;
+            }
+            btn.textContent = 'Enviando arquivos...';
+            enviarArquivosRapidoParaPasta(codigoProjeto, descricao, dataProj, function (ok, totalSaved, total) {
+                if (ok) {
+                    concluir('Projeto criado e ' + totalSaved + ' arquivo(s) enviado(s) para 01_IN.');
+                } else {
+                    concluir('Projeto criado. ' + totalSaved + ' de ' + total + ' arquivo(s) enviado(s) para 01_IN.');
+                }
+                if (inputArquivos) inputArquivos.value = '';
+            });
+        }
+
         function salvarNovoProjetoRapido(event) {
             event.preventDefault();
             var f = getRpf();
@@ -2940,6 +3225,12 @@
                 alert('A descrição não pode conter COT ou PED (reservadas pelo sistema).');
                 return;
             }
+            // Bloqueia caracteres especiais que conflitam com o nome da pasta no Drive/CAD.
+            if (!validarTextoPasta(descricao, 'rapidoDescricao', 'Descrição do projeto')) return;
+            var rapidoAbrev = (f.clienteNomeAbreviado.value || '').trim();
+            if (rapidoAbrev && !validarTextoPasta(rapidoAbrev, 'rapidoClienteNomeAbreviado', 'Nome abreviado do cliente')) return;
+            // Cliente entra no nome da pasta quando o nome abreviado está vazio.
+            if (!rapidoAbrev && !validarTextoPasta(cliente, 'rapidoCliente', 'Cliente')) return;
             var obsInternas = (f.obsInternas.value || '').trim();
             var obsCliente = (f.obsCliente.value || '').trim();
             var dadosObservacoes = {
@@ -2995,38 +3286,26 @@
             btn.disabled = true;
             btn.textContent = 'Criando...';
             // Cadastra cliente novo na planilha de clientes (cpf, endereço, telefone, email) antes de criar o projeto
+            function aoProjetoSalvo() {
+                finalizarNovoProjetoRapido(projetoNum, descricao, btn);
+            }
+            function aoErroProjeto(err) {
+                btn.disabled = false;
+                btn.textContent = 'Criar projeto';
+                alert('Erro ao criar projeto: ' + (err.message || err));
+            }
             google.script.run
                 .withSuccessHandler(function () {
                     google.script.run
-                        .withSuccessHandler(function () {
-                            btn.disabled = false;
-                            btn.textContent = 'Criar projeto';
-                            closeNovoProjetoRapidoModal();
-                            loadProjetos();
-                            alert('Projeto criado. Para enviar arquivos do cliente, use o formulário completo no projeto.');
-                        })
-                        .withFailureHandler(function (err) {
-                            btn.disabled = false;
-                            btn.textContent = 'Criar projeto';
-                            alert('Erro ao criar projeto: ' + (err.message || err));
-                        })
+                        .withSuccessHandler(aoProjetoSalvo)
+                        .withFailureHandler(aoErroProjeto)
                         .adicionarNovoProjetoNaPlanilha(obj);
                 })
                 .withFailureHandler(function () {
                     // Mesmo se falhar cadastro do cliente (ex.: já existe), continua criando o projeto
                     google.script.run
-                        .withSuccessHandler(function () {
-                            btn.disabled = false;
-                            btn.textContent = 'Criar projeto';
-                            closeNovoProjetoRapidoModal();
-                            loadProjetos();
-                            alert('Projeto criado. Para enviar arquivos do cliente, use o formulário completo no projeto.');
-                        })
-                        .withFailureHandler(function (err) {
-                            btn.disabled = false;
-                            btn.textContent = 'Criar projeto';
-                            alert('Erro ao criar projeto: ' + (err.message || err));
-                        })
+                        .withSuccessHandler(aoProjetoSalvo)
+                        .withFailureHandler(aoErroProjeto)
                         .adicionarNovoProjetoNaPlanilha(obj);
                 })
                 .salvarClienteSeNovo(clienteObj);
@@ -3074,6 +3353,8 @@
         setupRapidoClienteAutocomplete();
         startProjetosPolling();
     </script>
+
+    <div id="toastContainer" aria-live="polite"></div>
 </body>
 
 </html>

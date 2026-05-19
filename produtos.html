@@ -7,11 +7,7 @@
     <title>Relação de Produtos - TUBA</title>
     <link rel="icon" href="https://i.imgur.com/C0dSTyE.png" type="image/png">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -25,7 +21,7 @@
             margin: 0 auto;
             background: white;
             border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
             overflow: hidden;
         }
 
@@ -37,15 +33,8 @@
             position: relative;
         }
 
-        .header h1 {
-            font-size: 2em;
-            margin-bottom: 10px;
-        }
-
-        .header .subtitle {
-            opacity: 0.9;
-            font-size: 1.1em;
-        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header .subtitle { opacity: 0.9; font-size: 1.1em; }
 
         .controls {
             padding: 20px 30px;
@@ -57,11 +46,7 @@
             align-items: center;
         }
 
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-        }
+        .search-box { flex: 1; min-width: 250px; position: relative; }
 
         .search-box input {
             width: 100%;
@@ -75,7 +60,7 @@
         .search-box input:focus {
             outline: none;
             border-color: #FF9933;
-            box-shadow: 0 0 0 3px rgba(255, 153, 51, 0.1);
+            box-shadow: 0 0 0 3px rgba(255,153,51,0.1);
         }
 
         .search-icon {
@@ -100,26 +85,15 @@
             gap: 8px;
         }
 
-        .btn-primary {
-            background: #FF9933;
-            color: white;
-        }
-
+        .btn-primary { background: #FF9933; color: white; }
         .btn-primary:hover {
             background: #FF7700;
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(255, 153, 51, 0.3);
+            box-shadow: 0 4px 12px rgba(255,153,51,0.3);
         }
 
-        .btn-secondary {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-            transform: translateY(-2px);
-        }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; transform: translateY(-2px); }
 
         .stats {
             padding: 15px 30px;
@@ -130,22 +104,9 @@
             flex-wrap: wrap;
         }
 
-        .stat-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .stat-label {
-            color: #666;
-            font-weight: 500;
-        }
-
-        .stat-value {
-            color: #FF9933;
-            font-weight: 700;
-            font-size: 1.2em;
-        }
+        .stat-item { display: flex; align-items: center; gap: 10px; }
+        .stat-label { color: #666; font-weight: 500; }
+        .stat-value { color: #FF9933; font-weight: 700; font-size: 1.2em; }
 
         .table-container {
             padding: 30px;
@@ -175,31 +136,16 @@
             font-weight: 600;
             cursor: pointer;
             user-select: none;
-            position: relative;
             white-space: nowrap;
             font-size: 0.9em;
             min-width: 80px;
         }
 
-        th:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
+        th:hover { background: rgba(255,255,255,0.1); }
 
-        th.sortable::after {
-            content: ' ⇅';
-            opacity: 0. 5;
-            font-size: 0.8em;
-        }
-
-        th.sort-asc::after {
-            content: ' ▲';
-            opacity: 1;
-        }
-
-        th.sort-desc::after {
-            content: ' ▼';
-            opacity: 1;
-        }
+        th.sortable::after { content: ' ⇅'; opacity: 0.5; font-size: 0.8em; }
+        th.sort-asc::after  { content: ' ▲'; opacity: 1; }
+        th.sort-desc::after { content: ' ▼'; opacity: 1; }
 
         tbody tr {
             border-bottom: 1px solid #e9ecef;
@@ -208,7 +154,7 @@
 
         tbody tr:hover {
             background: #fff3e0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
 
         td {
@@ -220,29 +166,12 @@
             font-size: 0.9em;
         }
 
-        /* Adiciona tooltip ao passar o mouse em células com conteúdo longo */
-        td:hover {
-            overflow: visible;
-            white-space: normal;
-            word-wrap: break-word;
-        }
+        td:hover { overflow: visible; white-space: normal; word-wrap: break-word; }
 
-        .no-results {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
-        }
+        .no-results { text-align: center; padding: 60px 20px; color: #999; }
+        .no-results-icon { font-size: 4em; margin-bottom: 20px; }
 
-        .no-results-icon {
-            font-size: 4em;
-            margin-bottom: 20px;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 60px 20px;
-            color: #FF9933;
-        }
+        .loading { text-align: center; padding: 60px 20px; color: #FF9933; }
 
         .loading-spinner {
             display: inline-block;
@@ -255,13 +184,8 @@
         }
 
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .back-button {
@@ -269,7 +193,7 @@
             left: 30px;
             top: 50%;
             transform: translateY(-50%);
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255,255,255,0.2);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -279,127 +203,49 @@
             transition: all 0.3s;
         }
 
-        .back-button:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
+        .back-button:hover { background: rgba(255,255,255,0.3); }
 
-        /* Scrollbar personalizada */
-        .table-container::-webkit-scrollbar {
-            height: 12px;
-            width: 12px;
-        }
+        .table-container::-webkit-scrollbar { height: 12px; width: 12px; }
+        .table-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .table-container::-webkit-scrollbar-thumb { background: #FF9933; border-radius: 10px; }
+        .table-container::-webkit-scrollbar-thumb:hover { background: #FF7700; }
 
-        .table-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-
-        .table-container::-webkit-scrollbar-thumb {
-            background: #FF9933;
-            border-radius: 10px;
-        }
-
-        .table-container::-webkit-scrollbar-thumb:hover {
-            background: #FF7700;
-        }
-
-        /* Responsivo para telas médias */
         @media (max-width: 1400px) {
-            .container {
-                max-width: 95%;
-            }
-
-            table {
-                font-size: 0.8em;
-            }
-
-            th,
-            td {
-                padding: 8px 6px;
-                font-size: 0.85em;
-            }
+            .container { max-width: 95%; }
+            table { font-size: 0.8em; }
+            th, td { padding: 8px 6px; font-size: 0.85em; }
         }
 
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-
-            .container {
-                max-width: 100%;
-                border-radius: 10px;
-            }
-
-            .header h1 {
-                font-size: 1.5em;
-            }
-
-            .header .subtitle {
-                font-size: 0.9em;
-            }
-
-            .controls {
-                flex-direction: column;
-                padding: 15px;
-            }
-
-            .search-box {
-                width: 100%;
-            }
-
-            .stats {
-                flex-direction: column;
-                gap: 10px;
-                padding: 15px;
-            }
-
-            .table-container {
-                padding: 15px;
-                max-height: calc(100vh - 450px);
-            }
-
-            table {
-                font-size: 0.75em;
-            }
-
-            th,
-            td {
-                padding: 6px 4px;
-                font-size: 0.8em;
-                min-width: 60px;
-            }
-
-            .back-button {
-                position: static;
-                transform: none;
-                margin-bottom: 15px;
-                width: 100%;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
+            body { padding: 10px; }
+            .container { max-width: 100%; border-radius: 10px; }
+            .header h1 { font-size: 1.5em; }
+            .header .subtitle { font-size: 0.9em; }
+            .controls { flex-direction: column; padding: 15px; }
+            .search-box { width: 100%; }
+            .stats { flex-direction: column; gap: 10px; padding: 15px; }
+            .table-container { padding: 15px; max-height: calc(100vh - 450px); }
+            table { font-size: 0.75em; }
+            th, td { padding: 6px 4px; font-size: 0.8em; min-width: 60px; }
+            .back-button { position: static; transform: none; margin-bottom: 15px; width: 100%; }
+            .btn { width: 100%; justify-content: center; }
         }
 
-        /* Para telas muito pequenas */
         @media (max-width: 480px) {
-
-            th,
-            td {
-                padding: 4px 2px;
-                font-size: 0.7em;
-                min-width: 50px;
-            }
-
-            .header h1 {
-                font-size: 1.2em;
-            }
+            th, td { padding: 4px 2px; font-size: 0.7em; min-width: 50px; }
+            .header h1 { font-size: 1.2em; }
         }
     </style>
 </head>
 
 <body>
+
+    <!-- ── Dados injetados pelo servidor de forma segura ────────────────
+         type="application/json" faz o browser ignorar o conteúdo como JS,
+         então aspas simples, duplas, barras — nada quebra.              -->
+    <script type="application/json" id="__headers__"><?!= headersJson ?></script>
+    <script type="application/json" id="__dados__"><?!= dadosJson ?></script>
+
     <div class="container">
         <div class="header">
             <button class="back-button" onclick="voltarDashboard()">← Voltar</button>
@@ -409,15 +255,11 @@
 
         <div class="controls">
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="🔍 Buscar em todos os campos... ">
+                <input type="text" id="searchInput" placeholder="🔍 Buscar em todos os campos...">
                 <span class="search-icon">🔍</span>
             </div>
-            <button class="btn btn-primary" onclick="exportarExcel()">
-                📊 Exportar Excel
-            </button>
-            <button class="btn btn-secondary" onclick="limparFiltros()">
-                🔄 Limpar Filtros
-            </button>
+            <button class="btn btn-primary" onclick="exportarExcel()">📊 Exportar Excel</button>
+            <button class="btn btn-secondary" onclick="limparFiltros()">🔄 Limpar Filtros</button>
         </div>
 
         <div class="stats">
@@ -436,12 +278,12 @@
                 <div class="loading-spinner"></div>
                 <p>Carregando produtos...</p>
             </div>
-            <div id="tableContent" style="display: none;">
+            <div id="tableContent" style="display:none;">
                 <table id="produtosTable">
                     <thead id="tableHead"></thead>
                     <tbody id="tableBody"></tbody>
                 </table>
-                <div id="noResults" class="no-results" style="display: none;">
+                <div id="noResults" class="no-results" style="display:none;">
                     <div class="no-results-icon">🔍</div>
                     <h3>Nenhum produto encontrado</h3>
                     <p>Tente ajustar os filtros de busca</p>
@@ -451,134 +293,144 @@
     </div>
 
     <script>
-    // Dados já serializados e seguros, injetados como string pelo servidor
-    let headers      = JSON.parse('<?!= headersJson ?>');
-    let produtosData = JSON.parse('<?!= dadosJson ?>');
-    const token      = <?!= JSON.stringify(token) ?>;
-    var baseUrl      = <?!= JSON.stringify(typeof baseUrl !== 'undefined' ? baseUrl : null) ?>;
+        // ── 1. Lê os dados das tags JSON — 100% seguro contra qualquer caractere ──
+        var headers      = JSON.parse(document.getElementById('__headers__').textContent);
+        var produtosData = JSON.parse(document.getElementById('__dados__').textContent);
 
-    let sortColumn    = null;
-    let sortDirection = 'asc';
+        // ── 2. Token e navegação ─────────────────────────────────────────────────
+        var token   = <?!= JSON.stringify(token) ?>;
+        var baseUrl = <?!= JSON.stringify(typeof baseUrl !== 'undefined' ? baseUrl : null) ?>;
 
-    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
+        var sortColumn    = null;
+        var sortDirection = 'asc';
 
-    function pageUrl(page, qs) {
-        if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
-        return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
-    }
-    function voltarDashboard() {
-        window.location.href = pageUrl('dashboard', 'token=' + token);
-    }
+        var WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
 
-    window.onload = function () {
-        renderizarTabela();
-        atualizarEstatisticas();
-        document.getElementById('loadingIndicator').style.display = 'none';
-        document.getElementById('tableContent').style.display    = 'block';
-    };
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const el = document.getElementById('searchInput');
-        if (el) el.addEventListener('input', renderizarTabela);
-    });
-
-    function renderizarTabela() {
-        const thead = document.getElementById('tableHead');
-        const tbody = document.getElementById('tableBody');
-
-        let headerHtml = '<tr>';
-        headers.forEach(function(header, index) {
-            if (header !== '_linhaPlanilha') {
-                const sortClass = sortColumn === index ? 'sort-' + sortDirection : '';
-                headerHtml += '<th class="sortable ' + sortClass + '" onclick="ordenarPor(' + index + ')">' + header + '</th>';
-            }
-        });
-        headerHtml += '</tr>';
-        thead.innerHTML = headerHtml;
-
-        const filtro = document.getElementById('searchInput').value.toLowerCase();
-        let bodyHtml = '';
-        let count = 0;
-
-        produtosData.forEach(function(produto) {
-            const matches = Object.values(produto).some(function(val) {
-                return String(val).toLowerCase().includes(filtro);
-            });
-            if (matches) {
-                count++;
-                bodyHtml += '<tr>';
-                headers.forEach(function(header) {
-                    if (header !== '_linhaPlanilha') {
-                        bodyHtml += '<td>' + (produto[header] || '') + '</td>';
-                    }
-                });
-                bodyHtml += '</tr>';
-            }
-        });
-
-        tbody.innerHTML = bodyHtml;
-        document.getElementById('noResults').style.display      = count === 0 ? 'block' : 'none';
-        document.getElementById('produtosVisiveis').textContent = count;
-    }
-
-    function ordenarPor(columnIndex) {
-        const columnName = headers[columnIndex];
-        if (sortColumn === columnIndex) {
-            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-        } else {
-            sortColumn    = columnIndex;
-            sortDirection = 'asc';
+        function pageUrl(page, qs) {
+            if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, '');
+            return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : '');
         }
-        produtosData.sort(function(a, b) {
-            let valA = a[columnName] || '';
-            let valB = b[columnName] || '';
-            const numA = parseFloat(String(valA).replace(/[^\d,.-]/g, '').replace(',', '.'));
-            const numB = parseFloat(String(valB).replace(/[^\d,.-]/g, '').replace(',', '.'));
-            if (!isNaN(numA) && !isNaN(numB)) return sortDirection === 'asc' ? numA - numB : numB - numA;
-            const compare = String(valA).localeCompare(String(valB));
-            return sortDirection === 'asc' ? compare : -compare;
+
+        function voltarDashboard() {
+            window.location.href = pageUrl('dashboard', 'token=' + token);
+        }
+
+        // ── 3. Inicialização ─────────────────────────────────────────────────────
+        window.onload = function () {
+            renderizarTabela();
+            atualizarEstatisticas();
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('tableContent').style.display     = 'block';
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var el = document.getElementById('searchInput');
+            if (el) el.addEventListener('input', renderizarTabela);
         });
-        renderizarTabela();
-    }
 
-    function atualizarEstatisticas() {
-        document.getElementById('totalProdutos').textContent    = produtosData.length;
-        document.getElementById('produtosVisiveis').textContent = produtosData.length;
-    }
+        // ── 4. Renderização ──────────────────────────────────────────────────────
+        function renderizarTabela() {
+            var thead = document.getElementById('tableHead');
+            var tbody = document.getElementById('tableBody');
 
-    function limparFiltros() {
-        document.getElementById('searchInput').value = '';
-        sortColumn    = null;
-        sortDirection = 'asc';
-        renderizarTabela();
-    }
-
-    function exportarExcel() {
-        const filtro = document.getElementById('searchInput').value.toLowerCase();
-        const dadosFiltrados = produtosData.filter(function(p) {
-            return Object.values(p).some(function(v) {
-                return String(v).toLowerCase().includes(filtro);
+            var headerHtml = '<tr>';
+            headers.forEach(function (header, index) {
+                if (header !== '_linhaPlanilha') {
+                    var sortClass = sortColumn === index ? 'sort-' + sortDirection : '';
+                    headerHtml += '<th class="sortable ' + sortClass + '" onclick="ordenarPor(' + index + ')">' + header + '</th>';
+                }
             });
-        });
-        if (dadosFiltrados.length === 0) { alert('Nenhum dado para exportar'); return; }
+            headerHtml += '</tr>';
+            thead.innerHTML = headerHtml;
 
-        let csv = headers.filter(function(h) { return h !== '_linhaPlanilha'; }).join(',') + '\n';
-        dadosFiltrados.forEach(function(produto) {
-            const row = headers
-                .filter(function(h) { return h !== '_linhaPlanilha'; })
-                .map(function(header) {
+            var filtro   = document.getElementById('searchInput').value.toLowerCase();
+            var bodyHtml = '';
+            var count    = 0;
+
+            produtosData.forEach(function (produto) {
+                var matches = Object.values(produto).some(function (val) {
+                    return String(val).toLowerCase().includes(filtro);
+                });
+                if (matches) {
+                    count++;
+                    bodyHtml += '<tr>';
+                    headers.forEach(function (header) {
+                        if (header !== '_linhaPlanilha') {
+                            bodyHtml += '<td>' + (produto[header] || '') + '</td>';
+                        }
+                    });
+                    bodyHtml += '</tr>';
+                }
+            });
+
+            tbody.innerHTML = bodyHtml;
+            document.getElementById('noResults').style.display      = count === 0 ? 'block' : 'none';
+            document.getElementById('produtosVisiveis').textContent = count;
+        }
+
+        // ── 5. Ordenação ─────────────────────────────────────────────────────────
+        function ordenarPor(columnIndex) {
+            var columnName = headers[columnIndex];
+            if (sortColumn === columnIndex) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn    = columnIndex;
+                sortDirection = 'asc';
+            }
+            produtosData.sort(function (a, b) {
+                var valA = a[columnName] || '';
+                var valB = b[columnName] || '';
+                var numA = parseFloat(String(valA).replace(/[^\d,.-]/g, '').replace(',', '.'));
+                var numB = parseFloat(String(valB).replace(/[^\d,.-]/g, '').replace(',', '.'));
+                if (!isNaN(numA) && !isNaN(numB)) return sortDirection === 'asc' ? numA - numB : numB - numA;
+                var compare = String(valA).localeCompare(String(valB));
+                return sortDirection === 'asc' ? compare : -compare;
+            });
+            renderizarTabela();
+        }
+
+        // ── 6. Estatísticas ──────────────────────────────────────────────────────
+        function atualizarEstatisticas() {
+            document.getElementById('totalProdutos').textContent    = produtosData.length;
+            document.getElementById('produtosVisiveis').textContent = produtosData.length;
+        }
+
+        // ── 7. Filtros ───────────────────────────────────────────────────────────
+        function limparFiltros() {
+            document.getElementById('searchInput').value = '';
+            sortColumn    = null;
+            sortDirection = 'asc';
+            renderizarTabela();
+        }
+
+        // ── 8. Exportação ────────────────────────────────────────────────────────
+        function exportarExcel() {
+            var filtro = document.getElementById('searchInput').value.toLowerCase();
+            var dadosFiltrados = produtosData.filter(function (p) {
+                return Object.values(p).some(function (v) {
+                    return String(v).toLowerCase().includes(filtro);
+                });
+            });
+
+            if (dadosFiltrados.length === 0) { alert('Nenhum dado para exportar'); return; }
+
+            var cabecalhos = headers.filter(function (h) { return h !== '_linhaPlanilha'; });
+            var csv = cabecalhos.join(',') + '\n';
+
+            dadosFiltrados.forEach(function (produto) {
+                var row = cabecalhos.map(function (header) {
                     return '"' + String(produto[header] || '').replace(/"/g, '""') + '"';
                 }).join(',');
-            csv += row + '\n';
-        });
+                csv += row + '\n';
+            });
 
-        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href     = URL.createObjectURL(blob);
-        link.download = 'produtos_' + new Date().toISOString().split('T')[0] + '.csv';
-        link.click();
-    }
-</script>
+            var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement('a');
+            link.href     = URL.createObjectURL(blob);
+            link.download = 'produtos_' + new Date().toISOString().split('T')[0] + '.csv';
+            link.click();
+        }
+    </script>
+
 </body>
-
 </html>

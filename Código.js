@@ -27,6 +27,14 @@ const ID_PASTA_PRINCIPAL = CONFIG.ID_PASTA_PRINCIPAL;
 const ID_LOGO = CONFIG.ID_LOGO;
 const FAVICON = CONFIG.FAVICON;
 
+// Cache em memória (por execução) da pasta raiz no Drive — evita round-trip repetido em fluxos de criação/renomeação de pasta.
+let _ROOT_FOLDER_CACHE_ = null;
+function _getRootFolder_() {
+  if (_ROOT_FOLDER_CACHE_) return _ROOT_FOLDER_CACHE_;
+  _ROOT_FOLDER_CACHE_ = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+  return _ROOT_FOLDER_CACHE_;
+}
+
 
 function _getOrCreateSheetByName_(name) {
   var sh = ss.getSheetByName(name);
@@ -44,26 +52,6 @@ function _limparESetarTabela_(sheet, values) {
     sheet.setFrozenRows(1);
     sheet.autoResizeColumns(1, Math.min(values[0].length, 12));
   } catch (e) { /* ignora */ }
-}
-
-function _mapDonoCatalogoPorPRD_() {
-  var donoCatalogo = {};
-  try {
-    if (!SHEET_PRODUTOS || SHEET_PRODUTOS.getLastRow() < 2) return donoCatalogo;
-    var dadosProd = SheetCache.getData(SHEET_PRODUTOS);
-    for (var r = 1; r < dadosProd.length; r++) {
-      var prd = _normalizarCodigoPRD(dadosProd[r][0]);
-      if (!_ehCodigoPRDValido(prd)) continue;
-      var projCat = String(dadosProd[r][8] || "").trim(); // coluna I (0-based 8)
-      if (!projCat) continue;
-      var base = projCat.replace(/_v\d+$/i, "").trim();
-      if (!base) continue;
-      if (!donoCatalogo[prd]) donoCatalogo[prd] = base;
-    }
-  } catch (e) {
-    Logger.log("_mapDonoCatalogoPorPRD_ aviso: " + (e && e.message ? e.message : e));
-  }
-  return donoCatalogo;
 }
 
 function _normStr_(v) {
@@ -114,241 +102,6 @@ function _mapAssinaturaCatalogoPorPRD_() {
     Logger.log("_mapAssinaturaCatalogoPorPRD_ aviso: " + (e && e.message ? e.message : e));
   }
   return map;
-}
-
-function _assinaturaProdutoJson_(p) {
-  if (!p || typeof p !== "object") return { descricao: "", ncm: "", unidade: "", preco: 0 };
-  return {
-    descricao: _normStr_(p.descricao),
-    ncm: _normNcm_(p.ncm),
-    unidade: _normUn_(p.unidade),
-    // prioridade: precoUnitario (mais consistente), senão tenta inferir por precoTotal/qtd
-    preco: (function () {
-      var pu = _num_(p.precoUnitario);
-      if (pu > 0) return pu;
-      var qtd = _num_(p.quantidade);
-      var pt = _num_(p.precoTotal);
-      if (qtd > 0 && pt > 0) return pt / qtd;
-      return 0;
-    })()
-  };
-}
-
-function _textoParecido_(a, b) {
-  a = _normStr_(a);
-  b = _normStr_(b);
-  if (!a || !b) return true;
-  if (a === b) return true;
-  // Aceita quando um contém o outro (evita falso conflito por sufixos como "(N/A)" ou pequenos complementos)
-  if (a.length >= 6 && b.length >= 6) {
-    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return true;
-  }
-  return false;
-}
-
-function _bateCatalogo_(sigJson, sigCat) {
-  if (!sigCat) return true; // sem referência no catálogo: não julga como duplicado
-  // Descrição: match exato ou "parecido" (contain)
-  var okDesc = !sigCat.descricao || _textoParecido_(sigJson.descricao, sigCat.descricao);
-  // NCM: se algum lado vazio, não acusa conflito
-  var okNcm = (!sigCat.ncm || !sigJson.ncm) ? true : (sigJson.ncm === sigCat.ncm);
-  // Unidade: se JSON vazio, não acusa conflito
-  var okUn = (!sigCat.unidade || !sigJson.unidade) ? true : (sigJson.unidade === sigCat.unidade);
-  // Preço: tolerância absoluta + relativa (evita conflito por arredondamento)
-  var okPreco;
-  if (!sigCat.preco || sigCat.preco <= 0 || !sigJson.preco || sigJson.preco <= 0) okPreco = true;
-  else {
-    var diff = Math.abs(sigJson.preco - sigCat.preco);
-    okPreco = (diff <= 0.01) || (diff / sigCat.preco <= 0.005); // 0,5%
-  }
-  return okDesc && okNcm && okUn && okPreco;
-}
-
-function _getProdutoItemFromOccurrence_(occ, cacheByLinha, sheetProj, idxJson) {
-  if (!occ || !occ.linha || !sheetProj) return null;
-  var linha = Number(occ.linha);
-  if (!cacheByLinha[linha]) {
-    var cell = sheetProj.getRange(linha, idxJson + 1).getValue();
-    if (!cell || typeof cell !== "string" || !String(cell).trim()) {
-      cacheByLinha[linha] = { parsed: null };
-    } else {
-      try {
-        cacheByLinha[linha] = { parsed: JSON.parse(String(cell).trim()) };
-      } catch (e) {
-        cacheByLinha[linha] = { parsed: null };
-      }
-    }
-  }
-  var parsed = cacheByLinha[linha].parsed;
-  if (!parsed) return null;
-  if (occ.contexto === "base") {
-    var listB = parsed && parsed.dados && parsed.dados.produtosCadastrados;
-    return (Array.isArray(listB) && listB[occ.index]) ? listB[occ.index] : null;
-  }
-  if (occ.contexto === "versao") {
-    var versoes = parsed && parsed.versoes;
-    var vIdx = (occ.versaoIndex != null) ? occ.versaoIndex : null;
-    if (vIdx == null) return null;
-    var listV = versoes && versoes[vIdx] && versoes[vIdx].dados && versoes[vIdx].dados.produtosCadastrados;
-    return (Array.isArray(listV) && listV[occ.index]) ? listV[occ.index] : null;
-  }
-  return null;
-}
-
-/**
- * MENU: gera relatório em aba "PRD_DUPLICADOS".
- */
-function menuListarPRDsDuplicados() {
-  var ui = SpreadsheetApp.getUi();
-  var sh = _getOrCreateSheetByName_("PRD_DUPLICADOS");
-  var donoCatalogo = _mapDonoCatalogoPorPRD_();
-  var assinaturaCatalogo = _mapAssinaturaCatalogoPorPRD_();
-  var sheetProj = SHEET_PROJ;
-  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
-  var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-  var idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
-  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
-  var cacheByLinha = {};
-
-  var diag = diagnosticarPRDsEntreProjetos({});
-  var duplicados = (diag && diag.duplicadosEntreProjetos) ? diag.duplicadosEntreProjetos : [];
-
-  var values = [];
-  values.push([
-    "PRD",
-    "Ocorrências (total)",
-    "Dono no catálogo (projeto base)",
-    "Linha (Projetos)",
-    "Projeto (linha base)",
-    "Contexto",
-    "Versão (se aplicável)",
-    "Index item",
-    "Bate catálogo?",
-    "Desc (json)",
-    "Desc (catálogo)",
-    "NCM (json)",
-    "NCM (catálogo)",
-    "UN (json)",
-    "UN (catálogo)",
-    "Preço unit (json)",
-    "Preço (catálogo)",
-    "Obs"
-  ]);
-
-  if (!duplicados.length) {
-    values.push(["—", 0, "—", "", "", "", "", "", "Nenhum PRD duplicado entre projetos/versões encontrado."]);
-    _limparESetarTabela_(sh, values);
-    try { ss.setActiveSheet(sh); } catch (e) { }
-    ui.alert("PRDs duplicados", "Nenhum PRD duplicado entre projetos/versões foi encontrado.", ui.ButtonSet.OK);
-    return { success: true, duplicados: 0 };
-  }
-
-  duplicados.forEach(function (d) {
-    var prd = d.codigo;
-    var arr = d.ocorrencias || [];
-    var dono = donoCatalogo[prd] || "";
-    var sigCat = assinaturaCatalogo[prd] || null;
-    arr.forEach(function (o) {
-      // Lê o item real para comparar assinatura com catálogo (evita falso positivo: mesmo produto em vários projetos)
-      var sigJson = { descricao: "", ncm: "", unidade: "", preco: 0 };
-      try {
-        var item = _getProdutoItemFromOccurrence_(o, cacheByLinha, sheetProj, idxJson);
-        if (item) sigJson = _assinaturaProdutoJson_(item);
-      } catch (eSig) { }
-
-      var bate = _bateCatalogo_(sigJson, sigCat);
-      var obs = bate ? "mesmo produto (ok)" : "CONFLITO com catálogo (corrigir)";
-      if (!sigCat) obs = "PRD não encontrado no catálogo (avaliar)";
-
-      values.push([
-        prd,
-        arr.length,
-        dono || "—",
-        o.linha || "",
-        o.projeto || "",
-        o.contexto || "",
-        o.versao || "",
-        (o.index != null ? o.index : ""),
-        bate ? "SIM" : "NÃO",
-        sigJson.descricao || "",
-        sigCat ? (sigCat.descricao || "") : "",
-        sigJson.ncm || "",
-        sigCat ? (sigCat.ncm || "") : "",
-        sigJson.unidade || "",
-        sigCat ? (sigCat.unidade || "") : "",
-        sigJson.preco || 0,
-        sigCat ? (sigCat.preco || 0) : 0,
-        obs
-      ]);
-    });
-  });
-
-  _limparESetarTabela_(sh, values);
-  try { ss.setActiveSheet(sh); } catch (e) { }
-  ui.alert(
-    "PRDs duplicados",
-    "Encontrados " + duplicados.length + " PRDs duplicados entre projetos/versões.\n" +
-    "Relatório gerado na aba: PRD_DUPLICADOS",
-    ui.ButtonSet.OK
-  );
-  return { success: true, duplicados: duplicados.length };
-}
-
-/**
- * MENU: aplica o reparo e gera/atualiza o relatório.
- */
-function menuCorrigirPRDsDuplicados() {
-  var ui = SpreadsheetApp.getUi();
-  var confirm = ui.alert(
-    "Corrigir PRDs duplicados",
-    "Isso vai alterar o JSON_DADOS na aba Projetos, reatribuindo novos PRDs únicos para ocorrências duplicadas (assumindo a Relação de produtos como original).\n\nDeseja continuar?",
-    ui.ButtonSet.YES_NO
-  );
-  if (confirm !== ui.Button.YES) return { success: false, cancelled: true };
-
-  var res = repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo({ dryRun: false });
-  menuListarPRDsDuplicados();
-  try {
-    var sh2 = _getOrCreateSheetByName_("PRD_REGERAR_PDF");
-    var vals = [];
-    vals.push(["Projeto para regenerar", "Linha (Projetos)", "É versão?", "Código da versão", "Qtd itens PRD trocados"]);
-
-    var byKey = {};
-    (res.itensTrocados || []).forEach(function (it) {
-      var key = (it.contexto === "versao" && it.versaoCodigo) ? ("V:" + it.versaoCodigo) : ("B:" + it.projetoBase);
-      if (!byKey[key]) {
-        byKey[key] = { projetoBase: it.projetoBase, linha: it.linha, isVersao: (it.contexto === "versao"), versaoCodigo: it.versaoCodigo || "", qtd: 0 };
-      }
-      byKey[key].qtd++;
-    });
-    var keys = Object.keys(byKey);
-    keys.sort();
-    keys.forEach(function (k) {
-      var o = byKey[k];
-      vals.push([
-        o.isVersao && o.versaoCodigo ? o.versaoCodigo : o.projetoBase,
-        o.linha,
-        o.isVersao ? "SIM" : "NÃO",
-        o.versaoCodigo || "",
-        o.qtd
-      ]);
-    });
-    if (vals.length === 1) vals.push(["—", "", "", "", 0]);
-    _limparESetarTabela_(sh2, vals);
-  } catch (eRep) {
-    Logger.log("menuCorrigirPRDsDuplicados: falha ao gerar PRD_REGERAR_PDF: " + (eRep && eRep.message ? eRep.message : eRep));
-  }
-
-  ui.alert(
-    "Reparo concluído",
-    "Projetos analisados: " + (res.analisados != null ? res.analisados : "?") + "\n" +
-    "PRDs duplicados encontrados: " + (res.prdsDuplicados != null ? res.prdsDuplicados : "?") + "\n" +
-    "Linhas alteradas (JSON_DADOS): " + (res.alterados != null ? res.alterados : "?") + "\n\n" +
-    "A lista de projetos/versões para gerar novo PDF foi gerada na aba: PRD_REGERAR_PDF\n\n" +
-    "Agora carregue os orçamentos no formulário e gere novos PDFs (os antigos não mudam).",
-    ui.ButtonSet.OK
-  );
-  return res;
 }
 
 // ==================== SHEET CACHE ====================
@@ -1183,14 +936,53 @@ function salvarFornecedorSeNovo(fornecedor) {
 // ========================= PASTAS =========================
 
 /**
- * Remove caracteres inválidos do nome da pasta
+ * Caracteres problemáticos para pastas:
+ *  - Proibidos pelo Drive: \ / : * ? " < > |
+ *  - Conflitam com softwares CAD ao abrir/referenciar caminhos:
+ *    & % ` ; { } [ ] @ ! $ ^ ~ = +
+ * Permitidos: # _ ' (solicitado para nomes de pasta/descrição).
+ * (vírgula e ponto são mantidos por serem comuns em descrições/medidas.)
+ */
+var REGEX_CARACTERES_PROBLEMATICOS_PASTA = /[\\\/:*?"<>|&%;{}\[\]@!$^~=+]/g;
+
+/**
+ * Retorna a lista (sem repetição, mantendo ordem) de caracteres problemáticos
+ * encontrados no texto. Vazio quando o texto está OK.
+ * @param {string} texto
+ * @returns {string[]}
+ */
+function _caracteresProblematicosPasta_(texto) {
+  if (texto == null || texto === "") return [];
+  var matches = String(texto).match(REGEX_CARACTERES_PROBLEMATICOS_PASTA);
+  if (!matches) return [];
+  var seen = {}, out = [];
+  for (var i = 0; i < matches.length; i++) {
+    if (!seen[matches[i]]) { seen[matches[i]] = 1; out.push(matches[i]); }
+  }
+  return out;
+}
+
+/**
+ * Valida (server-side) se um texto pode ser usado em nome de pasta.
+ * Pode ser chamada via google.script.run para conferir antes de criar/renomear.
+ * @param {string} texto
+ * @returns {{valido:boolean, caracteres:string[]}}
+ */
+function validarTextoParaPasta(texto) {
+  var chars = _caracteresProblematicosPasta_(texto);
+  return { valido: chars.length === 0, caracteres: chars };
+}
+
+/**
+ * Remove caracteres inválidos do nome da pasta (Drive + caracteres que
+ * conflitam com softwares CAD ao abrir/referenciar a pasta).
  * @param {string} texto - Texto a ser limpo
  * @returns {string} - Texto limpo
  */
 function limparNomePasta(texto) {
   if (!texto) return "";
   return String(texto)
-    .replace(/[\/\\:*?"<>|]/g, "") // Remove caracteres inválidos do Drive
+    .replace(REGEX_CARACTERES_PROBLEMATICOS_PASTA, "") // Drive + CAD
     .replace(/\bCOT\b/gi, "")       // Não usar prefixos COT/PED na descrição/nome (reservados)
     .replace(/\bPED\b/gi, "")
     .replace(/\s+/g, " ")           // Normaliza espaços múltiplos
@@ -1246,7 +1038,7 @@ function gerarNomePasta(codigoProjeto, nomeCliente, descricao, isPedido, nomeAbr
  */
 function detectarPastaExistente(codigoProjeto, data) {
   try {
-    const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+    const root = _getRootFolder_();
     const ano = data.substring(0, 2);
     const mes = data.substring(0, 4);
     const dia = data;
@@ -1436,7 +1228,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
     // Se a pasta está na estrutura antiga (COM), move para PROJ
     if (pastaInfo.estrutura === "COM") {
       try {
-        const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+        const root = _getRootFolder_();
         const anoFolder = getOrCreateSubFolder(root, "20" + data.substring(0, 2));
         const mesFolder = getOrCreateSubFolder(anoFolder, data.substring(0, 4));
         const diaFolder = getOrCreateSubFolder(mesFolder, data);
@@ -1458,7 +1250,7 @@ function criarOuUsarPastaProjeto(codigoProjeto, nomeCliente, descricao, data, is
 
   // Pasta não existe - cria nova na estrutura PROJ
   Logger.log("📁 Criando nova pasta para projeto: " + codigoProjeto);
-  const root = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+  const root = _getRootFolder_();
   const anoFolder = getOrCreateSubFolder(root, "20" + data.substring(0, 2));
   const mesFolder = getOrCreateSubFolder(anoFolder, data.substring(0, 4));
   const diaFolder = getOrCreateSubFolder(mesFolder, data);
@@ -2312,560 +2104,6 @@ function incrementarContador(tipo) {
 }
 
 /**
- * Corrige PRDs duplicados em JSON_DADOS (base e versões) na aba Projetos.
- * Uso sugerido no editor do Apps Script:
- *   corrigirPRDsDuplicadosJSONDados();
- *   corrigirPRDsDuplicadosJSONDados({ projeto: "260101aAB" });
- *   corrigirPRDsDuplicadosJSONDados({ linha: 123 });
- */
-function corrigirPRDsDuplicadosJSONDados(opcoes) {
-  opcoes = opcoes || {};
-  const sheetProj = SHEET_PROJ;
-  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
-
-  const lastRow = sheetProj.getLastRow();
-  if (lastRow < 2) return { success: true, analisados: 0, alterados: 0, detalhes: [] };
-
-  const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-  const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
-  const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
-  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada na aba Projetos.");
-
-  const filtroProjeto = String(opcoes.projeto || "").trim();
-  const filtroLinha = Number(opcoes.linha || 0);
-  const codigosReservadosGlobais = _coletarCodigosPRDDoCatalogo();
-  const detalhes = [];
-  let totalAnalisados = 0;
-  let totalAlterados = 0;
-
-  for (let linha = 2; linha <= lastRow; linha++) {
-    if (filtroLinha && linha !== filtroLinha) continue;
-
-    const codigoProjetoLinha = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
-    const codigoBaseLinha = codigoProjetoLinha.replace(/_v\d+$/i, "").trim();
-    if (filtroProjeto && filtroProjeto !== codigoProjetoLinha && filtroProjeto !== codigoBaseLinha) continue;
-
-    const jsonCell = sheetProj.getRange(linha, idxJson + 1).getValue();
-    if (!jsonCell || typeof jsonCell !== "string" || !jsonCell.trim()) continue;
-
-    totalAnalisados++;
-    let parsed;
-    try {
-      parsed = JSON.parse(String(jsonCell).trim());
-    } catch (eParse) {
-      detalhes.push({ linha: linha, projeto: codigoProjetoLinha, erro: "JSON inválido" });
-      continue;
-    }
-
-    let alteracoesLinha = 0;
-    const detalhesLinha = [];
-
-    if (parsed && parsed.dados && Array.isArray(parsed.dados.produtosCadastrados)) {
-      const rBase = atribuirPRDsUnicos(parsed.dados.produtosCadastrados, codigosReservadosGlobais);
-      if (rBase.alteracoes > 0) {
-        alteracoesLinha += rBase.alteracoes;
-        detalhesLinha.push("base:" + rBase.alteracoes);
-      }
-    }
-
-    if (parsed && Array.isArray(parsed.versoes)) {
-      parsed.versoes.forEach(function (versao) {
-        if (!versao || !versao.dados || !Array.isArray(versao.dados.produtosCadastrados)) return;
-        const rV = atribuirPRDsUnicos(versao.dados.produtosCadastrados, codigosReservadosGlobais);
-        if (rV.alteracoes > 0) {
-          alteracoesLinha += rV.alteracoes;
-          detalhesLinha.push((versao.codigo || "versao") + ":" + rV.alteracoes);
-        }
-      });
-    }
-
-    if (alteracoesLinha > 0) {
-      sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
-      totalAlterados++;
-      detalhes.push({
-        linha: linha,
-        projeto: codigoProjetoLinha,
-        alteracoes: alteracoesLinha,
-        contextos: detalhesLinha.join(", ")
-      });
-    }
-  }
-
-  if (totalAlterados > 0) SheetCache.invalidate(sheetProj);
-
-  return {
-    success: true,
-    analisados: totalAnalisados,
-    alterados: totalAlterados,
-    detalhes: detalhes
-  };
-}
-
-/**
- * Corrige PRDs duplicados ENTRE projetos/versões no JSON_DADOS.
- * Regra: para PRDs que NÃO existem na Relação de produtos, mantém a primeira ocorrência
- * e reatribui as demais com novo PRD único.
- */
-function corrigirPRDsDuplicadosEntreProjetosJSON(opcoes) {
-  opcoes = opcoes || {};
-  const sheetProj = SHEET_PROJ;
-  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
-
-  const lastRow = sheetProj.getLastRow();
-  if (lastRow < 2) return { success: true, analisados: 0, alterados: 0, ocorrenciasDuplicadas: 0, detalhes: [] };
-
-  const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-  const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
-  const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
-  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
-
-  const filtroProjeto = String(opcoes.projeto || "").trim();
-  const filtroLinha = Number(opcoes.linha || 0);
-  const codigosCatalogo = _coletarCodigosPRDDoCatalogo();
-
-  const rows = [];
-  const ocorrencias = {};
-  let analisados = 0;
-
-  function addOcc(codigo, item) {
-    if (!ocorrencias[codigo]) ocorrencias[codigo] = [];
-    ocorrencias[codigo].push(item);
-  }
-
-  for (let linha = 2; linha <= lastRow; linha++) {
-    if (filtroLinha && linha !== filtroLinha) continue;
-
-    const codigoProjetoLinha = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
-    const codigoBaseLinha = codigoProjetoLinha.replace(/_v\d+$/i, "").trim();
-    if (filtroProjeto && filtroProjeto !== codigoProjetoLinha && filtroProjeto !== codigoBaseLinha) continue;
-
-    const jsonCell = sheetProj.getRange(linha, idxJson + 1).getValue();
-    if (!jsonCell || typeof jsonCell !== "string" || !jsonCell.trim()) continue;
-
-    let parsed = null;
-    try {
-      parsed = JSON.parse(String(jsonCell).trim());
-    } catch (eParse) {
-      continue;
-    }
-    if (!parsed) continue;
-
-    analisados++;
-    const rowObj = { linha: linha, projeto: codigoProjetoLinha, parsed: parsed, touched: false, alteracoes: 0 };
-    rows.push(rowObj);
-
-    const baseList = parsed && parsed.dados && parsed.dados.produtosCadastrados;
-    if (Array.isArray(baseList)) {
-      baseList.forEach(function (p, idx) {
-        const codigo = _normalizarCodigoPRD(p && p.codigo);
-        if (_ehCodigoPRDValido(codigo) && !codigosCatalogo.has(codigo)) {
-          addOcc(codigo, { row: rowObj, where: "base", index: idx });
-        }
-      });
-    }
-
-    if (Array.isArray(parsed.versoes)) {
-      parsed.versoes.forEach(function (v, vIdx) {
-        const list = v && v.dados && v.dados.produtosCadastrados;
-        if (!Array.isArray(list)) return;
-        list.forEach(function (p, pIdx) {
-          const codigo = _normalizarCodigoPRD(p && p.codigo);
-          if (_ehCodigoPRDValido(codigo) && !codigosCatalogo.has(codigo)) {
-            addOcc(codigo, { row: rowObj, where: "versao", versaoIndex: vIdx, index: pIdx });
-          }
-        });
-      });
-    }
-  }
-
-  let ocorrenciasDuplicadas = 0;
-  Object.keys(ocorrencias).forEach(function (codigo) {
-    const arr = ocorrencias[codigo] || [];
-    if (arr.length <= 1) return;
-    ocorrenciasDuplicadas += (arr.length - 1);
-    for (let i = 1; i < arr.length; i++) {
-      const occ = arr[i];
-      if (occ.where === "base") {
-        const list = occ.row.parsed && occ.row.parsed.dados && occ.row.parsed.dados.produtosCadastrados;
-        if (Array.isArray(list) && list[occ.index]) {
-          list[occ.index].codigo = "";
-          occ.row.touched = true;
-          occ.row.alteracoes++;
-        }
-      } else {
-        const versoes = occ.row.parsed && occ.row.parsed.versoes;
-        const list = versoes && versoes[occ.versaoIndex] && versoes[occ.versaoIndex].dados && versoes[occ.versaoIndex].dados.produtosCadastrados;
-        if (Array.isArray(list) && list[occ.index]) {
-          list[occ.index].codigo = "";
-          occ.row.touched = true;
-          occ.row.alteracoes++;
-        }
-      }
-    }
-  });
-
-  const reservados = _coletarCodigosPRDReservadosGlobais();
-  const detalhes = [];
-  let alterados = 0;
-
-  rows.forEach(function (r) {
-    if (!r.touched) return;
-
-    if (r.parsed && r.parsed.dados && Array.isArray(r.parsed.dados.produtosCadastrados)) {
-      atribuirPRDsUnicos(r.parsed.dados.produtosCadastrados, reservados);
-    }
-    if (Array.isArray(r.parsed.versoes)) {
-      r.parsed.versoes.forEach(function (v) {
-        if (v && v.dados && Array.isArray(v.dados.produtosCadastrados)) {
-          atribuirPRDsUnicos(v.dados.produtosCadastrados, reservados);
-        }
-      });
-    }
-
-    sheetProj.getRange(r.linha, idxJson + 1).setValue(JSON.stringify(r.parsed));
-    alterados++;
-    detalhes.push({ linha: r.linha, projeto: r.projeto, itensCorrigidos: r.alteracoes });
-  });
-
-  if (alterados > 0) SheetCache.invalidate(sheetProj);
-
-  return {
-    success: true,
-    analisados: analisados,
-    alterados: alterados,
-    ocorrenciasDuplicadas: ocorrenciasDuplicadas,
-    detalhes: detalhes
-  };
-}
-
-/**
- * REPARO (incidente PRD): corrige PRDs repetidos ENTRE orçamentos assumindo o catálogo como "fonte do original".
- *
- * Regra principal:
- * - Se um PRD existe na aba "Relação de produtos", consideramos que o orçamento/projeto indicado nessa linha do catálogo
- *   é o "dono" original do PRD.
- * - Qualquer ocorrência do mesmo PRD em OUTRO projeto/versão é tratada como duplicada e recebe um novo PRD único.
- *
- * Observações:
- * - Não altera a aba "Relação de produtos" (você disse que está correta).
- * - Altera SOMENTE o JSON_DADOS (base e versões) na aba Projetos.
- * - Depois disso, ao carregar o orçamento no formulario.html e gerar novo PDF, virá com PRDs únicos.
- *
- * Uso sugerido no editor do Apps Script:
- *   repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo({ dryRun: true })  // ver relatório
- *   repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo({ dryRun: false }) // aplicar
- *
- * Opções:
- * - dryRun (boolean): padrão true (não grava).
- * - projeto (string): filtra por um projeto/código base específico.
- * - linha (number): filtra por uma linha específica da aba Projetos.
- * - limit (number): limita quantidade de PRDs a reparar (útil para testes).
- */
-function repararPRDsRepetidosEntreOrcamentosAssumindoCatalogo(opcoes) {
-  opcoes = opcoes || {};
-  var dryRun = (opcoes.dryRun !== undefined) ? !!opcoes.dryRun : true;
-  var filtroProjeto = String(opcoes.projeto || "").trim();
-  var filtroLinha = Number(opcoes.linha || 0);
-  var limit = Number(opcoes.limit || 0);
-
-  var sheetProj = SHEET_PROJ;
-  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
-  var lastRow = sheetProj.getLastRow();
-  if (lastRow < 2) {
-    return { success: true, dryRun: dryRun, analisados: 0, prdsDuplicados: 0, alterados: 0, detalhes: [] };
-  }
-
-  var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-  var idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
-  var idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
-  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
-
-  // Assinatura do catálogo por PRD: se o item do JSON não bate, consideramos duplicação indevida.
-  var assinaturaCatalogo = _mapAssinaturaCatalogoPorPRD_();
-
-  var rows = [];
-  var ocorrencias = {}; // PRD -> [ {row, where, versaoIndex?, index?} ]
-  var itensTrocados = []; // { linha, projetoBase, contexto, versaoCodigo, index, prdAntes, prdDepois }
-
-  function addOcc(codigo, item) {
-    if (!ocorrencias[codigo]) ocorrencias[codigo] = [];
-    ocorrencias[codigo].push(item);
-  }
-
-  function coletarOcorrenciasLista(list, rowObj, where, versaoIndex) {
-    if (!Array.isArray(list)) return;
-    for (var i = 0; i < list.length; i++) {
-      var p = list[i];
-      var codigo = _normalizarCodigoPRD(p && p.codigo);
-      if (!_ehCodigoPRDValido(codigo)) continue;
-      addOcc(codigo, { row: rowObj, where: where, versaoIndex: versaoIndex, index: i });
-    }
-  }
-
-  var analisados = 0;
-  for (var linha = 2; linha <= lastRow; linha++) {
-    if (filtroLinha && linha !== filtroLinha) continue;
-    var codigoProjetoLinha = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
-    var codigoBaseLinha = codigoProjetoLinha.replace(/_v\d+$/i, "").trim();
-    if (filtroProjeto && filtroProjeto !== codigoProjetoLinha && filtroProjeto !== codigoBaseLinha) continue;
-
-    var jsonCell = sheetProj.getRange(linha, idxJson + 1).getValue();
-    if (!jsonCell || typeof jsonCell !== "string" || !jsonCell.trim()) continue;
-
-    var parsed = null;
-    try { parsed = JSON.parse(String(jsonCell).trim()); } catch (eParse) { parsed = null; }
-    if (!parsed) continue;
-
-    analisados++;
-    var rowObj = {
-      linha: linha,
-      projeto: codigoProjetoLinha,
-      projetoBase: codigoBaseLinha,
-      parsed: parsed,
-      touched: false,
-      itensCorrigidos: 0
-    };
-    rows.push(rowObj);
-
-    coletarOcorrenciasLista(parsed && parsed.dados && parsed.dados.produtosCadastrados, rowObj, "base", null);
-    if (Array.isArray(parsed.versoes)) {
-      for (var v = 0; v < parsed.versoes.length; v++) {
-        var ver = parsed.versoes[v];
-        coletarOcorrenciasLista(ver && ver.dados && ver.dados.produtosCadastrados, rowObj, "versao", v);
-      }
-    }
-  }
-
-  // Determina ocorrências indevidas (PRD existe no catálogo, mas dados do JSON não batem).
-  var prdsConflitantes = 0;
-  var detalhes = [];
-
-  function getListFromOcc(occ) {
-    if (!occ || !occ.row) return null;
-    if (occ.where === "base") return occ.row.parsed && occ.row.parsed.dados && occ.row.parsed.dados.produtosCadastrados;
-    var versoes = occ.row.parsed && occ.row.parsed.versoes;
-    return versoes && versoes[occ.versaoIndex] && versoes[occ.versaoIndex].dados && versoes[occ.versaoIndex].dados.produtosCadastrados;
-  }
-
-  Object.keys(ocorrencias).forEach(function (prd) {
-    var arr = ocorrencias[prd] || [];
-    if (limit && prdsConflitantes >= limit) return;
-    var sigCat = assinaturaCatalogo[prd] || null;
-    if (!sigCat) return; // se PRD não está no catálogo, não arrisca alterar
-
-    var conflitos = 0;
-    for (var j = 0; j < arr.length; j++) {
-      var occ = arr[j];
-      var list = getListFromOcc(occ);
-      var item = (Array.isArray(list) && list[occ.index]) ? list[occ.index] : null;
-      if (!item) continue;
-      var sigJson = _assinaturaProdutoJson_(item);
-      var bate = _bateCatalogo_(sigJson, sigCat);
-      if (!bate) {
-        // conflito com o catálogo: reatribuir PRD (zera e depois gera novo)
-        var prdAntes = _normalizarCodigoPRD(item.codigo);
-        item.codigo = "";
-        occ.row.touched = true;
-        occ.row.itensCorrigidos++;
-        conflitos++;
-        var versaoCodigo = "";
-        if (occ.where === "versao") {
-          try {
-            var vObj = occ.row.parsed && occ.row.parsed.versoes && occ.row.parsed.versoes[occ.versaoIndex];
-            versaoCodigo = vObj && vObj.codigo ? String(vObj.codigo) : "";
-          } catch (eV) { versaoCodigo = ""; }
-        }
-        itensTrocados.push({
-          linha: occ.row.linha,
-          projetoBase: occ.row.projetoBase,
-          contexto: occ.where,
-          versaoCodigo: versaoCodigo,
-          index: occ.index,
-          prdAntes: prdAntes,
-          prdDepois: ""
-        });
-      }
-    }
-    if (conflitos > 0) {
-      prdsConflitantes++;
-      detalhes.push({ prd: prd, conflitos: conflitos, ocorrencias: arr.length });
-    }
-  });
-
-  // Reatribui novos PRDs para os itens que ficaram com codigo="" nas linhas tocadas.
-  var reservados = _coletarCodigosPRDReservadosGlobais();
-  var alterados = 0;
-
-  rows.forEach(function (r) {
-    if (!r.touched) return;
-    // Garante PRDs únicos dentro da linha (base + versões) usando o pool global reservado.
-    if (r.parsed && r.parsed.dados && Array.isArray(r.parsed.dados.produtosCadastrados)) {
-      atribuirPRDsUnicos(r.parsed.dados.produtosCadastrados, reservados);
-    }
-    if (Array.isArray(r.parsed.versoes)) {
-      r.parsed.versoes.forEach(function (v) {
-        if (v && v.dados && Array.isArray(v.dados.produtosCadastrados)) {
-          atribuirPRDsUnicos(v.dados.produtosCadastrados, reservados);
-        }
-      });
-    }
-
-    if (!dryRun) {
-      sheetProj.getRange(r.linha, idxJson + 1).setValue(JSON.stringify(r.parsed));
-    }
-    alterados++;
-  });
-
-  // Preenche prdDepois (após reatribuição)
-  try {
-    itensTrocados.forEach(function (it) {
-      var rObj = rows.find(function (x) { return x && x.linha === it.linha; });
-      if (!rObj) return;
-      if (it.contexto === "base") {
-        var listB = rObj.parsed && rObj.parsed.dados && rObj.parsed.dados.produtosCadastrados;
-        if (Array.isArray(listB) && listB[it.index]) it.prdDepois = _normalizarCodigoPRD(listB[it.index].codigo);
-      } else if (it.contexto === "versao") {
-        var versoes = rObj.parsed && rObj.parsed.versoes;
-        // localizar pelo versaoCodigo para ficar robusto
-        var vIdx = -1;
-        if (it.versaoCodigo && Array.isArray(versoes)) {
-          for (var vi = 0; vi < versoes.length; vi++) {
-            if (versoes[vi] && String(versoes[vi].codigo || "") === String(it.versaoCodigo)) { vIdx = vi; break; }
-          }
-        }
-        if (vIdx >= 0) {
-          var listV = versoes[vIdx] && versoes[vIdx].dados && versoes[vIdx].dados.produtosCadastrados;
-          if (Array.isArray(listV) && listV[it.index]) it.prdDepois = _normalizarCodigoPRD(listV[it.index].codigo);
-        }
-      }
-    });
-  } catch (eAfter) { /* ignora */ }
-
-  if (!dryRun && alterados > 0) SheetCache.invalidate(sheetProj);
-
-  return {
-    success: true,
-    dryRun: dryRun,
-    analisados: analisados,
-    prdsDuplicados: prdsConflitantes,
-    alterados: alterados,
-    detalhes: detalhes,
-    itensTrocados: itensTrocados
-  };
-}
-
-/**
- * Diagnóstico de PRDs para investigar duplicação entre projetos.
- * Retorna onde cada PRD aparece (linha/projeto/contexto) e inconsistências com Relação de produtos.
- */
-function diagnosticarPRDsEntreProjetos(opcoes) {
-  opcoes = opcoes || {};
-  const sheetProj = SHEET_PROJ;
-  if (!sheetProj) throw new Error("Aba 'Projetos' não encontrada.");
-
-  const lastRow = sheetProj.getLastRow();
-  if (lastRow < 2) {
-    return {
-      success: true,
-      analisados: 0,
-      duplicadosEntreProjetos: [],
-      prdsSomenteJson: [],
-      totais: { prdsUnicosJson: 0, prdsCatalogo: _coletarCodigosPRDDoCatalogo().size }
-    };
-  }
-
-  const headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-  const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
-  const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
-  if (idxJson < 0) throw new Error("Coluna JSON_DADOS não encontrada.");
-
-  const filtroProjeto = String(opcoes.projeto || "").trim();
-  const filtroLinha = Number(opcoes.linha || 0);
-  const catalogo = _coletarCodigosPRDDoCatalogo();
-  const ocorrencias = {};
-  let analisados = 0;
-
-  function addOcc(codigo, info) {
-    if (!ocorrencias[codigo]) ocorrencias[codigo] = [];
-    ocorrencias[codigo].push(info);
-  }
-
-  for (let linha = 2; linha <= lastRow; linha++) {
-    if (filtroLinha && linha !== filtroLinha) continue;
-    const projeto = idxProjeto >= 0 ? String(sheetProj.getRange(linha, idxProjeto + 1).getValue() || "").trim() : "";
-    const base = projeto.replace(/_v\d+$/i, "").trim();
-    if (filtroProjeto && filtroProjeto !== projeto && filtroProjeto !== base) continue;
-
-    const cell = sheetProj.getRange(linha, idxJson + 1).getValue();
-    if (!cell || typeof cell !== "string" || !String(cell).trim()) continue;
-
-    let parsed = null;
-    try {
-      parsed = JSON.parse(String(cell).trim());
-    } catch (eParse) {
-      continue;
-    }
-    if (!parsed) continue;
-    analisados++;
-
-    const baseList = parsed && parsed.dados && parsed.dados.produtosCadastrados;
-    if (Array.isArray(baseList)) {
-      baseList.forEach(function (p, idx) {
-        const codigo = _normalizarCodigoPRD(p && p.codigo);
-        if (_ehCodigoPRDValido(codigo)) {
-          addOcc(codigo, { linha: linha, projeto: projeto, contexto: "base", index: idx });
-        }
-      });
-    }
-
-    if (Array.isArray(parsed.versoes)) {
-      parsed.versoes.forEach(function (v, vIdx) {
-        const versaoCodigo = v && v.codigo ? String(v.codigo) : "";
-        const list = v && v.dados && v.dados.produtosCadastrados;
-        if (!Array.isArray(list)) return;
-        list.forEach(function (p, idx) {
-          const codigo = _normalizarCodigoPRD(p && p.codigo);
-          if (_ehCodigoPRDValido(codigo)) {
-            addOcc(codigo, { linha: linha, projeto: projeto, contexto: "versao", versao: versaoCodigo, versaoIndex: vIdx, index: idx });
-          }
-        });
-      });
-    }
-  }
-
-  const duplicadosEntreProjetos = [];
-  const prdsSomenteJson = [];
-  Object.keys(ocorrencias).forEach(function (codigo) {
-    const arr = ocorrencias[codigo] || [];
-    const projetosUnicos = {};
-    arr.forEach(function (o) {
-      projetosUnicos[o.projeto || (o.versao || "")] = 1;
-    });
-    const qtProjetos = Object.keys(projetosUnicos).length;
-
-    if (arr.length > 1 && qtProjetos > 1) {
-      duplicadosEntreProjetos.push({ codigo: codigo, ocorrencias: arr });
-    }
-    if (!catalogo.has(codigo)) {
-      prdsSomenteJson.push({ codigo: codigo, ocorrencias: arr.length });
-    }
-  });
-
-  return {
-    success: true,
-    analisados: analisados,
-    duplicadosEntreProjetos: duplicadosEntreProjetos,
-    prdsSomenteJson: prdsSomenteJson,
-    totais: {
-      prdsUnicosJson: Object.keys(ocorrencias).length,
-      prdsCatalogo: catalogo.size,
-      duplicadosEntreProjetos: duplicadosEntreProjetos.length,
-      prdsSomenteJson: prdsSomenteJson.length
-    }
-  };
-}
-
-/**
  * Obtém e incrementa o número sequencial de orçamentos
  * Começa em 1464 (ultimo orçamento do omie foi o 1463) e incrementa a cada novo orçamento registrado.
  * @returns {number} - Número sequencial do orçamento
@@ -2901,34 +2139,27 @@ function getDashboardStats() {
   let kanban = 0;
 
   if (sheetProj) {
-    // === NOVA LÓGICA: Conta da aba Projetos ===
     const totalProjetos = Math.max(sheetProj.getLastRow() - 1, 0);
-    Logger.log("getDashboardStats: Aba Projetos encontrada, totalProjetos=%s", totalProjetos);
 
     if (totalProjetos > 0) {
       try {
         const dados = SheetCache.getData(sheetProj);
         const headers = dados[0];
-        Logger.log("getDashboardStats: Headers da aba Projetos: %s", JSON.stringify(headers));
         const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
         const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
-        Logger.log("getDashboardStats: idxStatusOrc=%s, idxStatusPed=%s", idxStatusOrc, idxStatusPed);
 
         for (let i = 1; i < dados.length; i++) {
           const row = dados[i];
           const statusOrc = idxStatusOrc >= 0 ? row[idxStatusOrc] : "";
           const statusPed = idxStatusPed >= 0 ? row[idxStatusPed] : "";
 
-          // Conta orçamentos: projetos que não foram convertidos nem perdidos
           if (statusOrc !== "Expirado/Perdido") {
             projetos++;
           }
-          // Kanban: pedidos que não estão finalizados
           if (statusPed !== "Finalizado" && statusOrc !== "Rascunho" && statusOrc !== "Expirado/Perdido" && statusOrc !== "Enviado") {
             kanban++;
           }
         }
-        Logger.log("getDashboardStats: Contagem final - projetos=%s, kanban=%s", projetos, kanban);
       } catch (e) {
         Logger.log("Erro ao contar stats da aba Projetos: " + e.message);
       }
@@ -2940,16 +2171,23 @@ function getDashboardStats() {
 
 // --- helper para achar índice de cabeçalho de forma robusta ---
 
-// Memoization cache for _normalizeHeader (avoids repeated string manipulation)
-const _normalizeCache = {};
+// Cache memoizado de _normalizeHeader com limite LRU simples (Map preserva ordem de inserção em V8).
+// Evita crescer indefinidamente em execuções longas/triggers, mantendo as ~200 entradas mais recentes.
+const _NORMALIZE_CACHE_MAX = 200;
+const _normalizeCache = new Map();
 function _normalizeHeader(s) {
   const key = String(s || '');
-  if (_normalizeCache[key] !== undefined) return _normalizeCache[key];
+  const cached = _normalizeCache.get(key);
+  if (cached !== undefined) return cached;
   const result = key
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
     .replace(/[^a-z0-9]/g, ''); // remove tudo que não é alfanumérico
-  _normalizeCache[key] = result;
+  if (_normalizeCache.size >= _NORMALIZE_CACHE_MAX) {
+    const oldestKey = _normalizeCache.keys().next().value;
+    if (oldestKey !== undefined) _normalizeCache.delete(oldestKey);
+  }
+  _normalizeCache.set(key, result);
   return result;
 }
 
@@ -3038,6 +2276,9 @@ function _escreverLinhaProjetosPorCabecalho(sheetProj, linha, dadosObj, isUpdate
 
   // Collect all {colIndex (0-based): value} pairs before writing
   var writes = {}; // colIndex -> value
+  // Coleta headers ausentes para criá-los em batch (1 setValues no fim) em vez
+  // de fazer N setValue + N re-leituras dos headers ao longo do loop.
+  var headersFaltantes = []; // [{campo, name, valor}]
 
   for (var campo in dadosObj) {
     if (!Object.prototype.hasOwnProperty.call(dadosObj, campo)) continue;
@@ -3048,14 +2289,28 @@ function _escreverLinhaProjetosPorCabecalho(sheetProj, linha, dadosObj, isUpdate
       if (normCol === "condicoesdepagamento") idx = -1;
     }
     if (idx < 0) {
-      // Create new column header
-      var newCol = sheetProj.getLastColumn() + 1;
-      var headerName = PROJETOS_HEADER_DISPLAY[campo] || campo;
-      sheetProj.getRange(1, newCol).setValue(headerName);
-      headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-      idx = headers.length - 1;
+      headersFaltantes.push({
+        campo: campo,
+        name: PROJETOS_HEADER_DISPLAY[campo] || campo,
+        valor: dadosObj[campo] != null ? dadosObj[campo] : ""
+      });
+      continue;
     }
     writes[idx] = dadosObj[campo] != null ? dadosObj[campo] : "";
+  }
+
+  // Cria todos os headers ausentes de uma só vez (1 setValues + atualização de
+  // estruturas em memória — sem re-ler do sheet a cada inserção).
+  if (headersFaltantes.length > 0) {
+    var startCol = lastCol + 1;
+    var nomesNovos = headersFaltantes.map(function (h) { return h.name; });
+    sheetProj.getRange(1, startCol, 1, nomesNovos.length).setValues([nomesNovos]);
+    for (var fi = 0; fi < headersFaltantes.length; fi++) {
+      var novoIdx = startCol - 1 + fi;
+      headers.push(headersFaltantes[fi].name);
+      writes[novoIdx] = headersFaltantes[fi].valor;
+    }
+    lastCol += headersFaltantes.length;
   }
 
   // Batch-write all collected values in one setValues() call
@@ -3078,6 +2333,8 @@ function _escreverLinhaProjetosPorCabecalho(sheetProj, linha, dadosObj, isUpdate
   }
   sheetProj.getRange(rowToWrite, minCol + 1, 1, numCols).setValues([rowArr]);
   SheetCache.invalidate(sheetProj);
+  // Qualquer write em Projetos invalida a lista cacheada que o frontend consome via polling.
+  try { if (typeof _invalidateProjetosListCache_ === "function") _invalidateProjetosListCache_(); } catch (eInvProj) { /* noop */ }
 }
 
 function normalizePrazo(value) {
@@ -3121,6 +2378,14 @@ function normalizePrazo(value) {
 // ===== Atualizada: getKanbanData (usa busca robusta de cabeçalhos) =====
 function getKanbanData() {
   try {
+    try {
+      const cachedKb = CacheService.getScriptCache().get(_KANBAN_DATA_CACHE_KEY);
+      if (cachedKb) {
+        const parsedKb = JSON.parse(cachedKb);
+        if (parsedKb && typeof parsedKb === "object") return parsedKb;
+      }
+    } catch (eKbGet) { /* recomputa */ }
+
     const data = {
       "Processo de Orçamento": [],
       "Processo de Preparação MP / CAD / CAM": [],
@@ -3285,6 +2550,13 @@ function getKanbanData() {
         }
       });
     }
+
+    try {
+      const serKb = JSON.stringify(data);
+      if (serKb && serKb.length < _KANBAN_DATA_CACHE_MAX_BYTES) {
+        CacheService.getScriptCache().put(_KANBAN_DATA_CACHE_KEY, serKb, _KANBAN_DATA_CACHE_TTL);
+      }
+    } catch (eKbPut) { /* noop */ }
 
     return data;
   } catch (e) {
@@ -3692,17 +2964,6 @@ function doGet(e) {
         const templateDashboardFin = HtmlService.createTemplateFromFile('painelfinanceiro-dashboard');
         templateDashboardFin.token = token;
         templateDashboardFin.baseUrl = baseUrl;
-        try {
-          templateDashboardFin.pedidosData = JSON.stringify(getPedidos());
-        } catch (err) {
-          Logger.log('getPedidos ao servir dashboard financeiro: ' + (err.message || err));
-          templateDashboardFin.pedidosData = '[]';
-        }
-        try {
-          templateDashboardFin.clientesData = JSON.stringify(getTodosClientes());
-        } catch (err) {
-          templateDashboardFin.clientesData = '[]';
-        }
         return templateDashboardFin.evaluate()
           .setFaviconUrl(FAVICON)
           .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -4039,7 +3300,7 @@ function gerarEtiqueta(dados, token) {
   const mes = String(agora.getMonth() + 1).padStart(2, "0");
   const dia = String(agora.getDate()).padStart(2, "0");
 
-  const raiz = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+  const raiz = _getRootFolder_();
   const subAno = getOrCreateSubFolder(raiz, String(ano));
   const subMes = getOrCreateSubFolder(subAno, `${ano2}${mes}`);
   const subDia = getOrCreateSubFolder(subMes, `${ano2}${mes}${dia}`);
@@ -4145,7 +3406,7 @@ function gerarNovaEtiqueta(dadosLinha, token) {
   const mes = String(agora.getMonth() + 1).padStart(2, "0");
   const dia = String(agora.getDate()).padStart(2, "0");
 
-  const raiz = DriveApp.getFolderById(ID_PASTA_PRINCIPAL);
+  const raiz = _getRootFolder_();
   const subAno = getOrCreateSubFolder(raiz, String(ano));
   const subMes = getOrCreateSubFolder(subAno, `${ano2}${mes}`);
   const subDia = getOrCreateSubFolder(subMes, `${ano2}${mes}${dia}`);
@@ -4224,8 +3485,46 @@ function exportarAvaliacoesPdf() {
   return arquivo.getUrl(); // retorna link para o PDF
 }
 
+// Cache cross-execução de getProjetos() — TTL curto reduz custo do polling do frontend.
+// Invalidado nos writes (atualizarProjetoNaPlanilha, salvarRascunho, atualizarRascunho,
+// excluirProjeto, excluirPedidoEProjeto, registrarOrcamento, salvarInfoPedido, etc.).
+const _PROJETOS_LIST_CACHE_KEY = "PROJETOS_LIST_V1";
+const _PROJETOS_LIST_CACHE_TTL = 30; // segundos
+// Limite seguro do CacheService.put (100KB por chave). 95KB deixa margem para overhead de armazenamento.
+const _PROJETOS_LIST_CACHE_MAX_BYTES = 95000;
+
+function _invalidateProjetosListCache_() {
+  try { CacheService.getScriptCache().remove(_PROJETOS_LIST_CACHE_KEY); } catch (e) { /* noop */ }
+}
+
+// Helper compacto: combina invalidação do SheetCache + cache de lista cross-execução.
+// Usar após qualquer write na aba Projetos para garantir que o próximo getProjetos()
+// reflita imediatamente o estado novo (e não dependa apenas do TTL).
+const _KANBAN_DATA_CACHE_KEY = "KANBAN_DATA_V1";
+const _KANBAN_DATA_CACHE_TTL = 30; // segundos
+const _KANBAN_DATA_CACHE_MAX_BYTES = 95000;
+
+function _invalidateKanbanDataCache_() {
+  try { CacheService.getScriptCache().remove(_KANBAN_DATA_CACHE_KEY); } catch (e) { /* noop */ }
+}
+
+function _postWriteProjetos_(sheet) {
+  try { if (sheet) SheetCache.invalidate(sheet); } catch (e1) { /* noop */ }
+  try { _invalidateProjetosListCache_(); } catch (e2) { /* noop */ }
+  try { _invalidateKanbanDataCache_(); } catch (e3) { /* noop */ }
+}
+
 function getProjetos() {
   try {
+    // Tenta servir do cache curto (30s). Em caso de falha de parse ou cache vazio, recomputa.
+    try {
+      const cached = CacheService.getScriptCache().get(_PROJETOS_LIST_CACHE_KEY);
+      if (cached) {
+        const parsedCache = JSON.parse(cached);
+        if (Array.isArray(parsedCache)) return parsedCache;
+      }
+    } catch (eCacheGet) { /* ignora — recomputa */ }
+
     // Backfill único: preencher infoPedido (dataVirouPedido = DATA_COMPETENCIA, etc.) a partir da aba Pedidos
     try {
       var docProps = PropertiesService.getDocumentProperties();
@@ -4247,22 +3546,12 @@ function getProjetos() {
     }
 
     const lastRow = targetSheet.getLastRow();
-    const lastCol = targetSheet.getLastColumn();
-    Logger.log('getProjetos: Sheet name=%s, lastRow=%s, lastCol=%s', targetSheet.getName(), lastRow, lastCol);
-
-    if (lastRow < 2) {
-      Logger.log('getProjetos: Nenhum dado encontrado (lastRow < 2)');
-      return [];
-    }
+    if (lastRow < 2) return [];
 
     const values = SheetCache.getData(targetSheet);
-    if (!values || values.length === 0) {
-      Logger.log('getProjetos: getValues retornou vazio ou null');
-      return [];
-    }
+    if (!values || values.length === 0) return [];
 
     const headers = values[0];
-    Logger.log('getProjetos: Headers count=%s, first few=%s', headers.length, headers.slice(0, 5).join(','));
 
     // Formata timezone para datas
     const tz = ss.getSpreadsheetTimeZone() || 'UTC';
@@ -4310,23 +3599,23 @@ function getProjetos() {
       var linhaB = b._linhaPlanilha || 0;
       return linhaB - linhaA; // descendente: linha maior primeiro
     });
-    Logger.log('getProjetos: Retornando %s projetos (última linha = topo; novos projetos no final da planilha aparecem no topo)', data.length);
-    if (data.length > 0) {
-      Logger.log('getProjetos: Exemplo primeiro projeto: %s', JSON.stringify(data[0]));
-    }
 
     // Garante que sempre retorna um array
-    if (!Array.isArray(data)) {
-      Logger.log('getProjetos: AVISO - data não é array, retornando array vazio');
-      return [];
-    }
+    if (!Array.isArray(data)) return [];
+
+    // Tenta cachear o resultado (TTL 30s). Se exceder o limite do CacheService (~100KB),
+    // pula o put silenciosamente — a próxima leitura simplesmente recomputa.
+    try {
+      const serialized = JSON.stringify(data);
+      if (serialized && serialized.length < _PROJETOS_LIST_CACHE_MAX_BYTES) {
+        CacheService.getScriptCache().put(_PROJETOS_LIST_CACHE_KEY, serialized, _PROJETOS_LIST_CACHE_TTL);
+      }
+    } catch (eCachePut) { /* noop */ }
 
     return data;
   } catch (e) {
     Logger.log('getProjetos error: %s\n%s', e.message, e.stack);
-    // Em caso de erro, retorna array vazio em vez de lançar exceção
-    // para evitar quebrar a interface
-    Logger.log('getProjetos: Retornando array vazio devido a erro');
+    // Em caso de erro, retorna array vazio em vez de lançar exceção para evitar quebrar a interface
     return [];
   }
 }
@@ -4510,7 +3799,24 @@ function getPedidosSheetMap() {
       if (idx.NF !== undefined) obj["NF"] = (row[idx.NF] != null && row[idx.NF] !== "") ? String(row[idx.NF]).trim() : "";
       if (idx.CONDICOES_PAGAMENTO !== undefined) obj["CONDICOES_PAGAMENTO"] = (row[idx.CONDICOES_PAGAMENTO] != null && row[idx.CONDICOES_PAGAMENTO] !== "") ? String(row[idx.CONDICOES_PAGAMENTO]).trim() : "";
       if (idx.DATA_ENTREGA !== undefined) obj["DATA_ENTREGA"] = (row[idx.DATA_ENTREGA] != null && row[idx.DATA_ENTREGA] !== "") ? _formatarDataBr(row[idx.DATA_ENTREGA]) : "";
-      if (idx.DATA_VENCIMENTO !== undefined) obj["DATA_VENCIMENTO"] = (row[idx.DATA_VENCIMENTO] != null && row[idx.DATA_VENCIMENTO] !== "") ? String(row[idx.DATA_VENCIMENTO]).trim() : "";
+      // DATA_VENCIMENTO pode ser objeto Date (vinda do Sheets) ou string com
+      // múltiplas datas separadas por vírgula. _formatarDataBr trata Date e
+      // mantém strings BR intactas; para múltiplas datas formatamos cada parte.
+      if (idx.DATA_VENCIMENTO !== undefined && row[idx.DATA_VENCIMENTO] != null && row[idx.DATA_VENCIMENTO] !== "") {
+        var rawDV = row[idx.DATA_VENCIMENTO];
+        if (rawDV instanceof Date) {
+          obj["DATA_VENCIMENTO"] = _formatarDataBr(rawDV);
+        } else {
+          var sDV = String(rawDV).trim();
+          if (sDV.indexOf(",") >= 0) {
+            obj["DATA_VENCIMENTO"] = sDV.split(",").map(function (p) { return _formatarDataBr(p.trim()); }).join(", ");
+          } else {
+            obj["DATA_VENCIMENTO"] = _formatarDataBr(sDV);
+          }
+        }
+      } else if (idx.DATA_VENCIMENTO !== undefined) {
+        obj["DATA_VENCIMENTO"] = "";
+      }
       if (idx.LINK_RELATORIO_PROJETO !== undefined) obj["LINK_RELATORIO_PROJETO"] = (row[idx.LINK_RELATORIO_PROJETO] != null && row[idx.LINK_RELATORIO_PROJETO] !== "") ? String(row[idx.LINK_RELATORIO_PROJETO]).trim() : "";
       // Fallback robusto para planilhas com cabeçalho customizado (ex: "DATA VENC")
       if (!obj["DATA_VENCIMENTO"]) {
@@ -4519,7 +3825,16 @@ function getPedidosSheetMap() {
           if (hNorm === "datavenc" || hNorm === "datavencimento") {
             var vv = row[hv];
             if (vv != null && String(vv).trim() !== "") {
-              obj["DATA_VENCIMENTO"] = String(vv).trim();
+              if (vv instanceof Date) {
+                obj["DATA_VENCIMENTO"] = _formatarDataBr(vv);
+              } else {
+                var sFV = String(vv).trim();
+                if (sFV.indexOf(",") >= 0) {
+                  obj["DATA_VENCIMENTO"] = sFV.split(",").map(function (p) { return _formatarDataBr(p.trim()); }).join(", ");
+                } else {
+                  obj["DATA_VENCIMENTO"] = _formatarDataBr(sFV);
+                }
+              }
               break;
             }
           }
@@ -4549,8 +3864,26 @@ function getPedidosSheetMap() {
  * @returns {Object} { sucesso: boolean }
  */
 
+// Cache cross-execução de getPedidos() — TTL curto reduz custo de polling no frontend.
+// Invalidado em writes (atualizarPedidoNaPlanilha, ensurePedidoRow, atualizarProjetoNaPlanilha, excluirPedidoEProjeto).
+const _PEDIDOS_LIST_CACHE_KEY = "PEDIDOS_LIST_V1";
+const _PEDIDOS_LIST_CACHE_TTL = 30; // segundos
+
+function _invalidatePedidosListCache_() {
+  try { CacheService.getScriptCache().remove(_PEDIDOS_LIST_CACHE_KEY); } catch (e) { /* noop */ }
+}
+
 function getPedidos() {
   try {
+    // Tenta servir do cache curto (30s). Em caso de falha de parse ou cache vazio, recomputa.
+    try {
+      const cached = CacheService.getScriptCache().get(_PEDIDOS_LIST_CACHE_KEY);
+      if (cached) {
+        const parsedCache = JSON.parse(cached);
+        if (Array.isArray(parsedCache)) return parsedCache;
+      }
+    } catch (eCacheGet) { /* ignora — segue para recomputar */ }
+
     function diasDasCondicoes(cond) {
       if (!cond) return 0;
       var c = (cond || "").toString().toLowerCase();
@@ -4636,7 +3969,7 @@ function getPedidos() {
           "DATA_ENTREGA": proj["DATA_ENTREGA"] || proj["DATA DE ENTREGA"] || "",
           "DATA_VENCIMENTO": proj["DATA_VENCIMENTO"] || proj["DATA DE VENCIMENTO"] || "",
           "VALOR_PAGO": proj["VALOR_PAGO"] || proj["VALOR PAGO"],
-          "STATUS_PAGAMENTO": proj["STATUS_PAGAMENTO"] || proj["STATUS PAGAMENTO"] || "Pendente",
+          "STATUS_PAGAMENTO": proj["STATUS_PAGAMENTO"] || proj["STATUS PAGAMENTO"] || "À pagar",
           "PARCELAS E PGTOS": proj["PARCELAS E PGTOS"] || proj["HISTORICO_PAGAMENTOS"] || "",
           "NUMERO_SEQUENCIAL": proj["NUMERO_SEQUENCIAL"] || proj["NUMERO SEQUENCIAL"] || "",
           "OBS": proj["OBS"] || proj["OBSERVAÇÕES"] || "",
@@ -4749,7 +4082,7 @@ function getPedidos() {
       }
 
       // Valor restante: se Pago = null (mostrar "Pago"); senão VALOR TOTAL - VALOR_PAGO
-      var statusPag = (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "Pendente").toString().trim();
+      var statusPag = (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "À pagar").toString().trim();
       var valorPago = _parseCurrency(p["VALOR_PAGO"] || p["VALOR PAGO"]);
       var vtNum = _parseCurrency(p["VALOR TOTAL"]);
       if (statusPag === "Pago") {
@@ -4774,6 +4107,14 @@ function getPedidos() {
       if (ta !== tb) return tb - ta;
       return (b._linhaPlanilha || 0) - (a._linhaPlanilha || 0);
     });
+
+    // Tenta cachear o resultado (TTL 30s). Se exceder o limite do CacheService (100KB), só pula o put.
+    try {
+      const serialized = JSON.stringify(pedidos);
+      if (serialized && serialized.length < 95000) {
+        CacheService.getScriptCache().put(_PEDIDOS_LIST_CACHE_KEY, serialized, _PEDIDOS_LIST_CACHE_TTL);
+      }
+    } catch (eCachePut) { /* noop */ }
 
     return pedidos;
   } catch (e) {
@@ -4919,7 +4260,7 @@ function atualizarProjetoNaPlanilha(linha, dadosAtualizacao, opcoes) {
         }
       }
       // Status de orçamento ANTES da escrita (para saber se é conversão nova ou edição de pedido existente)
-      var rowAntes = sheetProj.getRange(linha, 1, linha, sheetProj.getLastColumn()).getValues()[0];
+      var rowAntes = sheetProj.getRange(linha, 1, 1, sheetProj.getLastColumn()).getValues()[0];
       var idxStatusOrcCol = headerMap["STATUS_ORCAMENTO"] !== undefined ? headerMap["STATUS_ORCAMENTO"] : headerMap["STATUS ORCAMENTO"];
       if (idxStatusOrcCol === undefined) { var idxOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO"); idxStatusOrcCol = idxOrc >= 0 ? idxOrc : undefined; }
       statusOrcAntes = (idxStatusOrcCol !== undefined && rowAntes[idxStatusOrcCol] !== undefined) ? String(rowAntes[idxStatusOrcCol]).trim() : "";
@@ -4936,10 +4277,23 @@ function atualizarProjetoNaPlanilha(linha, dadosAtualizacao, opcoes) {
           colToVal[colIdx] = valorParaPlanilha(campo2, dadosAtualizacao[campo2]);
         }
       }
-      // Escrever apenas as células que estão sendo atualizadas (não sobrescrever o intervalo inteiro para não apagar VALOR TOTAL, LINK DO PDF, etc.)
-      for (var colIdx in colToVal) {
-        if (!Object.prototype.hasOwnProperty.call(colToVal, colIdx)) continue;
-        sheetProj.getRange(linha, parseInt(colIdx, 10) + 1).setValue(colToVal[colIdx] != null ? colToVal[colIdx] : '');
+      // Batch write: agrupa em range contíguo [minCol..maxCol] e preserva valores
+      // das colunas no meio que NÃO estão em colToVal (lê o range existente).
+      // Substitui N round-trips de setValue por 1 read + 1 write (ou só 1 write
+      // quando o range é exatamente do tamanho dos updates).
+      var colKeysToWrite = Object.keys(colToVal).map(Number).filter(function (k) { return !isNaN(k); });
+      if (colKeysToWrite.length > 0) {
+        var minColW = Math.min.apply(null, colKeysToWrite);
+        var maxColW = Math.max.apply(null, colKeysToWrite);
+        var numColsW = maxColW - minColW + 1;
+        var rowExist = (numColsW > colKeysToWrite.length)
+          ? sheetProj.getRange(linha, minColW + 1, 1, numColsW).getValues()[0]
+          : new Array(numColsW).fill('');
+        for (var ki = 0; ki < colKeysToWrite.length; ki++) {
+          var kk = colKeysToWrite[ki];
+          rowExist[kk - minColW] = colToVal[kk] != null ? colToVal[kk] : '';
+        }
+        sheetProj.getRange(linha, minColW + 1, 1, numColsW).setValues([rowExist]);
       }
     }
 
@@ -5142,7 +4496,7 @@ function atualizarProjetoNaPlanilha(linha, dadosAtualizacao, opcoes) {
         }
         ensurePedidoRow(linha);
         // DATA_COMPETENCIA (data da conversão) grava apenas na aba Pedidos, não na Projetos
-        var rowConv = sheetProj.getRange(linha, 1, linha, sheetProj.getLastColumn()).getValues()[0];
+        var rowConv = sheetProj.getRange(linha, 1, 1, sheetProj.getLastColumn()).getValues()[0];
         var headersConv = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
         var idxProjConv = _findHeaderIndexProjetos(headersConv, "PROJETO");
         var codigoConv = (idxProjConv >= 0 && rowConv[idxProjConv]) ? String(rowConv[idxProjConv]).trim() : "";
@@ -5214,6 +4568,30 @@ function atualizarProjetoNaPlanilha(linha, dadosAtualizacao, opcoes) {
     }
 
     SheetCache.invalidate(sheetProj);
+    // Atualizações de projeto podem virar pedido / mudar status — invalida cache da lista de pedidos e de projetos.
+    try { if (typeof _invalidatePedidosListCache_ === "function") _invalidatePedidosListCache_(); } catch (eInv) { /* noop */ }
+    try { if (typeof _invalidateProjetosListCache_ === "function") _invalidateProjetosListCache_(); } catch (eInvP) { /* noop */ }
+
+    // Sync Livro Diário: somente ao editar o projeto (não pela página Pedidos).
+    if (!apenasJsonDados) {
+      try {
+        var rowLivroSync = sheetProj.getRange(linha, 1, 1, sheetProj.getLastColumn()).getValues()[0];
+        var idxOrcLivro = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
+        var idxProjLivro = _findHeaderIndex(headers, "PROJETO");
+        var statusOrcLivro = (idxOrcLivro >= 0 && rowLivroSync[idxOrcLivro] !== undefined)
+          ? String(rowLivroSync[idxOrcLivro]).trim() : "";
+        var codigoLivro = (idxProjLivro >= 0 && rowLivroSync[idxProjLivro] !== undefined)
+          ? String(rowLivroSync[idxProjLivro]).trim() : "";
+        if (statusOrcLivro === "Convertido em Pedido" && codigoLivro &&
+            typeof gerarLancamentosLivroDiarioParaPedido === "function") {
+          var codigoBaseLivro = codigoLivro.replace(/_v\d+$/i, "");
+          gerarLancamentosLivroDiarioParaPedido(codigoBaseLivro || codigoLivro, null, {});
+        }
+      } catch (eLivroProj) {
+        Logger.log("Sync Projeto->LivroDiario: " + (eLivroProj && eLivroProj.message ? eLivroProj.message : eLivroProj));
+      }
+    }
+
     return { sucesso: true };
   } catch (e) {
     Logger.log("Erro ao atualizar projeto: " + e.message);
@@ -5235,7 +4613,7 @@ function getVersoesParaPedido(linha) {
 
   const lastCol = sheetProj.getLastColumn();
   const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
-  const row = sheetProj.getRange(linha, 1, linha, lastCol).getValues()[0];
+  const row = sheetProj.getRange(linha, 1, 1, lastCol).getValues()[0];
 
   const idxProjeto = _findHeaderIndexProjetos(headers, "PROJETO");
   const idxJson = _findHeaderIndexProjetos(headers, "JSON_DADOS");
@@ -5308,7 +4686,7 @@ function gerarRelatorioProjeto(linha) {
 
   const lastCol = sheetProj.getLastColumn();
   const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
-  const row = sheetProj.getRange(linha, 1, linha, lastCol).getValues()[0];
+  const row = sheetProj.getRange(linha, 1, 1, lastCol).getValues()[0];
 
   const idxProjeto = _findHeaderIndex(headers, "PROJETO");
   const idxJson = _findHeaderIndex(headers, "JSON_DADOS");
@@ -5340,9 +4718,17 @@ function gerarRelatorioProjeto(linha) {
   const pedidosMap = getPedidosSheetMap();
   // A aba Pedidos costuma indexar pelo código base (sem _v). Fallback para manter compatibilidade.
   const rowPed = pedidosMap[codigoBase] || pedidosMap[codigoProjeto] || {};
-  const dataCompetencia = rowPed.DATA_COMPETENCIA || "";
-  const dataEntrega = rowPed.DATA_ENTREGA || parsed.dados.infoPedido.dataEntrega || "";
-  let dataVencimento = rowPed.DATA_VENCIMENTO || rowPed.DATA_VENC || rowPed["DATA VENC"] || "";
+  // Defesa extra: garante formato BR mesmo se algum caminho ainda devolver Date.
+  function _toBrSafe(v) {
+    if (v == null || v === "") return "";
+    if (v instanceof Date) return _formatarDataBr(v);
+    var s = String(v).trim();
+    if (s.indexOf(",") >= 0) return s.split(",").map(function (p) { return _formatarDataBr(p.trim()); }).join(", ");
+    return _formatarDataBr(s);
+  }
+  const dataCompetencia = _toBrSafe(rowPed.DATA_COMPETENCIA || "");
+  const dataEntrega = _toBrSafe(rowPed.DATA_ENTREGA || parsed.dados.infoPedido.dataEntrega || "");
+  let dataVencimento = _toBrSafe(rowPed.DATA_VENCIMENTO || rowPed.DATA_VENC || rowPed["DATA VENC"] || "");
 
   const cliente = rowPed.CLIENTE || parsed.dados.infoPedido.cliente || (parsed.dados.cliente && parsed.dados.cliente.nome) || "";
   const valor = (rowPed.VALOR_TOTAL != null && rowPed.VALOR_TOTAL !== "") ? rowPed.VALOR_TOTAL : (parsed.dados.infoPedido.valorPedido || "");
@@ -5557,7 +4943,7 @@ function excluirVersaoOrcamento(linha, codigoVersao) {
 
   const lastCol = sheetProj.getLastColumn();
   const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
-  const row = sheetProj.getRange(linha, 1, linha, lastCol).getValues()[0];
+  const row = sheetProj.getRange(linha, 1, 1, lastCol).getValues()[0];
 
   const idxProjeto = _findHeaderIndex(headers, "PROJETO");
   const idxJson = _findHeaderIndex(headers, "JSON_DADOS");
@@ -5610,7 +4996,7 @@ function excluirVersaoOrcamento(linha, codigoVersao) {
   parsed.versoes.splice(idx, 1);
 
   sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
-  SheetCache.invalidate(sheetProj);
+  _postWriteProjetos_(sheetProj);
 
   return { sucesso: true };
 }
@@ -5652,6 +5038,8 @@ function excluirProjeto(linha) {
         Logger.log("excluirProjeto cascade warning: " + (eCascade && eCascade.message ? eCascade.message : eCascade));
       }
     }
+    try { if (typeof _invalidatePedidosListCache_ === "function") _invalidatePedidosListCache_(); } catch (eInv) { /* noop */ }
+    try { if (typeof _invalidateProjetosListCache_ === "function") _invalidateProjetosListCache_(); } catch (eInvP) { /* noop */ }
     return { success: true };
   } catch (e) {
     Logger.log('excluirProjeto error (linha=%s): %s', linha, e.message);
@@ -5725,6 +5113,8 @@ function excluirPedidoEProjeto(codigoProjeto, options) {
     Logger.log("excluirPedidoEProjeto/livro: " + (eLivro && eLivro.message ? eLivro.message : eLivro));
   }
 
+  try { if (typeof _invalidatePedidosListCache_ === "function") _invalidatePedidosListCache_(); } catch (eInv) { /* noop */ }
+  try { if (typeof _invalidateProjetosListCache_ === "function") _invalidateProjetosListCache_(); } catch (eInvP) { /* noop */ }
   return {
     ok: true,
     codigoProjeto: cod,
@@ -5750,7 +5140,7 @@ function informarValorNFProjeto(linha, valorNF) {
     var idxJson = headers.indexOf("JSON_DADOS");
     var idxProjeto = headers.indexOf("PROJETO");
     if (idxJson < 0 || idxProjeto < 0) throw new Error("Estrutura da planilha Projetos não encontrada.");
-    var row = sheetProj.getRange(linha, 1, linha, headers.length).getValues()[0];
+    var row = sheetProj.getRange(linha, 1, 1, headers.length).getValues()[0];
     var codigoProjeto = (row[idxProjeto] || "").toString().trim();
     if (!codigoProjeto) throw new Error("Código do projeto não encontrado.");
     var jsonStr = row[idxJson];
@@ -5760,7 +5150,7 @@ function informarValorNFProjeto(linha, valorNF) {
     parsed.dados.observacoes.valorNF = valorNF == null ? "" : String(valorNF).trim();
     var newJson = JSON.stringify(parsed);
     sheetProj.getRange(linha, idxJson + 1).setValue(newJson);
-    SheetCache.invalidate(sheetProj);
+    _postWriteProjetos_(sheetProj);
     var obj = {};
     headers.forEach(function (h, i) { obj[h] = row[i]; });
     obj["JSON_DADOS"] = newJson;
@@ -5795,7 +5185,7 @@ function informarDataEntregaProjeto(linha, dataEntrega) {
     var idxJson = _findHeaderIndex(headers, "JSON_DADOS");
     var idxProjeto = _findHeaderIndex(headers, "PROJETO");
     if (idxJson < 0 || idxProjeto < 0) throw new Error("Estrutura da planilha Projetos não encontrada.");
-    var row = sheetProj.getRange(linha, 1, linha, headers.length).getValues()[0];
+    var row = sheetProj.getRange(linha, 1, 1, headers.length).getValues()[0];
     var codigoProjeto = (row[idxProjeto] || "").toString().trim();
     if (!codigoProjeto) throw new Error("Código do projeto não encontrado.");
     var jsonStr = row[idxJson];
@@ -5805,7 +5195,7 @@ function informarDataEntregaProjeto(linha, dataEntrega) {
     parsed.dados.observacoes.dataEntrega = dataEntrega == null ? "" : String(dataEntrega).trim();
     var newJson = JSON.stringify(parsed);
     sheetProj.getRange(linha, idxJson + 1).setValue(newJson);
-    SheetCache.invalidate(sheetProj);
+    _postWriteProjetos_(sheetProj);
     var obj = {};
     headers.forEach(function (h, i) { obj[h] = row[i]; });
     obj["JSON_DADOS"] = newJson;
@@ -5952,7 +5342,7 @@ function salvarComprovanteEntrega(linha, fileData) {
 
   const lastCol = sheetProj.getLastColumn();
   const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
-  const row = sheetProj.getRange(linha, 1, linha, lastCol).getValues()[0];
+  const row = sheetProj.getRange(linha, 1, 1, lastCol).getValues()[0];
 
   const idxProjeto = _findHeaderIndex(headers, "PROJETO");
   const idxJson = _findHeaderIndex(headers, "JSON_DADOS");
@@ -6001,7 +5391,7 @@ function salvarComprovanteEntrega(linha, fileData) {
   parsed.dados.infoPedido.temComprovanteEntrega = true;
 
   sheetProj.getRange(linha, idxJson + 1).setValue(JSON.stringify(parsed));
-  SheetCache.invalidate(sheetProj);
+  _postWriteProjetos_(sheetProj);
 
   return { sucesso: true, url: url };
 }
@@ -6036,7 +5426,7 @@ function finalizarPedidoComComprovante(linha) {
   if (linha > sheetProj.getLastRow()) throw new Error("Projeto não encontrado.");
 
   var headers = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-  var row = sheetProj.getRange(linha, 1, linha, sheetProj.getLastColumn()).getValues()[0];
+  var row = sheetProj.getRange(linha, 1, 1, sheetProj.getLastColumn()).getValues()[0];
   var idxJson = _findHeaderIndex(headers, "JSON_DADOS");
   var idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
   var idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
@@ -6064,13 +5454,14 @@ function finalizarPedidoComComprovante(linha) {
 
   if (idxStatusOrc >= 0) sheetProj.getRange(linha, idxStatusOrc + 1).setValue("Convertido em Pedido");
   if (idxStatusPed >= 0) sheetProj.getRange(linha, idxStatusPed + 1).setValue("Finalizado");
-  SheetCache.invalidate(sheetProj);
+  _postWriteProjetos_(sheetProj);
 
   try {
     var codigoProjeto = idxProjeto >= 0 ? String(row[idxProjeto] || "").trim() : "";
     var codigoBase = codigoProjeto.replace(/_v\d+$/i, "");
+    // Entregue (finalizado) ≠ pago: só registra data de entrega no Pedido/Livro.
+    // O status de pagamento permanece conforme histórico/edição na página Pedidos.
     atualizarPedidoNaPlanilha(codigoBase || codigoProjeto, {
-      STATUS_PAGAMENTO: "Pago",
       DATA_ENTREGA: hojeStr
     }, {
       CLIENTE: (idxCliente >= 0 ? row[idxCliente] : ""),
@@ -6109,7 +5500,7 @@ function getInfoPedido(linha) {
 
   const lastCol = sheetProj.getLastColumn();
   const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
-  const row = sheetProj.getRange(linha, 1, linha, lastCol).getValues()[0];
+  const row = sheetProj.getRange(linha, 1, 1, lastCol).getValues()[0];
 
   const idxCliente = _findHeaderIndex(headers, "CLIENTE");
   const idxProjeto = _findHeaderIndex(headers, "PROJETO");
@@ -6236,7 +5627,7 @@ function salvarInfoPedido(linha, info) {
 
   const lastCol = sheetProj.getLastColumn();
   const headers = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
-  const row = sheetProj.getRange(linha, 1, linha, lastCol).getValues()[0];
+  const row = sheetProj.getRange(linha, 1, 1, lastCol).getValues()[0];
 
   const idxCliente = _findHeaderIndex(headers, "CLIENTE");
   const idxProjeto = _findHeaderIndex(headers, "PROJETO");
@@ -6277,7 +5668,7 @@ function salvarInfoPedido(linha, info) {
   const jsonNovo = JSON.stringify(parsed);
   if (idxJson >= 0) {
     sheetProj.getRange(linha, idxJson + 1).setValue(jsonNovo);
-    SheetCache.invalidate(sheetProj);
+    _postWriteProjetos_(sheetProj);
   }
 
   const updatesProj = {};
@@ -6285,8 +5676,8 @@ function salvarInfoPedido(linha, info) {
   if (info.valorPedido && idxValorTotal >= 0) updatesProj["VALOR TOTAL"] = info.valorPedido;
   if (info.processos && idxProcessos >= 0) updatesProj.PROCESSOS = info.processos;
   if (Object.keys(updatesProj).length > 0) {
+    // _escreverLinhaProjetosPorCabecalho já invalida internamente (SheetCache + lista).
     _escreverLinhaProjetosPorCabecalho(sheetProj, linha, updatesProj, true);
-    SheetCache.invalidate(sheetProj);
   }
 
   const updatesPed = {};
@@ -6429,10 +5820,21 @@ function adicionarNovoProjetoNaPlanilha(projeto) {
       const codigoProjeto = String(projeto.PROJETO || '').trim();
       const descricao = String(projeto['DESCRIÇÃO'] || '').trim();
       const nomeCliente = String(projeto.CLIENTE || '').trim();
+      let nomeAbreviado = "";
+      try {
+        if (projeto.JSON_DADOS) {
+          const parsed = typeof projeto.JSON_DADOS === "string"
+            ? JSON.parse(projeto.JSON_DADOS)
+            : projeto.JSON_DADOS;
+          nomeAbreviado = (parsed && parsed.dados && parsed.dados.cliente && parsed.dados.cliente.nomeAbreviado) || "";
+        }
+      } catch (eJson) {
+        Logger.log("adicionarNovoProjetoNaPlanilha: JSON_DADOS inválido ao extrair nomeAbreviado");
+      }
       if (codigoProjeto.length >= 6 && descricao) {
         try {
           const dataProj = codigoProjeto.substring(0, 6); // YYMMDD
-          criarPastaOrcamento(codigoProjeto, descricao, dataProj, nomeCliente, false);
+          criarPastaOrcamento(codigoProjeto, descricao, dataProj, nomeCliente, false, nomeAbreviado);
           Logger.log('adicionarNovoProjetoNaPlanilha: Pasta do projeto criada no Drive');
         } catch (errPasta) {
           Logger.log('adicionarNovoProjetoNaPlanilha: Aviso ao criar pasta no Drive: ' + (errPasta.message || errPasta));
@@ -6503,118 +5905,161 @@ function getProdutos() {
 
 function atualizarStatusKanban(cliente, projeto, novoStatus) {
   try {
-    let statusAntigo = '';
-    let processosStr = '';
-
-    // Verifica se existe a aba Projetos unificada
     const sheetProj = SHEET_PROJ;
+    if (!sheetProj) return;
 
-    if (sheetProj) {
-      // === NOVA LÓGICA: Atualiza STATUS_PEDIDO na aba Projetos ===
-      const dadosProj = SheetCache.getData(sheetProj);
-      if (!dadosProj || dadosProj.length < 2) return;
+    const dadosProj = SheetCache.getData(sheetProj);
+    if (!dadosProj || dadosProj.length < 2) return;
 
-      const headers = dadosProj[0];
-      const idxCliente = _findHeaderIndex(headers, "CLIENTE");
-      const idxProjeto = _findHeaderIndex(headers, "PROJETO");
-      const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
-      const idxStatusOrc = _findHeaderIndex(headers, "STATUS_ORCAMENTO");
-      const idxDescricao = _findHeaderIndex(headers, "DESCRIÇÃO");
-      const idxProcessos = _findHeaderIndex(headers, "PROCESSOS");
-      const idxJsonDados = _findHeaderIndex(headers, "JSON_DADOS");
+    const headers = dadosProj[0];
+    const idxCliente = _findHeaderIndex(headers, "CLIENTE");
+    const idxProjeto = _findHeaderIndex(headers, "PROJETO");
+    const idxStatusPed = _findHeaderIndex(headers, "STATUS_PEDIDO");
 
-      // Valida índices
-      if (idxCliente < 0 || idxProjeto < 0 || idxStatusPed < 0) {
-        Logger.log('atualizarStatusKanban (Projetos): cabeçalhos não encontrados');
-        return;
+    if (idxCliente < 0 || idxProjeto < 0 || idxStatusPed < 0) {
+      Logger.log('atualizarStatusKanban (Projetos): cabeçalhos não encontrados');
+      return;
+    }
+
+    const cTrim = String(cliente || '').trim();
+    const pTrim = String(projeto || '').trim();
+    var rowNum = 0;
+    var statusAntigo = '';
+    for (var i = 1; i < dadosProj.length; i++) {
+      const row = dadosProj[i];
+      if (String(row[idxCliente] || '').trim() === cTrim && String(row[idxProjeto] || '').trim() === pTrim) {
+        rowNum = i + 1;
+        statusAntigo = String(row[idxStatusPed] || '').trim();
+        break;
+      }
+    }
+    if (!rowNum) return;
+
+    var lastCol = sheetProj.getLastColumn();
+    var headersLive = sheetProj.getRange(1, 1, 1, lastCol).getValues()[0];
+    var rowLive = sheetProj.getRange(rowNum, 1, 1, lastCol).getValues()[0];
+
+    var idxClienteL = _findHeaderIndex(headersLive, "CLIENTE");
+    var idxProjetoL = _findHeaderIndex(headersLive, "PROJETO");
+    var idxStatusPedL = _findHeaderIndex(headersLive, "STATUS_PEDIDO");
+    var idxStatusOrcL = _findHeaderIndex(headersLive, "STATUS_ORCAMENTO");
+    var idxDescricaoL = _findHeaderIndex(headersLive, "DESCRIÇÃO");
+    var idxJsonL = _findHeaderIndex(headersLive, "JSON_DADOS");
+
+    if (idxStatusPedL < 0) return;
+
+    var valCliente = String(rowLive[idxClienteL] || '').trim();
+    var valProjeto = String(rowLive[idxProjetoL] || '').trim();
+    var descricao = idxDescricaoL >= 0 ? String(rowLive[idxDescricaoL] || '').trim() : '';
+
+    if (valCliente !== cTrim || valProjeto !== pTrim) {
+      Logger.log('atualizarStatusKanban: divergência CLIENTE/PROJETO na leitura ao vivo');
+      return;
+    }
+
+    // Voltar para Processo de Orçamento: orçamento = Rascunho, pedido = "-"
+    if (novoStatus === "Processo de Orçamento") {
+      if (idxStatusOrcL >= 0) rowLive[idxStatusOrcL] = "Rascunho";
+      rowLive[idxStatusPedL] = "-";
+      sheetProj.getRange(rowNum, 1, 1, lastCol).setValues([rowLive]);
+      _postWriteProjetos_(sheetProj);
+      return;
+    }
+
+    var statusPedidoFinal = !statusAntigo ? "Processo de Preparação MP / CAD / CAM" : String(novoStatus || '').trim();
+
+    // RF007: valida Finalizado antes de gravar (evita estado parcial + erro engolido no catch interno)
+    if (statusPedidoFinal === "Finalizado" && idxJsonL >= 0) {
+      var jsonCell0 = rowLive[idxJsonL];
+      var p0 = (jsonCell0 && typeof jsonCell0 === "string") ? (function () { try { return JSON.parse(jsonCell0); } catch (e0) { return null; } })() : null;
+      if (!p0 || typeof p0 !== "object") p0 = { dados: {} };
+      if (!p0.dados) p0.dados = {};
+      if (!p0.dados.infoPedido) p0.dados.infoPedido = {};
+      var info0 = p0.dados.infoPedido;
+      if (!(info0.comprovanteEntregaUrl || info0.temComprovanteEntrega)) {
+        throw new Error("Envie o comprovante de entrega antes de definir o pedido como Finalizado.");
+      }
+    }
+
+    // Se estava em orçamento e está mudando para um status de pedido, atualiza STATUS_ORCAMENTO também
+    if (!statusAntigo && idxStatusOrcL >= 0) {
+      var statusOrc = String(rowLive[idxStatusOrcL] || '').trim();
+      if (statusOrc !== "Convertido em Pedido") {
+        sheetProj.getRange(rowNum, idxStatusOrcL + 1).setValue("Convertido em Pedido");
+        rowLive[idxStatusOrcL] = "Convertido em Pedido";
+        var codigoBase = String(valProjeto).replace(/_v\d+$/i, "").trim();
+        var dataProj = codigoBase.length >= 6 ? codigoBase.substring(0, 6) : valProjeto.substring(0, 6);
+        try {
+          atualizarPrefixoPastaParaPedido(codigoBase, dataProj, valCliente, descricao);
+          Logger.log("Pasta convertida de COT para PED (Kanban): " + codigoBase);
+        } catch (e) {
+          Logger.log("Erro ao renomear pasta de COT para PED: " + e.message);
+        }
+        ensurePedidoRow(rowNum);
+        rowLive = sheetProj.getRange(rowNum, 1, 1, lastCol).getValues()[0];
+      }
+    }
+
+    rowLive[idxStatusPedL] = statusPedidoFinal;
+
+    var dataEntregaParaSync = null;
+    if (idxJsonL >= 0) {
+      var tz = (typeof ss !== "undefined" && ss && ss.getSpreadsheetTimeZone) ? ss.getSpreadsheetTimeZone() : (SpreadsheetApp.getActive().getSpreadsheetTimeZone() || "America/Sao_Paulo");
+      var hoje = new Date();
+      var dataHojeStr = Utilities.formatDate(hoje, tz, "dd/MM/yyyy");
+      var jsonCell = rowLive[idxJsonL];
+      var parsed = (jsonCell && typeof jsonCell === "string") ? (function () { try { return JSON.parse(jsonCell); } catch (eJ) { return null; } })() : null;
+      if (!parsed || typeof parsed !== "object") parsed = { dados: {} };
+      if (!parsed.dados) parsed.dados = {};
+      if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
+      var info = parsed.dados.infoPedido;
+      if (!info.statusDates) info.statusDates = {};
+
+      if (!info.dataVirouPedido && statusAntigo === "" && statusPedidoFinal && statusPedidoFinal !== "-") {
+        info.dataVirouPedido = dataHojeStr;
+      }
+      if (/Preparação MP \/ CAD \/ CAM/i.test(statusPedidoFinal) && !info.statusDates.preparacao) info.statusDates.preparacao = dataHojeStr;
+      if (/Processo de Corte/i.test(statusPedidoFinal) && !info.statusDates.corte) info.statusDates.corte = dataHojeStr;
+      if (/Processo de Dobra/i.test(statusPedidoFinal) && !info.statusDates.dobra) info.statusDates.dobra = dataHojeStr;
+      if (/Processos Adicionais/i.test(statusPedidoFinal) && !info.statusDates.adicionais) info.statusDates.adicionais = dataHojeStr;
+      if (/Envio \/ Coleta/i.test(statusPedidoFinal)) {
+        if (!info.statusDates.envioColeta) info.statusDates.envioColeta = dataHojeStr;
+        if (!info.dataFimProducao) info.dataFimProducao = dataHojeStr;
+      }
+      if (statusPedidoFinal === "Finalizado") {
+        var temComprovanteKanban = !!(info.comprovanteEntregaUrl || info.temComprovanteEntrega);
+        if (!temComprovanteKanban) {
+          throw new Error("Envie o comprovante de entrega antes de definir o pedido como Finalizado.");
+        }
+        info.dataEntrega = dataHojeStr;
+      }
+      if (!parsed.dados.observacoes) parsed.dados.observacoes = {};
+      if (info.dataEntrega) {
+        parsed.dados.observacoes.dataEntrega = info.dataEntrega;
+        dataEntregaParaSync = info.dataEntrega;
       }
 
-      for (let i = 1; i < dadosProj.length; i++) {
-        const row = dadosProj[i];
-        const valCliente = String(row[idxCliente] || '').trim();
-        const valProjeto = String(row[idxProjeto] || '').trim();
+      rowLive[idxJsonL] = JSON.stringify(parsed);
+    }
 
-        if (valCliente === String(cliente).trim() && valProjeto === String(projeto).trim()) {
-          statusAntigo = String(row[idxStatusPed] || '').trim();
-          processosStr = idxProcessos >= 0 ? String(row[idxProcessos] || '').trim() : '';
-          const descricao = idxDescricao >= 0 ? String(row[idxDescricao] || '').trim() : '';
+    sheetProj.getRange(rowNum, 1, 1, lastCol).setValues([rowLive]);
+    _postWriteProjetos_(sheetProj);
 
-          // Voltar para Processo de Orçamento: orçamento = Rascunho, pedido = "-"
-          if (novoStatus === "Processo de Orçamento") {
-            if (idxStatusOrc >= 0) sheetProj.getRange(i + 1, idxStatusOrc + 1).setValue("Rascunho");
-            sheetProj.getRange(i + 1, idxStatusPed + 1).setValue("-");
-            break;
-          }
-
-          // Se estava em orçamento e está mudando para um status de pedido, atualiza STATUS_ORCAMENTO também
-          if (!statusAntigo && idxStatusOrc >= 0) {
-            const statusOrc = String(row[idxStatusOrc] || '').trim();
-            if (statusOrc !== "Convertido em Pedido") {
-              sheetProj.getRange(i + 1, idxStatusOrc + 1).setValue("Convertido em Pedido");
-              const codigoBase = String(valProjeto).replace(/_v\d+$/i, "").trim();
-              const dataProj = codigoBase.length >= 6 ? codigoBase.substring(0, 6) : valProjeto.substring(0, 6);
-              try {
-                atualizarPrefixoPastaParaPedido(codigoBase, dataProj, valCliente, descricao);
-                Logger.log("Pasta convertida de COT para PED (Kanban): " + codigoBase);
-              } catch (e) {
-                Logger.log("Erro ao renomear pasta de COT para PED: " + e.message);
-              }
-              ensurePedidoRow(i + 1);
-            }
-          }
-
-          // Atualiza STATUS_PEDIDO: ao converter em pedido o primeiro status é sempre Preparação MP / CAD / CAM
-          const statusPedidoFinal = !statusAntigo ? "Processo de Preparação MP / CAD / CAM" : novoStatus;
-          sheetProj.getRange(i + 1, idxStatusPed + 1).setValue(statusPedidoFinal);
-          SheetCache.invalidate(sheetProj);
-
-          // Datas automáticas por mudança de status (armazenadas em JSON_DADOS.dados.infoPedido)
-          if (idxJsonDados >= 0) {
-            try {
-              const tz = SpreadsheetApp.getActive().getSpreadsheetTimeZone() || "America/Sao_Paulo";
-              const hoje = new Date();
-              const dataHojeStr = Utilities.formatDate(hoje, tz, "dd/MM/yyyy");
-              let jsonCell = row[idxJsonDados];
-              let parsed = (jsonCell && typeof jsonCell === "string") ? (function () { try { return JSON.parse(jsonCell); } catch (e) { return null; } })() : null;
-              if (!parsed || typeof parsed !== "object") parsed = { dados: {} };
-              if (!parsed.dados) parsed.dados = {};
-              if (!parsed.dados.infoPedido) parsed.dados.infoPedido = {};
-              const info = parsed.dados.infoPedido;
-              if (!info.statusDates) info.statusDates = {};
-
-              if (!info.dataVirouPedido && statusAntigo === "" && statusPedidoFinal && statusPedidoFinal !== "-") {
-                info.dataVirouPedido = dataHojeStr;
-              }
-              if (/Preparação MP \/ CAD \/ CAM/i.test(statusPedidoFinal) && !info.statusDates.preparacao) info.statusDates.preparacao = dataHojeStr;
-              if (/Processo de Corte/i.test(statusPedidoFinal) && !info.statusDates.corte) info.statusDates.corte = dataHojeStr;
-              if (/Processo de Dobra/i.test(statusPedidoFinal) && !info.statusDates.dobra) info.statusDates.dobra = dataHojeStr;
-              if (/Processos Adicionais/i.test(statusPedidoFinal) && !info.statusDates.adicionais) info.statusDates.adicionais = dataHojeStr;
-              if (/Envio \/ Coleta/i.test(statusPedidoFinal)) {
-                if (!info.statusDates.envioColeta) info.statusDates.envioColeta = dataHojeStr;
-                if (!info.dataFimProducao) info.dataFimProducao = dataHojeStr;
-              }
-              if (statusPedidoFinal === "Finalizado") {
-                const temComprovanteKanban = !!(info.comprovanteEntregaUrl || info.temComprovanteEntrega);
-                if (!temComprovanteKanban) {
-                  throw new Error("Envie o comprovante de entrega antes de definir o pedido como Finalizado.");
-                }
-                // Sempre registra o dia da mudança para Finalizado.
-                info.dataEntrega = dataHojeStr;
-              }
-              if (!parsed.dados.observacoes) parsed.dados.observacoes = {};
-              if (info.dataEntrega) parsed.dados.observacoes.dataEntrega = info.dataEntrega;
-
-              sheetProj.getRange(i + 1, idxJsonDados + 1).setValue(JSON.stringify(parsed));
-              SheetCache.invalidate(sheetProj);
-              if (info.dataEntrega) {
-                informarDataEntregaProjeto(i + 1, info.dataEntrega);
-              }
-            } catch (errDatas) {
-              Logger.log("atualizarStatusKanban: falha ao registrar datas automáticas: " + (errDatas.message || errDatas));
-            }
-          }
-          break;
+    if (dataEntregaParaSync) {
+      try {
+        var objSync = {};
+        for (var hi = 0; hi < headersLive.length; hi++) {
+          objSync[String(headersLive[hi] || "")] = rowLive[hi];
         }
+        var dataCompSync = (objSync["DATA COMPETÊNCIA"] || objSync["DATA COMPETENCIA"] || objSync.DATA || "").toString().trim();
+        atualizarPedidoNaPlanilha(valProjeto, { DATA_ENTREGA: dataEntregaParaSync }, {
+          CLIENTE: objSync.CLIENTE,
+          "VALOR TOTAL": objSync["VALOR TOTAL"],
+          _dataCompetencia: dataCompSync,
+          _linhaPlanilha: rowNum
+        });
+      } catch (eSyncDe) {
+        Logger.log("atualizarStatusKanban: sync DATA_ENTREGA → Pedidos: " + (eSyncDe && eSyncDe.message ? eSyncDe.message : eSyncDe));
       }
     }
   } catch (e) {
@@ -6756,7 +6201,7 @@ function atualizarRascunho(linhaOuKey, dados) {
     // Lê a linha por cabeçalhos (evita valor/status errados quando a planilha tem colunas em ordem diferente)
     const numCols = targetSheet.getLastColumn();
     const headers = targetSheet.getRange(1, 1, 1, numCols).getValues()[0];
-    const rowData = targetSheet.getRange(linha, 1, linha, numCols).getValues()[0];
+    const rowData = targetSheet.getRange(linha, 1, 1, numCols).getValues()[0];
     const rowObj = {};
     headers.forEach(function (h, i) { rowObj[h] = rowData[i]; });
     function val(obj, keys) {
@@ -6927,7 +6372,7 @@ function carregarRascunho(linhaOuKey) {
 
     // Lê a linha da planilha (todas as colunas) para não depender da ordem fixa (evitar ler JSON_DADOS da coluna Condições de pagamento)
     const numCols = Math.max(sheetProj ? PROJETOS_NUM_COLUNAS : ORCAMENTOS_NUM_COLUNAS, targetSheet.getLastColumn());
-    const rowData = targetSheet.getRange(linha, 1, linha, numCols).getValues()[0];
+    const rowData = targetSheet.getRange(linha, 1, 1, numCols).getValues()[0];
     const headers = targetSheet.getRange(1, 1, 1, numCols).getValues()[0];
 
     // STATUS está no índice 9 em ambas estruturas (STATUS ou STATUS_ORCAMENTO)
@@ -7505,10 +6950,8 @@ function getControleVeiculos() {
     // Tente usar a variável global se existir
     let sheet = (typeof SHEET_VEIC !== 'undefined' && SHEET_VEIC) ? SHEET_VEIC : null;
 
-    // Se não houver SHEET_VEIC, abra pela ID (substitua 'ID_DA_PLANILHA' pelo ID real)
+    // Fallback: usa a `ss` global (já aberta a partir de CONFIG.SPREADSHEET_ID no topo do arquivo) — evita reabrir a planilha por ID.
     if (!sheet) {
-      const SPREADSHEET_ID = '1wMIbd8r2HeniFLTYaG8Yhhl8CWmaHaW5oXBVnxj0xos'; // <-- substitua pelo seu ID real
-      const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
       sheet = ss.getSheetByName('Controle de Veículos');
     }
 

@@ -248,7 +248,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
       if (linhaExistente && sheetProj && isPedido) {
         const hdrsMerge = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
         const idxOrcMerge = _findHeaderIndexProjetos(hdrsMerge, "STATUS_ORCAMENTO");
-        const rowMerge = sheetProj.getRange(linhaExistente, 1, linhaExistente, sheetProj.getLastColumn()).getValues()[0];
+        const rowMerge = sheetProj.getRange(linhaExistente, 1, 1, sheetProj.getLastColumn()).getValues()[0];
         const stMerge = (idxOrcMerge >= 0 && rowMerge[idxOrcMerge] != null) ? String(rowMerge[idxOrcMerge]).trim() : "";
         if (stMerge === "Convertido em Pedido") {
           const idxJsonMerge = _findHeaderIndex(hdrsMerge, "JSON_DADOS");
@@ -380,7 +380,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     };
     var jaEraConvertidoEmPedido = false;
     if (linhaExistente) {
-      var rowAtualReg = targetSheet.getRange(linhaExistente, 1, linhaExistente, targetSheet.getLastColumn()).getValues()[0];
+      var rowAtualReg = targetSheet.getRange(linhaExistente, 1, 1, targetSheet.getLastColumn()).getValues()[0];
       var headersReg = targetSheet.getRange(1, 1, 1, targetSheet.getLastColumn()).getValues()[0];
       var idxData = _findHeaderIndexProjetos(headersReg, "DATA");
       var statusAtualReg = "";
@@ -419,7 +419,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
             var cellVal = sheetProj.getRange(ri, idxProj2 + 1).getValue();
             if (String(cellVal || "").trim() === codigoNorm) {
               linhaExistente = ri;
-              var rowAtualDup = sheetProj.getRange(ri, 1, ri, sheetProj.getLastColumn()).getValues()[0];
+              var rowAtualDup = sheetProj.getRange(ri, 1, 1, sheetProj.getLastColumn()).getValues()[0];
               var idxDataDup = _findHeaderIndexProjetos(headersProj2, "DATA");
               var idxOrcDup = _findHeaderIndexProjetos(headersProj2, "STATUS_ORCAMENTO");
               var statusDup = (idxOrcDup >= 0 && rowAtualDup[idxOrcDup]) ? String(rowAtualDup[idxOrcDup] || "").trim() : "";
@@ -449,7 +449,7 @@ function registrarOrcamento(cliente, codigoProjeto, valorTotal, dataOrcamento, u
     if (linhaExistente && sheetProj && (codigoProjeto || "").trim() !== "") {
       try {
         var headersSync = sheetProj.getRange(1, 1, 1, sheetProj.getLastColumn()).getValues()[0];
-        var rowSync = sheetProj.getRange(linhaExistente, 1, linhaExistente, sheetProj.getLastColumn()).getValues()[0];
+        var rowSync = sheetProj.getRange(linhaExistente, 1, 1, sheetProj.getLastColumn()).getValues()[0];
         var idxStatusSync = _findHeaderIndexProjetos(headersSync, "STATUS_ORCAMENTO");
         var statusSync = (idxStatusSync >= 0 && rowSync[idxStatusSync] != null) ? String(rowSync[idxStatusSync]).trim() : "";
         if (statusSync === "Convertido em Pedido") {

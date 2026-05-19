@@ -45,7 +45,7 @@ function gerarPdfOrcamento(
           var linhaPed = findRowByColumnValue(sheetPed, "PROJETO", codigoProjeto);
           if (linhaPed) {
             var headersPed = sheetPed.getRange(1, 1, 1, sheetPed.getLastColumn()).getValues()[0];
-            var rowPed = sheetPed.getRange(linhaPed, 1, linhaPed, sheetPed.getLastColumn()).getValues()[0];
+            var rowPed = sheetPed.getRange(linhaPed, 1, 1, sheetPed.getLastColumn()).getValues()[0];
             var aliasesNum = ["NUMERO_SEQUENCIAL", "NUMERO SEQUENCIAL", "NÚMERO SEQUENCIAL", "Nº", "N"];
             for (var a = 0; a < aliasesNum.length && (numeroSequencial == null || numeroSequencial === undefined || String(numeroSequencial).trim() === ""); a++) {
               for (var c = 0; c < headersPed.length; c++) {
@@ -191,6 +191,7 @@ function gerarPdfOrcamento(
 
     const headerColor = "#FF9933";
     const rowColor = "#FDF5E6";
+    const rowColorAlt = "#E8E4DC";
 
     function calcularParcelas(textoPagamento, valorTotal) {
       if (!textoPagamento || textoPagamento.trim() === "") return null;
@@ -247,22 +248,25 @@ function gerarPdfOrcamento(
       }));
     }
 
-    const itensHtml = resultados.map(function (p) {
+    const itensHtml = resultados.map(function (p, rowIdx) {
+      var rowBg = (rowIdx % 2 === 0) ? rowColor : rowColorAlt;
       return ''
         + '<tr>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; font-size:7pt;">' + _escHtml(p.codigo || "") + '</td>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; font-size:7pt;">' + _escHtml(p.descricao || "") + '</td>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _escHtml(p.quantidade || 0) + '</td>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(p.precoUnitario || 0) + '</td>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(p.precoTotal || 0) + '</td>'
+        + '<td bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; font-size:7pt;">' + _escHtml(p.codigo || "") + '</td>'
+        + '<td bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; font-size:7pt;">' + _escHtml(p.descricao || "") + '</td>'
+        + '<td bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _escHtml(p.quantidade || 0) + '</td>'
+        + '<td bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(p.precoUnitario || 0) + '</td>'
+        + '<td bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(p.precoTotal || 0) + '</td>'
         + '</tr>';
     }).join('');
 
     var processosPedidoRow = "";
     var processosPedidoArray = (dadosFormularioCompleto && dadosFormularioCompleto.processosPedido && Array.isArray(dadosFormularioCompleto.processosPedido)) ? dadosFormularioCompleto.processosPedido : [];
     var subtotalParaPercentual = totalPecas;
+    var procStripeBase = resultados.length;
     if (processosPedidoArray.length > 0 && processosPedidoArray[0].tipo !== undefined) {
-      processosPedidoArray.forEach(function (proc) {
+      processosPedidoArray.forEach(function (proc, pi) {
+        var rowBg = ((procStripeBase + pi) % 2 === 0) ? rowColor : rowColorAlt;
         var tipo = proc.tipo === "desconto" || proc.tipo === "custo" ? proc.tipo : "custo";
         var tipoValor = proc.tipoValor === "percentual" || proc.tipoValor === "fixo" ? proc.tipoValor : "fixo";
         var valor = 0;
@@ -279,14 +283,15 @@ function gerarPdfOrcamento(
         var descricaoLinha = (proc.descricao || "").trim();
         if (!descricaoLinha) descricaoLinha = tipo === "desconto" ? "Desconto" : "Custo extra";
         processosPedidoRow += '<tr>'
-          + '<td colspan="4" bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _escHtml(descricaoLinha) + '</td>'
-          + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(valor) + '</td>'
+          + '<td colspan="4" bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _escHtml(descricaoLinha) + '</td>'
+          + '<td bgcolor="' + rowBg + '" style="background:' + rowBg + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(valor) + '</td>'
           + '</tr>';
       });
     } else if (somaProcessosPedido && Number(somaProcessosPedido) !== 0) {
+      var rowBgLegacy = (procStripeBase % 2 === 0) ? rowColor : rowColorAlt;
       processosPedidoRow = '<tr>'
-        + '<td colspan="4" bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;"><strong>' + _escHtml(descricaoProcessosPedido || "") + '</strong></td>'
-        + '<td bgcolor="' + rowColor + '" style="background:' + rowColor + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(somaProcessosPedido) + '</td>'
+        + '<td colspan="4" bgcolor="' + rowBgLegacy + '" style="background:' + rowBgLegacy + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;"><strong>' + _escHtml(descricaoProcessosPedido || "") + '</strong></td>'
+        + '<td bgcolor="' + rowBgLegacy + '" style="background:' + rowBgLegacy + '; padding:2px; border:0.1px solid #fff; text-align:right; font-size:7pt;">' + _formatBrCurrency(somaProcessosPedido) + '</td>'
         + '</tr>';
     }
 
@@ -313,13 +318,16 @@ function gerarPdfOrcamento(
         <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${headerSegundaCol}</th>
         <th bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">Valor</th>
       </tr>
-      ${parcelas.map(p => `
+      ${parcelas.map(function (p, idxP) {
+        var rowBgP = (idxP % 2 === 0) ? rowColor : rowColorAlt;
+        return `
         <tr>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${p.numero}/${parcelas.length}</td>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${celulaSegundaCol(p)}</td>
-          <td bgcolor="${rowColor}" style="background:${rowColor}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${_formatBrCurrency(p.valor)}</td>
+          <td bgcolor="${rowBgP}" style="background:${rowBgP}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${p.numero}/${parcelas.length}</td>
+          <td bgcolor="${rowBgP}" style="background:${rowBgP}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${celulaSegundaCol(p)}</td>
+          <td bgcolor="${rowBgP}" style="background:${rowBgP}; padding:2px; border:0.1px solid #fff; font-size:7pt; text-align:center;">${_formatBrCurrency(p.valor)}</td>
         </tr>
-      `).join('')}
+      `;
+      }).join('')}
     </table>
     `;
       }
@@ -388,7 +396,7 @@ function gerarPdfOrcamento(
     </tr>
     <tr>
       <td style="border:none; text-align:right; background:#fff; padding:3px; font-weight:bold; font-size:8pt;">Total:</td>
-      <td style="border:none; text-align:right; background:${rowColor}; padding:3px; width:100px; font-weight:bold; font-size:8pt;">${_formatBrCurrency(totalFinal)}</td>
+      <td style="border:none; text-align:right; background:${rowColorAlt}; padding:3px; width:100px; font-weight:bold; font-size:8pt;">${_formatBrCurrency(totalFinal)}</td>
     </tr>
   </table>
 </div>

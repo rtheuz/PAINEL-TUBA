@@ -250,10 +250,6 @@
                         <label>Status de pagamento</label>
                         <select id="editStatusPagamento">
                             <option value="À pagar">À pagar</option>
-                            <option value="Pago">Pago</option>
-                            <option value="Atrasado">Atrasado</option>
-                            <option value="Pago parcialmente">Pago parcialmente</option>
-                            <option value="À pagar - CONFIRMAR VALOR !!">À pagar - CONFIRMAR VALOR !!</option>
                         </select>
                     </div>
                     <div class="form-group historico-pagamentos-group">
@@ -321,11 +317,7 @@
                 <div class="filter-group filter-status-multi">
                     <label>Status de pagamento (múltipla escolha)</label>
                     <div class="filter-checkboxes" id="statusPagFilterGroup">
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago"> Pago</label>
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="À pagar"> À pagar</label>
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Atrasado"> Atrasado</label>
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="Pago parcialmente"> Pago parcialmente</label>
-                        <label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="À pagar - CONFIRMAR VALOR !!"> À pagar - CONFIRMAR VALOR !!</label>
+                        <!-- preenchido por JS -->
                     </div>
                 </div>
             </div>
@@ -345,7 +337,12 @@
         const token = '<?= token ?>';
         var baseUrl = <?!= (typeof baseUrl !== 'undefined' && baseUrl) ? ("'" + String(baseUrl).replace(/'/g, "\\'") + "'") : "null" ?>;
         const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyqo2sqE_x5VhtQPInTBS4XO78vk-S0Ec2LbgDtbUYVyX98oOA_oh4VRMdrmk8DBWvx6g/exec";
-        var STATUS_PAGAMENTO_OPTIONS = ['À pagar', 'Pago', 'Atrasado', 'Pago parcialmente', 'À pagar - CONFIRMAR VALOR !!'];
+        var STATUS_PAGAMENTO_OPTIONS = ['À pagar'];
+        var STATUS_PAGAMENTO_OPTIONS_SET = { 'À pagar': true };
+        var STATUS_PAGAMENTO_ALIAS = {
+            'Pendente': 'À pagar',
+            'Pago (A VERIFICAR)': 'À pagar - CONFIRMAR VALOR !!'
+        };
         function pageUrl(page, qs) { if (baseUrl) return (baseUrl.replace(/\/$/, '') + '/' + page + '.html?' + (qs || '')).replace(/\?$/, ''); return WEBAPP_URL + '?page=' + page + (qs ? '&' + qs : ''); }
         function escapeHtmlAttr(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -455,8 +452,82 @@
         function getDataVencimento(p) {
             return (p._dataVencimento || p["DATA_VENCIMENTO"] || p["DATA DE VENCIMENTO"] || "").toString().trim();
         }
+        // Cache do HTML pré-compilado das <option> de STATUS_PAGAMENTO.
+        // É invalidado sempre que STATUS_PAGAMENTO_OPTIONS muda (via setStatusPagamentoOptions),
+        // evitando reprocessar escapes/replace para cada linha da tabela em renderTable.
+        var _STATUS_PAG_OPTHTML_PARTS = null;
+        function _getStatusPagOptHtml(statusArmazenado) {
+            if (!_STATUS_PAG_OPTHTML_PARTS) {
+                _STATUS_PAG_OPTHTML_PARTS = STATUS_PAGAMENTO_OPTIONS.map(function (opt) {
+                    return {
+                        value: opt,
+                        valueAttr: escapeHtmlAttr(opt),
+                        label: String(opt).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    };
+                });
+            }
+            var out = '';
+            for (var i = 0; i < _STATUS_PAG_OPTHTML_PARTS.length; i++) {
+                var p = _STATUS_PAG_OPTHTML_PARTS[i];
+                out += '<option value="' + p.valueAttr + '"' + (p.value === statusArmazenado ? ' selected' : '') + '>' + p.label + '</option>';
+            }
+            return out;
+        }
+        function setStatusPagamentoOptions(list) {
+            var sane = (Array.isArray(list) ? list : []).map(function (x) { return String(x || '').trim(); }).filter(Boolean);
+            if (sane.indexOf('À pagar') < 0) sane.unshift('À pagar');
+            var uniq = {};
+            sane.forEach(function (x) { uniq[x] = true; });
+            STATUS_PAGAMENTO_OPTIONS = Object.keys(uniq);
+            STATUS_PAGAMENTO_OPTIONS_SET = {};
+            STATUS_PAGAMENTO_OPTIONS.forEach(function (x) { STATUS_PAGAMENTO_OPTIONS_SET[x] = true; });
+            _STATUS_PAG_OPTHTML_PARTS = null;
+            rebuildStatusPagamentoControls();
+        }
+        function normalizeStatusPagamentoValue(status, fallback) {
+            var raw = String(status == null ? '' : status).trim();
+            if (!raw) raw = String(fallback == null ? '' : fallback).trim();
+            if (STATUS_PAGAMENTO_ALIAS[raw]) raw = STATUS_PAGAMENTO_ALIAS[raw];
+            if (STATUS_PAGAMENTO_OPTIONS_SET[raw]) return raw;
+            return STATUS_PAGAMENTO_OPTIONS_SET['À pagar'] ? 'À pagar' : (STATUS_PAGAMENTO_OPTIONS[0] || 'À pagar');
+        }
+        function rebuildStatusPagamentoControls() {
+            var filterGroup = document.getElementById('statusPagFilterGroup');
+            if (filterGroup) {
+                var selected = getStatusFilterSelected();
+                filterGroup.innerHTML = STATUS_PAGAMENTO_OPTIONS.map(function (status) {
+                    var checked = selected.indexOf(status) >= 0 ? ' checked' : '';
+                    return '<label class="filter-check-label"><input type="checkbox" class="filter-status-cb" value="' + escapeHtmlAttr(status) + '"' + checked + '> ' + String(status).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</label>';
+                }).join('');
+            }
+            var sel = document.getElementById('editStatusPagamento');
+            if (sel) {
+                var atual = normalizeStatusPagamentoValue(sel.value, 'À pagar');
+                sel.innerHTML = STATUS_PAGAMENTO_OPTIONS.map(function (status) {
+                    return '<option value="' + escapeHtmlAttr(status) + '">' + String(status).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+                }).join('');
+                sel.value = normalizeStatusPagamentoValue(atual, STATUS_PAGAMENTO_OPTIONS[0]);
+            }
+        }
+        function carregarStatusPagamentoDoCadastro(done) {
+            var finish = typeof done === 'function' ? done : function () {};
+            google.script.run
+                .withSuccessHandler(function (cad) {
+                    var lista = cad && Array.isArray(cad.statusPagamento) ? cad.statusPagamento : [];
+                    setStatusPagamentoOptions(lista);
+                    finish();
+                })
+                .withFailureHandler(function () {
+                    setStatusPagamentoOptions(STATUS_PAGAMENTO_OPTIONS);
+                    finish();
+                })
+                .getLivroDiarioCadastro();
+        }
         function getStatusPagamento(p) {
-            return (p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "À pagar").toString().trim();
+            return normalizeStatusPagamentoValue(
+                p["STATUS_PAGAMENTO"] || p["STATUS PAGAMENTO"] || p["STATUS DE PAGAMENTO"] || "",
+                "À pagar"
+            );
         }
         function getNotaFiscal(p) {
             return (p["NF"] || p["NOTA_FISCAL"] || p["NOTA FISCAL"] || "").toString().trim();
@@ -636,7 +707,7 @@
                     var hoje = new Date();
                     hoje.setHours(0, 0, 0, 0);
                     d.setHours(0, 0, 0, 0);
-                    if (d.getTime() < hoje.getTime()) return "Atrasado";
+                    if (d.getTime() < hoje.getTime() && STATUS_PAGAMENTO_OPTIONS_SET["Atrasado"]) return "Atrasado";
                 } else {
                     var iso = primeiraData.match(/^(\d{4})-(\d{2})-(\d{2})/);
                     if (iso) {
@@ -644,11 +715,11 @@
                         var hoje = new Date();
                         hoje.setHours(0, 0, 0, 0);
                         d.setHours(0, 0, 0, 0);
-                        if (d.getTime() < hoje.getTime()) return "Atrasado";
+                        if (d.getTime() < hoje.getTime() && STATUS_PAGAMENTO_OPTIONS_SET["Atrasado"]) return "Atrasado";
                     }
                 }
             }
-            return status;
+            return normalizeStatusPagamentoValue(status, "À pagar");
         }
 
         function loadPedidos() {
@@ -908,11 +979,9 @@
                 var parcelasCellHtml = parcelasStr === '-' ? '-' : parcelasStr.split('\n').map(function (line) {
                     return '<span class="parcela-linha">' + String(line).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
                 }).join('');
-                var statusArmazenado = getStatusPagamento(p);
+                var statusArmazenado = normalizeStatusPagamentoValue(getStatusPagamento(p), 'À pagar');
                 var statusExibicaoLista = getStatusExibicao(p);
-                var optHtml = STATUS_PAGAMENTO_OPTIONS.map(function (opt) {
-                    return '<option value="' + escapeHtmlAttr(opt) + '"' + (opt === statusArmazenado ? ' selected' : '') + '>' + String(opt).replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
-                }).join('');
+                var optHtml = _getStatusPagOptHtml(statusArmazenado);
                 var hintExib = (statusExibicaoLista !== statusArmazenado) ? '<span class="status-inline-hint">Na lista: ' + String(statusExibicaoLista).replace(/</g, '&lt;') + '</span>' : '';
                 var statusCellHtml = '<select class="status-inline-select" data-linha="' + linha + '" onclick="event.stopPropagation();" onchange="onStatusPagamentoInlineChange(this)">' + optHtml + '</select>' + hintExib;
                 var linhaProj = (p._linhaPlanilha && p._linhaPlanilha < 50000) ? p._linhaPlanilha : 0;
@@ -967,11 +1036,43 @@
             if (m) return m[3] + '/' + m[2] + '/' + m[1];
             return str;
         }
-        // dataBaseStr = data de entrega (obrigatória para cálculo automático de vencimentos)
+        function dataEntregaInputToBr(isoOrBr) {
+            var s = (isoOrBr || '').trim();
+            if (!s) return '';
+            var br = inputDateToBr(s);
+            if (br && br.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) return br;
+            var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (mBr) return s;
+            var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (mIso) return mIso[3] + '/' + mIso[2] + '/' + mIso[1];
+            return s;
+        }
+        function formatDataBrFromDate(d) {
+            if (!d || isNaN(d.getTime())) return '';
+            var dd = ('0' + d.getDate()).slice(-2);
+            var mm = ('0' + (d.getMonth() + 1)).slice(-2);
+            return dd + '/' + mm + '/' + d.getFullYear();
+        }
+        // dataBaseStr = data de entrega em dd/mm/aaaa (obrigatória para cálculo automático de vencimentos)
         function calcularVencimentosFromCondicao(condicoes, dataBaseStr, valorTotal) {
             if (!condicoes || !condicoes.trim()) return [];
             var texto = condicoes.trim().toUpperCase().replace(/\s+/g, ' ');
-            if (texto.indexOf('VISTA') >= 0 && texto.indexOf('/') < 0) return [];
+            var s = (dataBaseStr || '').trim();
+            var dBase = null;
+            var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (mBr) {
+                dBase = new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10));
+            } else {
+                var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (mIso) {
+                    dBase = new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10));
+                }
+            }
+            if (!dBase || isNaN(dBase.getTime())) return [];
+            // À vista / no pedido: vencimento na data de entrega
+            if ((texto.indexOf('VISTA') >= 0 || texto.indexOf('PEDIDO') >= 0) && texto.indexOf('/') < 0) {
+                return [formatDataBrFromDate(dBase)];
+            }
             var dias = [];
             if (texto.indexOf('/') >= 0) {
                 var partes = texto.split(/\s*\/\s*/);
@@ -990,45 +1091,28 @@
                 dias = diasMatch.map(function (x) { return parseInt(x, 10); }).filter(function (n) { return !isNaN(n) && n >= 0; });
             }
             if (dias.length === 0) return [];
-            var s = (dataBaseStr || '').trim();
-            var dBase = null;
-            var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (mBr) {
-                dBase = new Date(parseInt(mBr[3], 10), parseInt(mBr[2], 10) - 1, parseInt(mBr[1], 10));
-            } else {
-                var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                if (mIso) {
-                    dBase = new Date(parseInt(mIso[1], 10), parseInt(mIso[2], 10) - 1, parseInt(mIso[3], 10));
-                }
-            }
-            if (!dBase || isNaN(dBase.getTime())) return [];
             return dias.map(function (dia) {
                 var d = new Date(dBase.getTime());
                 d.setDate(d.getDate() + dia);
-                var dd = ('0' + d.getDate()).slice(-2);
-                var mm = ('0' + (d.getMonth() + 1)).slice(-2);
-                return dd + '/' + mm + '/' + d.getFullYear();
+                return formatDataBrFromDate(d);
             });
         }
         function recalcDataVencimentoNoModal() {
-            var cond = document.getElementById('editCondicoesPagamento').value.trim();
+            var cond = (document.getElementById('editCondicoesPagamento') && document.getElementById('editCondicoesPagamento').value) ? document.getElementById('editCondicoesPagamento').value.trim() : '';
             var dataEntregaInput = (document.getElementById('editDataEntrega') && document.getElementById('editDataEntrega').value) ? document.getElementById('editDataEntrega').value.trim() : '';
-            var dataBase = dataEntregaInput ? (inputDateToBr(dataEntregaInput) || dataEntregaInput) : '';
+            var dataBase = dataEntregaInputToBr(dataEntregaInput);
             var vt = document.getElementById('editPedidoModal').getAttribute('data-valor-total') || '0';
             var valorTotal = parseFloat(vt) || 0;
             var vencEl = document.getElementById('editDataVencimento');
-            // Regra: só calcula vencimento automaticamente quando a data de entrega existir.
-            if (!dataBase) {
-                if (vencEl) vencEl.value = '';
+            if (!dataBase || !cond) {
                 return;
             }
             var datas = calcularVencimentosFromCondicao(cond, dataBase, valorTotal);
-            if (datas.length > 0) {
+            if (datas.length > 0 && vencEl) {
                 vencEl.value = datas.join('\n');
-            } else if (vencEl) {
-                vencEl.value = '';
             }
         }
+        var recalcDataVencimentoDebounced = debounce(recalcDataVencimentoNoModal, 150);
         function dataToDisplay(d) {
             if (!d) return '-';
             var s = formatDateDisplay(d);
@@ -1100,7 +1184,7 @@
                     else novoStatus = 'À pagar';
                 } else novoStatus = 'À pagar';
             }
-            sel.value = novoStatus;
+            sel.value = normalizeStatusPagamentoValue(novoStatus, sel.value);
         }
         function addPagamentoHistorico() {
             var dataInput = document.getElementById('editPagamentoData');
@@ -1147,8 +1231,7 @@
                 document.getElementById('editDataVencimento').value = '';
             }
             var valorTotalNum = parseNum(p["VALOR TOTAL"]);
-            // Usar status de exibição (ex.: Atrasado quando vencimento passou) para manter consistência com a tabela
-            document.getElementById('editStatusPagamento').value = getStatusExibicao(p) || getStatusPagamento(p) || 'À pagar';
+            document.getElementById('editStatusPagamento').value = normalizeStatusPagamentoValue(getStatusPagamento(p), 'À pagar');
             document.getElementById('editPedidoModal').setAttribute('data-valor-total', String(valorTotalNum));
 
             editHistoricoPagamentos = (p._historicoPagamentos || []).map(function (x, i) {
@@ -1162,6 +1245,10 @@
 
             document.getElementById('editPedidoModal').classList.add('active');
             updateStatusByPayments();
+            if (document.getElementById('editDataEntrega').value && getCondicoesPagamento(p)) {
+                var vencAtual = (document.getElementById('editDataVencimento').value || '').trim();
+                if (!vencAtual) recalcDataVencimentoNoModal();
+            }
         }
 
         function closeEditPedidoModal() {
@@ -1187,8 +1274,9 @@
             var condicoes = document.getElementById('editCondicoesPagamento').value.trim();
             var numeroSequencial = document.getElementById('editNumeroSequencial').value.trim();
             var dataEntrega = (document.getElementById('editDataEntrega') && document.getElementById('editDataEntrega').value) ? document.getElementById('editDataEntrega').value.trim() : '';
+            if (dataEntrega && condicoes) recalcDataVencimentoNoModal();
             var dataVencimento = (document.getElementById('editDataVencimento') && document.getElementById('editDataVencimento').value) ? document.getElementById('editDataVencimento').value.trim().replace(/\r\n/g, '\n').replace(/\n/g, ', ') : '';
-            var statusPagamento = document.getElementById('editStatusPagamento').value;
+            var statusPagamento = normalizeStatusPagamentoValue(document.getElementById('editStatusPagamento').value, 'À pagar');
             var somaHistorico = editHistoricoPagamentos.reduce(function (s, x) { return s + (parseFloat(x.valor) || 0); }, 0);
             var valorPagoStr = somaHistorico > 0 ? String(somaHistorico) : '';
             if (statusPagamento === 'Pago' && somaHistorico <= 0) {
@@ -1204,7 +1292,7 @@
             } else {
                 updates.VALOR_PAGO = '';
             }
-            updates.STATUS_PAGAMENTO = statusPagamento || 'À pagar';
+            updates.STATUS_PAGAMENTO = normalizeStatusPagamentoValue(statusPagamento, 'À pagar');
             updates.HISTORICO_PAGAMENTOS = JSON.stringify(editHistoricoPagamentos);
             var editObsEl = document.getElementById('editObs');
             updates.OBS = (editObsEl && editObsEl.value) ? editObsEl.value.trim() : '';
@@ -1224,7 +1312,7 @@
                 ped["DATA_ENTREGA"] = dataEntrega ? (inputDateToBr(dataEntrega) || dataEntrega) : '';
                 ped["DATA_VENCIMENTO"] = dataVencimento;
                 ped["VALOR_PAGO"] = valorPagoStr !== '' && !isNaN(parseFloat(valorPagoStr)) ? parseFloat(valorPagoStr) : '';
-                ped["STATUS_PAGAMENTO"] = statusPagamento;
+                ped["STATUS_PAGAMENTO"] = normalizeStatusPagamentoValue(statusPagamento, 'À pagar');
                 ped["PARCELAS E PGTOS"] = updates.HISTORICO_PAGAMENTOS;
                 ped["OBS"] = (updates.OBS != null ? updates.OBS : '');
                 ped["NF"] = updates.NOTA_FISCAL;
@@ -1282,11 +1370,13 @@
 
         var elCondicoes = document.getElementById('editCondicoesPagamento');
         if (elCondicoes) {
+            elCondicoes.addEventListener('input', recalcDataVencimentoDebounced);
             elCondicoes.addEventListener('change', recalcDataVencimentoNoModal);
             elCondicoes.addEventListener('blur', recalcDataVencimentoNoModal);
         }
         var elDataEntrega = document.getElementById('editDataEntrega');
         if (elDataEntrega) {
+            elDataEntrega.addEventListener('input', recalcDataVencimentoDebounced);
             elDataEntrega.addEventListener('change', recalcDataVencimentoNoModal);
             elDataEntrega.addEventListener('blur', recalcDataVencimentoNoModal);
         }
@@ -1325,9 +1415,11 @@
             });
         })();
 
-        pedidos = Array.isArray(pedidosIniciais) ? pedidosIniciais : [];
-        populateMesFilter();
-        renderTable();
+        carregarStatusPagamentoDoCadastro(function () {
+            pedidos = Array.isArray(pedidosIniciais) ? pedidosIniciais : [];
+            populateMesFilter();
+            renderTable();
+        });
     </script>
 </body>
 

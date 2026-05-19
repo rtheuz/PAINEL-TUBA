@@ -19,7 +19,7 @@
             font-family: 'Montserrat', sans-serif;
             margin: 12px;
             background: #f5f7fb;
-            color: #222;
+            color: #222;a
         }
 
         h1,
@@ -751,9 +751,6 @@
                         Salvar</button>
                     <button type="button" id="btnGerar" onclick="calcular()" style="background:#59963d; color:white;">📄
                         Gerar PDF</button>
-                    <button type="button" id="btnConverterPedido" onclick="salvarComoPedido()" style="background:#4b7f2a; color:white;">
-                        🔄 Converter em pedido
-                    </button>
                 </div>
 
                 <!-- RF001: obrigatório para gerar PDF -->
@@ -851,6 +848,89 @@
             }
             return true;
         }
+
+        /* ---------- VALIDAÇÃO: caracteres incompatíveis com pasta no Drive/CAD ---------- */
+        // Proibidos pelo Drive: \ / : * ? " < > |
+        // Conflitam com CAD ao abrir caminhos: & % ` ; { } [ ] @ ! $ ^ ~ = +
+        // Permitidos: # _ ' (nome da pasta / descrição do projeto)
+        var REGEX_CARACTERES_PROBLEMATICOS_PASTA = /[\\\/:*?"<>|&%;{}\[\]@!$^~=+]/g;
+
+        function caracteresProblematicosPasta(texto) {
+            if (!texto || typeof texto !== 'string') return [];
+            var matches = texto.match(REGEX_CARACTERES_PROBLEMATICOS_PASTA);
+            if (!matches) return [];
+            var seen = {}, out = [];
+            for (var i = 0; i < matches.length; i++) {
+                if (!seen[matches[i]]) { seen[matches[i]] = 1; out.push(matches[i]); }
+            }
+            return out;
+        }
+
+        function validarTextoPasta(texto, idCampoFocus, rotuloCampo) {
+            var chars = caracteresProblematicosPasta(texto || "");
+            if (chars.length === 0) return true;
+            alert((rotuloCampo || "Campo") + " contém caracteres que podem causar conflito ao abrir a pasta no CAD: "
+                + chars.join(" ") + "\n\nRemova esses caracteres antes de salvar.");
+            if (idCampoFocus) {
+                var el = document.getElementById(idCampoFocus);
+                if (el) el.focus();
+            }
+            return false;
+        }
+
+        /**
+         * Valida os campos que compõem o nome da pasta:
+         *  - Descrição (obrigatória, sempre validada)
+         *  - Nome abreviado (validado se preenchido)
+         *  - Nome do cliente (validado apenas quando o nome abreviado está vazio,
+         *    pois o sistema usa o abreviado preferencialmente para nomear a pasta).
+         */
+        function validarCamposNomePasta() {
+            var descricao = (document.getElementById("obsDescricao") || {}).value || "";
+            if (!validarTextoPasta(descricao, "obsDescricao", "Descrição do projeto")) return false;
+            var abrev = ((document.getElementById("clienteNomeAbreviado") || {}).value || "").trim();
+            if (abrev && !validarTextoPasta(abrev, "clienteNomeAbreviado", "Nome abreviado do cliente")) return false;
+            if (!abrev) {
+                var nome = (document.getElementById("clienteNome") || {}).value || "";
+                if (!validarTextoPasta(nome, "clienteNome", "Nome do cliente")) return false;
+            }
+            return true;
+        }
+
+        /** Atualiza o aviso visual abaixo do campo conforme o usuário digita. */
+        function _atualizarAvisoCaracteresPasta(input, hint) {
+            var chars = caracteresProblematicosPasta(input.value || "");
+            if (chars.length === 0) {
+                hint.style.display = "none";
+                hint.textContent = "";
+                input.style.borderColor = "";
+            } else {
+                hint.textContent = "⚠ Caracteres incompatíveis com CAD/pasta: "
+                    + chars.join(" ") + " — remova antes de salvar.";
+                hint.style.display = "block";
+                hint.style.color = "#b91c1c";
+                input.style.borderColor = "#b91c1c";
+            }
+        }
+
+        /** Instala aviso em tempo real abaixo do campo informado. */
+        function instalarAvisoCaracteresPasta(idCampo) {
+            var input = document.getElementById(idCampo);
+            if (!input || input.dataset.avisoPastaInstalado === "1") return;
+            input.dataset.avisoPastaInstalado = "1";
+            var hint = document.createElement("small");
+            hint.className = "note caracteres-pasta-aviso";
+            hint.style.cssText = "display:none; margin-top:4px; font-weight:600;";
+            input.insertAdjacentElement("afterend", hint);
+            input.addEventListener("input", function () {
+                _atualizarAvisoCaracteresPasta(input, hint);
+            });
+            _atualizarAvisoCaracteresPasta(input, hint);
+        }
+
+        instalarAvisoCaracteresPasta("obsDescricao");
+        instalarAvisoCaracteresPasta("clienteNome");
+        instalarAvisoCaracteresPasta("clienteNomeAbreviado");
 
         function sincronizarModoVersaoPdf() {
             const modoVersaoNova = document.getElementById("modoVersaoPdfNova");
@@ -1928,6 +2008,8 @@
                 document.getElementById("obsDescricao").focus();
                 return;
             }
+            if (!validarDescricaoSemCOTPED(descricao)) return;
+            if (!validarCamposNomePasta()) return;
 
             if (btn) { btn.disabled = true; btn.textContent = "Criando..."; }
             google.script.run
@@ -2001,6 +2083,8 @@
                 document.getElementById("obsDescricao").focus();
                 return;
             }
+            if (!validarDescricaoSemCOTPED(descricao)) return;
+            if (!validarCamposNomePasta()) return;
 
             // Feedback visual: desabilita botão e mostra loading
             btn.disabled = true;
@@ -2680,6 +2764,7 @@
                 return;
             }
             if (!validarDescricaoSemCOTPED(descricao)) return;
+            if (!validarCamposNomePasta()) return;
 
             btn.disabled = true;
             const dados = coletarDadosFormulario();
@@ -2892,39 +2977,8 @@
 
         // Salva o formulário como pedido gerando a proposta comercial em PDF (status já "Convertido em Pedido")
         function salvarComoPedido() {
-            const dados = coletarDadosFormulario();
-            const codigoProjeto = (dados.projeto.data || "") + (dados.projeto.indice || "") + (dados.projeto.iniciais || "");
-            if (!codigoProjeto || codigoProjeto.length < 8) {
-                alert("Preencha Projeto / Pasta (Data, Índice e Iniciais) antes de salvar como pedido.");
-                return;
-            }
-            if (!dados.cliente || !dados.cliente.nome) {
-                alert("Preencha o cliente antes de salvar como pedido.");
-                return;
-            }
-            if (!dados.observacoes || !dados.observacoes.descricao || dados.observacoes.descricao.trim() === "") {
-                alert("A Descrição do Projeto é obrigatória. Por favor, preencha o campo 'Descrição do Orçamento/Projeto'.");
-                document.getElementById("obsDescricao").focus();
-                return;
-            }
-            if (!validarDescricaoSemCOTPED(dados.observacoes.descricao)) return;
-
-            // RF001: Failsafe - verificar se está criando novo projeto ou sobrescrevendo existente
-            if (_originalProjetoData !== null) {
-                var projetoDataAtual = (dados.projeto.data || "").trim();
-                var projetoIndiceAtual = (dados.projeto.indice || "").trim();
-                var projetoIniciaisAtual = (dados.projeto.iniciais || "").trim();
-                var mudouIdentificador = (projetoDataAtual !== _originalProjetoData) || (projetoIndiceAtual !== _originalProjetoIndice) || (projetoIniciaisAtual !== _originalProjetoIniciais);
-                if (mudouIdentificador) {
-                    if (!confirm("⚠️ O código do projeto carregado é diferente do código preenchido em \"Informações do Projeto\".\n\nAo salvar como pedido, um projeto existente pode ser sobrescrito.\nDeseja continuar?")) return;
-                } else {
-                    if (!confirm("Salvar este projeto como PEDIDO?\n\nSerá gerada a proposta comercial em PDF e o projeto será registrado já como \"Convertido em Pedido\".")) return;
-                }
-            } else {
-                if (!confirm("Salvar este projeto como PEDIDO?\n\nSerá gerada a proposta comercial em PDF e o projeto será registrado já como \"Convertido em Pedido\".")) return;
-            }
-            // Usa a mesma lógica de calcular(), gerando o PDF com status "convertido em pedido"
-            calcular(true);
+            alert("A conversão para pedido foi desativada no formulário.\n\nConverta em pedido apenas pela página de projetos.");
+            return;
         }
 
         // Função de deletar rascunho (chama o Apps Script)
@@ -2998,9 +3052,9 @@
                 : (String(_tipoPdfSelecionado || "").trim().toLowerCase() === "pedido");
             asPedido = !!asPedidoResolvido;
             apenasPreview = !!apenasPreview;
-            const btn = apenasPreview ? document.getElementById("btnPreviewPdf") : (asPedido ? document.querySelector('button[onclick="salvarComoPedido()"]') : document.getElementById("btnGerar"));
+            const btn = apenasPreview ? document.getElementById("btnPreviewPdf") : document.getElementById("btnGerar");
             if (!btn) return;
-            const textoOriginalBtn = apenasPreview ? "Ver Prévia do PDF" : (asPedido ? "Converter em Pedido" : "Finalizar e Gerar PDF");
+            const textoOriginalBtn = apenasPreview ? "Ver Prévia do PDF" : "Finalizar e Gerar PDF";
             btn.disabled = true;
             btn.textContent = apenasPreview ? "Abrindo pré-visualização..." : "Gerando PDF...";
 
@@ -3088,6 +3142,11 @@
             if (descricaoContemCOTouPED(descricao)) {
                 alert("A descrição do projeto não pode conter as palavras COT ou PED (são reservadas pelo sistema para nomear pastas).");
                 document.getElementById("obsDescricao").focus();
+                btn.disabled = false;
+                btn.textContent = textoOriginalBtn;
+                return;
+            }
+            if (!validarCamposNomePasta()) {
                 btn.disabled = false;
                 btn.textContent = textoOriginalBtn;
                 return;
@@ -3613,6 +3672,7 @@
                 document.getElementById("obsDescricao").focus();
                 return;
             }
+            if (!validarCamposNomePasta()) return;
 
             document.getElementById("hiddenCodigoProjeto").value = codigoProjeto;
             document.getElementById("hiddenNomePasta").value = descricao;
@@ -3653,7 +3713,8 @@
                     statusEl.textContent = "";
                     alert("Erro ao criar/obter pasta do orçamento:\n" + (err && err.message ? err.message : err));
                 })
-                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, false);
+                .criarPastaOrcamento(codigoProjeto, descricao, data, nomeCliente, false,
+                    document.getElementById("clienteNomeAbreviado").value || "");
         }
 
         // Envia os arquivos já selecionados para a pasta 01_IN (a pasta já deve ter sido criada).
